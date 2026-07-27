@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import { MobileStepRail } from "@/components/mobile-app/mobile-kit";
 import { MobilePrintedReceipt } from "@/components/payments/mobile-printed-receipt";
 import { Button } from "@/components/ui/button";
 import { CountUp } from "@/components/ui/count-up";
@@ -17,6 +18,51 @@ function formatCountdown(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+/**
+ * The undo affordance, counting down.
+ *
+ * Separate component purely so the 1s tick has a small subtree to re-render.
+ * The window itself is enforced server-side by `undo_recent_payment`; this is
+ * the display, anchored to when the sheet opened. Showing the time left is
+ * what turns "you can undo" into "you can undo, and here is how long you
+ * have" — the reassurance the whole flow is built on.
+ */
+function UndoCountdownButton({
+  onStart,
+  onExpire,
+}: {
+  onStart: () => void;
+  onExpire: () => void;
+}) {
+  const [secondsLeft, setSecondsLeft] = useState(UNDO_WINDOW_SECONDS);
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSecondsLeft((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          onExpireRef.current();
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onClick={onStart}
+      className="focus-ring flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-destructive/50 bg-destructive/15 text-[13px] font-extrabold text-destructive-soft-foreground"
+    >
+      ↺ Undo this payment · {formatCountdown(secondsLeft)}
+    </button>
+  );
 }
 
 type SuccessReceiptSheetProps = {
@@ -92,11 +138,12 @@ export function SuccessReceiptSheet({
     "idle" | "confirming" | "working" | "done" | "error"
   >("idle");
   const [undoMessage, setUndoMessage] = useState<string | null>(null);
-  // The undo window is enforced server-side by undo_recent_payment; this is
-  // only the countdown, anchored to when the sheet opened. Showing the time
-  // left is what turns "you can undo" into "you can undo, and here is how
-  // long you have" — the reassurance the whole flow is built on.
-  const [secondsLeft, setSecondsLeft] = useState(UNDO_WINDOW_SECONDS);
+  // Whether the ten-minute window is still open. Only the boolean lives here;
+  // the per-second countdown is owned by <UndoCountdownButton> so its tick
+  // re-renders one button rather than this whole sheet — which includes the
+  // printed slip, and with it a re-run of amountInWordsHindi, once a second
+  // for ten minutes.
+  const [undoWindowOpen, setUndoWindowOpen] = useState(true);
   const autoPrintOpenedRef = useRef(false);
   // Plays the slip back into the printer before the flow restarts.
   const [isLeaving, setIsLeaving] = useState(false);
@@ -138,21 +185,18 @@ export function SuccessReceiptSheet({
   }, []);
 
   useEffect(() => {
-    if (!open || !canUndo) return;
-    setSecondsLeft(UNDO_WINDOW_SECONDS);
-    const timer = window.setInterval(() => {
-      setSecondsLeft((current) => (current <= 1 ? 0 : current - 1));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [open, canUndo]);
-
-  useEffect(() => {
     if (!open || !autoPrint || !printReceiptHref || autoPrintOpenedRef.current) {
       return;
     }
 
     autoPrintOpenedRef.current = true;
-    window.open(printReceiptHref, "_blank");
+    // Deferred past the mount commit. Opening a tab synchronously here stalls
+    // the frame the check mark starts drawing on, so the one animation that
+    // tells the clerk the money is recorded stutters at its first stroke.
+    const timer = window.setTimeout(() => {
+      window.open(printReceiptHref, "_blank");
+    }, 350);
+    return () => window.clearTimeout(timer);
   }, [autoPrint, open, printReceiptHref]);
 
   useEffect(() => {
@@ -193,7 +237,11 @@ export function SuccessReceiptSheet({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 px-2 transition-opacity duration-200 md:items-center md:px-4",
+        // No scrim on a phone: this is step 4 of the collect flow, an opaque
+        // screen the clerk moves TO, not a panel laid over the amount screen.
+        // Tablet and desktop keep the centred dialog.
+        "fixed inset-0 z-50 flex justify-center transition-opacity duration-200",
+        "max-md:items-stretch max-md:bg-nav md:items-center md:bg-foreground/30 md:px-4",
         isLeaving && "pointer-events-none opacity-0",
       )}
       onClick={(event) => {
@@ -203,16 +251,20 @@ export function SuccessReceiptSheet({
       }}
     >
       {/* dvh, not vh — see confirm-receipt-sheet: vh can push the sticky
-          action row below the visible viewport. */}
-      {/* Phones get the ink backdrop from mobile app v2 so the paper stub
-          below reads as paper. Tablet and desktop keep the paper-card sheet. */}
+          action row below the visible viewport. The keyboard offset is
+          subtracted because a clerk can reach here with the keyboard still up.
+          Below md the panel is a flex column — header, step rail, ONE scroll
+          region, pinned footer — so the actions can never be scrolled past.
+          Every responsive switch here is CSS, never a media-query hook: the
+          `hidden md:block` summary below carries the second count-up that
+          tests assert, and jsdom only renders it because it stays in the DOM. */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`Payment successful — receipt ${receiptNumber}`}
-        className="max-h-[92dvh] w-full anim-slide-up animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl max-md:bg-nav max-md:text-nav-foreground md:max-w-xl md:rounded-xl md:p-5"
+        className="max-h-[92dvh] w-full animate-bottom-sheet-up overflow-y-auto rounded-t-2xl border border-success/30 bg-card p-4 pb-[calc(1rem+var(--mobile-safe-area-bottom))] shadow-xl max-md:flex max-md:h-[calc(100dvh-var(--keyboard-offset,0px))] max-md:max-h-none max-md:flex-col max-md:overflow-hidden max-md:rounded-none max-md:border-0 max-md:bg-nav max-md:p-0 max-md:pb-0 max-md:text-nav-foreground md:max-w-xl md:rounded-xl md:p-5"
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 max-md:flex-none max-md:px-4 max-md:pt-4">
           <SuccessCheckMark />
           <div className="anim-settle-in" style={{ animationDelay: "160ms" }}>
             <h2 className="text-lg font-semibold text-foreground max-md:text-nav-foreground">
@@ -235,6 +287,22 @@ export function SuccessReceiptSheet({
           </button>
         </div>
 
+        {/* The step rails on the three collect screens have always said "of 4"
+            while a fourth screen did not exist. This is it.
+            The label is hardcoded English like every other string in this
+            sheet — "Payment Successful", "Print A4", "Next student →". A
+            single localised rail under an English heading would read worse
+            than a consistently English screen; translating the whole surface
+            is its own piece of work. */}
+        <MobileStepRail
+          step={4}
+          total={4}
+          label="Step 4/4 · receipt saved"
+          ariaLabel="Collect step 4 of 4"
+          className="flex-none px-4 pb-1 pt-3 md:hidden"
+        />
+
+        <div className="max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:px-4 max-md:pb-4">
         <span className="mt-3 inline-flex rounded bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground max-md:hidden">
           SAVED · Receipt {receiptNumber} / सहेजा गया
         </span>
@@ -267,7 +335,7 @@ export function SuccessReceiptSheet({
         {/* Undo, on the phone, where the design puts it: directly under the
             paper, not buried in a "More" drawer. It posts a reversal through
             undo_recent_payment — a compensating entry, never a delete. */}
-        {canUndo && onUndoPayment && undoState !== "done" && secondsLeft > 0 ? (
+        {canUndo && onUndoPayment && undoState !== "done" && undoWindowOpen ? (
           <div className="mt-3.5 md:hidden">
             {undoState === "confirming" || undoState === "working" ? (
               <div className="rounded-2xl border border-destructive/50 bg-destructive/15 p-3">
@@ -303,13 +371,10 @@ export function SuccessReceiptSheet({
               </div>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => setUndoState("confirming")}
-                  className="focus-ring flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-destructive/50 bg-destructive/15 text-[13px] font-extrabold text-destructive-soft-foreground"
-                >
-                  ↺ Undo this payment · {formatCountdown(secondsLeft)}
-                </button>
+                <UndoCountdownButton
+                  onStart={() => setUndoState("confirming")}
+                  onExpire={() => setUndoWindowOpen(false)}
+                />
                 {/* A failed undo must stay on screen — the money did NOT move,
                     and the clerk needs to know that before walking away. */}
                 {undoState === "error" && undoMessage ? (
@@ -401,8 +466,11 @@ export function SuccessReceiptSheet({
             ) : null}
           </div>
         </div>
+        </div>
 
-        <div className="sticky bottom-0 z-10 mt-5 border-t border-border bg-card pt-3 pb-2 mobile-safe-bottom-padding max-md:border-nav-border max-md:bg-nav sm:pb-3">
+        {/* Pinned, not sticky, on a phone: sticky only works inside a
+            scrollport, and the scrolling now happens in the region above. */}
+        <div className="sticky bottom-0 z-10 mt-5 border-t border-border bg-card pt-3 pb-2 mobile-safe-bottom-padding max-md:static max-md:mt-0 max-md:flex-none max-md:border-nav-border max-md:bg-nav max-md:px-4 max-md:pb-[calc(0.75rem+var(--mobile-safe-area-bottom))] sm:pb-3">
           <div className="grid grid-cols-2 gap-2">
             {/* Row 1: Print & WhatsApp */}
             {printReceiptHref ? (

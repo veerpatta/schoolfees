@@ -1231,6 +1231,11 @@ export function PaymentDeskClient({
       setIsSuccessOpen(true);
       setIsDuplicateOpen(false);
       setIsLockedAfterSuccess(true);
+      // Keyboard away BEFORE the receipt paints. Unmounting the focused input
+      // gets there eventually, but iOS reports a shrunken visual viewport for
+      // 250-350ms after — long enough to size a full-height panel against a
+      // viewport that no longer exists.
+      (document.activeElement as HTMLElement | null)?.blur();
       // Close the mobile payment-entry sheet so the success sheet can never be
       // layered under it — the cashier must always see the saved-receipt view.
       setMobileSheetView(null);
@@ -1457,11 +1462,9 @@ export function PaymentDeskClient({
     setMobileSheetView("payment-entry");
   }, [isMobileView, selectedStudentId, mobileSheetView]);
 
-  // (Removed) An effect here scrolled the WINDOW to the top when the confirm
-  // sheet opened — gated on isMobileView, i.e. it only ever ran below 767px,
-  // which is exactly where the window does not scroll. Dead in both branches.
-  // The sheets are `fixed inset-0`, so nothing behind them needs scrolling
-  // into view; useOverlayScrollLock above freezes the real scroller instead.
+  // (Removed) A window.scrollTo on confirm-open, gated on isMobileView — so it
+  // only ran below 767px, which is exactly where the window does not scroll.
+  // The sheets are `fixed inset-0`; useOverlayScrollLock freezes the scroller.
 
 
 
@@ -1687,6 +1690,11 @@ export function PaymentDeskClient({
   }
 
   function openConfirmationDialog() {
+    // Fetch the receipt screen's chunk now. It is dynamic({ssr:false}) with no
+    // loading state, so otherwise the download only BEGINS on success — on a
+    // slow counter connection, seconds of a screen doing nothing after save.
+    void import("@/components/payments/success-receipt-sheet");
+
     const validation = validatePaymentDraft({
       selectedStudent,
       amountInput: paymentAmountInput,
