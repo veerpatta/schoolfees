@@ -476,7 +476,9 @@ export function ReceiptDocumentV3({
                       <span>{formatInr(row.paid)}</span>
                       {row.adjustmentAmount !== 0 ? (
                         <span className="block text-[9px] font-normal text-muted-foreground">
-                          Corrected from {formatInr(row.originalPaid)}
+                          Corrected from {formatInr(row.originalPaid)} · adjustment{" "}
+                          {row.adjustmentAmount > 0 ? "+" : "−"}
+                          {formatInr(Math.abs(row.adjustmentAmount))}
                         </span>
                       ) : null}
                     </td>

@@ -122,6 +122,30 @@ describe("ReceiptDocumentV2 — simplified layout", () => {
     expect(html).toContain('data-receipt-layout="v2"');
   });
 
+  it("prints the signed append-only allocation correction", () => {
+    const base = receipt();
+    const html = renderToStaticMarkup(
+      <ReceiptDocumentV2
+        t={t}
+        receipt={receipt({
+          breakdown: [
+            {
+              ...base.breakdown[0],
+              amount: 4750,
+              originalAmount: 5000,
+              adjustmentAmount: -250,
+              effectiveAmount: 4750,
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(html).toContain("Corrected from");
+    expect(html).toContain("adjustment");
+    expect(html).toContain("−₹250");
+  });
+
   it("prints on A4 (the receipt is now a full page, not an 80mm thermal slip)", () => {
     const html = renderToStaticMarkup(<ReceiptDocumentV2 t={t} receipt={receipt()} />);
     expect(html).toContain("size: A4;");
