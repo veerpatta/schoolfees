@@ -46,7 +46,15 @@ describe("mobile payment bottom sheet flow", () => {
     expect(source).toContain("amountInputRef.current?.focus({ preventScroll: true })");
     expect(source).toContain("[view, studentSummaryLoading]");
     expect(source).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
-    expect(source).toContain("calc(100svh - 3.5rem)");
+    // The entry panel ends AT the keyboard edge, not below it. This used to
+    // assert the bare `calc(100svh - 3.5rem)`, which is correct only where the
+    // layout viewport shrinks with the keyboard — on iOS it does not, so the
+    // panel kept full height and the Collect button sat underneath. Both
+    // halves are asserted because applying one without the other is worse
+    // than applying neither: the height alone leaves a gap, the bottom alone
+    // overflows the viewport.
+    expect(source).toContain('bottom: "var(--keyboard-offset, 0px)"');
+    expect(source).toContain('height: "calc(100svh - 3.5rem - var(--keyboard-offset, 0px))"');
     expect(source).toContain("Collect ${formatInr(Number(paymentAmountInput))}");
     expect(source).toContain("Enter amount");
     expect(source).not.toContain("<MobileNumPad");

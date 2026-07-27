@@ -2,6 +2,11 @@
 
 import { useEffect } from "react";
 
+import {
+  computeKeyboardOffset,
+  setKeyboardOffset,
+} from "@/lib/system/keyboard-offset-store";
+
 /**
  * Publishes the on-screen keyboard height as `--keyboard-offset` on <html>.
  *
@@ -25,21 +30,49 @@ export function KeyboardOffsetProvider() {
       return;
     }
 
-    function updateKeyboardOffset() {
-      document.documentElement.style.setProperty(
-        "--keyboard-offset",
-        `${Math.max(0, window.innerHeight - viewport!.height)}px`,
+    let frame: number | null = null;
+    let published = -1;
+
+    function publish() {
+      frame = null;
+      const next = computeKeyboardOffset(
+        window.innerHeight,
+        viewport!.height,
+        viewport!.offsetTop,
       );
+
+      // iOS fires `scroll` at touch frequency while the keyboard is up, and
+      // most of those events do not change the covered height at all. Writing
+      // the custom property anyway re-resolves every var() that reads it,
+      // document-wide, on each one.
+      if (next === published) {
+        return;
+      }
+
+      published = next;
+      document.documentElement.style.setProperty("--keyboard-offset", `${next}px`);
+      setKeyboardOffset(next);
     }
 
-    updateKeyboardOffset();
-    viewport.addEventListener("resize", updateKeyboardOffset);
-    viewport.addEventListener("scroll", updateKeyboardOffset);
+    function schedule() {
+      if (frame !== null) {
+        return;
+      }
+      frame = window.requestAnimationFrame(publish);
+    }
+
+    publish();
+    viewport.addEventListener("resize", schedule);
+    viewport.addEventListener("scroll", schedule);
 
     return () => {
-      viewport.removeEventListener("resize", updateKeyboardOffset);
-      viewport.removeEventListener("scroll", updateKeyboardOffset);
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      viewport.removeEventListener("resize", schedule);
+      viewport.removeEventListener("scroll", schedule);
       document.documentElement.style.removeProperty("--keyboard-offset");
+      setKeyboardOffset(0);
     };
   }, []);
 

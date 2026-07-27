@@ -21,6 +21,21 @@ function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
+/**
+ * Source with comments stripped.
+ *
+ * For the negative assertions below, which are about what the code DOES. A
+ * file has to be able to explain why it avoids a pattern without failing the
+ * check that it avoids it — and the comment retiring the blind
+ * `setTimeout(…) → scrollIntoView` necessarily names the very thing being
+ * banned.
+ */
+function readCode(path: string) {
+  return read(path)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+}
+
 const NAV_CLEARANCE = "var(--mobile-bottom-nav-offset,0px)";
 
 describe("mobile primary actions stay reachable", () => {
@@ -103,12 +118,50 @@ describe("mobile primary actions stay reachable", () => {
     }
   });
 
-  it("keeps both payment pickers stretched to the keyboard edge", () => {
+  it("keeps all three payment panels stretched to the keyboard edge", () => {
     const sheet = read("components/payments/mobile-payment-flow-sheet.tsx");
     const offsets = sheet.match(/bottom: "var\(--keyboard-offset, 0px\)"/g) ?? [];
 
-    // Class picker AND student picker — both have search inputs.
-    expect(offsets.length).toBeGreaterThanOrEqual(2);
+    // Class picker, student picker AND payment entry. Entry was the one left
+    // out: `bottom-0` at a fixed height, so on iOS — where the layout viewport
+    // does not shrink — its footer sat under the keyboard.
+    expect(offsets.length).toBeGreaterThanOrEqual(3);
     expect(sheet).not.toContain('h-[88svh] rounded-t-2xl');
+  });
+
+  it("compensates for the keyboard exactly once in the payment entry footer", () => {
+    // The panel now ends at the keyboard edge, so a footer that ALSO adds the
+    // offset floats the Collect button a full keyboard-height into mid-screen.
+    // Two edits that are only correct together; this is the guard that stops
+    // one of them being reverted alone.
+    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+
+    // Safe area only — the keyboard is already accounted for by the panel.
+    expect(sheet).toContain(
+      'paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)"',
+    );
+    // No paddingBottom anywhere in this file may add the keyboard offset.
+    for (const declaration of sheet.match(/paddingBottom:[^\n]*/g) ?? []) {
+      expect(declaration).not.toContain("--keyboard-offset");
+    }
+  });
+
+  it("reacts to the keyboard instead of guessing at it with a timer", () => {
+    const provider = readCode("components/system/keyboard-offset-provider.tsx");
+    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+
+    // iOS fires visualViewport `scroll` at touch frequency while the keyboard
+    // is up; each unthrottled write re-resolves every var() that reads it.
+    expect(provider).toContain("requestAnimationFrame");
+    // The covered height is innerHeight - (height + offsetTop). Dropping
+    // offsetTop overstates the keyboard once the page is scrolled under it,
+    // which is what made lifted footers drift.
+    expect(provider).toContain("offsetTop");
+
+    // A `setTimeout` wrapping a scrollIntoView is the pattern being retired:
+    // it guessed the keyboard's animation length and fired even for focus
+    // calls made with `preventScroll: true`.
+    expect(sheet).not.toMatch(/setTimeout\([\s\S]{0,160}?scrollIntoView/);
+    expect(sheet).toContain("scroll-pb-");
   });
 });

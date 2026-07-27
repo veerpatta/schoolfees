@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 
 import { MobileStepRail } from "@/components/mobile-app/mobile-kit";
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import { UpiQrCode } from "@/components/payments/upi-qr-code";
 import { buildStudentFeeUpiPayment } from "@/lib/payments/upi";
 import { Button } from "@/components/ui/button";
@@ -199,6 +200,7 @@ export function MobilePaymentFlowSheet({
   const [overdueHeadsExpanded, setOverdueHeadsExpanded] = React.useState(false);
   const amountInputRef = React.useRef<HTMLInputElement>(null);
   const hasFocusedRef = React.useRef(false);
+  const keyboardOffset = useKeyboardOffset();
 
   /**
    * Exactly one loading affordance at a time:
@@ -234,6 +236,28 @@ export function MobilePaymentFlowSheet({
     }, 150);
     return () => clearTimeout(timer);
   }, [view, studentSummaryLoading]);
+
+  /**
+   * Keep the amount field visible once the keyboard has actually appeared.
+   *
+   * This replaces a `setTimeout(…, 200)` + smooth `scrollIntoView` hung off the
+   * input's `onFocus`, which was wrong three ways: it guessed at the keyboard's
+   * animation length; it fired for the PROGRAMMATIC focus above too, so it
+   * fought the deliberate `preventScroll: true`; and its smooth animation ran
+   * against the keyboard's own slide.
+   *
+   * Keying off the measured offset instead means it runs when the layout has
+   * really changed, never on a focus that raises no keyboard, and it re-runs
+   * correctly when iOS raises the keyboard in two stages (predictive bar, then
+   * pad). `behavior: "auto"` — one jump, nothing to race.
+   */
+  React.useEffect(() => {
+    if (view !== "payment-entry") return;
+    if (keyboardOffset <= 0) return;
+    const input = amountInputRef.current;
+    if (!input || document.activeElement !== input) return;
+    input.scrollIntoView({ block: "center", behavior: "auto" });
+  }, [view, keyboardOffset]);
 
   const classPickerSwipe = useSwipeDown(onClose);
   const studentPickerSwipe = useSwipeDown(onBackToClassPicker);
@@ -296,13 +320,11 @@ export function MobilePaymentFlowSheet({
               onChange={(event) => onStudentSearchChange(event.target.value)}
               autoComplete="off"
               aria-label="Search students directly"
-              onFocus={(event) => {
-                // Scroll the input into view so it stays visible above the keyboard.
-                const target = event.currentTarget;
-                window.setTimeout(() => {
-                  target.scrollIntoView({ block: "center", behavior: "smooth" });
-                }, 200);
-              }}
+              /* No scroll-into-view on focus. This panel is already stretched
+                 between `top: max(56px, …)` and `bottom: var(--keyboard-offset)`,
+                 and the search box is second from its top — the keyboard
+                 cannot cover it, so the timer that used to sit here only ever
+                 animated the list under a field that had not moved. */
             />
           </div>
 
@@ -576,7 +598,21 @@ export function MobilePaymentFlowSheet({
       ) : null}
 
       {view === "payment-entry" ? (
-        <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-border bg-background flex flex-col" style={{ height: 'calc(100svh - 3.5rem)' }}>
+        <div
+          className="absolute left-0 right-0 rounded-t-2xl border-t border-border bg-background flex flex-col"
+          /* Ends AT the keyboard edge, like the two picker panels above.
+             This was `bottom-0` at a fixed `calc(100svh - 3.5rem)`, which is
+             correct only where the layout viewport shrinks with the keyboard.
+             On iOS it does not, so the panel kept full height and its footer —
+             the Collect button — sat underneath the keyboard.
+             The footer's own padding no longer adds the offset a second time;
+             editing one of these two without the other is worse than editing
+             neither. */
+          style={{
+            bottom: "var(--keyboard-offset, 0px)",
+            height: "calc(100svh - 3.5rem - var(--keyboard-offset, 0px))",
+          }}
+        >
           <SheetHandle swipeHandlers={paymentEntrySwipe} />
           {/* One loading signal at a time. The skeleton below owns the
               first load (it communicates shape, which reads better on a
@@ -658,7 +694,11 @@ export function MobilePaymentFlowSheet({
               allocation strip) is taller than one small-phone viewport, and
               without this container the CTA rendered below the sheet edge
               with no way to reach it. */}
-          <div className="flex-1 min-h-0 overflow-y-auto momentum-scroll">
+          {/* scroll-pb: `scroll-padding-bottom` is set on <html> and is NOT
+              inherited, so it has never applied to this scrollport. Without it
+              a field low in the body (the date, the mode row) scrolls to the
+              very bottom edge with nothing under it. */}
+          <div className="flex-1 min-h-0 overflow-y-auto momentum-scroll scroll-pt-2 scroll-pb-24">
 
           <div className="flex flex-col gap-0">
             {pendingLateFeeAmount > 0 ? (
@@ -841,13 +881,10 @@ export function MobilePaymentFlowSheet({
                           e.currentTarget.blur();
                         }
                       }}
-                      onFocus={(event) => {
-                        // Keep the field visible once the keyboard settles.
-                        const target = event.currentTarget;
-                        window.setTimeout(() => {
-                          target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                        }, 200);
-                      }}
+                      /* Keeping this field visible is handled by the
+                         keyboard-offset effect above, which knows when the
+                         keyboard actually arrived. A timer on focus here could
+                         not. */
                     />
                   </div>
                   <p className="mt-1.5 text-center text-[11.5px] font-semibold text-muted-foreground">
@@ -1373,14 +1410,13 @@ export function MobilePaymentFlowSheet({
           </div>
 
           {/* Collect button — pinned outside the scroll area so it is ALWAYS
-              visible and tappable. The keyboard offset lifts it above the
-              on-screen keyboard on browsers that overlay it (iOS), and is 0
-              where the viewport resizes instead (most Android). */}
+              visible and tappable. It does NOT add the keyboard offset: the
+              panel above already ends at the keyboard edge, and adding it here
+              too floated the button a full keyboard-height into mid-screen. */}
           <div
             className="flex-none border-t border-border bg-background px-3 pt-2"
             style={{
-              paddingBottom:
-                "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem + var(--keyboard-offset, 0px))",
+              paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)",
             }}
           >
             <Button
