@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useActionState, useCallback, useDeferredValue, useEffect, useId, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -54,6 +54,11 @@ import {
   shouldShowPaymentActionState,
   validatePaymentDraft,
 } from "@/lib/payments/payment-desk-workflow";
+import {
+  derivePaymentDeskControllerView,
+  initialPaymentDeskControllerState,
+  paymentDeskControllerReducer,
+} from "@/lib/payments/payment-desk-controller";
 import {
   clearPaymentDeskStudentIndexCache,
   readPaymentDeskStudentIndexCache,
@@ -320,9 +325,17 @@ export function PaymentDeskClient({
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
   const [remarks, setRemarks] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
+  const [controllerState, dispatchController] = useReducer(
+    paymentDeskControllerReducer,
+    Boolean(data.initialStudentId),
+    initialPaymentDeskControllerState,
+  );
+  const {
+    isConfirmOpen,
+    isSuccessOpen,
+    isDuplicateOpen,
+    isLockedAfterSuccess,
+  } = derivePaymentDeskControllerView(controllerState);
   // Audit 1.4 — set when the staffer clicks "Continue anyway" on a daily-amount
   // duplicate prompt. Persists for one resubmit, then resets on the next
   // success or after the user clears the form.
@@ -330,7 +343,6 @@ export function PaymentDeskClient({
   // Admin-only near-duplicate override — same one-resubmit lifecycle as the
   // daily ack above; the server re-checks payments:adjust before honoring it.
   const [acknowledgeNearDuplicate, setAcknowledgeNearDuplicate] = useState(false);
-  const [isLockedAfterSuccess, setIsLockedAfterSuccess] = useState(false);
   const [lastPrintMode, setLastPrintMode] = useState<"yes" | "no">("no");
   const [mounted, setMounted] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
@@ -1227,10 +1239,7 @@ export function PaymentDeskClient({
         // Session storage may be unavailable.
       }
       setDismissedActionStateKey(null);
-      setIsConfirmOpen(false);
-      setIsSuccessOpen(true);
-      setIsDuplicateOpen(false);
-      setIsLockedAfterSuccess(true);
+      dispatchController({ type: "post_result", result: state });
       // Keyboard away BEFORE the receipt paints. Unmounting the focused input
       // gets there eventually, but iOS reports a shrunken visual viewport for
       // 250-350ms after — long enough to size a full-height panel against a
@@ -1268,9 +1277,7 @@ export function PaymentDeskClient({
       });
       paymentPostStartedAtRef.current = null;
       setDismissedActionStateKey(null);
-      setIsConfirmOpen(false);
-      setIsSuccessOpen(false);
-      setIsDuplicateOpen(true);
+      dispatchController({ type: "post_result", result: state });
       triggerHaptic("warning");
       setFormError(null);
       return;
@@ -1289,7 +1296,7 @@ export function PaymentDeskClient({
       });
       paymentPostStartedAtRef.current = null;
       setDismissedActionStateKey(null);
-      setIsConfirmOpen(false);
+      dispatchController({ type: "post_result", result: state });
       setFormError(state.message);
       triggerHaptic("error");
     }
@@ -1542,6 +1549,7 @@ export function PaymentDeskClient({
   }
 
   function clearSelectedStudent() {
+    dispatchController({ type: "restart", hasSelectedClass: Boolean(selectedClassId) });
     summaryAbortRef.current?.abort();
     summaryRequestRef.current += 1;
     const url = new URL(window.location.href);
@@ -1636,7 +1644,7 @@ export function PaymentDeskClient({
     url.searchParams.set("session", data.sessionLabel);
     window.history.replaceState({}, "", `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
     setClientRequestId(createClientRequestId());
-    setIsLockedAfterSuccess(false);
+    dispatchController({ type: "student_selected" });
     if (isLastAmountArmed && lastPostedAmount !== null) {
       setPaymentAmountInput(String(lastPostedAmount));
       setIsLastAmountArmed(false);
@@ -1702,7 +1710,7 @@ export function PaymentDeskClient({
 
     if (!validation.ok) {
       setFormError(validation.message);
-      setIsConfirmOpen(false);
+      dispatchController({ type: "validation_failed", message: validation.message });
       return;
     }
 
@@ -1716,7 +1724,7 @@ export function PaymentDeskClient({
     if (isCashFastPost) {
       // Skip confirm sheet — submit the form directly.
       setFormError(null);
-      setIsConfirmOpen(false);
+      dispatchController({ type: "post_started" });
       const form = document.getElementById(formId) as HTMLFormElement | null;
       if (!form) {
         setFormError("Payment form is not ready.");
@@ -1728,7 +1736,7 @@ export function PaymentDeskClient({
     }
 
     setFormError(null);
-    setIsConfirmOpen(true);
+    dispatchController({ type: "review_requested" });
   }
 
 
@@ -1804,9 +1812,7 @@ export function PaymentDeskClient({
     setStudentSummaryNotice(null);
     setDismissedActionStateKey(actionStateKey);
     setDismissedTodayReceiptId(null);
-    setIsLockedAfterSuccess(false);
-    setIsSuccessOpen(false);
-    setIsDuplicateOpen(false);
+    dispatchController({ type: "restart", hasSelectedClass: Boolean(selectedClassId) });
     setAcknowledgeDailyDuplicate(false);
     setAcknowledgeNearDuplicate(false);
     setStudentSearchQuery("");
@@ -1829,7 +1835,7 @@ export function PaymentDeskClient({
   }
 
   return (
-    <PaymentDeskRoot>
+    <PaymentDeskRoot phase={controllerState.phase}>
       <OfficeRecentTracker
         student={
           selectedStudent
@@ -2871,6 +2877,7 @@ export function PaymentDeskClient({
                 }
 
                 submittingRef.current = true;
+                dispatchController({ type: "post_started" });
                 paymentPostStartedAtRef.current = performance.now();
                 recordOfficeMetric({
                   area: "payment-desk",
@@ -3229,7 +3236,7 @@ export function PaymentDeskClient({
                     <ConfirmReceiptSheet
                       open
                       form={formId}
-                      onBack={() => setIsConfirmOpen(false)}
+                      onBack={() => dispatchController({ type: "review_closed" })}
                       isSubmitting={pending}
                       isDisabled={!draftValidation.ok || previewLoading || submittingRef.current}
                       confirmationSummary={{
@@ -3305,7 +3312,7 @@ export function PaymentDeskClient({
                         // setAcknowledgeDailyDuplicate(true) so React's source
                         // of truth matches the DOM for subsequent renders.
                         setAcknowledgeDailyDuplicate(true);
-                        setIsDuplicateOpen(false);
+                        dispatchController({ type: "duplicate_closed" });
                         setDismissedActionStateKey(actionStateKey);
                         const form = document.getElementById(formId) as HTMLFormElement | null;
                         if (form) {
@@ -3326,7 +3333,7 @@ export function PaymentDeskClient({
                         // receipt and stop the admin a second time.
                         setAcknowledgeNearDuplicate(true);
                         setAcknowledgeDailyDuplicate(true);
-                        setIsDuplicateOpen(false);
+                        dispatchController({ type: "duplicate_closed" });
                         setDismissedActionStateKey(actionStateKey);
                         const form = document.getElementById(formId) as HTMLFormElement | null;
                         if (form) {

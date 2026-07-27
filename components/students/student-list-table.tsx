@@ -44,6 +44,7 @@ type StudentListTableProps = {
   students: StudentListItem[];
   hasFilters: boolean;
   canWrite: boolean;
+  canCollectPayments?: boolean;
   returnTo: string;
   session?: string;
   /** Map of studentId → last student_view event ISO timestamp by current user. */
@@ -206,14 +207,14 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
   student,
   returnTo,
   session,
-  canWrite,
+  canCollectPayments,
   lastViewedAt,
   t,
 }: {
   student: StudentListItem;
   returnTo: string;
   session?: string;
-  canWrite: boolean;
+  canCollectPayments: boolean;
   lastViewedAt?: string | null;
   t: StudentsTranslator;
 }) {
@@ -223,7 +224,11 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
     `/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`,
   );
   const contactPhone = student.fatherPhone || student.motherPhone;
-  const showCollect = canWrite && student.status === "active" && student.outstandingAmount > 0 && student.duesStatus === "generated";
+  const showCollect =
+    canCollectPayments &&
+    student.status === "active" &&
+    student.outstandingAmount > 0 &&
+    student.duesStatus === "generated";
 
   const router = useRouter();
   const warmRow = useRowPrefetch();
@@ -345,6 +350,7 @@ export const StudentListTable = React.memo(function StudentListTable({
   students,
   hasFilters,
   canWrite,
+  canCollectPayments = canWrite,
   returnTo,
   session,
   lastViewedByUser,
@@ -393,7 +399,7 @@ export const StudentListTable = React.memo(function StudentListTable({
             student={student}
             returnTo={returnTo}
             session={session}
-            canWrite={canWrite}
+            canCollectPayments={canCollectPayments}
             lastViewedAt={lastViewedByUser?.[student.id] ?? null}
             t={t}
           />
@@ -563,7 +569,7 @@ export const StudentListTable = React.memo(function StudentListTable({
                         </Link>
                       </div>
                     )}
-                    {canWrite && (
+                    {canCollectPayments && (
                       <div onClick={(e) => e.stopPropagation()}>
                         <StudentRowCollectButton
                           studentId={student.id}

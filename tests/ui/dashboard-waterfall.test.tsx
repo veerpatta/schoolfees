@@ -24,6 +24,7 @@ const resolveViewSession = vi.fn();
 const getDashboardAboveFoldData = vi.fn();
 const getDashboardPageData = vi.fn();
 const getRouteCollectionSummary = vi.fn();
+const getPendingImportBatchCount = vi.fn();
 const scheduleDashboardAutoPrepare = vi.fn();
 const getTodayActivityCounts = vi.fn();
 
@@ -52,6 +53,7 @@ vi.mock("@/lib/dashboard/data", () => ({
   getDashboardAboveFoldData,
   getDashboardPageData,
   getRouteCollectionSummary,
+  getPendingImportBatchCount,
   scheduleDashboardAutoPrepare,
 }));
 
@@ -114,6 +116,7 @@ describe("dashboard data waterfall", () => {
       events.push("activity:end");
       return { payments: 3 };
     });
+    getPendingImportBatchCount.mockResolvedValue(0);
   });
 
   it("runs aboveFold and today's activity counts concurrently", async () => {

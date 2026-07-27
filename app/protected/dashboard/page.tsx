@@ -23,6 +23,7 @@ import {
   MobilePendingByClass,
 } from "@/components/dashboard/mobile-dashboard-screen";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
+import { RoleFocusActions } from "@/components/dashboard/role-focus-actions";
 import { RouteCollectionHeatmap } from "@/components/dashboard/route-collection-heatmap";
 import { OptimisticBanner } from "@/components/dashboard/optimistic-banner";
 import { MissingDuesBanner } from "@/components/shared/missing-dues-banner";
@@ -41,6 +42,7 @@ import { Section } from "@/components/ui/section";
 import {
   getDashboardAboveFoldData,
   getDashboardPageData,
+  getPendingImportBatchCount,
   getRouteCollectionSummary,
   scheduleDashboardAutoPrepare,
   type DashboardAlert,
@@ -2147,7 +2149,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // chaining one after the other.
   // sessionSwitcher preloaded so Home's pill opens with rows in hand rather
   // than firing a request on tap. TTL-cached, so this costs nothing.
-  const [aboveFold, todayActivityCounts, sessionSwitcher] = await Promise.all([
+  const canViewImports = hasStaffPermission(staff, "imports:view");
+  const [aboveFold, todayActivityCounts, sessionSwitcher, pendingImportCount] = await Promise.all([
     timer.measure("aboveFold", () =>
       getDashboardAboveFoldData({
         staffRole: staff.appRole,
@@ -2158,6 +2161,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? timer.measure("todayActivityCounts", () => getTodayActivityCounts(staff.id))
       : Promise.resolve({}),
     getSessionSwitcherData(),
+    canViewImports
+      ? timer.measure("pendingImportCount", () =>
+          getPendingImportBatchCount(viewSession.sessionLabel),
+        )
+      : Promise.resolve(0),
   ]);
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
@@ -2372,6 +2380,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </div>
 
         <div className="hidden space-y-4 md:block">
+        <RoleFocusActions
+          role={staff.appRole}
+          sessionLabel={viewSession.sessionLabel}
+          todaysCollection={aboveFold.kpis.todaysCollection}
+          receiptsToday={aboveFold.kpis.receiptsToday}
+          urgentFollowUps={aboveFold.studentsWithPending}
+          pendingImports={pendingImportCount}
+          canPostPayments={canPostPayments}
+        />
         <HeroKpis
           collected={aboveFold.kpis.todaysCollection}
           collectionRate={thisYearCollectionRate}
