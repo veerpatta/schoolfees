@@ -84,6 +84,22 @@ describe("overlay scroll lock", () => {
     expect(main.scrollTop).toBe(120);
   });
 
+  it("does not restore twice after a forced release", () => {
+    const main = mountPhoneScroller(180);
+
+    acquireSheetScrollLock();
+    // The session pill force-releases every lock when switching years. The
+    // open sheet's own cleanup then runs on an already-zero count; without a
+    // guard that second restore replays a captured position of 0 and yanks
+    // the page to the top.
+    releaseAllSheetScrollLocks();
+    expect(main.scrollTop).toBe(180);
+
+    main.scrollTop = 90;
+    releaseSheetScrollLock();
+    expect(main.scrollTop).toBe(90);
+  });
+
   it("is a no-op on desktop, where the document is the scroller", () => {
     acquireSheetScrollLock();
     expect(document.body.style.overflow).toBe("hidden");

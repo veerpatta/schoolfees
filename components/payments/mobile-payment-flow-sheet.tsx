@@ -121,6 +121,44 @@ function useSwipeDown(onSwipeDown: () => void, threshold = 80) {
   };
 }
 
+/**
+ * Keeps a field visible once the keyboard has actually appeared.
+ *
+ * Replaces a `setTimeout(…, 200)` + smooth `scrollIntoView` hung off the
+ * input's `onFocus`, which was wrong three ways: it guessed at the keyboard's
+ * animation length; it fired for the PROGRAMMATIC focus too, so it fought the
+ * deliberate `preventScroll: true`; and its smooth animation ran against the
+ * keyboard's own slide. Keying off the measured offset means it runs when the
+ * layout really changed, never on a focus that raises no keyboard, and it
+ * re-runs correctly when iOS raises the keyboard in two stages (predictive
+ * bar, then pad). `behavior: "auto"` — one jump, nothing to race.
+ *
+ * It is its OWN component, rendering null, on purpose. Subscribing to the
+ * offset in the sheet body would re-render all 1400 lines of it — dues ledger,
+ * fee-head breakdown, allocation strip — several times per keyboard raise,
+ * during the exact interaction this is meant to smooth. Here the subscription
+ * costs a re-render of nothing.
+ */
+function KeyboardScrollCorrection({
+  active,
+  targetRef,
+}: {
+  active: boolean;
+  targetRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  const keyboardOffset = useKeyboardOffset();
+
+  React.useEffect(() => {
+    if (!active) return;
+    if (keyboardOffset <= 0) return;
+    const input = targetRef.current;
+    if (!input || document.activeElement !== input) return;
+    input.scrollIntoView({ block: "center", behavior: "auto" });
+  }, [active, keyboardOffset, targetRef]);
+
+  return null;
+}
+
 function SheetHandle({ swipeHandlers }: { swipeHandlers?: ReturnType<typeof useSwipeDown> }) {
   return (
     <div className="flex-none flex justify-center py-2 cursor-grab" {...swipeHandlers}>
@@ -200,7 +238,6 @@ export function MobilePaymentFlowSheet({
   const [overdueHeadsExpanded, setOverdueHeadsExpanded] = React.useState(false);
   const amountInputRef = React.useRef<HTMLInputElement>(null);
   const hasFocusedRef = React.useRef(false);
-  const keyboardOffset = useKeyboardOffset();
 
   /**
    * Exactly one loading affordance at a time:
@@ -236,28 +273,6 @@ export function MobilePaymentFlowSheet({
     }, 150);
     return () => clearTimeout(timer);
   }, [view, studentSummaryLoading]);
-
-  /**
-   * Keep the amount field visible once the keyboard has actually appeared.
-   *
-   * This replaces a `setTimeout(…, 200)` + smooth `scrollIntoView` hung off the
-   * input's `onFocus`, which was wrong three ways: it guessed at the keyboard's
-   * animation length; it fired for the PROGRAMMATIC focus above too, so it
-   * fought the deliberate `preventScroll: true`; and its smooth animation ran
-   * against the keyboard's own slide.
-   *
-   * Keying off the measured offset instead means it runs when the layout has
-   * really changed, never on a focus that raises no keyboard, and it re-runs
-   * correctly when iOS raises the keyboard in two stages (predictive bar, then
-   * pad). `behavior: "auto"` — one jump, nothing to race.
-   */
-  React.useEffect(() => {
-    if (view !== "payment-entry") return;
-    if (keyboardOffset <= 0) return;
-    const input = amountInputRef.current;
-    if (!input || document.activeElement !== input) return;
-    input.scrollIntoView({ block: "center", behavior: "auto" });
-  }, [view, keyboardOffset]);
 
   const classPickerSwipe = useSwipeDown(onClose);
   const studentPickerSwipe = useSwipeDown(onBackToClassPicker);
@@ -613,6 +628,7 @@ export function MobilePaymentFlowSheet({
             height: "calc(100svh - 3.5rem - var(--keyboard-offset, 0px))",
           }}
         >
+          <KeyboardScrollCorrection active targetRef={amountInputRef} />
           <SheetHandle swipeHandlers={paymentEntrySwipe} />
           {/* One loading signal at a time. The skeleton below owns the
               first load (it communicates shape, which reads better on a

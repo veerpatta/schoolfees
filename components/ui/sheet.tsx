@@ -62,6 +62,7 @@ let sheetScrollLockCount = 0;
 let previousBodyOverflow = "";
 let previousHtmlOverflow = "";
 let previousMainOverflow = "";
+let isLocked = false;
 let previousMainScrollTop = 0;
 
 /**
@@ -78,6 +79,7 @@ function getPhoneScroller(): HTMLElement | null {
 
 export function acquireSheetScrollLock() {
   if (sheetScrollLockCount === 0) {
+    isLocked = true;
     previousBodyOverflow = document.body.style.overflow;
     previousHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
@@ -99,6 +101,15 @@ export function acquireSheetScrollLock() {
 }
 
 function restoreScrollLock() {
+  // Restoring when nothing is locked would scroll `.mobile-app-main` back to a
+  // captured position of 0. Reachable by switching academic sessions with a
+  // receipt open: the pill calls releaseAllSheetScrollLocks(), and the sheet's
+  // own cleanup then calls releaseSheetScrollLock() on an already-zero count.
+  if (!isLocked) {
+    return;
+  }
+  isLocked = false;
+
   document.body.style.overflow = previousBodyOverflow;
   document.documentElement.style.overflow = previousHtmlOverflow;
   previousBodyOverflow = "";
