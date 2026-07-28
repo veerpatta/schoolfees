@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { MetricCard } from "@/components/admin/metric-card";
 import { PageHeader } from "@/components/admin/page-header";
+import { MobileEmptyRows, MobileRecordCard } from "@/components/mobile-app/mobile-kit";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
@@ -684,6 +686,57 @@ function MetricsSection({ report }: { report: ReportData }) {
   }
 }
 
+/**
+ * Phone shape for a report table (mobile app v2).
+ *
+ * Every table on this page is 5–14 columns wide. Inside a horizontal scroller
+ * on a 390px screen, reading one row means scrubbing sideways and losing which
+ * row you were on — so the phone gets the repo's `MobileRecordCard` instead:
+ * identity on top, the money on the right, the rest as labelled pairs.
+ *
+ * The desk table is the source of truth for what a row contains; this shows the
+ * fields a clerk actually reads on a phone. `MobileRecordCard` drops empty
+ * fields, so a sparse row simply renders shorter.
+ */
+function ReportCardList<Row>({
+  rows,
+  empty,
+  render,
+}: {
+  rows: readonly Row[];
+  empty: string;
+  render: (row: Row, index: number) => {
+    key: string;
+    title: ReactNode;
+    subtitle?: ReactNode;
+    amount?: ReactNode;
+    status?: ReactNode;
+    fields?: Array<{ label: string; value: ReactNode }>;
+  };
+}) {
+  return (
+    <ul className="flex flex-col gap-2.5 md:hidden">
+      {rows.length === 0 ? (
+        <MobileEmptyRows>{empty}</MobileEmptyRows>
+      ) : (
+        rows.map((row, index) => {
+          const card = render(row, index);
+          return (
+            <MobileRecordCard
+              key={card.key}
+              title={card.title}
+              subtitle={card.subtitle}
+              amount={card.amount}
+              status={card.status}
+              fields={card.fields}
+            />
+          );
+        })
+      )}
+    </ul>
+  );
+}
+
 function ReportTables({ report }: { report: ReportData }) {
   switch (report.key) {
     case "outstanding":
@@ -692,7 +745,38 @@ function ReportTables({ report }: { report: ReportData }) {
           title={reportDefinitions[report.key].tableTitle}
           description={reportDefinitions[report.key].tableDescription}
         >
-          <div className="overflow-x-auto rounded-xl border border-border">
+          <ReportCardList
+            rows={report.rows}
+            empty="No outstanding rows found for the selected filters."
+            render={(row) => ({
+              key: `${row.studentId}-${row.installmentNo}-${row.installmentLabel}`,
+              title: row.fullName,
+              subtitle: `SR ${row.admissionNo} · ${row.classLabel}`,
+              amount: formatInr(row.outstandingAmount),
+              status: (
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[9.5px] font-extrabold uppercase text-muted-foreground">
+                  {row.balanceStatus}
+                </span>
+              ),
+              fields: [
+                {
+                  label: "Installment",
+                  value: isCarryForwardInstallment(row)
+                    ? row.installmentLabel
+                    : `${row.installmentLabel} (${row.installmentNo})`,
+                },
+                { label: "Due date", value: formatShortDate(row.dueDate) },
+                { label: "Amount due", value: formatInr(row.amountDue) },
+                { label: "Late fee", value: formatInr(row.lateFeeAmount) },
+                {
+                  label: "Overdue",
+                  value: row.overdueAmount > 0 ? formatInr(row.overdueAmount) : "",
+                },
+                { label: "Route", value: row.transportRouteLabel },
+              ],
+            })}
+          />
+          <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
             <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -787,7 +871,21 @@ function ReportTables({ report }: { report: ReportData }) {
             title={reportDefinitions[report.key].tableTitle}
             description={reportDefinitions[report.key].tableDescription}
           >
-            <div className="overflow-x-auto rounded-xl border border-border">
+            <ReportCardList
+                rows={report.rows}
+                empty="No collection summary rows found for the selected filters."
+                render={(row) => ({
+                  key: `${row.paymentDate}-${row.paymentMode}`,
+                  title: formatPaymentModeLabel(row.paymentMode),
+                  subtitle: formatShortDate(row.paymentDate),
+                  amount: formatInr(row.totalAmount),
+                  fields: [
+                    { label: "Receipts", value: String(row.receiptCount) },
+                    { label: "Students", value: String(row.studentCount) },
+                  ],
+                })}
+              />
+              <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
               <table className="w-full min-w-full text-left text-sm">
                 <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
@@ -843,7 +941,36 @@ function ReportTables({ report }: { report: ReportData }) {
           title={`${report.selectedStudent.fullName} ledger`}
           description={reportDefinitions[report.key].tableDescription}
         >
-          <div className="overflow-x-auto rounded-xl border border-border">
+          <ReportCardList
+            rows={report.rows}
+            empty="No ledger rows found for the selected filters."
+            render={(row) => ({
+              key: `${row.entryType}-${row.entryId}`,
+              title: row.receiptNumber,
+              subtitle: `${row.installmentLabel} · ${formatShortDate(row.paymentDate)}`,
+              amount: formatInr(row.paymentAmount),
+              status: (
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[9.5px] font-extrabold uppercase text-muted-foreground">
+                  {row.entryType}
+                </span>
+              ),
+              fields: [
+                { label: "Mode", value: formatPaymentModeLabel(row.paymentMode) },
+                { label: "Reference", value: row.referenceNumber ?? "" },
+                {
+                  label: "Adjustment",
+                  value:
+                    row.adjustmentAmount === null
+                      ? ""
+                      : `${formatInr(row.adjustmentAmount)} · ${row.adjustmentType}`,
+                },
+                { label: "Reason", value: row.reason ?? "" },
+                { label: "By", value: row.createdByName ?? row.receivedBy ?? "" },
+                { label: "Posted", value: formatDateTime(row.createdAt) },
+              ],
+            })}
+          />
+          <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
             <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -919,7 +1046,25 @@ function ReportTables({ report }: { report: ReportData }) {
           title={reportDefinitions[report.key].tableTitle}
           description={reportDefinitions[report.key].tableDescription}
         >
-          <div className="overflow-x-auto rounded-xl border border-border">
+          <ReportCardList
+            rows={report.rows}
+            empty="No receipts found for the selected filters."
+            render={(row) => ({
+              key: row.receiptId,
+              title: row.fullName,
+              subtitle: `${row.receiptNumber} · ${formatShortDate(row.paymentDate)}`,
+              amount: formatInr(row.totalAmount),
+              fields: [
+                { label: "SR no", value: row.admissionNo },
+                { label: "Class", value: row.classLabel },
+                { label: "Mode", value: formatPaymentModeLabel(row.paymentMode) },
+                { label: "Reference", value: row.referenceNumber ?? "" },
+                { label: "Route", value: row.transportRouteLabel },
+                { label: "Received by", value: row.receivedBy ?? "" },
+              ],
+            })}
+          />
+          <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
             <table className="w-full min-w-full text-left text-sm">
               <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -976,7 +1121,29 @@ function ReportTables({ report }: { report: ReportData }) {
             title="Batch summary"
             description="Use this table to compare batch totals before drilling into a selected batch."
           >
-            <div className="overflow-x-auto rounded-xl border border-border">
+            <ReportCardList
+                rows={report.batchRows}
+                empty="No import batches found."
+                render={(row) => ({
+                  key: row.batchId,
+                  title: row.filename,
+                  subtitle: formatDateTime(row.createdAt),
+                  status: (
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[9.5px] font-extrabold uppercase text-muted-foreground">
+                      {row.status}
+                    </span>
+                  ),
+                  fields: [
+                    { label: "Format", value: row.sourceFormat.toUpperCase() },
+                    { label: "Total rows", value: String(row.totalRows) },
+                    { label: "Imported", value: String(row.importedRows) },
+                    { label: "Invalid", value: String(row.invalidRows) },
+                    { label: "Duplicate", value: String(row.duplicateRows) },
+                    { label: "Failed", value: String(row.failedRows) },
+                  ],
+                })}
+              />
+              <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
               <table className="w-full min-w-full text-left text-sm">
                 <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
@@ -1026,7 +1193,27 @@ function ReportTables({ report }: { report: ReportData }) {
             }
             description={reportDefinitions[report.key].tableDescription}
           >
-            <div className="overflow-x-auto rounded-xl border border-border">
+            <ReportCardList
+                rows={report.detailRows}
+                empty="No detail rows for this batch."
+                render={(row) => ({
+                  key: row.rowId,
+                  title: row.fullName ?? `Row ${row.rowIndex}`,
+                  subtitle: `${row.admissionNo ?? "No SR"} · ${row.classLabel ?? "No class"}`,
+                  status: (
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[9.5px] font-extrabold uppercase text-muted-foreground">
+                      {row.status}
+                    </span>
+                  ),
+                  fields: [
+                    { label: "Row", value: String(row.rowIndex) },
+                    { label: "Errors", value: row.errors.length > 0 ? row.errors.join(" | ") : "" },
+                    { label: "Warnings", value: row.warnings.length > 0 ? row.warnings.join(" | ") : "" },
+                    { label: "Updated", value: formatDateTime(row.updatedAt) },
+                  ],
+                })}
+              />
+              <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
               <table className="w-full min-w-full text-left text-sm">
                 <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>

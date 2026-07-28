@@ -1237,7 +1237,9 @@
     "chipPickDate": "Tareekh chunein",
     "datePickerDotLegend": "Bindu wale din mein rasidein hain.",
     "datePickerPrevMonth": "Pichhla mahina",
-    "datePickerNextMonth": "Agla mahina"
+    "datePickerNextMonth": "Agla mahina",
+    "rowActionOpen": "Dekhein",
+    "readOnlyShort": "Sirf dekhne ke liye"
   },
   "Receipts": {
     "indexEyebrow": "Receipts",

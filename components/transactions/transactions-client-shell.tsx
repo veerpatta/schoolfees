@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Printer, SlidersHorizontal, User, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Lock, Printer, SlidersHorizontal, User, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -320,68 +320,63 @@ function TransactionsTable({
     selection !== undefined && visibleIds.some((id) => selection.selectedIds.has(id));
   return (
     <>
-      <div className="space-y-3 md:hidden">
+      {/* Phone receipt rows (mobile app v2 §TRANSACTIONS): a mode tile, the
+          student, the amount and one affordance. The print and payment
+          buttons moved to the receipt itself — two buttons per row turned a
+          scannable day list into a wall of controls, and the row already
+          opens the receipt where both live. */}
+      <div className="flex flex-col gap-2.5 md:hidden">
         {rows.length === 0 ? (
-          <p className="rounded-xl border border-border bg-surface-2 px-4 py-5 text-center text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-center text-[12.5px] text-muted-foreground">
             {t("tableEmpty")}
           </p>
         ) : (
           rows.map((row) => (
-            <div
+            <button
               key={row.receiptId}
-              onClick={(event) => {
-                const target = event.target as HTMLElement | null;
-                if (target && target.closest('[data-row-action="true"]')) return;
-                onPreviewReceipt(row.receiptId);
-              }}
-              className="cursor-pointer rounded-xl border border-border bg-card p-3 text-sm transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              type="button"
+              onClick={() => onPreviewReceipt(row.receiptId)}
+              className="focus-ring flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors active:bg-surface-2"
               /* Transactions pages up to 150 rows; skip render work for
                  off-screen cards (same technique as the students table). */
-              style={{ contentVisibility: "auto", containIntrinsicSize: "0 132px" } as React.CSSProperties}
+              style={{ contentVisibility: "auto", containIntrinsicSize: "0 66px" } as React.CSSProperties}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold text-foreground truncate">{row.studentName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatShortDate(row.paymentDate)} · {row.classLabel}
-                  </p>
-                </div>
-                <p
+              <span
+                className={cn(
+                  "grid size-10 shrink-0 place-items-center rounded-xl text-[10px] font-extrabold uppercase",
+                  row.paymentMode === "cash"
+                    ? "tone-accent"
+                    : row.paymentMode === "upi"
+                      ? "tone-info"
+                      : "tone-neutral",
+                )}
+                aria-hidden="true"
+              >
+                {formatPaymentModeLabel(row.paymentMode, t).slice(0, 4)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate text-[13.5px] font-extrabold leading-tight text-foreground">
+                    {row.studentName}
+                  </span>
+                  {row.isReversed ? <ReversedBadge /> : null}
+                </span>
+                <span className="mt-0.5 block truncate text-[11px] font-medium text-muted-foreground">
+                  {row.receiptNumber} · {formatShortDate(row.paymentDate)} · {row.classLabel}
+                </span>
+              </span>
+              <span className="shrink-0 text-right">
+                <span
                   className={cn(
-                    "shrink-0 font-semibold text-foreground tabular-nums",
+                    "tabular block text-[14.5px] font-extrabold text-foreground",
                     row.isReversed && "line-through opacity-60",
                   )}
                 >
                   {formatInr(row.totalAmount)}
-                </p>
-              </div>
-              <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <button
-                  type="button"
-                  data-row-action="true"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onPreviewReceipt(row.receiptId);
-                  }}
-                  className="rounded-sm font-mono font-medium text-foreground hover:underline focus-ring"
-                >
-                  {row.receiptNumber}
-                </button>
-                <span>· {formatPaymentModeLabel(row.paymentMode, t)}</span>
-                {row.isReversed ? <ReversedBadge /> : null}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2" data-row-action="true" onClick={(event) => event.stopPropagation()}>
-                <Button asChild size="sm" variant="ghost" aria-label={t("rowActionPrintAria", { number: row.receiptNumber })}>
-                  <Link href={receiptPrintHref(row.receiptId, sessionLabel)} target="_blank" rel="noreferrer">
-                    <Printer className="size-4" />
-                    <span className="sr-only">{t("rowActionPrint")}</span>
-                  </Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href={withSession(`/protected/payments?studentId=${row.studentId}`)}>{t("rowActionPayment")}</Link>
-                </Button>
-              </div>
-            </div>
+                </span>
+                <span className="text-[10.5px] font-bold text-accent">{t("rowActionOpen")} ›</span>
+              </span>
+            </button>
           ))
         )}
       </div>
@@ -837,8 +832,139 @@ export function TransactionsClientShell({
   // Return-to URL for action links
   const returnTo = buildPageUrl(activeView, filters);
 
+  // ── Day chips, shared by the phone header and the desk filter bar ────────
+  // Every date here is IST calendar arithmetic; see the note on the desktop
+  // row below for why `toISOString().slice(0,10)` is wrong after midnight.
+  const todayIso = partsToIso(todayPartsIst());
+  const yesterdayIso = partsToIso(addDays(todayPartsIst(), -1));
+
+  function applyDayRange(key: "Today" | "Yesterday" | "This week" | "This month") {
+    const today = todayPartsIst();
+    let fromIso = todayIso;
+    const toIso = todayIso;
+    if (key === "Yesterday") {
+      return applyRange(yesterdayIso, yesterdayIso);
+    }
+    if (key === "This week") {
+      const weekday = new Date(Date.UTC(today.year, today.month - 1, today.day)).getUTCDay();
+      fromIso = partsToIso(addDays(today, -weekday));
+    } else if (key === "This month") {
+      fromIso = partsToIso({ ...today, day: 1 });
+    }
+    return applyRange(fromIso, toIso);
+  }
+
+  function applyRange(fromIso: string, toIso: string) {
+    const nextFilters = { ...filters, fromDate: fromIso, toDate: toIso, page: 1 };
+    setFilters(nextFilters);
+    scheduleOrFetch(activeView, nextFilters, false);
+  }
+
+  const dayChips = [
+    { key: "Today" as const, label: t("chipToday"), active: filters.fromDate === todayIso && filters.toDate === todayIso },
+    { key: "Yesterday" as const, label: t("chipYesterday"), active: filters.fromDate === yesterdayIso && filters.toDate === yesterdayIso },
+    { key: "This week" as const, label: t("chipThisWeek"), active: false },
+    { key: "This month" as const, label: t("chipThisMonth"), active: false },
+  ];
+  const singleDaySelected = Boolean(
+    filters.fromDate && filters.toDate && filters.fromDate === filters.toDate,
+  );
+
+  const phoneChipClass = (active: boolean) =>
+    cn(
+      "focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[12.5px] font-bold transition-colors",
+      active
+        ? "border-accent bg-accent text-accent-foreground"
+        : "border-border bg-card text-muted-foreground",
+    );
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
+      {/* ── Phone header (mobile app v2 §TRANSACTIONS) ──────────────────
+          The desk filter bar below — a search box, a native class select and a
+          More-filters panel — is a reconciliation tool. On a phone the job is
+          "show me a day", so the header is two chip rows: which day, which
+          view. Same state, same handlers; only the shape differs. */}
+      <div className="sticky top-0 z-20 -mx-4 -mt-4 border-b border-border bg-background/95 px-4 pb-2.5 pt-4 backdrop-blur md:hidden">
+        <div className="flex items-center justify-between gap-2.5">
+          <h1 className="text-xl font-extrabold leading-tight tracking-tight text-foreground">
+            {t("title")}
+          </h1>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+            <Lock className="size-3" aria-hidden="true" />
+            {t("readOnlyShort")}
+          </span>
+        </div>
+
+        <div className="no-scrollbar -mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4">
+          {dayChips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              aria-pressed={chip.active}
+              onClick={() => applyDayRange(chip.key)}
+              className={phoneChipClass(chip.active)}
+            >
+              {chip.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setDatePickerOpen(true)}
+            className={phoneChipClass(singleDaySelected && !dayChips.some((c) => c.active))}
+          >
+            <CalendarDays className="size-3.5" aria-hidden="true" />
+            {singleDaySelected ? formatShortDate(filters.fromDate) : t("chipPickDate")}
+          </button>
+          {filters.fromDate || filters.toDate ? (
+            <button
+              type="button"
+              onClick={() => applyRange("", "")}
+              className="focus-ring inline-flex h-9 shrink-0 items-center rounded-full border border-dashed border-border px-3 text-[12.5px] font-bold text-muted-foreground"
+            >
+              {t("filterClearDates")}
+            </button>
+          ) : null}
+        </div>
+
+        <div className="no-scrollbar -mx-4 mt-1.5 flex gap-1.5 overflow-x-auto px-4">
+          {VISIBLE_VIEW_TABS.map((view) => (
+            <button
+              key={view}
+              type="button"
+              aria-pressed={activeView === view}
+              onClick={() => handleViewChange(view)}
+              className={cn(
+                "focus-ring inline-flex h-[30px] shrink-0 items-center rounded-lg border px-3 text-[11.5px] font-bold transition-colors",
+                activeView === view
+                  ? "border-accent bg-accent text-accent-foreground"
+                  : "border-border bg-card text-muted-foreground",
+              )}
+            >
+              {tCommon(
+                `workbookViews.${officeWorkbookViewI18nPrefix[view]}Short` as Parameters<typeof tCommon>[0],
+              )}
+            </button>
+          ))}
+          {paymentModeOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={filters.paymentMode === option.value}
+              onClick={() => handlePaymentModeToggle(option.value)}
+              className={cn(
+                "focus-ring inline-flex h-[30px] shrink-0 items-center rounded-lg border px-3 text-[11.5px] font-bold transition-colors",
+                filters.paymentMode === option.value
+                  ? "border-nav bg-nav text-nav-foreground"
+                  : "border-border bg-card text-muted-foreground",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Same snapshot, two shapes: an ink hero on a phone, the horizontal
           desk strip from tablet up. */}
       <MobileDaySummary
@@ -856,8 +982,12 @@ export function TransactionsClientShell({
         <TodayStrip snapshot={todaySnapshot} t={t} />
       </div>
 
-      {/* ── View + Filters ── */}
+      {/* ── View + Filters (desk) ──
+          Phones get the chip header above instead: a text input and a native
+          select inside a card is a reconciliation shape, not a "show me today"
+          shape. Both drive the same filter state. */}
       <SectionCard
+        className="hidden md:block"
         title={t("viewFilterTitle")}
         description={t("viewFilterDescription")}
         actions={
@@ -987,84 +1117,25 @@ export function TransactionsClientShell({
             </div>
 
             {/* Date-range quick chips — visible above the secondary filter row so
-                staff can jump to common windows without opening More filters. */}
+                staff can jump to common windows without opening More filters.
+                Shares applyDayRange with the phone header so the two rows can
+                never drift on which day "Today" means. */}
             <div className="flex flex-wrap gap-1.5">
-              {[
-                { label: t("chipToday"), key: "Today", days: 0 },
-                { label: t("chipYesterday"), key: "Yesterday", days: -1 },
-                { label: t("chipThisWeek"), key: "This week", days: -7, weekToDate: true },
-                { label: t("chipThisMonth"), key: "This month", days: 0, monthToDate: true },
-              ].map((chip) => {
-                // Every date below is IST calendar arithmetic. This used to
-                // be `new Date().toISOString().slice(0,10)`, which is UTC:
-                // between midnight and 05:30 IST that returns YESTERDAY, so
-                // "Today" silently filtered the wrong day during a late-night
-                // reconciliation. See lib/helpers/date.
-                const todayIso = partsToIso(todayPartsIst());
-                const yesterdayIso = partsToIso(addDays(todayPartsIst(), -1));
-                const isActive = (() => {
-                  if (!filters.fromDate || !filters.toDate) return false;
-                  if (chip.key === "Today") return filters.fromDate === todayIso && filters.toDate === todayIso;
-                  if (chip.key === "Yesterday") {
-                    return filters.fromDate === yesterdayIso && filters.toDate === yesterdayIso;
-                  }
-                  return false;
-                })();
-                return (
-                  <button
-                    key={chip.key}
-                    type="button"
-                    onClick={() => {
-                      const today = todayPartsIst();
-                      let fromIso = todayIso;
-                      let toIso = todayIso;
-                      if (chip.key === "Yesterday") {
-                        fromIso = yesterdayIso;
-                        toIso = fromIso;
-                      } else if (chip.key === "This week") {
-                        // Sunday-first, matching the date picker's grid.
-                        const weekday = new Date(
-                          Date.UTC(today.year, today.month - 1, today.day),
-                        ).getUTCDay();
-                        fromIso = partsToIso(addDays(today, -weekday));
-                      } else if (chip.key === "This month") {
-                        fromIso = partsToIso({ ...today, day: 1 });
-                      }
-                      const newFilters = { ...filters, fromDate: fromIso, toDate: toIso, page: 1 };
-                      setFilters(newFilters);
-                      scheduleOrFetch(activeView, newFilters, false);
-                    }}
-                    className={cn(
-                      "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                      isActive
-                        ? "border-accent bg-accent text-accent-foreground"
-                        : "border-border bg-card text-foreground hover:bg-surface-2",
-                    )}
-                  >
-                    {chip.label}
-                  </button>
-                );
-              })}
-              {/* The design's calendar chip. On a phone the native date input
-                  opens a full-screen system dialog that cannot show which days
-                  actually have receipts, which is the whole reason a clerk
-                  opens it. Desktop keeps the From/To inputs under More
-                  filters — this chip is the phone's way in. */}
-              <button
-                type="button"
-                onClick={() => setDatePickerOpen(true)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors md:hidden",
-                  filters.fromDate && filters.toDate && filters.fromDate === filters.toDate
-                    ? "border-accent bg-accent text-accent-foreground"
-                    : "border-border bg-card text-foreground hover:bg-surface-2",
-                )}
-              >
-                <CalendarDays className="size-3.5" aria-hidden="true" />
-                {filters.fromDate && filters.toDate && filters.fromDate === filters.toDate
-                  ? formatShortDate(filters.fromDate)
-                  : t("chipPickDate")}
-              </button>
+              {dayChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => applyDayRange(chip.key)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                    chip.active
+                      ? "border-accent bg-accent text-accent-foreground"
+                      : "border-border bg-card text-foreground hover:bg-surface-2",
+                  )}
+                >
+                  {chip.label}
+                </button>
+              ))}
               {(filters.fromDate || filters.toDate) ? (
                 <button
                   type="button"
@@ -1204,6 +1275,9 @@ export function TransactionsClientShell({
         {isLoading && <LoadingOverlay t={t} />}
         {(workbook.view === "transactions" || workbook.view === "receipts") && (
           <SectionCard
+            /* The receipt list is the phone screen's whole body, so it drops
+               the card chrome there and reads as the design's flat stack. */
+            className="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0"
             title={activeMeta.title}
             description={
               workbook.view === "transactions"

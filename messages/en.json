@@ -1237,7 +1237,9 @@
     "chipPickDate": "Pick a date",
     "datePickerDotLegend": "A dot marks a day with receipts.",
     "datePickerPrevMonth": "Previous month",
-    "datePickerNextMonth": "Next month"
+    "datePickerNextMonth": "Next month",
+    "rowActionOpen": "Open",
+    "readOnlyShort": "Read-only"
   },
   "Receipts": {
     "indexEyebrow": "Receipts",

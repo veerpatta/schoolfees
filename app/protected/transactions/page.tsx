@@ -117,11 +117,17 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
 
   return (
-    <div className="space-y-6">
+    // Flex gap, not space-y: `space-y` still spaces around `display:none`
+    // children, so the desktop-only header would leave a band above the
+    // phone's sticky chip header.
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow={t("eyebrow")}
         title={t("title")}
         description={t("description")}
+        /* The phone opens on its own sticky header (title + read-only chip +
+           day and view chips) inside the client shell. */
+        hideOnMobile
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <TrustBadge source={t("trustBadgeSource")}>

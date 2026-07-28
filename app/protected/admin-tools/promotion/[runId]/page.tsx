@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
+import { MobileDesktopOnlyNotice } from "@/components/mobile-app/mobile-kit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,6 +103,17 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
             <Link href={withSession("/protected/admin-tools/promotion")}>{t("promotionBackToRuns")}</Link>
           </Button>
         }
+      />
+
+      {/* The promotion list already says this; the run detail is where the
+          per-student decisions actually get made, so it has to say it too —
+          otherwise a phone lands on a 9-column plan table with no explanation. */}
+      <MobileDesktopOnlyNotice
+        title={t("promotionDetailTitle", {
+          source: run.sourceSessionLabel,
+          target: run.targetSessionLabel,
+        })}
+        reason="Reviewing and overriding each student's promotion decision is a wide table. Open this run on a computer where you can see the whole class at once."
       />
 
       {resolved?.error ? (

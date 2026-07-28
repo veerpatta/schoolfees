@@ -1237,7 +1237,9 @@
     "chipPickDate": "तारीख चुनें",
     "datePickerDotLegend": "बिंदु वाले दिन में रसीदें हैं.",
     "datePickerPrevMonth": "पिछला महीना",
-    "datePickerNextMonth": "अगला महीना"
+    "datePickerNextMonth": "अगला महीना",
+    "rowActionOpen": "देखें",
+    "readOnlyShort": "सिर्फ देखने के लिए"
   },
   "Receipts": {
     "indexEyebrow": "रसीदें",
