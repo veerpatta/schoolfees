@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ export function LinkSiblingTrigger({
   variant = "outline",
   className,
 }: LinkSiblingTriggerProps) {
+  const t = useTranslations("MobileApp");
   const [open, setOpen] = useState(false);
 
   return (
@@ -45,7 +47,7 @@ export function LinkSiblingTrigger({
         className={className}
       >
         <UserPlus className="size-4" aria-hidden="true" />
-        Link sibling
+        {t("linkSiblingCta")}
       </Button>
       <LinkSiblingSheet
         open={open}

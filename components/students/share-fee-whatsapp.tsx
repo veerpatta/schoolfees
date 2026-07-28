@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Download, Loader2, MessageCircle, Share2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,16 @@ type ShareFeeWhatsAppProps = {
   fatherPhone: string | null;
   motherPhone: string | null;
   pendingAmount: number;
+  /**
+   * Drop the card + its own trigger and render only the sheet, driven from
+   * outside. The phone profile's bottom action bar owns the WhatsApp button
+   * (mobile app v2 §STUDENT DETAIL), so it opens this sheet rather than
+   * carrying a second copy of the share flow.
+   */
+  headless?: boolean;
+  /** Controlled open state. Omit to let the card's own trigger own it. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 type Scope = "student" | "family";
@@ -52,8 +63,17 @@ export function ShareFeeWhatsApp({
   fatherPhone,
   motherPhone,
   pendingAmount,
+  headless = false,
+  open: controlledOpen,
+  onOpenChange,
 }: ShareFeeWhatsAppProps) {
-  const [open, setOpen] = useState(false);
+  const t = useTranslations("MobileApp");
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
   const [scope, setScope] = useState<Scope>("student");
   const [preparing, setPreparing] = useState(false);
   const [prepareError, setPrepareError] = useState<string | null>(null);
@@ -62,12 +82,23 @@ export function ShareFeeWhatsApp({
   // the PDF and open WhatsApp for a chosen number.
   const [useFallback, setUseFallback] = useState(false);
 
-  const phoneEntries = buildStudentPhoneEntries({ fatherPhone, motherPhone });
+  const phoneEntries = buildStudentPhoneEntries(
+    { fatherPhone, motherPhone },
+    { father: t("phoneLabelFather"), mother: t("phoneLabelMother") },
+  );
 
-  const shareText =
+  const shareMessageKey =
     pendingAmount > 0
-      ? `Fee statement for ${studentName}${scope === "family" ? " and siblings" : ""}. Pending dues: ${formatInr(pendingAmount)}. — School office`
-      : `Fee statement for ${studentName}${scope === "family" ? " and siblings" : ""}. All dues are settled. — School office`;
+      ? scope === "family"
+        ? "shareMessagePendingFamily"
+        : "shareMessagePending"
+      : scope === "family"
+        ? "shareMessageSettledFamily"
+        : "shareMessageSettled";
+  const shareText = t(shareMessageKey, {
+    name: studentName,
+    amount: formatInr(pendingAmount),
+  });
 
   // Pre-fetch the PDF as soon as the sheet opens (and whenever the scope
   // changes). Fetching ahead of time means the actual `navigator.share` call
@@ -87,7 +118,7 @@ export function ShareFeeWhatsApp({
             : `/protected/students/${studentId}/fee-pdf`;
         const response = await fetch(url, { signal });
         if (!response.ok) {
-          throw new Error(`Could not generate the fee PDF (HTTP ${response.status}).`);
+          throw new Error(t("sharePdfErrorStatus", { status: response.status }));
         }
         const blob = await response.blob();
         const fileName =
@@ -99,12 +130,12 @@ export function ShareFeeWhatsApp({
         }
       } catch (error) {
         if ((error as Error)?.name === "AbortError") return;
-        setPrepareError(error instanceof Error ? error.message : "Could not generate the fee PDF.");
+        setPrepareError(error instanceof Error ? error.message : t("sharePdfError"));
       } finally {
         if (!signal.aborted) setPreparing(false);
       }
     },
-    [scope, familyGroupId, studentId, studentName],
+    [scope, familyGroupId, studentId, studentName, t],
   );
 
   useEffect(() => {
@@ -150,33 +181,39 @@ export function ShareFeeWhatsApp({
         // Native share refused (e.g. activation lost, unsupported) — fall back
         // to download + WhatsApp so the staff member is never stuck.
         toast({
-          title: "Opening manual share",
-          description: "Your device blocked the direct share, so download the PDF and attach it in WhatsApp.",
+          title: t("shareManualToastTitle"),
+          description: t("shareManualToastBody"),
         });
         setUseFallback(true);
       });
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-xs no-print">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">Share fee details</h2>
-          <p className="text-xs text-muted-foreground">
-            Send a clear fee statement PDF (with receipts) to the parent on WhatsApp.
-          </p>
+    <section
+      className={
+        headless
+          ? "contents"
+          : "rounded-2xl border border-border bg-card p-5 shadow-xs no-print"
+      }
+    >
+      {headless ? null : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">{t("shareFeeTitle")}</h2>
+            <p className="text-xs text-muted-foreground">{t("shareFeeSubtitle")}</p>
+          </div>
+          <Button type="button" size="sm" className="gap-2" onClick={() => setOpen(true)}>
+            <Share2 className="size-4" aria-hidden="true" />
+            {t("shareFeeCta")}
+          </Button>
         </div>
-        <Button type="button" size="sm" className="gap-2" onClick={() => setOpen(true)}>
-          <Share2 className="size-4" aria-hidden="true" />
-          Share on WhatsApp
-        </Button>
-      </div>
+      )}
 
-      <Sheet open={open} onClose={close} title="Share fee statement" size="md">
+      <Sheet open={open} onClose={close} title={t("shareFeeSheetTitle")} size="md">
         <div className="space-y-4 pt-1">
           {familyGroupId ? (
             <div>
-              <p className="text-xs font-medium text-muted-foreground">What to share</p>
+              <p className="text-xs font-medium text-muted-foreground">{t("shareScopeLabel")}</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -190,7 +227,7 @@ export function ShareFeeWhatsApp({
                       : "border-border hover:bg-surface-2"
                   }`}
                 >
-                  This child
+                  {t("shareScopeChild")}
                 </button>
                 <button
                   type="button"
@@ -205,7 +242,7 @@ export function ShareFeeWhatsApp({
                   }`}
                 >
                   <Users className="size-3.5" aria-hidden="true" />
-                  Whole family
+                  {t("shareScopeFamily")}
                 </button>
               </div>
             </div>
@@ -213,7 +250,7 @@ export function ShareFeeWhatsApp({
 
           {phoneEntries.length > 0 ? (
             <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs">
-              <p className="font-medium text-muted-foreground">Numbers on file</p>
+              <p className="font-medium text-muted-foreground">{t("shareNumbersOnFile")}</p>
               <ul className="mt-1 space-y-0.5">
                 {phoneEntries.map((entry) => (
                   <li key={entry.phone} className="flex items-center justify-between">
@@ -223,12 +260,12 @@ export function ShareFeeWhatsApp({
                 ))}
               </ul>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                When WhatsApp opens, pick the contact for the number above.
+                {t("shareNumbersHint")}
               </p>
             </div>
           ) : (
             <div className="rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
-              No phone number is on file for this student. You can still generate the PDF and share it manually.
+              {t("shareNoNumber")}
             </div>
           )}
 
@@ -241,24 +278,24 @@ export function ShareFeeWhatsApp({
           {useFallback && pdf ? (
             <div className="space-y-2 rounded-lg border border-border bg-surface-2 px-3 py-3">
               <p className="text-xs text-muted-foreground">
-                Download the PDF, then open WhatsApp and attach it to the chat.
+                {t("shareFallbackHint")}
               </p>
               <button
                 type="button"
                 onClick={() => triggerDownload(pdf.blob, pdf.fileName)}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
               >
-                <Download className="size-4" aria-hidden="true" /> Download PDF
+                <Download className="size-4" aria-hidden="true" /> {t("shareDownloadPdf")}
               </button>
               {phoneEntries.length > 0 ? (
                 <div>
                   <PhoneActionMenu
                     entries={phoneEntries}
-                    menuLabel="Open WhatsApp for"
+                    menuLabel={t("shareOpenWhatsAppFor")}
                     onSelect={(phone) => openWhatsApp(phone)}
                   >
                     <Button type="button" size="sm" variant="outline" className="gap-1.5">
-                      <MessageCircle className="size-4" aria-hidden="true" /> Open WhatsApp
+                      <MessageCircle className="size-4" aria-hidden="true" /> {t("shareOpenWhatsApp")}
                     </Button>
                   </PhoneActionMenu>
                 </div>
@@ -273,11 +310,11 @@ export function ShareFeeWhatsApp({
             >
               {preparing ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Preparing PDF…
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" /> {t("sharePreparing")}
                 </>
               ) : (
                 <>
-                  <Share2 className="size-4" aria-hidden="true" /> Share PDF
+                  <Share2 className="size-4" aria-hidden="true" /> {t("shareCta")}
                 </>
               )}
             </Button>
@@ -289,7 +326,7 @@ export function ShareFeeWhatsApp({
               onClick={() => triggerDownload(pdf.blob, pdf.fileName)}
               className="mx-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
-              <Download className="size-3.5" aria-hidden="true" /> or download the PDF
+              <Download className="size-3.5" aria-hidden="true" /> {t("shareOrDownload")}
             </button>
           ) : null}
         </div>

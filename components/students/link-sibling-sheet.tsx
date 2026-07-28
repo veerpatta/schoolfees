@@ -13,6 +13,14 @@ import { INITIAL_LINK_SIBLING_ACTION_STATE } from "@/app/protected/students/sibl
 import type { PaymentStudentIndexItem } from "@/lib/payments/types";
 import { cn } from "@/lib/utils";
 
+/**
+ * The confirm button is pinned in the Sheet footer rather than left at the end
+ * of the scrolling body: the search field above autofocuses, so on a phone the
+ * keyboard is already up and a submit inside the scroll area can sit under it.
+ * Guarded by tests/ui/mobile-action-reachability.test.ts.
+ */
+const LINK_SIBLING_FORM_ID = "LINK_SIBLING_FORM_ID";
+
 type LinkSiblingSheetProps = {
   open: boolean;
   onClose: () => void;
@@ -38,6 +46,7 @@ export function LinkSiblingSheet({
   sessionLabel,
   excludeStudentIds = [],
 }: LinkSiblingSheetProps) {
+  const t = useTranslations("MobileApp");
   const tToasts = useTranslations("Toasts");
   const [query, setQuery] = useState("");
   const [students, setStudents] = useState<PaymentStudentIndexItem[]>([]);
@@ -122,29 +131,62 @@ export function LinkSiblingSheet({
         setQuery("");
         onClose();
       }}
-      title="Link sibling"
-      description="Pick an existing student to link as a sibling of this child."
+      title={t("linkSiblingSheetTitle")}
+      description={t("linkSiblingSheetBody")}
       size="full"
+      footer={
+        selected ? (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 rounded-xl"
+              onClick={() => setSelected(null)}
+              disabled={pending}
+            >
+              {t("linkSiblingPickDifferent")}
+            </Button>
+            <Button
+              type="submit"
+              form={LINK_SIBLING_FORM_ID}
+              className="h-12 flex-1 rounded-xl"
+              disabled={pending}
+            >
+              {pending ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  {t("linkSiblingPending")}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <UserCheck className="size-4" aria-hidden="true" />
+                  {t("linkSiblingConfirm")}
+                </span>
+              )}
+            </Button>
+          </div>
+        ) : null
+      }
     >
       <div className="space-y-4 pb-2">
         <div className="rounded-lg border border-border bg-surface-2 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Current student</p>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("linkSiblingCurrent")}</p>
           <p className="mt-0.5 text-sm font-semibold text-foreground">{studentLabel}</p>
           <p className="text-xs text-muted-foreground">
             SR {studentAdmissionNo} · {studentClassLabel}
-            {studentFatherName ? ` · Father ${studentFatherName}` : ""}
+            {studentFatherName ? ` · ${t("phoneLabelFather")} ${studentFatherName}` : ""}
             {studentPhone ? ` · ${studentPhone}` : ""}
           </p>
         </div>
 
         {selected ? (
-          <form action={formAction} className="space-y-3">
+          <form id={LINK_SIBLING_FORM_ID} action={formAction} className="space-y-3">
             <input type="hidden" name="studentId" value={studentId} />
             <input type="hidden" name="siblingStudentId" value={selected.id} />
             <input type="hidden" name="sessionLabel" value={sessionLabel} />
 
             <div className="rounded-lg border border-accent/30 bg-accent-soft px-3 py-3">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Sibling to link</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("linkSiblingTarget")}</p>
               <p className="mt-0.5 text-sm font-semibold text-foreground">{selected.fullName}</p>
               <p className="text-xs text-muted-foreground">
                 SR {selected.admissionNo} · {selected.classLabel}
@@ -152,9 +194,11 @@ export function LinkSiblingSheet({
             </div>
 
             <div className="rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
-              Confirm that <strong>{studentLabel}</strong> and <strong>{selected.fullName}</strong> are
-              real siblings for session {sessionLabel}. This link is per session — the next year you may
-              need to re-link.
+              {t("linkSiblingConfirmBody", {
+                a: studentLabel,
+                b: selected.fullName,
+                session: sessionLabel,
+              })}
             </div>
 
             {state.status === "error" && state.message ? (
@@ -164,24 +208,6 @@ export function LinkSiblingSheet({
               </div>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => setSelected(null)} disabled={pending}>
-                Pick different
-              </Button>
-              <Button type="submit" disabled={pending}>
-                {pending ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                    Linking…
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5">
-                    <UserCheck className="size-4" aria-hidden="true" />
-                    Confirm sibling link
-                  </span>
-                )}
-              </Button>
-            </div>
           </form>
         ) : (
           <>
@@ -208,13 +234,13 @@ export function LinkSiblingSheet({
             {isLoading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                Loading students…
+                {t("linkSiblingLoading")}
               </div>
             ) : null}
 
             {!isLoading && filtered.length === 0 ? (
               <p className="rounded-md border border-dashed border-border bg-surface-2 px-3 py-4 text-center text-xs text-muted-foreground">
-                No students match. Try a different name or SR no.
+                {t("linkSiblingNoMatch")}
               </p>
             ) : null}
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ export function LinkSuspectedSiblingsButton({
   sessionLabel,
   count,
 }: LinkSuspectedSiblingsButtonProps) {
+  const t = useTranslations("MobileApp");
   const [state, formAction, pending] = useActionState(
     linkSuspectedSiblingsAction,
     INITIAL_LINK_SIBLING_ACTION_STATE,
@@ -26,11 +28,11 @@ export function LinkSuspectedSiblingsButton({
 
   useEffect(() => {
     if (state.status === "success") {
-      toast({ title: "Siblings linked", description: state.message ?? "" });
+      toast({ title: t("linkSuspectedDoneTitle"), description: state.message ?? "" });
     } else if (state.status === "error" && state.message) {
-      toast({ title: "Could not link siblings", description: state.message });
+      toast({ title: t("linkSuspectedFailedTitle"), description: state.message });
     }
-  }, [state.status, state.message]);
+  }, [state.status, state.message, t]);
 
   return (
     <form action={formAction}>
@@ -42,7 +44,7 @@ export function LinkSuspectedSiblingsButton({
         ) : (
           <Users className="size-4" aria-hidden="true" />
         )}
-        Link {count} as a family
+        {t("linkSuspectedCta", { count })}
       </Button>
     </form>
   );

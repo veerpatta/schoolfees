@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Scissors } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export function CloseDueTrigger({
   size = "sm",
   variant = "outline",
 }: CloseDueTriggerProps) {
+  const t = useTranslations("MobileApp");
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -42,7 +44,7 @@ export function CloseDueTrigger({
         onClick={() => setOpen(true)}
       >
         <Scissors className="size-4" aria-hidden="true" />
-        Close balance as discount
+        {t("closeDueCta")}
       </Button>
       <CloseDueAsDiscountSheet
         open={open}

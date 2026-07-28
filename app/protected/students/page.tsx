@@ -178,11 +178,20 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
   }
 
   return (
-    <div className="space-y-6">
+    // `flex flex-col gap-6`, not `space-y-6`: Tailwind's space-y selector is
+    // `:not([hidden]) ~ :not([hidden])`, which skips the `hidden` *attribute*
+    // but not the `hidden` *class*. With `hideOnMobile` the desktop header is
+    // still a child, so space-y would push the phone's sticky search header
+    // 24px down the screen. Flex `gap` ignores display:none children.
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow={t("eyebrow")}
         title={t("title")}
         description={t("description")}
+        /* The phone opens on its own search header (mobile app v2 §STUDENTS),
+           which carries the title and the live count. A second title above it
+           would push the first student below the fold. */
+        hideOnMobile
         actions={
           canWriteStudents ? (
             <OfficeActionBar className="border-0 bg-transparent p-0 shadow-none">

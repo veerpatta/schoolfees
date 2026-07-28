@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { Button } from "@/components/ui/button";
 import type { StudentDeletionSafety } from "@/lib/students/types";
 
@@ -11,43 +13,47 @@ type StudentDangerZoneProps = {
   deletionSafety: StudentDeletionSafety;
 };
 
-export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZoneProps) {
+export async function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZoneProps) {
+  const t = await getTranslations("MobileApp");
+
+  const deleteExplanation = deletionSafety.hardDeleteAllowed
+    ? deletionSafety.generatedDuesDeleteAllowed
+      ? t("dangerDeleteWithDues")
+      : t("dangerDeleteClean")
+    : t("dangerDeleteBlocked");
+
   return (
     <details className="overflow-hidden rounded-lg border border-border bg-card">
       <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-destructive">
-        Danger zone - withdraw or delete this record
+        {t("dangerSummary")}
       </summary>
       <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-[1fr_auto] lg:items-start">
         <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm text-foreground">
           <p>
-            Receipts: {deletionSafety.receiptCount}, payments: {deletionSafety.paymentCount},
-            prepared dues: {deletionSafety.installmentCount}, adjustments: {deletionSafety.adjustmentCount},
-            refunds: {deletionSafety.refundRequestCount}.
+            {t("dangerCounts", {
+              receipts: deletionSafety.receiptCount,
+              payments: deletionSafety.paymentCount,
+              dues: deletionSafety.installmentCount,
+              adjustments: deletionSafety.adjustmentCount,
+              refunds: deletionSafety.refundRequestCount,
+            })}
           </p>
           {deletionSafety.blockedInstallmentCount > 0 ||
           deletionSafety.ledgerRegenerationRowCount > 0 ? (
-            <p className="mt-2 text-warning-soft-foreground">
-              Fee review records are linked to this student. Withdraw student instead of deleting.
-            </p>
+            <p className="mt-2 text-warning-soft-foreground">{t("dangerFeeReviewLinked")}</p>
           ) : null}
           {deletionSafety.hardDeleteBlockers.length > 0 ? (
             <p className="mt-2 text-warning-soft-foreground">
-              Delete blockers: {deletionSafety.hardDeleteBlockers.join(", ")}.
+              {t("dangerBlockers", { blockers: deletionSafety.hardDeleteBlockers.join(", ") })}
             </p>
           ) : null}
-          <p className="mt-2">
-            {deletionSafety.hardDeleteAllowed
-              ? deletionSafety.generatedDuesDeleteAllowed
-                ? "Only unpaid dues are linked. Admin can delete this wrong record and its unpaid dues."
-                : "No finance records are linked, so admin can delete this wrong record."
-              : "Receipts stay saved in history. Withdraw student instead of deleting."}
-          </p>
+          <p className="mt-2">{deleteExplanation}</p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <form action={archiveStudentAction}>
             <input type="hidden" name="studentId" value={studentId} />
             <Button type="submit" variant="outline">
-              Withdraw student
+              {t("dangerWithdrawCta")}
             </Button>
           </form>
           {deletionSafety.hardDeleteAllowed || deletionSafety.canForceDeleteTestRecord ? (
@@ -57,7 +63,7 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
                 <input type="hidden" name="forceTestRecord" value="yes" />
               ) : null}
               <label className="text-xs font-medium text-muted-foreground" htmlFor="confirmDelete">
-                Type SR {deletionSafety.admissionNo} to confirm Delete wrong student
+                {t("dangerConfirmLabel", { sr: deletionSafety.admissionNo })}
               </label>
               <input
                 id="confirmDelete"
@@ -68,8 +74,8 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
               />
               <Button type="submit" variant="destructive">
                 {deletionSafety.generatedDuesDeleteAllowed
-                  ? "Delete wrong student and unpaid dues"
-                  : "Delete wrong student"}
+                  ? t("dangerDeleteWithDuesCta")
+                  : t("dangerDeleteCta")}
               </Button>
             </form>
           ) : null}

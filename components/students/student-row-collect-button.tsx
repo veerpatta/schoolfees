@@ -12,8 +12,10 @@
  *     classLabel={row.classLabel}
  *   />
  *
- * The button opens the global Collect drawer (mounted in the protected
- * layout), which routes into Payment Desk pre-filled. No new posting paths.
+ * The button is a plain <Link> into the Payment Desk with `?studentId=` so the
+ * desk preselects the student — see collect-trigger.tsx for why the old
+ * intercepting-route drawer was removed. No new posting paths: one student,
+ * one receipt, through the desk.
  */
 
 import { CollectTrigger } from "@/components/payments/collect/collect-trigger";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Unlink, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export function UnlinkSiblingTrigger({
   sessionLabel,
   memberLabel,
 }: UnlinkSiblingTriggerProps) {
+  const t = useTranslations("MobileApp");
   const [confirming, setConfirming] = useState(false);
   const [state, formAction, pending] = useActionState(
     unlinkSiblingAction,
@@ -30,12 +32,12 @@ export function UnlinkSiblingTrigger({
 
   useEffect(() => {
     if (state.status === "success") {
-      toast({ title: "Sibling unlinked", description: state.message ?? "" });
+      toast({ title: t("unlinkDoneTitle"), description: state.message ?? "" });
       setConfirming(false);
     } else if (state.status === "error" && state.message) {
-      toast({ title: "Unlink failed", description: state.message });
+      toast({ title: t("unlinkFailedTitle"), description: state.message });
     }
-  }, [state.status, state.message]);
+  }, [state.status, state.message, t]);
 
   if (!confirming) {
     return (
@@ -45,10 +47,10 @@ export function UnlinkSiblingTrigger({
         variant="ghost"
         className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-destructive"
         onClick={() => setConfirming(true)}
-        aria-label={`Unlink ${memberLabel}`}
+        aria-label={t("unlinkAria", { name: memberLabel })}
       >
         <Unlink className="size-3.5" aria-hidden="true" />
-        Unlink
+        {t("unlinkCta")}
       </Button>
     );
   }
@@ -66,7 +68,7 @@ export function UnlinkSiblingTrigger({
         disabled={pending}
       >
         {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : null}
-        Confirm unlink
+        {t("unlinkConfirmCta")}
       </Button>
       <Button
         type="button"
@@ -75,7 +77,7 @@ export function UnlinkSiblingTrigger({
         className="h-7 px-1.5 text-[11px]"
         onClick={() => setConfirming(false)}
         disabled={pending}
-        aria-label="Cancel unlink"
+        aria-label={t("unlinkCancelAria")}
       >
         <X className="size-3.5" aria-hidden="true" />
       </Button>

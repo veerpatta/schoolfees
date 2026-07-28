@@ -224,7 +224,11 @@ describe("read-only UX audit implementation", () => {
 
     expect(englishMessages.Students.tableSrNo).toBe("SR no");
     expect(englishMessages.Students.tableStudentName).toBe("Student name");
-    expect(studentsTable).toContain("md:hidden");
+    // The wide student table is desktop-only; the phone gets MobileStudentList
+    // out of the same file (mobile v2 §STUDENTS), not a narrowed table.
+    expect(studentsTable).toContain("md:table");
+    expect(studentsTable).toContain("md:block");
+    expect(studentsTable).toContain("MobileStudentList");
     expect(englishMessages.Transactions.tableHeaderReceiptNo).toBe("Receipt no");
     expect(transactionLazyTables).toContain("tracker-mobile-");
     expect(transactions).not.toContain("Receipt / Ref");

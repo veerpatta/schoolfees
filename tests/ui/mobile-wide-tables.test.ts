@@ -35,7 +35,7 @@ const DESKTOP_ONLY = new Map<string, string>([
   ],
   [
     "app/protected/students/[studentId]/page.tsx",
-    "two-column fee-head table at 420px — reads fine on a phone",
+    "the whole desktop tree sits inside one `hidden md:block` branch; the phone renders MobileStudentProfile instead",
   ],
 ]);
 

@@ -17,15 +17,19 @@ export type PhoneEntry = { label: string; phone: string };
  * record stores at most two numbers (primary → "Father", secondary →
  * "Mother"); placeholders/blanks are dropped.
  */
-export function buildStudentPhoneEntries(student: {
-  fatherPhone?: string | null;
-  motherPhone?: string | null;
-}): PhoneEntry[] {
+export function buildStudentPhoneEntries(
+  student: {
+    fatherPhone?: string | null;
+    motherPhone?: string | null;
+  },
+  /** Translated role labels. Callers inside a locale context should pass these. */
+  labels?: { father: string; mother: string },
+): PhoneEntry[] {
   const entries: PhoneEntry[] = [];
   const father = student.fatherPhone?.trim();
   const mother = student.motherPhone?.trim();
-  if (father) entries.push({ label: "Father", phone: father });
-  if (mother) entries.push({ label: "Mother", phone: mother });
+  if (father) entries.push({ label: labels?.father ?? "Father", phone: father });
+  if (mother) entries.push({ label: labels?.mother ?? "Mother", phone: mother });
   return entries;
 }
 

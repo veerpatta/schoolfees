@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
+import { getTranslations } from "next-intl/server";
 
+import {
+  MobileCard,
+  MobileNote,
+  MobileSectionCard,
+  MobileStatStrip,
+} from "@/components/mobile-app/mobile-kit";
 import { OfficeRecentTracker, ValueStatePill } from "@/components/office/office-ui";
+import { CloseDueTrigger } from "@/components/students/close-due-trigger";
+import { MobileStudentFamilyTab } from "@/components/students/mobile-student-family-tab";
+import { MobileStudentProfile } from "@/components/students/mobile-student-profile";
 import { StudentAboutPanel } from "@/components/students/student-about-panel";
 import { StudentDangerZone } from "@/components/students/student-danger-zone";
 import { StudentIdentityStrip } from "@/components/students/student-identity-strip";
@@ -62,6 +72,20 @@ function normalizeTab(value: string | undefined): NewWorkspaceTab {
     : "dues";
 }
 
+/**
+ * The phone shows three tabs where the desktop shows five. Map the desktop
+ * deep links onto them so a `?tab=` URL shared from a computer opens the right
+ * screen on a phone instead of silently falling back to the first tab. The
+ * client only ever receives the resolved value, so there is one table.
+ */
+function normalizeMobileTab(value: string | undefined): "fees" | "family" | "about" {
+  const desktopTab = normalizeTab(value);
+  if (desktopTab === "about") return "about";
+  if ((value ?? "").trim() === "family") return "family";
+  // dues, receipts, payments and fee-plan all live on the phone's Fees tab.
+  return "fees";
+}
+
 function getSchoolDateStamp(referenceDate = new Date()) {
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Kolkata",
@@ -82,6 +106,7 @@ export default async function StudentDetailPage({
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const activeTab = normalizeTab(resolvedSearchParams?.tab);
+  const mobileTab = normalizeMobileTab(resolvedSearchParams?.tab);
   const returnTo = resolvedSearchParams?.returnTo?.startsWith("/protected/students")
     ? resolvedSearchParams.returnTo
     : "/protected/students";
@@ -431,68 +456,6 @@ export default async function StudentDetailPage({
         </div>
       ) : (
         <>
-        <div className="md:hidden space-y-2">
-          {installmentBalances.map((item) => {
-            const headRows = buildPerInstallmentHeads(item);
-            const candidateLateFee = candidateLateFeeByInstallment.get(item.installmentId) ?? 0;
-            return (
-              <details
-                key={item.installmentId}
-                className="group rounded-lg border border-border bg-card"
-              >
-                <summary className="flex cursor-pointer list-none flex-col gap-2 px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-foreground">
-                      {getDisplayInstallmentLabel(item)}
-                      <span className="ml-1.5 text-[10px] font-normal text-muted-foreground group-open:hidden">
-                        · tap for fee heads
-                      </span>
-                    </span>
-                    {getInstallmentStatusPill(item.balanceStatus)}
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Due {formatShortDate(item.dueDate)}</span>
-                    <span className="font-mono font-semibold text-foreground">
-                      <Money value={item.pendingAmount} size="sm" />
-                    </span>
-                  </div>
-                  {item.finalLateFee > 0 ? (
-                    <div className="text-xs text-destructive font-medium">
-                      Includes {formatInr(item.finalLateFee)} late fee
-                      {item.waiverApplied > 0 ? ` (−${formatInr(item.waiverApplied)} waived)` : ""}
-                    </div>
-                  ) : item.balanceStatus === "overdue" && candidateLateFee > 0 ? (
-                    <div className="text-xs text-destructive/80 font-medium">
-                      + {formatInr(candidateLateFee)} late fee pending
-                    </div>
-                  ) : null}
-                </summary>
-                {headRows.length > 0 ? (
-                  <div className="border-t border-border bg-surface-2/40 px-4 py-2 text-xs">
-                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Fee heads for this installment
-                    </p>
-                    <ul className="space-y-1">
-                      {headRows.map((head) => (
-                        <li key={head.label} className="flex items-center justify-between">
-                          <span className="text-muted-foreground">{head.label}</span>
-                          <span
-                            className={cn(
-                              "font-mono font-medium",
-                              head.amount < 0 ? "text-success-soft-foreground" : "text-foreground",
-                            )}
-                          >
-                            {head.amount < 0 ? `−${formatInr(Math.abs(head.amount))}` : formatInr(head.amount)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </details>
-            );
-          })}
-        </div>
         <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
@@ -575,41 +538,6 @@ export default async function StudentDetailPage({
         </div>
       ) : (
         <>
-        <div className="md:hidden space-y-2">
-          {ledger.payments.map((payment) => (
-            <div key={payment.id} className="rounded-lg border border-border bg-card px-4 py-3 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-sm text-foreground">
-                  {payment.installmentLabel}
-                </span>
-                <Money value={payment.paymentAmount} size="sm" />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Due {formatShortDate(payment.dueDate)}
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                {(() => {
-                  const rid = receiptIdByNumber.get(payment.receiptNumber);
-                  return rid ? (
-                    <Link
-                      href={`/protected/receipts/${rid}?returnTo=${encodedReturnTo}`}
-                      className="font-semibold text-foreground underline-offset-2 hover:underline"
-                    >
-                      {payment.receiptNumber}
-                    </Link>
-                  ) : (
-                    <span className="font-semibold text-foreground">
-                      {payment.receiptNumber}
-                    </span>
-                  );
-                })()}
-                <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium text-muted-foreground">
-                  {modeLabels[payment.paymentMode] ?? payment.paymentMode}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
         <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
@@ -719,8 +647,353 @@ export default async function StudentDetailPage({
     />
   );
 
+  // ── Phone screens (mobile app v2 §STUDENT DETAIL) ────────────────────────
+  // Built from the values already computed above — no extra loaders. The
+  // desktop tree below is untouched, just wrapped in `hidden md:block`.
+  const tm = await getTranslations("MobileApp");
+
+  const mobileStatusPill = (status: string) => {
+    const tone =
+      status === "paid"
+        ? "bg-success-soft text-success-soft-foreground"
+        : status === "overdue"
+          ? "bg-destructive-soft text-destructive-soft-foreground"
+          : status === "partial"
+            ? "bg-warning-soft text-warning-soft-foreground"
+            : "bg-surface-2 text-muted-foreground";
+    const label =
+      status === "paid"
+        ? tm("instStatusPaid")
+        : status === "overdue"
+          ? tm("instStatusOverdue")
+          : status === "partial"
+            ? tm("instStatusPartial")
+            : tm("instStatusUpcoming");
+    return (
+      <span
+        className={cn(
+          "shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[9.5px] font-extrabold",
+          tone,
+        )}
+      >
+        {label}
+      </span>
+    );
+  };
+
+  const mobileFeesContent = (
+    <div className="flex flex-col gap-2.5">
+      {student.status !== "active" ? (
+        <MobileNote icon="🗄️">{tm("studentArchivedNotice")}</MobileNote>
+      ) : null}
+
+      <MobileStatStrip
+        stats={[
+          {
+            label: tm("studentStatTotal"),
+            value: formatInr(totalAnnualForGlance + lateFeeWaivedTotal),
+          },
+          {
+            label: tm("studentStatPaid"),
+            value: formatInr(cashPaidAllInstallments),
+            tone: "success",
+          },
+          {
+            label: tm("studentStatDue"),
+            value: formatInr(outstandingAmount),
+            tone:
+              outstandingAmount <= 0 ? "success" : overdueAmount > 0 ? "danger" : "warning",
+          },
+        ]}
+      />
+
+      {overdueAmount > 0 ? (
+        <MobileNote icon="⏰" className="border-destructive/30 bg-destructive-soft">
+          <span className="text-destructive-soft-foreground">
+            {tm("studentOverdueNote", {
+              amount: formatInr(overdueAmount),
+              lateFee: formatInr(lateFeeFlatAmount),
+            })}
+          </span>
+        </MobileNote>
+      ) : nextPendingInfo ? (
+        <MobileNote icon="📅">
+          {tm("studentNextDue", {
+            label: nextPendingInfo.label,
+            amount: formatInr(nextPendingInfo.amount),
+            date: formatShortDate(nextPendingInfo.dueDate),
+          })}
+        </MobileNote>
+      ) : null}
+
+      {installmentBalances.length === 0 ? (
+        <MobileNote icon="⚠️" className="border-warning/50 bg-warning-soft">
+          <span className="font-bold text-warning-soft-foreground">{tm("studentNoDues")}</span>{" "}
+          <span className="text-warning-soft-foreground">{tm("studentNoDuesBody")}</span>
+        </MobileNote>
+      ) : (
+        <MobileSectionCard title={tm("studentInstallmentsTitle")}>
+          <ul className="flex flex-col gap-1.5">
+            {installmentBalances.map((item) => {
+              const headRows = buildPerInstallmentHeads(item);
+              const candidateLateFee = candidateLateFeeByInstallment.get(item.installmentId) ?? 0;
+              return (
+                <li key={item.installmentId}>
+                  <details className="group rounded-xl border border-border bg-card">
+                    <summary className="flex cursor-pointer list-none items-center gap-2.5 p-2.5">
+                      <span
+                        className={cn(
+                          "grid size-[26px] shrink-0 place-items-center rounded-full text-[11px] font-extrabold",
+                          item.balanceStatus === "paid"
+                            ? "bg-success-soft text-success-soft-foreground"
+                            : item.balanceStatus === "overdue"
+                              ? "bg-destructive-soft text-destructive-soft-foreground"
+                              : "bg-surface-2 text-muted-foreground",
+                        )}
+                      >
+                        {item.installmentNo}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12.5px] font-bold text-foreground">
+                          {getDisplayInstallmentLabel(item)}
+                        </span>
+                        <span className="block text-[10.5px] font-medium text-muted-foreground">
+                          {formatShortDate(item.dueDate)}
+                          <span className="group-open:hidden"> · {tm("studentTapForHeads")}</span>
+                        </span>
+                      </span>
+                      <span
+                        className={cn(
+                          "tabular shrink-0 text-[12.5px] font-extrabold",
+                          item.balanceStatus === "paid"
+                            ? "text-success"
+                            : item.balanceStatus === "overdue"
+                              ? "text-destructive"
+                              : "text-foreground",
+                        )}
+                      >
+                        {formatInr(item.pendingAmount)}
+                      </span>
+                      {mobileStatusPill(item.balanceStatus)}
+                    </summary>
+                    {item.finalLateFee > 0 ? (
+                      <p className="px-2.5 pb-2 text-[10.5px] font-semibold text-destructive">
+                        {tm("lateFeeIncluded", { amount: formatInr(item.finalLateFee) })}
+                        {item.waiverApplied > 0
+                          ? ` ${tm("lateFeeWaivedSuffix", { amount: formatInr(item.waiverApplied) })}`
+                          : ""}
+                      </p>
+                    ) : item.balanceStatus === "overdue" && candidateLateFee > 0 ? (
+                      <p className="px-2.5 pb-2 text-[10.5px] font-semibold text-destructive/80">
+                        {tm("lateFeePending", { amount: formatInr(candidateLateFee) })}
+                      </p>
+                    ) : null}
+                    {headRows.length > 0 ? (
+                      <div className="border-t border-border bg-surface-2/40 px-2.5 py-2">
+                        <p className="mobile-eyebrow text-muted-foreground">
+                          {tm("studentFeeHeadsTitle")}
+                        </p>
+                        <ul className="mt-1 flex flex-col gap-1">
+                          {headRows.map((head) => (
+                            <li key={head.label} className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] text-muted-foreground">{head.label}</span>
+                              <span
+                                className={cn(
+                                  "tabular text-[11px] font-semibold",
+                                  head.amount < 0 ? "text-success" : "text-foreground",
+                                )}
+                              >
+                                {head.amount < 0
+                                  ? `−${formatInr(Math.abs(head.amount))}`
+                                  : formatInr(head.amount)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </details>
+                </li>
+              );
+            })}
+          </ul>
+        </MobileSectionCard>
+      )}
+
+      <MobileSectionCard title={tm("studentReceiptsTitle")}>
+        {receipts.length === 0 ? (
+          <p className="text-[11.5px] text-muted-foreground">{tm("studentNoReceipts")}</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {receipts.slice(0, 12).map((receipt) => (
+              <li key={receipt.id}>
+                <Link
+                  href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}
+                  className="focus-ring flex items-center justify-between gap-2.5 rounded-xl border border-border px-2.5 py-2"
+                >
+                  <span className="min-w-0">
+                    <span
+                      className={cn(
+                        "block truncate text-[12px] font-extrabold text-foreground",
+                        receipt.isReversed && "line-through",
+                      )}
+                    >
+                      {receipt.receiptNumber}
+                    </span>
+                    <span className="block text-[10.5px] font-medium text-muted-foreground">
+                      {formatShortDate(receipt.paymentDate)} · {receipt.paymentModeLabel}
+                    </span>
+                  </span>
+                  {receipt.isReversed ? (
+                    <span className="shrink-0 rounded-full bg-destructive-soft px-2 py-0.5 text-[9.5px] font-extrabold text-destructive-soft-foreground">
+                      {tm("studentReceiptReversed")}
+                    </span>
+                  ) : (
+                    <span className="tabular shrink-0 text-[12.5px] font-extrabold text-success">
+                      {formatInr(receipt.totalAmount)}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </MobileSectionCard>
+
+      {/* The annual half of the desktop "Fee plan" tab. Collapsed: it answers a
+          policy question, not the one a parent is asking at the counter. */}
+      {financialSnapshot ? (
+        <details className="rounded-xl border border-border bg-card">
+          <summary className="cursor-pointer list-none p-4 text-[13.5px] font-extrabold text-foreground">
+            {tm("studentAnnualPlanTitle")}
+          </summary>
+          <div className="border-t border-border px-4 py-3">
+            <ul className="flex flex-col gap-1.5">
+              {feeBreakupRows.map((row) => (
+                <li key={row.id} className="flex items-center justify-between gap-2">
+                  <span className="text-[11.5px] text-muted-foreground">{row.label}</span>
+                  <span
+                    className={cn(
+                      "tabular text-[11.5px] font-semibold",
+                      row.kind === "discount" ? "text-success" : "text-foreground",
+                    )}
+                  >
+                    {formatInr(row.amount)}
+                  </span>
+                </li>
+              ))}
+              <li className="mt-1 flex items-center justify-between gap-2 border-t border-border pt-2">
+                <span className="text-[12px] font-extrabold text-foreground">
+                  {tm("studentAnnualTotal")}
+                </span>
+                <span className="tabular text-[12.5px] font-extrabold text-foreground">
+                  {formatInr(financialSnapshot.resolvedBreakdown.annualTotal)}
+                </span>
+              </li>
+            </ul>
+          </div>
+        </details>
+      ) : null}
+    </div>
+  );
+
+  const mobileAboutRows: Array<{ key: string; value: string }> = [
+    { key: tm("aboutSrNumber"), value: student.admissionNo || "—" },
+    {
+      key: tm("aboutDob"),
+      value: student.dateOfBirth ? formatShortDate(student.dateOfBirth) : tm("aboutNotSet"),
+    },
+    { key: tm("aboutFather"), value: student.fatherName || tm("aboutNotSet") },
+    { key: tm("aboutMother"), value: student.motherName || tm("aboutNotSet") },
+    { key: tm("aboutClass"), value: student.classLabel },
+    { key: tm("aboutRoute"), value: student.transportRouteLabel || tm("aboutNotSet") },
+    { key: tm("aboutOldBalance"), value: formatInr(prevYearDuesAmount) },
+    { key: tm("aboutCredit"), value: formatInr(financialSnapshot?.creditBalance ?? 0) },
+    { key: tm("aboutLateFeeWaiver"), value: formatInr(student.lateFeeWaiverAmount ?? 0) },
+    {
+      key: tm("aboutStatus"),
+      value: `${student.studentStatusLabel} · ${student.status}`,
+    },
+  ];
+
+  const mobileAboutContent = (
+    <div className="flex flex-col gap-2.5">
+      <MobileCard>
+        <dl className="flex flex-col gap-2.5">
+          {mobileAboutRows.map((row) => (
+            <div key={row.key} className="flex items-baseline justify-between gap-3">
+              <dt className="text-[12px] font-semibold text-muted-foreground">{row.key}</dt>
+              <dd className="text-right text-[12.5px] font-bold text-foreground">{row.value}</dd>
+            </div>
+          ))}
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-[12px] font-semibold text-muted-foreground">
+              {tm("aboutDiscount")}
+            </dt>
+            <dd className="flex flex-wrap justify-end gap-1 text-right">
+              {/* The real assigned policies — RTE / Staff Child / 3rd Child. */}
+              {glanceDiscountLabels.length > 0 ? (
+                glanceDiscountLabels.map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-extrabold text-success-soft-foreground"
+                  >
+                    {label}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[12.5px] font-bold text-foreground">
+                  {glanceDiscountAmount > 0 ? formatInr(glanceDiscountAmount) : tm("aboutNoDiscount")}
+                </span>
+              )}
+            </dd>
+          </div>
+        </dl>
+      </MobileCard>
+
+      {canEditStudent && student.status === "active" ? (
+        <div className="rounded-xl border border-warning/50 bg-warning-soft p-4">
+          <p className="text-[12.5px] font-extrabold text-warning-soft-foreground">
+            {tm("closeDueTitle")}
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-warning-soft-foreground/90">
+            {tm("closeDueBody")}
+          </p>
+          <div className="mt-3">
+            <CloseDueTrigger
+              studentId={student.id}
+              studentLabel={student.fullName}
+              studentAdmissionNo={student.admissionNo}
+              classLabel={student.classLabel}
+              pendingAmount={outstandingAmount}
+              currentDiscount={student.discountAmount}
+              sessionLabel={financialSnapshot?.policy.academicSessionLabel ?? ""}
+              size="default"
+              className="h-11 w-full justify-center rounded-xl text-[12.5px] font-extrabold"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {canShowDangerZone ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive-soft/40 p-4">
+          <p className="text-[12.5px] font-extrabold text-destructive">{tm("dangerTitle")}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-destructive/90">
+            {tm("dangerBody")}
+          </p>
+          <div className="mt-3">
+            <StudentDangerZone studentId={student.id} deletionSafety={deletionSafety} />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
+    // Flex gap rather than space-y — the desktop-only sticky header sits above
+    // the phone branch, and `space-y` counts `display:none` siblings, leaving a
+    // gap above the phone header. See the same note on the Students list page.
+    <div className="flex flex-col gap-6">
       <OfficeRecentTracker
         student={{
           id: student.id,
@@ -729,13 +1002,61 @@ export default async function StudentDetailPage({
         }}
       />
 
-      <StudentStickyHeader
-        fullName={student.fullName}
-        classLabel={student.classLabel}
-        admissionNo={student.admissionNo}
-        outstandingAmount={outstandingAmount}
-      />
+      {/* Desktop only: `sticky top-14` is meaningless on a phone, where `main`
+          is the scroll region and the phone profile carries its own header. */}
+      <div className="hidden md:block">
+        <StudentStickyHeader
+          fullName={student.fullName}
+          classLabel={student.classLabel}
+          admissionNo={student.admissionNo}
+          outstandingAmount={outstandingAmount}
+        />
+      </div>
 
+      {/* ── Phone (mobile app v2 §STUDENT DETAIL) ──────────────────────
+          Three tabs and a fixed action bar. The desktop tree below is the
+          same components as before, wrapped so a phone never renders both. */}
+      <div className="md:hidden">
+        <MobileStudentProfile
+          studentId={student.id}
+          studentName={student.fullName}
+          classLabel={student.classLabel}
+          admissionNo={student.admissionNo}
+          fatherPhone={student.fatherPhone}
+          motherPhone={student.motherPhone}
+          canPostPayments={canPostPayments}
+          canShare={Boolean(student.fatherPhone || student.motherPhone)}
+          isActive={student.status === "active"}
+          returnTo={returnTo}
+          initialTab={mobileTab}
+          familyGroupId={familyMembersDetail.familyGroupId}
+          pendingAmount={outstandingAmount}
+          familyCount={familyMembersDetail.members.filter((member) => !member.isSelf).length}
+          feesContent={mobileFeesContent}
+          familyContent={
+            <MobileStudentFamilyTab
+              studentId={student.id}
+              familyGroupId={familyMembersDetail.familyGroupId}
+              confidence={familyMembersDetail.confidence}
+              members={familyMembersDetail.members}
+              sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
+              canEditStudent={canEditStudent}
+              canCollectPayments={canPostPayments}
+              returnTo={returnTo}
+              currentStudent={{
+                fullName: student.fullName,
+                admissionNo: student.admissionNo,
+                classLabel: student.classLabel,
+                fatherName: student.fatherName ?? null,
+                primaryPhone: student.fatherPhone ?? student.motherPhone ?? null,
+              }}
+            />
+          }
+          aboutContent={mobileAboutContent}
+        />
+      </div>
+
+      <div className="hidden space-y-6 md:block">
       {student.status !== "active" ? (
         <Notice
           tone="warning"
@@ -861,6 +1182,7 @@ export default async function StudentDetailPage({
       {canShowDangerZone ? (
         <StudentDangerZone studentId={student.id} deletionSafety={deletionSafety} />
       ) : null}
+      </div>
     </div>
   );
 }

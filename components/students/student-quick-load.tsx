@@ -7,8 +7,8 @@ import { useTranslations } from "next-intl";
 import { SectionCard } from "@/components/admin/section-card";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
-import { VoiceSearchButton } from "@/components/mobile-app/voice-search-button";
 import { BulkStudentEditBar } from "@/components/students/bulk-student-edit-bar";
+import { MobileStudentsScreen } from "@/components/students/mobile-students-screen";
 import { RecentStudentAccess } from "@/components/students/recent-student-access";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ import type {
   StudentRouteOption,
 } from "@/lib/students/types";
 
-import { Search, GraduationCap, Bus, UserCheck, X, SlidersHorizontal, Plus, ChevronDown } from "lucide-react";
+import { Search, GraduationCap, Bus, UserCheck, X, Plus, ChevronDown } from "lucide-react";
 
 const selectClassName =
   "appearance-none flex w-full rounded-md border border-input bg-card px-3 py-1 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:ring-ring focus:border-ring cursor-pointer hover:border-border-strong";
@@ -300,308 +300,65 @@ export function StudentQuickLoad({
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const returnTo = `/protected/students${params.toString() ? `?${params.toString()}` : ""}`;
 
+  const recentAccess = (
+    <RecentStudentAccess
+      students={students}
+      lastViewedByUser={lastViewedByUser ?? {}}
+      sessionLabel={initialFilters.sessionLabel}
+      returnTo={returnTo}
+      canCollectPayments={canCollectPayments}
+    />
+  );
+
   return (
     <>
+      {/* ── Phone (mobile app v2 §STUDENTS) ────────────────────────────
+          A search-first screen, not the desktop page narrowed. The state
+          above is shared with the desktop twin, so there is one fetch, one
+          filter set and one URL. */}
+      <div className="md:hidden" data-mobile-student-search>
+        <MobileStudentsScreen
+          searchRef={searchRef}
+          query={filters.query}
+          onQueryChange={(value) => {
+            setPage(1);
+            setFilters((previous) => ({ ...previous, query: value }));
+          }}
+          classOptions={classOptions}
+          classId={filters.classId}
+          onClassChange={(nextClassId) => {
+            setPage(1);
+            setFilters((previous) => ({ ...previous, classId: nextClassId }));
+          }}
+          onlyWithDues={onlyWithDues}
+          onToggleDues={() => {
+            setPage(1);
+            setOnlyWithDues((previous) => !previous);
+          }}
+          activeFilterCount={activeFilterCount}
+          onOpenFilters={() => setFilterSheetOpen(true)}
+          totalCount={totalCount}
+          isLoading={isLoading}
+          loadError={loadError}
+          students={displayedStudents}
+          hasFilters={hasVisibleFilters}
+          canWrite={canWrite}
+          canCollectPayments={canCollectPayments}
+          returnTo={returnTo}
+          session={initialFilters.sessionLabel}
+          page={page}
+          pageCount={pageCount}
+          onPrevPage={() => setPage((value) => Math.max(1, value - 1))}
+          onNextPage={() => setPage((value) => Math.min(pageCount, value + 1))}
+          recentAccess={recentAccess}
+        />
+      </div>
+
+      <div className="hidden space-y-6 md:block">
       <SectionCard
         title={t("findStudentsTitle")}
         description={t("findStudentsDescription")}
       >
-        <div className="md:hidden space-y-3" data-mobile-student-search>
-          <div>
-            <Label htmlFor="query-mobile-inline">{t("searchLabel")}</Label>
-            <div className="mt-2 flex items-stretch gap-2">
-              <div className="relative min-w-0 flex-1">
-                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="query-mobile-inline"
-                  ref={searchRef}
-                  data-student-search="true"
-                  value={filters.query}
-                  onChange={(event) => {
-                    setPage(1);
-                    setFilters((previous) => ({ ...previous, query: event.target.value }));
-                  }}
-                  placeholder={t("searchPlaceholder")}
-                  title={t("searchFocusHint")}
-                  className="h-[50px] pl-9"
-                />
-              </div>
-              {/* Renders nothing where speech recognition is unavailable, so
-                  the field goes full width on iOS rather than sitting beside
-                  a dead square. */}
-              <VoiceSearchButton
-                label={t("voiceSearch")}
-                listeningLabel={t("voiceSearchListening")}
-                onTranscript={(text) => {
-                  setPage(1);
-                  setFilters((previous) => ({ ...previous, query: text }));
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Quick filter chips — one-tap focus on common subsets. */}
-          <div className="flex flex-wrap gap-1.5">
-            {/* "Only with dues" filters on the real outstanding figure and
-                toggles off with the ✕, replacing a chip that only seeded the
-                free-text search with the word "overdue" and could never show
-                as active or be cleared. */}
-            <button
-              type="button"
-              aria-pressed={onlyWithDues}
-              onClick={() => {
-                setPage(1);
-                setOnlyWithDues((previous) => !previous);
-              }}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                onlyWithDues
-                  ? "border-accent bg-accent text-accent-foreground"
-                  : "border-border bg-card text-foreground hover:bg-surface-2",
-              )}
-            >
-              {t("chipOnlyWithDues")}
-              {onlyWithDues ? <span aria-hidden="true">✕</span> : null}
-            </button>
-            {[
-              { key: "missing-phone", label: t("chipMissingPhone") },
-              { key: "left", label: t("chipWithdrawn") },
-              { key: "new", label: t("chipNewThisYear") },
-            ].map((chip) => {
-              const isActive =
-                (chip.key === "left" && filters.status === "left") ||
-                (chip.key === "new" && filters.status === "active" && filters.query.toLowerCase().includes("new")) ||
-                false;
-              return (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={() => {
-                    setPage(1);
-                    if (chip.key === "left") {
-                      setFilters((previous) => ({
-                        ...previous,
-                        status: filters.status === "left" ? "active" : "left",
-                      }));
-                    } else if (chip.key === "missing-phone") {
-                      setFilters((previous) => ({ ...previous, query: "missing phone" }));
-                    } else if (chip.key === "new") {
-                      setFilters((previous) => ({
-                        ...previous,
-                        status: "active",
-                        query: previous.query.includes("new") ? previous.query : `${previous.query} new`.trim(),
-                      }));
-                    }
-                  }}
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                    isActive
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border bg-card text-foreground hover:bg-surface-2",
-                  )}
-                >
-                  {chip.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div data-mobile-class-filter>
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="classId-mobile-inline">{t("classLabel")}</Label>
-              <button
-                type="button"
-                className="text-xs font-medium text-muted-foreground underline underline-offset-2"
-                onClick={() => {
-                  setPage(1);
-                  setFilters((previous) => ({ ...previous, classId: "" }));
-                }}
-              >
-                {t("classAll")}
-              </button>
-            </div>
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-              {classOptions.map((classOption) => {
-                const selected = filters.classId === classOption.id;
-
-                return (
-                  <button
-                    key={classOption.id}
-                    type="button"
-                    className={cn(
-                      "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
-                      selected
-                        ? "border-accent bg-accent text-accent-foreground"
-                        : "border-border bg-surface text-foreground hover:bg-surface-2",
-                    )}
-                    onClick={() => {
-                      setPage(1);
-                      setFilters((previous) => ({
-                        ...previous,
-                        classId: selected ? "" : classOption.id,
-                      }));
-                    }}
-                  >
-                    {classOption.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-10 flex-1 justify-center gap-2 rounded-lg font-medium"
-              onClick={() => setFilterSheetOpen(true)}
-            >
-              <SlidersHorizontal className="size-4" />
-              {t("filterRouteAndStatus")}
-              {activeFilterCount > 0 && (
-                <span className="ml-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">
-                  {activeFilterCount}
-                </span>
-              )}
-            </Button>
-            {hasVisibleFilters ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-10 px-3 hover:bg-surface-2 shrink-0"
-              onClick={resetFilters}
-            >
-              {t("filterClear")}
-            </Button>
-            ) : null}
-          </div>
-        </div>
-
-        <Sheet
-          open={filterSheetOpen}
-          onClose={() => setFilterSheetOpen(false)}
-          title={t("filterRouteAndStatus")}
-          size="md"
-        >
-          <div className="space-y-4 pt-2">
-            {/* Route browsing as chips, matching the class row above (mobile
-                v2). A native picker hides the other routes behind a tap and
-                gives no sense of how many there are; a scrolling pill row
-                shows the whole set and takes one tap to switch. Same client
-                filter state as the class chips — one source of truth. */}
-            <div>
-              <span className="flex items-center gap-1.5">
-                <Bus className="size-4 text-muted-foreground" aria-hidden="true" />
-                <Label>{t("transportRouteLabel")}</Label>
-              </span>
-              <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1">
-                <button
-                  type="button"
-                  aria-pressed={filters.transportRouteId === ""}
-                  onClick={() => {
-                    setPage(1);
-                    setFilters((previous) => ({ ...previous, transportRouteId: "" }));
-                  }}
-                  className={cn(
-                    "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
-                    filters.transportRouteId === ""
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border bg-card text-foreground hover:bg-surface-2",
-                  )}
-                >
-                  {t("transportRouteAll")}
-                </button>
-                {routeOptions.map((route) => {
-                  const selected = filters.transportRouteId === route.id;
-                  return (
-                    <button
-                      key={route.id}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => {
-                        setPage(1);
-                        setFilters((previous) => ({
-                          ...previous,
-                          transportRouteId: route.id,
-                        }));
-                      }}
-                      className={cn(
-                        "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
-                        selected
-                          ? "border-accent bg-accent text-accent-foreground"
-                          : "border-border bg-card text-foreground hover:bg-surface-2",
-                      )}
-                    >
-                      {route.routeCode
-                        ? t("transportRouteWithCode", { label: route.label, code: route.routeCode })
-                        : route.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <span className="flex items-center gap-1.5">
-                <UserCheck className="size-4 text-muted-foreground" aria-hidden="true" />
-                <Label>{t("statusLabel")}</Label>
-              </span>
-              {/* Four fixed options — chips rather than a picker, matching the
-                  class and route rows so the whole sheet reads one way. */}
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(
-                  [
-                    ["", t("statusAll")],
-                    ["active", t("statusActive")],
-                    ["inactive", t("statusInactive")],
-                    ["left", t("statusLeft")],
-                  ] as Array<[StudentListFilters["status"], string]>
-                ).map(([value, label]) => {
-                  const selected = filters.status === value;
-                  return (
-                    <button
-                      key={value || "all"}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => {
-                        setPage(1);
-                        setFilters((previous) => ({ ...previous, status: value }));
-                      }}
-                      className={cn(
-                        "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
-                        selected
-                          ? "border-accent bg-accent text-accent-foreground"
-                          : "border-border bg-card text-foreground hover:bg-surface-2",
-                      )}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="pt-4 flex gap-2">
-              <Button
-                type="button"
-                className="flex-1 h-12 text-sm font-semibold rounded-xl"
-                onClick={() => setFilterSheetOpen(false)}
-              >
-                {t("filterApplyFilters")}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 px-4 text-sm font-medium rounded-xl"
-                onClick={resetFilters}
-              >
-                {t("filterReset")}
-              </Button>
-            </div>
-          </div>
-        </Sheet>
         <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-5">
           <div className="xl:col-span-2">
             <Label htmlFor="query">{t("searchLabel")}</Label>
@@ -717,13 +474,7 @@ export function StudentQuickLoad({
         </div>
       </SectionCard>
 
-      <RecentStudentAccess
-        students={students}
-        lastViewedByUser={lastViewedByUser ?? {}}
-        sessionLabel={initialFilters.sessionLabel}
-        returnTo={returnTo}
-        canCollectPayments={canCollectPayments}
-      />
+      {recentAccess}
 
       <SectionCard
         title={t("studentListTitle")}
@@ -812,6 +563,135 @@ export function StudentQuickLoad({
           </div>
         </div>
       </SectionCard>
+
+      </div>
+
+      {/* Shared by both widths — the phone opens it from the header's filter
+          button, the desktop from the same state. Mounted outside the
+          `hidden md:block` twin, or `display:none` would swallow it. */}
+          <Sheet
+            open={filterSheetOpen}
+            onClose={() => setFilterSheetOpen(false)}
+            title={t("filterRouteAndStatus")}
+            size="md"
+          >
+            <div className="space-y-4 pt-2">
+              {/* Route browsing as chips, matching the class row above (mobile
+                  v2). A native picker hides the other routes behind a tap and
+                  gives no sense of how many there are; a scrolling pill row
+                  shows the whole set and takes one tap to switch. Same client
+                  filter state as the class chips — one source of truth. */}
+              <div>
+                <span className="flex items-center gap-1.5">
+                  <Bus className="size-4 text-muted-foreground" aria-hidden="true" />
+                  <Label>{t("transportRouteLabel")}</Label>
+                </span>
+                <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1">
+                  <button
+                    type="button"
+                    aria-pressed={filters.transportRouteId === ""}
+                    onClick={() => {
+                      setPage(1);
+                      setFilters((previous) => ({ ...previous, transportRouteId: "" }));
+                    }}
+                    className={cn(
+                      "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
+                      filters.transportRouteId === ""
+                        ? "border-accent bg-accent text-accent-foreground"
+                        : "border-border bg-card text-foreground hover:bg-surface-2",
+                    )}
+                  >
+                    {t("transportRouteAll")}
+                  </button>
+                  {routeOptions.map((route) => {
+                    const selected = filters.transportRouteId === route.id;
+                    return (
+                      <button
+                        key={route.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setPage(1);
+                          setFilters((previous) => ({
+                            ...previous,
+                            transportRouteId: route.id,
+                          }));
+                        }}
+                        className={cn(
+                          "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
+                          selected
+                            ? "border-accent bg-accent text-accent-foreground"
+                            : "border-border bg-card text-foreground hover:bg-surface-2",
+                        )}
+                      >
+                        {route.routeCode
+                          ? t("transportRouteWithCode", { label: route.label, code: route.routeCode })
+                          : route.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <span className="flex items-center gap-1.5">
+                  <UserCheck className="size-4 text-muted-foreground" aria-hidden="true" />
+                  <Label>{t("statusLabel")}</Label>
+                </span>
+                {/* Four fixed options — chips rather than a picker, matching the
+                    class and route rows so the whole sheet reads one way. */}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["", t("statusAll")],
+                      ["active", t("statusActive")],
+                      ["inactive", t("statusInactive")],
+                      ["left", t("statusLeft")],
+                    ] as Array<[StudentListFilters["status"], string]>
+                  ).map(([value, label]) => {
+                    const selected = filters.status === value;
+                    return (
+                      <button
+                        key={value || "all"}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setPage(1);
+                          setFilters((previous) => ({ ...previous, status: value }));
+                        }}
+                        className={cn(
+                          "h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors",
+                          selected
+                            ? "border-accent bg-accent text-accent-foreground"
+                            : "border-border bg-card text-foreground hover:bg-surface-2",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-2">
+                <Button
+                  type="button"
+                  className="flex-1 h-12 text-sm font-semibold rounded-xl"
+                  onClick={() => setFilterSheetOpen(false)}
+                >
+                  {t("filterApplyFilters")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 px-4 text-sm font-medium rounded-xl"
+                  onClick={resetFilters}
+                >
+                  {t("filterReset")}
+                </Button>
+              </div>
+            </div>
+          </Sheet>
 
       {canWrite && selectedIds.length === 0 && (
         <Link

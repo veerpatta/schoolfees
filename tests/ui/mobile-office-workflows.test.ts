@@ -12,13 +12,18 @@ function readRepoFile(path: string) {
 describe("mobile office workflow source markers", () => {
   it("keeps Find students search and class filtering visible on mobile", () => {
     const quickLoad = readRepoFile("components/students/student-quick-load.tsx");
+    // The phone screen moved into its own file when Students adopted the
+    // mobile-v2 search header; the search box and the class-chip row still
+    // exist, they are just no longer inline in the orchestrator.
+    const phoneScreen = readRepoFile("components/students/mobile-students-screen.tsx");
     // "Route and status" lives in the Students namespace now.
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       Students: Record<string, string>;
     };
 
     expect(quickLoad).toContain("data-mobile-student-search");
-    expect(quickLoad).toContain("data-mobile-class-filter");
+    expect(phoneScreen).toContain("data-mobile-class-filter");
+    expect(phoneScreen).toContain('data-student-search="true"');
     expect(quickLoad).toContain("defaultStatusIsActive");
     expect(quickLoad).toContain('status: "active"');
     expect(englishMessages.Students.filterRouteAndStatus).toBe("Route and status");

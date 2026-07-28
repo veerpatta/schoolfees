@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Users, GraduationCap, ShieldAlert, ChevronRight, Phone, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { Users, GraduationCap, ShieldAlert, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -203,27 +203,89 @@ function DataQualityFlags({ student, t }: { student: StudentListItem; t: Student
   return <span className="flex items-center gap-1 mt-0.5">{flags}</span>;
 }
 
+/**
+ * Phone-card money cell. Deliberately terser than `OutstandingCell`: the design
+ * gives this one line and one chip, so the badges, the late-fee suffix and the
+ * "on track" hint stay on the desktop table and on the profile.
+ *
+ * Tone comes from the real signal (`overdueAmount`), not from the design's
+ * ₹10,000 threshold — a ₹2,000 overdue is the one the office chases.
+ */
+function MobileOutstanding({
+  student,
+  t,
+}: {
+  student: StudentListItem;
+  t: StudentsTranslator;
+}) {
+  if (student.financialLoading) {
+    return (
+      <span
+        className="block h-4 w-16 anim-shimmer rounded bg-surface-2"
+        aria-label={t("feePositionLoading")}
+      />
+    );
+  }
+
+  if (student.duesStatus !== "generated") {
+    return (
+      <span className="tabular text-[11px] font-semibold text-muted-foreground">
+        {t("duesNotPrepared")}
+      </span>
+    );
+  }
+
+  if (student.outstandingAmount <= 0) {
+    return (
+      <span className="text-[12.5px] font-extrabold text-success">{t("yearClear")}</span>
+    );
+  }
+
+  return (
+    <span
+      className={cn(
+        "tabular text-[14px] font-extrabold",
+        student.overdueAmount > 0 ? "text-destructive" : "text-warning",
+      )}
+    >
+      {formatInr(student.outstandingAmount)}
+    </span>
+  );
+}
+
+/**
+ * Compacting the row to the design's single card drops the SR-missing badge and
+ * the four data-quality flags from the phone. They are still live office
+ * signals, so they collapse into one dot on the avatar and stay spelled out on
+ * the desktop table and the student's About tab.
+ */
+function hasDataQualityWarning(student: StudentListItem) {
+  return (
+    (student.status === "active" && !student.admissionNo.trim()) ||
+    student.duplicateSrFlag ||
+    student.missingDobFlag ||
+    student.missingClassFlag ||
+    student.missingStatusFlag
+  );
+}
+
 const MobileStudentListItem = React.memo(function MobileStudentListItem({
   student,
   returnTo,
   session,
   canCollectPayments,
-  lastViewedAt,
   t,
 }: {
   student: StudentListItem;
   returnTo: string;
   session?: string;
   canCollectPayments: boolean;
-  lastViewedAt?: string | null;
   t: StudentsTranslator;
 }) {
   const withSession = (href: string) => appendSessionParam(href, session);
-  const srNoMissing = student.status === "active" && !student.admissionNo.trim();
   const studentHref = withSession(
     `/protected/students/${student.id}?returnTo=${encodeURIComponent(returnTo)}`,
   );
-  const contactPhone = student.fatherPhone || student.motherPhone;
   const showCollect =
     canCollectPayments &&
     student.status === "active" &&
@@ -244,96 +306,108 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
       onClick={handleRowOpen}
       onMouseEnter={prefetchRow}
       onTouchStart={prefetchRow}
-      className="group relative flex cursor-pointer flex-col gap-2 pl-6 pr-3 py-3.5 transition-all hover:bg-surface-2/50 active:bg-surface-2 border-b border-border/40 focus-visible:outline-none focus-visible:bg-surface-2"
-      style={{ contentVisibility: "auto", containIntrinsicSize: "0 96px" } as React.CSSProperties}
+      className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors active:bg-surface-2"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 66px" } as React.CSSProperties}
     >
-      {/* Visual Dues Indicator Strip */}
-      <div className={cn(
-        "absolute left-0 top-0 bottom-0 w-1",
-        student.duesStatus !== "generated"
-          ? "bg-muted-foreground/20"
-          : student.outstandingAmount <= 0
-          ? "bg-success"
-          : student.overdueAmount > 0
-          ? "bg-destructive"
-          : "bg-warning"
-      )} />
-
-      {/* Top tier: identity (left) + outstanding (right) */}
-      <div className="flex items-start gap-3">
-        <StudentAvatar photoPath={student.photoPath} fullName={student.fullName} size="sm" />
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <Link
-              href={studentHref}
-              onFocus={prefetchRow}
-              className="relative z-10 min-w-0 truncate rounded-sm text-sm font-semibold text-foreground hover:underline focus-ring"
-            >
-              {student.fullName}
-            </Link>
-            {student.status !== "active" && (
-              <StudentStatusBadge status={student.status} />
-            )}
-          </div>
-
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-            {srNoMissing ? (
-              <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-medium text-warning-soft-foreground flex items-center gap-0.5">
-                <ShieldAlert className="h-2.5 w-2.5" />
-                {t("srMissingBadge")}
-              </span>
-            ) : null}
-            <SiblingPill student={student} session={session} t={t} />
-            <DataQualityFlags student={student} t={t} />
-          </div>
-
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            {t("classLineWithSr", { class: student.classLabel, sr: student.admissionNo || t("tableSrPending") })}
-          </p>
-          {lastViewedAt ? (
-            <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-              {t("lastViewedByYou", { when: timeAgoShort(lastViewedAt) ?? t("lastViewedFallback") })}
-            </p>
-          ) : null}
-          {contactPhone ? (
-            <p className="text-xs text-muted-foreground mt-1">
-              <a
-                href={`tel:${contactPhone}`}
-                data-row-action="true"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 hover:underline"
-              >
-                <Phone className="h-3 w-3" />
-                <span>{contactPhone}</span>
-              </a>
-            </p>
-          ) : null}
-        </div>
-
-        <div className="flex shrink-0 items-start gap-1 text-right">
-          <OutstandingCell student={student} t={t} />
-          <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground/40 transition group-hover:text-muted-foreground" aria-hidden="true" />
-        </div>
-      </div>
-
-      {/* Action tier: Collect sits on its own row so it never crowds the name */}
-      {showCollect ? (
-        <div
-          data-row-action="true"
-          onClick={(event) => event.stopPropagation()}
-          className="flex justify-end"
-        >
-          <StudentRowCollectButton
-            studentId={student.id}
-            studentLabel={student.fullName}
-            classLabel={student.classLabel}
-            variant="primary"
-            size="sm"
+      <span className="relative shrink-0">
+        <StudentAvatar photoPath={student.photoPath} fullName={student.fullName} size="md" />
+        {hasDataQualityWarning(student) ? (
+          <span
+            title={t("flagDuplicateSr")}
+            className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-card bg-warning"
           />
-        </div>
-      ) : null}
+        ) : null}
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <Link
+            href={studentHref}
+            onFocus={prefetchRow}
+            className="focus-ring min-w-0 truncate rounded-sm text-[14.5px] font-extrabold leading-tight text-foreground"
+          >
+            {student.fullName}
+          </Link>
+          {student.status !== "active" ? <StudentStatusBadge status={student.status} /> : null}
+        </span>
+        <span className="mt-0.5 flex items-center gap-1.5">
+          <span className="truncate text-[11.5px] font-medium text-muted-foreground">
+            {t("classLineWithSr", {
+              class: student.classLabel,
+              sr: student.admissionNo || t("tableSrPending"),
+            })}
+          </span>
+          <SiblingPill student={student} session={session} t={t} />
+        </span>
+      </span>
+
+      <span className="flex shrink-0 flex-col items-end gap-1 text-right">
+        <MobileOutstanding student={student} t={t} />
+        {showCollect ? (
+          <span data-row-action="true" onClick={(event) => event.stopPropagation()}>
+            <StudentRowCollectButton
+              studentId={student.id}
+              studentLabel={student.fullName}
+              classLabel={student.classLabel}
+              returnTo={returnTo}
+              variant="primary"
+              className="h-8 rounded-[10px] border border-accent/35 bg-accent-soft px-3 text-[11.5px] font-extrabold text-accent-soft-foreground hover:bg-accent-soft"
+            />
+          </span>
+        ) : null}
+      </span>
     </li>
+  );
+});
+
+/**
+ * The phone list (mobile app v2, §STUDENTS): a flat stack of cards, no table,
+ * no surrounding card chrome. It ships separately from `StudentListTable` so a
+ * phone never renders the 40-row desktop `<table>` DOM alongside it.
+ */
+export const MobileStudentList = React.memo(function MobileStudentList({
+  students,
+  hasFilters,
+  canWrite,
+  canCollectPayments = canWrite,
+  returnTo,
+  session,
+}: Omit<StudentListTableProps, "selection" | "lastViewedByUser">) {
+  const t = useTranslations("Students");
+  const withSession = (href: string) => appendSessionParam(href, session);
+
+  if (students.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-10 text-center">
+        <p className="text-[13px] font-extrabold text-foreground">{t("emptyTitle")}</p>
+        <p className="mx-auto mt-1 max-w-[16rem] text-[11.5px] leading-relaxed text-muted-foreground">
+          {hasFilters ? t("emptyFiltered") : t("emptyFresh")}
+        </p>
+        {!hasFilters && canWrite ? (
+          <Link
+            href={withSession("/protected/students/new")}
+            className={cn(buttonVariants({ size: "mobile" }), "mt-4")}
+          >
+            {t("addFirstStudent")}
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <ul className="flex flex-col gap-2.5">
+      {students.map((student) => (
+        <MobileStudentListItem
+          key={student.id}
+          student={student}
+          returnTo={returnTo}
+          session={session}
+          canCollectPayments={canCollectPayments}
+          t={t}
+        />
+      ))}
+    </ul>
   );
 });
 
@@ -368,7 +442,7 @@ export const StudentListTable = React.memo(function StudentListTable({
 
   if (students.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 p-8 text-center">
+      <div className="hidden rounded-xl border border-dashed border-border-strong bg-surface-2 p-8 text-center md:block">
         <h3 className="text-base font-semibold text-foreground">{t("emptyTitle")}</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           {hasFilters ? t("emptyFiltered") : t("emptyFresh")}
@@ -382,20 +456,9 @@ export const StudentListTable = React.memo(function StudentListTable({
     );
   }
   return (
-    <div className="rounded-xl border border-border overflow-hidden bg-card shadow-xs">
-      <ul className="divide-y divide-border/60 md:hidden bg-card">
-        {students.map((student) => (
-          <MobileStudentListItem
-            key={student.id}
-            student={student}
-            returnTo={returnTo}
-            session={session}
-            canCollectPayments={canCollectPayments}
-            lastViewedAt={lastViewedByUser?.[student.id] ?? null}
-            t={t}
-          />
-        ))}
-      </ul>
+    // Desktop only. The phone renders <MobileStudentList> instead — a narrower
+    // table inside a horizontal scroller is not the same screen.
+    <div className="hidden rounded-xl border border-border overflow-hidden bg-card shadow-xs md:block">
       <table className="hidden min-w-full divide-y divide-border/60 md:table">
         <thead className="bg-surface-2">
           <tr>

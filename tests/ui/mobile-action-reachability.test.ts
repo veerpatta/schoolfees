@@ -65,6 +65,10 @@ describe("mobile primary actions stay reachable", () => {
     ["components/payments/waive-late-fee-sheet.tsx", "waiveSubmit"],
     ["components/defaulters/contact-popover.tsx", "popoverSubmit"],
     ["components/students/close-due-as-discount-sheet.tsx", "Close balance"],
+    // The sibling picker autofocuses its search field, so on a phone the
+    // keyboard is up the moment the sheet opens and a submit left at the end
+    // of the scroll body sits under it.
+    ["components/students/link-sibling-sheet.tsx", "linkSiblingConfirm"],
     ["components/whatsapp-templates/template-editor.tsx", "whatsappEditorCreate"],
   ])("%s pins its submit action outside the scroll body", (path, submitMarker) => {
     const source = read(path);
