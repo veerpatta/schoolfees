@@ -322,9 +322,56 @@ export function DefaultersWorkspace({
     });
   }, [callQueue, effectiveSummaries, loggedOrder]);
 
+  const callPct =
+    callProgress.total > 0
+      ? Math.min(100, Math.round((callProgress.logged / callProgress.total) * 100))
+      : 0;
+
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
+      {/* ── Phone header (mobile app v2 §CALLS) ─────────────────────────
+          The design puts the count and the progress bar in the header so the
+          card being worked is the first thing under it. Everything that used
+          to sit above it here — the page title, the standing office notice,
+          the desk metric row, the progress panel with its "recent" list and
+          auto-advance checkbox — is desk furniture, and on a 375px screen it
+          pushed the one card this screen exists for below the fold. */}
+      <div className="flex flex-col gap-2 md:hidden">
+        <div className="flex items-center justify-between gap-2.5">
+          <div className="min-w-0">
+            <h1 className="text-xl font-extrabold leading-tight tracking-tight text-foreground">
+              {t("callQueueTitle")}
+            </h1>
+            <p className="text-[11.5px] font-semibold text-muted-foreground">
+              {t("callQueueListHint")}
+            </p>
+          </div>
+          <p className="tabular shrink-0 text-sm font-extrabold text-foreground">
+            {callProgress.logged}
+            <span className="font-semibold text-muted-foreground">/{callProgress.total}</span>
+          </p>
+        </div>
+        <div
+          className="h-[7px] overflow-hidden rounded-full bg-surface-3"
+          role="progressbar"
+          aria-label={t("callProgressTitle")}
+          aria-valuenow={callPct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          {/* Saffron, not green — this tracks calls made, and a call made is
+              not money collected. Same reasoning as the desk panel. */}
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out-expo"
+            style={{ width: `${callPct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Actions drop below the card on a phone — the design opens on the
+          family being called, not on a metric row. */}
       <CallQueueHeader
+        className="max-md:order-3"
         activeCount={callQueue.length}
         pendingAmount={recoveryDesk.metrics.activePendingAmount}
         promiseDueCount={recoveryDesk.metrics.promiseDueRows}
@@ -345,7 +392,7 @@ export function DefaultersWorkspace({
           only appeared after the first tick told the clerk something they had
           by then worked out for themselves. */}
       {bulkMode ? (
-        <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-sm font-medium text-success-soft-foreground">
+        <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-sm font-medium text-success-soft-foreground max-md:order-4">
           <MessageSquare className="size-4 shrink-0" aria-hidden="true" />
           <span>{t("callQueueWhatsappModeHint")}</span>
         </div>
@@ -361,13 +408,16 @@ export function DefaultersWorkspace({
               whose min-content is wider than the phone (the call card's metric
               row) blew the implicit track out to 421px and gave the whole
               Calls screen 63px of sideways scroll. */}
-          <div className="grid gap-4 [&>*]:min-w-0 lg:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
+          <div className="grid gap-4 [&>*]:min-w-0 max-md:order-2 lg:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
             {/* Mobile is call mode: one family at a time. The full queue is
                 one tap away but does not compete with the card being worked. */}
             <section
               className={cn(
                 "rounded-xl border border-border bg-card",
-                mobileListOpen ? "" : "hidden lg:block",
+                // `md`, not `lg`: the shell swaps to desktop chrome at 768,
+                // and a screen that kept phone call-mode until 1024 gave
+                // tablets desktop navigation over a phone layout.
+                mobileListOpen ? "" : "hidden md:block",
               )}
             >
               <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-3 sm:px-4">
@@ -411,8 +461,9 @@ export function DefaultersWorkspace({
               </ul>
             </section>
 
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
             <CallProgressPanel
+              className="max-md:order-2"
               logged={callProgress.logged}
               total={callProgress.total}
               promises={callProgress.promises}
@@ -424,6 +475,7 @@ export function DefaultersWorkspace({
             />
 
             <SelectedStudentPanel
+              className="max-md:order-1"
               entry={selectedEntry}
               summary={selectedSummary}
               sessionLabel={sessionLabel}
@@ -531,6 +583,7 @@ function CallQueueHeader({
   bulkMode,
   onStart,
   onToggleBulk,
+  className,
 }: {
   activeCount: number;
   pendingAmount: number;
@@ -539,12 +592,13 @@ function CallQueueHeader({
   bulkMode: boolean;
   onStart: () => void;
   onToggleBulk: () => void;
+  className?: string;
 }) {
   const t = useTranslations("Defaulters");
   return (
-    <section className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4">
+    <section className={cn("rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4", className)}>
       <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="hidden grid-cols-3 gap-2 md:grid">
           <QueueMetric label={t("callQueueMetricCallFirst")} value={String(activeCount)} />
           <QueueMetric
             label={t("callQueueMetricPending")}
@@ -604,6 +658,7 @@ function CallProgressPanel({
   onToggleAutoAdvance,
   mobileListOpen,
   onToggleMobileList,
+  className,
 }: {
   logged: number;
   total: number;
@@ -613,12 +668,13 @@ function CallProgressPanel({
   onToggleAutoAdvance: () => void;
   mobileListOpen: boolean;
   onToggleMobileList: () => void;
+  className?: string;
 }) {
   const t = useTranslations("Defaulters");
   const pct = total > 0 ? Math.min(100, Math.round((logged / total) * 100)) : 0;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-3 sm:p-4">
+    <section className={cn("rounded-xl border border-border bg-card p-3 sm:p-4", className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-foreground">{t("callProgressTitle")}</h2>
         <p className="text-xs tabular-nums text-muted-foreground">
@@ -685,7 +741,7 @@ function CallProgressPanel({
           type="button"
           variant="outline"
           size="sm"
-          className="ml-auto lg:hidden"
+          className="ml-auto md:hidden"
           onClick={onToggleMobileList}
         >
           {mobileListOpen ? t("callQueueHideFullList") : t("callQueueShowFullList")}
@@ -928,6 +984,7 @@ function SelectedStudentPanel({
   onLogRevert,
   onNoCallChange,
   onNoCallRevert,
+  className,
 }: {
   entry: RecoveryDeskEntry | null;
   summary: DefaulterContactSummary | null;
@@ -950,6 +1007,7 @@ function SelectedStudentPanel({
   onLogRevert: () => void;
   onNoCallChange: (noCall: boolean) => void;
   onNoCallRevert: (previous: boolean) => void;
+  className?: string;
 }) {
   const t = useTranslations("Defaulters");
   const row = entry?.row ?? null;
@@ -970,7 +1028,7 @@ function SelectedStudentPanel({
 
   if (!row || !entry) {
     return (
-      <aside className="hidden rounded-xl border border-border bg-card p-5 lg:block">
+      <aside className={cn("hidden rounded-xl border border-border bg-card p-5 lg:block", className)}>
         <div className="grid min-h-72 place-items-center rounded-lg border border-dashed border-border bg-surface-2 p-6 text-center">
           <div>
             <ListChecks className="mx-auto size-8 text-muted-foreground" aria-hidden="true" />
@@ -991,7 +1049,7 @@ function SelectedStudentPanel({
   );
 
   return (
-    <aside className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4 lg:sticky lg:top-4 lg:self-start">
+    <aside className={cn("rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4 lg:sticky lg:top-4 lg:self-start", className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           {/* Initials circle, as on every other person row in the app. */}
@@ -1081,7 +1139,10 @@ function SelectedStudentPanel({
         >
           <a href={activeEntry ? `tel:${activeEntry.phone}` : "#"}>
             <PhoneCall className="size-4" aria-hidden="true" />
-            {t("collectorModeCall")}
+            {/* The number itself, per the design: a clerk reads it back to the
+                parent, and it is the confirmation that the right one of two
+                numbers is selected before the call is placed. */}
+            <span className="truncate">{activeEntry?.phone ?? t("collectorModeCall")}</span>
           </a>
         </Button>
         <Button type="button" variant="outline" size="mobile" fullWidth onClick={onOpenWhatsapp}>

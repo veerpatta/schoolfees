@@ -139,9 +139,16 @@ export default async function DefaultersPage({
   ].filter(Boolean).length;
 
   return (
-    <div className="space-y-5">
+    // Flex + order, not space-y: the phone opens on the family being called,
+    // so the filters and the route summary move below the workspace. `space-y`
+    // also spaces around `display:none` children, which the hidden desktop
+    // header would otherwise leave as a band above the phone header.
+    <div className="flex flex-col gap-5">
       <DefaulterFilterRehydrator filters={filters} sessionLabel={viewSession.sessionLabel} />
       <PageHeader
+        /* The workspace carries the phone header: title, sub, calls-logged
+           count and the progress bar, per the design's Calls screen. */
+        hideOnMobile
         eyebrow={t("eyebrow")}
         title={t("callQueueTitle")}
         description={t("callQueueDescription", { session: viewSession.sessionLabel })}
@@ -157,10 +164,15 @@ export default async function DefaultersPage({
         }
       />
 
-      <OfficeNotice tone="info">{t("officeNotice")}</OfficeNotice>
+      {/* Standing explanation of how the queue is ordered — desk reading, and
+          a screenful on a phone before the first family. The missing-dues
+          banner stays: it is actionable. */}
+      <div className="hidden md:block">
+        <OfficeNotice tone="info">{t("officeNotice")}</OfficeNotice>
+      </div>
       <MissingDuesBanner missingCount={data.missingDuesRows.length} />
 
-      <details className="rounded-xl border border-border bg-card shadow-sm">
+      <details className="rounded-xl border border-border bg-card shadow-sm max-md:order-3">
         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground">
           <span>{t("callQueueFilterTitle")}</span>
           <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
@@ -179,6 +191,7 @@ export default async function DefaultersPage({
         </div>
       </details>
 
+      <div className="max-md:order-2">
       <BulkWhatsappProvider
         rows={data.rows.map((row) => ({
           studentId: row.studentId,
@@ -203,8 +216,10 @@ export default async function DefaultersPage({
           exportHref={buildExportHref("xlsx")}
         />
       </BulkWhatsappProvider>
+      </div>
 
       {data.missingDuesRows.length > 0 ? (
+
         <details className="rounded-xl border border-warning/30 bg-warning-soft/40">
           <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-warning-soft-foreground">
             {t("missingDuesTitle")}
@@ -243,6 +258,7 @@ export default async function DefaultersPage({
       ) : null}
 
       <SectionCard
+        className="max-md:order-4"
         title={t("routeTransportTitle")}
         description={t("routeTransportDescription")}
       >

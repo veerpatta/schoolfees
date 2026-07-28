@@ -74,6 +74,30 @@ describe("Reports on a phone", () => {
   });
 });
 
+describe("Defaulters on a phone", () => {
+  const workspace = read("components/defaulters/defaulters-workspace.tsx");
+  const page = read("app/protected/defaulters/page.tsx");
+
+  it("opens on the family being called, not on a metric row", () => {
+    // The page title, the standing office notice, the desk metric tiles and
+    // the progress panel all used to sit above the one card the screen exists
+    // for. They are ordered below it on a phone now.
+    expect(page).toContain("hideOnMobile");
+    expect(page).toContain("max-md:order-2");
+    expect(workspace).toContain("max-md:order-1");
+    expect(workspace).toContain("max-md:order-3");
+  });
+
+  it("carries the count and the progress bar in its own phone header", () => {
+    expect(workspace).toContain("md:hidden");
+    expect(workspace).toContain("callPct");
+  });
+
+  it("keeps the desk metric tiles off the phone", () => {
+    expect(workspace).toContain('className="hidden grid-cols-3 gap-2 md:grid"');
+  });
+});
+
 describe("desktop-only surfaces say so on the phone", () => {
   it.each([
     "app/protected/payments/bulk/page.tsx",

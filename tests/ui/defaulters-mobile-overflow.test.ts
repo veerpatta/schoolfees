@@ -23,8 +23,12 @@ describe("defaulters workspace fits a phone", () => {
   );
 
   it("lets the workspace grid's children shrink below their min-content", () => {
+    // Match the grid by its column definition, then check the tokens on it —
+    // asserting a fixed class ORDER made the guard fail the first time an
+    // unrelated utility (an `order-*` for the phone's card-first layout) was
+    // added, which says nothing about whether the screen still overflows.
     const grid =
-      /className="grid gap-4 (\[&>\*\]:min-w-0 )?lg:grid-cols-\[minmax\(0,1fr\)_minmax\(360px,440px\)\]"/.exec(
+      /className="([^"]*lg:grid-cols-\[minmax\(0,1fr\)_minmax\(360px,440px\)\][^"]*)"/.exec(
         source,
       );
 
@@ -33,9 +37,9 @@ describe("defaulters workspace fits a phone", () => {
       "the workspace grid class changed — re-measure it on a 375px viewport",
     ).not.toBeNull();
     expect(
-      grid?.[1],
+      grid?.[1].split(/\s+/),
       "grid items need [&>*]:min-w-0 or the Calls screen scrolls sideways",
-    ).toBe("[&>*]:min-w-0 ");
+    ).toContain("[&>*]:min-w-0");
   });
 
   it("keeps the wide metric row's min-width behind a breakpoint", () => {

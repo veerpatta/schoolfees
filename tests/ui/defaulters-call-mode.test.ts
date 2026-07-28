@@ -55,7 +55,11 @@ describe("defaulters call mode", () => {
   it("gives mobile one family at a time with the queue one tap away", () => {
     expect(source).toContain("mobileListOpen");
     expect(source).toContain("callQueueShowFullList");
-    // The queue list is hidden on phones until asked for.
-    expect(source).toContain('mobileListOpen ? "" : "hidden lg:block"');
+    // The queue list is hidden on phones until asked for. The gate is `md`,
+    // not `lg`: the shell swaps to desktop chrome at 768, so a screen that
+    // kept phone call-mode until 1024 gave tablets desktop navigation over a
+    // phone layout — the same md/lg mismatch that stranded the old sticky bar.
+    expect(source).toContain('mobileListOpen ? "" : "hidden md:block"');
+    expect(source).not.toContain('"hidden lg:block"');
   });
 });
