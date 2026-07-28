@@ -18,6 +18,7 @@ import { MoneyWithDefinition } from "@/components/ui/money-with-definition";
 import type { MoneyTermKey } from "@/lib/money/glossary";
 import { formatInr } from "@/lib/helpers/currency";
 import { MobileDatePicker } from "@/components/mobile-app/mobile-date-picker";
+import { Sheet } from "@/components/ui/sheet";
 import {
   addDays,
   daysInMonth,
@@ -697,6 +698,8 @@ export function TransactionsClientShell({
     )
   );
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  /** Phone-only: the desk filter bar's contents, behind a sheet. */
+  const [phoneFiltersOpen, setPhoneFiltersOpen] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -870,6 +873,13 @@ export function TransactionsClientShell({
     filters.fromDate && filters.toDate && filters.fromDate === filters.toDate,
   );
 
+  const phoneFilterCount = [
+    filters.query,
+    filters.classId,
+    filters.routeId,
+    filters.sessionLabel,
+  ].filter(Boolean).length;
+
   const phoneChipClass = (active: boolean) =>
     cn(
       "focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[12.5px] font-bold transition-colors",
@@ -890,10 +900,28 @@ export function TransactionsClientShell({
           <h1 className="text-xl font-extrabold leading-tight tracking-tight text-foreground">
             {t("title")}
           </h1>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
-            <Lock className="size-3" aria-hidden="true" />
-            {t("readOnlyShort")}
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+              <Lock className="size-3" aria-hidden="true" />
+              {t("readOnlyShort")}
+            </span>
+            {/* The desk bar carries search, class, route and session. Hiding it
+                on the phone would have taken those with it, so they move into
+                a sheet behind this button — same shape as Students. */}
+            <button
+              type="button"
+              onClick={() => setPhoneFiltersOpen(true)}
+              aria-label={t("filterFiltersToggle")}
+              className="focus-ring relative grid size-9 place-items-center rounded-xl border border-border-strong bg-card text-foreground active:bg-surface-2"
+            >
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+              {phoneFilterCount > 0 ? (
+                <span className="absolute -right-1 -top-1 grid size-[17px] place-items-center rounded-full bg-accent text-[9.5px] font-extrabold text-accent-foreground">
+                  {phoneFilterCount}
+                </span>
+              ) : null}
+            </button>
+          </div>
         </div>
 
         <div className="no-scrollbar -mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4">
@@ -1150,35 +1178,6 @@ export function TransactionsClientShell({
                 </button>
               ) : null}
             </div>
-
-            <MobileDatePicker
-              open={datePickerOpen}
-              onClose={() => setDatePickerOpen(false)}
-              value={
-                filters.fromDate && filters.fromDate === filters.toDate
-                  ? filters.fromDate
-                  : null
-              }
-              onSelectDate={(iso) => {
-                const newFilters = { ...filters, fromDate: iso, toDate: iso, page: 1 };
-                setFilters(newFilters);
-                scheduleOrFetch(activeView, newFilters, false);
-              }}
-              onSelectMonth={(year, month) => {
-                const from = partsToIso({ year, month, day: 1 });
-                const to = partsToIso({ year, month, day: daysInMonth(year, month) });
-                const newFilters = { ...filters, fromDate: from, toDate: to, page: 1 };
-                setFilters(newFilters);
-                scheduleOrFetch(activeView, newFilters, false);
-              }}
-              labels={{
-                today: t("chipToday"),
-                wholeMonth: t("chipThisMonth"),
-                dotLegend: t("datePickerDotLegend"),
-                previousMonth: t("datePickerPrevMonth"),
-                nextMonth: t("datePickerNextMonth"),
-              }}
-            />
 
             {/* Secondary row: date range, route, academic year */}
             {showMoreFilters && (
@@ -1463,6 +1462,167 @@ export function TransactionsClientShell({
           <PaginationControls pagination={workbook.pagination} onPageChange={handlePageChange} t={t} />
         )}
       </div>
+
+      {/* Phone filters. Mounted outside both branches for the same reason as
+          the date picker below: anything a phone control opens has to live
+          outside the `hidden md:block` desk card. */}
+      <Sheet
+        open={phoneFiltersOpen}
+        onClose={() => setPhoneFiltersOpen(false)}
+        title={t("filterFiltersToggle")}
+        size="md"
+      >
+        <div className="flex flex-col gap-4 pt-2">
+          <div>
+            <label
+              className="mobile-eyebrow text-muted-foreground"
+              htmlFor="txn-query-phone"
+            >
+              {t("filterSearchLabel")}
+            </label>
+            <input
+              id="txn-query-phone"
+              type="search"
+              value={filters.query}
+              onChange={(event) => handleFilterChange("query", event.target.value, true)}
+              placeholder={t("filterSearchPlaceholder")}
+              className="mt-1.5 h-12 w-full rounded-xl border border-input bg-surface px-3 text-[15px] font-semibold text-foreground outline-none placeholder:text-subtle-foreground"
+            />
+          </div>
+
+          <div>
+            <p className="mobile-eyebrow text-muted-foreground">{t("filterClassLabel")}</p>
+            <div className="no-scrollbar mt-1.5 flex gap-1.5 overflow-x-auto pb-1">
+              <button
+                type="button"
+                aria-pressed={filters.classId === ""}
+                onClick={() => handleFilterChange("classId", "")}
+                className={phoneChipClass(filters.classId === "")}
+              >
+                {t("filterClassAll")}
+              </button>
+              {classOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={filters.classId === option.id}
+                  onClick={() =>
+                    handleFilterChange("classId", filters.classId === option.id ? "" : option.id)
+                  }
+                  className={phoneChipClass(filters.classId === option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {routeOptions.length > 0 ? (
+            <div>
+              <p className="mobile-eyebrow text-muted-foreground">{t("filterRouteLabel")}</p>
+              <div className="no-scrollbar mt-1.5 flex gap-1.5 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  aria-pressed={filters.routeId === ""}
+                  onClick={() => handleFilterChange("routeId", "")}
+                  className={phoneChipClass(filters.routeId === "")}
+                >
+                  {t("filterRouteAll")}
+                </button>
+                {routeOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={filters.routeId === option.id}
+                    onClick={() =>
+                      handleFilterChange("routeId", filters.routeId === option.id ? "" : option.id)
+                    }
+                    className={phoneChipClass(filters.routeId === option.id)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div>
+            <label
+              className="mobile-eyebrow text-muted-foreground"
+              htmlFor="txn-session-phone"
+            >
+              {t("filterAcademicYearLabel")}
+            </label>
+            <select
+              id="txn-session-phone"
+              value={filters.sessionLabel}
+              onChange={(event) => handleFilterChange("sessionLabel", event.target.value)}
+              className="mt-1.5 h-12 w-full rounded-xl border border-input bg-surface px-3 text-[15px] font-semibold text-foreground"
+            >
+              <option value="">{t("filterAcademicYearCurrent")}</option>
+              {sessionOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <Button
+              type="button"
+              className="h-12 flex-1 rounded-xl"
+              onClick={() => setPhoneFiltersOpen(false)}
+            >
+              {t("filterApply")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 rounded-xl px-4"
+              onClick={() => {
+                handleReset();
+                setPhoneFiltersOpen(false);
+              }}
+            >
+              {t("filterClear")}
+            </Button>
+          </div>
+        </div>
+      </Sheet>
+
+      {/* Mounted outside the desk filter card. It used to live inside it,
+          and gating that card behind `hidden md:block` put the picker in a
+          display:none subtree — the phone's calendar chip set state and
+          nothing appeared. */}
+      <MobileDatePicker
+        open={datePickerOpen}
+        onClose={() => setDatePickerOpen(false)}
+        value={
+          filters.fromDate && filters.fromDate === filters.toDate
+            ? filters.fromDate
+            : null
+        }
+        onSelectDate={(iso) => {
+          const newFilters = { ...filters, fromDate: iso, toDate: iso, page: 1 };
+          setFilters(newFilters);
+          scheduleOrFetch(activeView, newFilters, false);
+        }}
+        onSelectMonth={(year, month) => {
+          const from = partsToIso({ year, month, day: 1 });
+          const to = partsToIso({ year, month, day: daysInMonth(year, month) });
+          const newFilters = { ...filters, fromDate: from, toDate: to, page: 1 };
+          setFilters(newFilters);
+          scheduleOrFetch(activeView, newFilters, false);
+        }}
+        labels={{
+          today: t("chipToday"),
+          wholeMonth: t("chipThisMonth"),
+          dotLegend: t("datePickerDotLegend"),
+          previousMonth: t("datePickerPrevMonth"),
+          nextMonth: t("datePickerNextMonth"),
+        }}
+      />
 
       <ReceiptPreviewSheet
         open={previewReceiptId !== null}

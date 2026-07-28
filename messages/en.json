@@ -1239,7 +1239,8 @@
     "datePickerPrevMonth": "Previous month",
     "datePickerNextMonth": "Next month",
     "rowActionOpen": "Open",
-    "readOnlyShort": "Read-only"
+    "readOnlyShort": "Read-only",
+    "filterApply": "Apply filters"
   },
   "Receipts": {
     "indexEyebrow": "Receipts",

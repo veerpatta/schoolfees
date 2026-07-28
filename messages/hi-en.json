@@ -1239,7 +1239,8 @@
     "datePickerPrevMonth": "Pichhla mahina",
     "datePickerNextMonth": "Agla mahina",
     "rowActionOpen": "Dekhein",
-    "readOnlyShort": "Sirf dekhne ke liye"
+    "readOnlyShort": "Sirf dekhne ke liye",
+    "filterApply": "Filter lagayein"
   },
   "Receipts": {
     "indexEyebrow": "Receipts",

@@ -43,6 +43,29 @@ describe("Transactions on a phone", () => {
     expect(shell).toContain("flex flex-col gap-2.5 md:hidden");
     expect(shell).toContain("rowActionOpen");
   });
+
+  it("mounts everything the phone opens OUTSIDE the desk card", () => {
+    // Regression: MobileDatePicker lived inside the filter card. Gating that
+    // card behind `hidden md:block` put the picker in a display:none subtree,
+    // so the phone's calendar chip set state and nothing appeared. Anything a
+    // phone control opens has to sit outside that branch.
+    const deskCard = shell.indexOf('className="hidden md:block"\n        title={t("viewFilterTitle")}');
+    const deskCardEnd = shell.indexOf("</SectionCard>", deskCard);
+    const insideDeskCard = shell.slice(deskCard, deskCardEnd);
+
+    expect(deskCard).toBeGreaterThan(-1);
+    expect(insideDeskCard).not.toContain("<MobileDatePicker");
+    expect(insideDeskCard).not.toContain("<Sheet");
+    expect(shell).toContain("<MobileDatePicker");
+    expect(shell).toContain("phoneFiltersOpen");
+  });
+
+  it("keeps search, class, route and session reachable from the phone", () => {
+    // Hiding the desk bar would otherwise have taken all four with it.
+    expect(shell).toContain("txn-query-phone");
+    expect(shell).toContain("txn-session-phone");
+    expect(shell).toContain("phoneFilterCount");
+  });
 });
 
 describe("Receipts lookup on a phone", () => {

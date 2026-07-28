@@ -219,8 +219,9 @@ export default async function DefaultersPage({
       </div>
 
       {data.missingDuesRows.length > 0 ? (
-
-        <details className="rounded-xl border border-warning/30 bg-warning-soft/40">
+        // order 4: this drill-down defaulted to 0 and rendered above the
+        // workspace, re-creating the chrome-before-the-card problem.
+        <details className="rounded-xl border border-warning/30 bg-warning-soft/40 max-md:order-4">
           <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-warning-soft-foreground">
             {t("missingDuesTitle")}
           </summary>
@@ -258,7 +259,7 @@ export default async function DefaultersPage({
       ) : null}
 
       <SectionCard
-        className="max-md:order-4"
+        className="max-md:order-5"
         title={t("routeTransportTitle")}
         description={t("routeTransportDescription")}
       >

@@ -511,7 +511,10 @@ export function DefaultersWorkspace({
               }}
             />
 
+            {/* order 3: without it this defaults to 0 and lands above the
+                card being worked, which is the opposite of "up next". */}
             <UpNextPanel
+              className="max-md:order-3"
               entries={upNext}
               onSelect={(entry) => selectEntry(entry)}
               onSkip={() => moveSelection(1)}
@@ -757,17 +760,19 @@ function UpNextPanel({
   onSelect,
   onSkip,
   canSkip,
+  className,
 }: {
   entries: RecoveryDeskEntry[];
   onSelect: (entry: RecoveryDeskEntry) => void;
   onSkip: () => void;
   canSkip: boolean;
+  className?: string;
 }) {
   const t = useTranslations("Defaulters");
   if (entries.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-3 sm:p-4">
+    <section className={cn("rounded-xl border border-border bg-card p-3 sm:p-4", className)}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-foreground">{t("callQueueUpNext")}</h2>
         {canSkip ? (
