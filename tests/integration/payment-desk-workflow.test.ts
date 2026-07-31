@@ -524,7 +524,10 @@ describe("payment desk cashier workflow", () => {
     );
 
     expect(component).toContain('paymentDeskRecentStudentsStorageKey = "vpps_recent_students"');
-    expect(component).toContain("function rememberRecentStudent(studentId: string)");
+    // useCallback rather than a plain declaration since the post-result effect
+    // lists it as a dependency — the recents setter now arrives via
+    // useStoredPreference, which the exhaustive-deps rule cannot see through.
+    expect(component).toContain("const rememberRecentStudent = useCallback(");
     expect(component).toContain("rememberRecentStudent(state.studentId)");
     expect(component).toContain("recentStudents.map((student)");
     expect(component).toContain("max-w-[120px]");

@@ -30,6 +30,7 @@ import {
 } from "@/components/payments/payment-desk/payment-desk-layout";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
+import { useStoredPreference } from "@/hooks/use-stored-preference";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
 import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
 import {
@@ -315,11 +316,15 @@ export function PaymentDeskClient({
   const [previewNotice, setPreviewNotice] = useState<string | null>(null);
   const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [paymentMode, setPaymentMode] = useState(() => {
-    const defaultMode = data.modeOptions[0]?.value ?? "cash";
-    if (typeof window === "undefined") return defaultMode;
-    const stored = window.localStorage.getItem(paymentDeskLastModeStorageKey);
-    return stored && data.modeOptions.some((m) => m.value === stored) ? stored : defaultMode;
+  // Remembers the last mode used, but only adopts it AFTER hydration — reading
+  // localStorage during render made the first client pass disagree with the
+  // server HTML (the mode row's selected pill, and the `paymentMode !== "cash"`
+  // block above the student picker).
+  const [paymentMode, setPaymentMode] = useStoredPreference<string>({
+    key: paymentDeskLastModeStorageKey,
+    serverValue: data.modeOptions[0]?.value ?? "cash",
+    parse: (raw) => (data.modeOptions.some((m) => m.value === raw) ? raw : null),
+    serialize: (mode) => mode,
   });
   const referenceNumber = "";
   const [receivedBy, setReceivedBy] = useState(defaultReceivedBy);
@@ -384,15 +389,28 @@ export function PaymentDeskClient({
   const lastClassRestoreAttemptedRef = useRef(false);
   const mobileClassPickerAutoOpenedRef = useRef(false);
   const [activeStudentPickerMode, setActiveStudentPickerMode] = useState<"mobile" | "desktop">("mobile");
-  const [recentStudentIds, setRecentStudentIds] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = window.localStorage.getItem(paymentDeskRecentStudentsStorageKey);
-      return stored ? (JSON.parse(stored) as string[]).slice(0, 5) : [];
-    } catch {
-      return [];
-    }
+  // Empty on both sides of hydration; the stored list is adopted after mount.
+  // Reading storage during render put up to five recent-student chips in the
+  // first client pass that the server HTML never contained.
+  const [recentStudentIds, setRecentStudentIds] = useStoredPreference<string[]>({
+    key: paymentDeskRecentStudentsStorageKey,
+    serverValue: [],
+    parse: (raw) => {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? (parsed as string[]).slice(0, 5) : null;
+    },
+    serialize: (ids) => JSON.stringify(ids.slice(0, 5)),
   });
+  // useCallback (and declared up here rather than beside the other plain
+  // helpers) because the post-result effect below lists it as a dependency, and
+  // a dependency array is evaluated during render — a `const` declared after
+  // that effect would be in its temporal dead zone.
+  const rememberRecentStudent = useCallback(
+    (studentId: string) => {
+      setRecentStudentIds((prev) => [studentId, ...prev.filter((id) => id !== studentId)].slice(0, 5));
+    },
+    [setRecentStudentIds],
+  );
   const mobileStudentListId = useId();
   const desktopStudentListId = useId();
 
@@ -1319,6 +1337,10 @@ export function PaymentDeskClient({
     dismissedActionStateKey,
     data.sessionLabel,
     tToasts,
+    // Stable: a useCallback over a useState setter. Listed because the setter
+    // now arrives via useStoredPreference, which the lint rule cannot see
+    // through, and re-running this effect per render would double-post metrics.
+    rememberRecentStudent,
   ]);
 
   useEffect(() => {
@@ -1356,21 +1378,9 @@ export function PaymentDeskClient({
     window.localStorage.setItem(paymentDeskLastClassStorageKey, selectedClassId);
   }, [selectedClassId]);
 
-  useEffect(() => {
-    window.localStorage.setItem(paymentDeskLastModeStorageKey, paymentMode);
-  }, [paymentMode]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(paymentDeskRecentStudentsStorageKey, JSON.stringify(recentStudentIds.slice(0, 5)));
-    } catch {
-      // Storage may be unavailable.
-    }
-  }, [recentStudentIds]);
-
-  function rememberRecentStudent(studentId: string) {
-    setRecentStudentIds((prev) => [studentId, ...prev.filter((id) => id !== studentId)].slice(0, 5));
-  }
+  // The last-mode and recent-students preferences read and write themselves
+  // inside useStoredPreference (declared with the state above), which keeps the
+  // restore-before-persist ordering in one place.
 
   function getPrimaryQuickAmountClassName(quickAmount: (typeof quickAmounts)[number]) {
     if (quickAmount.key === "overdue") {
@@ -1501,7 +1511,9 @@ export function PaymentDeskClient({
     return () => {
       cancelled = true;
     };
-  }, [paymentDate, paymentSessionLabel, selectedStudentId]);
+    // setPaymentMode is a useState setter forwarded by useStoredPreference, so
+    // it is stable; the lint rule just cannot see through the custom hook.
+  }, [paymentDate, paymentSessionLabel, selectedStudentId, setPaymentMode]);
 
   useEffect(() => {
     if (!selectedStudentId || isLockedAfterSuccess) {
