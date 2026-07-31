@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { hasRolePermission, type StaffRole } from "@/lib/auth/roles";
+import { getDefaultProtectedHref } from "@/lib/config/navigation";
 import { getAuthenticatedStaff } from "@/lib/supabase/session";
 
 type ManifestShortcut = {
@@ -48,7 +49,14 @@ export async function GET() {
     {
       name: "Shri Veer Patta School Fee Admin",
       short_name: "VPPS Fee",
-      start_url: "/protected",
+      // Land on the role's real home rather than on `/protected`, which only
+      // exists to `redirect()` there from a Server Component. Every PWA launch
+      // used to traverse that redirect, and the App Router crashed part-way
+      // through it often enough to be the top production error (SCHOOLFEES-8:
+      // "Rendered more hooks than during the previous render", thrown inside
+      // Next's own Router while the pending navigation state was resolving).
+      // Skipping the hop removes the trigger on the launch path.
+      start_url: getDefaultProtectedHref(role),
       display: "standalone",
       background_color: "#faf9f6",
       theme_color: "#c0521a",

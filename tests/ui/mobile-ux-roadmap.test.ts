@@ -23,6 +23,17 @@ describe("mobile UX roadmap implementation", () => {
     expect(apiManifest).not.toContain('"Collect Payment"');
   });
 
+  it("launches the PWA on the role's home rather than the /protected redirect hop", () => {
+    const apiManifest = readRepoFile("app/api/manifest/route.ts");
+
+    // `/protected` exists only to redirect() to the role's default route from a
+    // Server Component. Pointing start_url at it put a render-time redirect on
+    // every PWA launch, which is where SCHOOLFEES-8 ("Rendered more hooks than
+    // during the previous render") fired. Keep the launch direct.
+    expect(apiManifest).toContain("start_url: getDefaultProtectedHref(role)");
+    expect(apiManifest).not.toContain('start_url: "/protected"');
+  });
+
   it("adds runtime caching for mobile office shell data without caching writes", () => {
     const serviceWorker = readRepoFile("public/service-worker.js");
 
