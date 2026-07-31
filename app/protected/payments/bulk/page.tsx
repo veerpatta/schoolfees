@@ -9,7 +9,7 @@ import { resolveViewSession } from "@/lib/session/resolver";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 type BulkPaymentsPageProps = {
-  searchParams?: Promise<{ session?: string }>;
+  searchParams?: Promise<{ session?: string; batch?: string }>;
 };
 
 export default async function BulkPaymentsPage({ searchParams }: BulkPaymentsPageProps) {
@@ -44,7 +44,10 @@ export default async function BulkPaymentsPage({ searchParams }: BulkPaymentsPag
         Admin-only. Rows post real receipts — review the validation results carefully, and
         rehearse with TEST- students on a TEST session before a first live run.
       </OfficeNotice>
-      <BulkPaymentWorkflow sessionLabel={viewSession.sessionLabel} />
+      <BulkPaymentWorkflow
+        sessionLabel={viewSession.sessionLabel}
+        initialBatchId={resolvedSearchParams?.batch}
+      />
     </div>
   );
 }

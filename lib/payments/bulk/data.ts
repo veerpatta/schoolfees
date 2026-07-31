@@ -113,7 +113,7 @@ export async function createPaymentImportBatch(
   file: File,
   sessionLabel: string,
 ): Promise<PaymentImportBatchSummary> {
-  const parsed = await parseStudentImportFile(file);
+  const parsed = await parseStudentImportFile(file, { emptyRowsLabel: "payment rows" });
 
   if (parsed.rows.length > PAYMENT_IMPORT_MAX_ROWS) {
     throw new Error(

@@ -29,7 +29,12 @@ function context(students: PaymentImportStudentLookup[] = [student()]) {
     const key = item.admissionNo.toLowerCase().replace(/[^a-z0-9]+/g, "");
     map.set(key, [...(map.get(key) ?? []), item]);
   }
-  return { sessionLabel: "2026-27", studentsByAdmissionNo: map, allowedModes: ALLOWED_MODES };
+  return {
+    sessionLabel: "2026-27",
+    studentsByAdmissionNo: map,
+    allowedModes: ALLOWED_MODES,
+    todayIso: "2026-07-31",
+  };
 }
 
 const HEADERS = ["SR no", "Amount", "Payment date", "Payment mode", "Remarks"];
@@ -133,6 +138,27 @@ describe("validatePaymentImportRow", () => {
     );
     expect(result.status).toBe("error");
     expect(result.messages.join(" ")).toContain("future");
+  });
+
+  it("uses payment-specific wording for invalid dates", () => {
+    const result = validatePaymentImportRow(
+      row({ "Payment date": "31-02-2026" }),
+      mapping,
+      context(),
+    );
+    expect(result.status).toBe("error");
+    expect(result.messages).toContain("Payment date is invalid.");
+    expect(result.messages.join(" ")).not.toContain("DOB");
+  });
+
+  it("accepts the current school date without UTC or IST drift", () => {
+    const result = validatePaymentImportRow(
+      row({ "Payment date": "2026-07-31" }),
+      mapping,
+      context(),
+    );
+    expect(result.status).toBe("valid");
+    expect(result.paymentDate).toBe("2026-07-31");
   });
 
   it("rejects unknown payment modes", () => {

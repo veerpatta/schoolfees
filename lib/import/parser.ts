@@ -81,7 +81,10 @@ function isNonEmptyRow(values: readonly unknown[]) {
   });
 }
 
-export async function parseStudentImportFile(file: File): Promise<ParsedStudentImportFile> {
+export async function parseStudentImportFile(
+  file: File,
+  options: { emptyRowsLabel?: string } = {},
+): Promise<ParsedStudentImportFile> {
   if (!file || typeof file.arrayBuffer !== "function") {
     throw new Error("Please select a CSV or XLSX file to import.");
   }
@@ -183,7 +186,9 @@ export async function parseStudentImportFile(file: File): Promise<ParsedStudentI
   }
 
   if (rows.length === 0) {
-    throw new Error("The uploaded file does not contain any student rows below the header.");
+    throw new Error(
+      `The uploaded file does not contain any ${options.emptyRowsLabel ?? "student rows"} below the header.`,
+    );
   }
 
   return {

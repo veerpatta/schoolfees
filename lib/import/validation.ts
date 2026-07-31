@@ -68,7 +68,7 @@ export function stringifyImportCell(value: unknown) {
   return "";
 }
 
-export function parseSpreadsheetDate(value: unknown) {
+export function parseSpreadsheetDate(value: unknown, label = "DOB") {
   if (value === null || value === undefined || stringifyImportCell(value) === "") {
     return { value: null, error: null } as const;
   }
@@ -98,7 +98,7 @@ export function parseSpreadsheetDate(value: unknown) {
 
     return formatted
       ? { value: formatted, error: null }
-      : { value: null, error: "DOB is invalid." };
+      : { value: null, error: `${label} is invalid.` };
   }
 
   const dayFirstMatch = normalized.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
@@ -111,12 +111,12 @@ export function parseSpreadsheetDate(value: unknown) {
 
     return formatted
       ? { value: formatted, error: null }
-      : { value: null, error: "DOB is invalid." };
+      : { value: null, error: `${label} is invalid.` };
   }
 
   return {
     value: null,
-    error: "DOB must be a valid date.",
+    error: `${label} must be a valid date.`,
   } as const;
 }
 

@@ -1,4 +1,5 @@
 import type { PaymentMode } from "@/lib/db/types";
+import { formatIsoDateIst } from "@/lib/helpers/date";
 import {
   normalizeLookupToken,
   parseNonNegativeWholeNumber,
@@ -27,6 +28,8 @@ export type PaymentRowValidationContext = {
   /** Keyed by normalizeLookupToken(admission_no). */
   studentsByAdmissionNo: Map<string, PaymentImportStudentLookup[]>;
   allowedModes: ReadonlySet<PaymentMode>;
+  /** Injectable for deterministic tests; defaults to today's school date in IST. */
+  todayIso?: string;
 };
 
 const HEADER_ALIASES: Record<string, string> = {
@@ -141,13 +144,16 @@ export function validatePaymentImportRow(
     amount = amountResult.value;
   }
 
-  const dateResult = parseSpreadsheetDate(fieldValue(raw, mapping, "paymentDate"));
+  const dateResult = parseSpreadsheetDate(
+    fieldValue(raw, mapping, "paymentDate"),
+    "Payment date",
+  );
   let paymentDate: string | null = null;
   if (dateResult.error) {
     fail(dateResult.error);
   } else if (!dateResult.value) {
     fail("Payment date is required.");
-  } else if (new Date(dateResult.value).getTime() > Date.now()) {
+  } else if (dateResult.value > (context.todayIso ?? formatIsoDateIst(new Date())!)) {
     fail("Payment date cannot be in the future.");
   } else {
     paymentDate = dateResult.value;
