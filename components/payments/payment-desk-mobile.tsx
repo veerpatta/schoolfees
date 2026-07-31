@@ -316,10 +316,14 @@ export function PaymentDeskClient({
   const [previewNotice, setPreviewNotice] = useState<string | null>(null);
   const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  // Remembers the last mode used, but only adopts it AFTER hydration — reading
-  // localStorage during render made the first client pass disagree with the
-  // server HTML (the mode row's selected pill, and the `paymentMode !== "cash"`
-  // block above the student picker).
+  // Remembers the last mode used, but only adopts it after mount rather than
+  // reading localStorage during render. This desk currently reaches the browser
+  // through `dynamic(..., { ssr: false })` (components/payments/
+  // payment-entry-client.tsx), so there is no server HTML to disagree with and
+  // this is preventive. It stops being preventive the moment that flag is
+  // dropped: what renders off this value is the mode row's selected pill and
+  // the `paymentMode !== "cash"` block above the student picker, so the
+  // mismatch would be a DOM shape change, not just different text.
   const [paymentMode, setPaymentMode] = useStoredPreference<string>({
     key: paymentDeskLastModeStorageKey,
     serverValue: data.modeOptions[0]?.value ?? "cash",
@@ -389,9 +393,10 @@ export function PaymentDeskClient({
   const lastClassRestoreAttemptedRef = useRef(false);
   const mobileClassPickerAutoOpenedRef = useRef(false);
   const [activeStudentPickerMode, setActiveStudentPickerMode] = useState<"mobile" | "desktop">("mobile");
-  // Empty on both sides of hydration; the stored list is adopted after mount.
-  // Reading storage during render put up to five recent-student chips in the
-  // first client pass that the server HTML never contained.
+  // Empty on the first render; the stored list is adopted after mount. Same
+  // reasoning as paymentMode above — preventive while this desk is ssr:false,
+  // and it is up to five recent-student chips that would appear in a first
+  // client pass no server HTML had contained.
   const [recentStudentIds, setRecentStudentIds] = useStoredPreference<string[]>({
     key: paymentDeskRecentStudentsStorageKey,
     serverValue: [],

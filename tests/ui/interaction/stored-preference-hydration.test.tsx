@@ -3,9 +3,12 @@
  * Payment Desk's remembered payment mode and recent-student chips.
  *
  * Both used to be seeded with `useState(() => localStorage.getItem(...))`.
- * `window` IS defined during hydration, so the first client render returned the
- * stored value while the server HTML had been built from the default — the same
- * defect Sentry reported on the Students list as SCHOOLFEES-6, one page over.
+ * `window` IS defined during hydration, so the first client render returns the
+ * stored value while server HTML would have been built from the default — the
+ * defect class Sentry reported on the Students list as SCHOOLFEES-6, one page
+ * over. The desk itself is `ssr: false` today, so these tests pin the hook's
+ * contract rather than reproducing a live production error: they are what keeps
+ * the fix honest if that flag is ever dropped.
  *
  * The shape of these tests matches media-query-hydration.test.tsx: render on
  * the server with an EMPTY store, hydrate with the store POPULATED — the

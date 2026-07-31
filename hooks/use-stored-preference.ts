@@ -22,10 +22,15 @@ type StoredPreferenceOptions<T> = {
  * localStorage.getItem(key) : fallback)` — is NOT hydration-safe. `window` is
  * fully available during hydration, so the first CLIENT render returns the
  * stored value while the server HTML was built from the fallback. Anything
- * rendered from it then hydrates against markup that never contained it. That
- * was the Payment Desk's recent-student chips and its payment-mode row, and the
+ * rendered from it then hydrates against markup that never contained it. The
  * same mistake in `useMediaQuery` was what Sentry reported as a hydration error
- * on the Students list (SCHOOLFEES-6).
+ * on the Students list (SCHOOLFEES-6), which IS server-rendered.
+ *
+ * Its first callers are the Payment Desk's payment mode and recent-student
+ * chips, which reach the browser via `dynamic(..., { ssr: false })` today — so
+ * there the fix is preventive rather than corrective. Use this hook regardless:
+ * whether a given tree is server-rendered is a decision one import away from
+ * changing, and it should not be what keeps state correct.
  *
  * So: render the server value, adopt the stored one after mount.
  *
