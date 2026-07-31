@@ -355,6 +355,13 @@ export function PaymentDeskClient({
   const [isLastAmountArmed, setIsLastAmountArmed] = useState(false);
   const fastPostRequestedRef = useRef(false);
   const isMobileView = useMediaQuery("(max-width: 767px)");
+  // Deliberately a second, affirmative query rather than `!isMobileView`.
+  // Both queries answer false until the viewport is known (the first paint
+  // matches the server, which has no viewport), so `!isMobileView` reads as
+  // "desktop" on a phone for the one render before the media query resolves.
+  // Desktop-only mount effects must key off this instead — see the last-class
+  // restore below, which would otherwise latch and hijack the phone flow.
+  const isDesktopView = useMediaQuery("(min-width: 768px)");
   const { ref: amountInputRef } = useScrollIntoView<HTMLInputElement>();
 
   const submittingRef = useRef(false);
@@ -1324,7 +1331,11 @@ export function PaymentDeskClient({
   }, [lastAddedAmount]);
 
   useEffect(() => {
-    if (isMobileView) return;
+    // Desktop only, and only once the viewport is actually known — the latch
+    // below is one-shot, so firing this on a phone's first commit would both
+    // restore a class the phone did not ask for and make the phone's own
+    // class-picker auto-open bail on the now-set selectedClassId.
+    if (!isDesktopView) return;
     if (lastClassRestoreAttemptedRef.current) return;
     lastClassRestoreAttemptedRef.current = true;
     if (data.initialClassId || selectedClassId) return;
@@ -1334,7 +1345,7 @@ export function PaymentDeskClient({
 
     setSelectedClassId(storedClassId);
     setMobileSheetView("student-picker");
-  }, [classOptions, data.initialClassId, isMobileView, selectedClassId]);
+  }, [classOptions, data.initialClassId, isDesktopView, selectedClassId]);
 
   useEffect(() => {
     if (!selectedClassId) {

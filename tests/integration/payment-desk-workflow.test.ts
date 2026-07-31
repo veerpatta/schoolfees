@@ -345,7 +345,7 @@ describe("payment desk cashier workflow", () => {
       "utf8",
     );
     const restoreEffect = component.match(
-      /useEffect\(\(\) => \{\r?\n    if \(isMobileView\) return;[\s\S]*?lastClassRestoreAttemptedRef\.current = true;[\s\S]*?\}, \[classOptions, data\.initialClassId, isMobileView, selectedClassId\]\);/,
+      /if \(!isDesktopView\) return;[\s\S]*?\}, \[classOptions, data\.initialClassId, isDesktopView, selectedClassId\]\);/,
     )?.[0] ?? "";
     const autoOpenEffect = component.match(
       /const streak = getClassStreak\(\);[\s\S]*?setMobileSheetView\("class-picker"\);/,
@@ -358,12 +358,34 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("type ClassStreak = { classId: string; count: number }");
     expect(component).toContain("function recordClassUsed(classId: string)");
     expect(component).toContain("function getClassStreak(): ClassStreak | null");
-    expect(restoreEffect).toContain("if (isMobileView) return;");
+    expect(restoreEffect).toContain("if (!isDesktopView) return;");
     expect(selectMobileClass).toContain("recordClassUsed(nextClassId)");
     expect(autoOpenEffect).toContain("streak.count >= 3");
     expect(autoOpenEffect).toContain("setSelectedClassId(streak.classId)");
     expect(autoOpenEffect).toContain('setMobileSheetView("student-picker")');
     expect(autoOpenEffect).not.toContain("storedClassId");
+  });
+
+  it("gates the desktop last-class restore on an affirmative desktop query, not !isMobileView", () => {
+    const component = readFileSync(
+      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      "utf8",
+    );
+    const restoreEffect = component.match(
+      /if \(!isDesktopView\) return;[\s\S]*?\}, \[classOptions, data\.initialClassId, isDesktopView, selectedClassId\]\);/,
+    )?.[0] ?? "";
+
+    // useMediaQuery answers false until the viewport is known, because the
+    // hydration render has to match a server that has no viewport. So
+    // `!isMobileView` reads as "desktop" on a phone for the one render before
+    // the query resolves, and this effect's latch is one-shot: firing it there
+    // would restore a class the phone never asked for AND make the phone's own
+    // class-picker auto-open bail on the now-set selectedClassId. Key the
+    // desktop-only branch off the affirmative query instead.
+    expect(component).toContain('const isDesktopView = useMediaQuery("(min-width: 768px)")');
+    expect(restoreEffect).not.toBe("");
+    expect(restoreEffect).not.toContain("isMobileView");
+    expect(restoreEffect).toContain("lastClassRestoreAttemptedRef.current = true;");
   });
 
   it("all classes reset keeps the student picker open and searchable", () => {
