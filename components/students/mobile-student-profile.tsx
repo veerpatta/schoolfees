@@ -73,6 +73,8 @@ export function MobileStudentProfile({
     { fatherPhone, motherPhone },
     { father: t("phoneLabelFather"), mother: t("phoneLabelMother") },
   );
+  const showCollectAction = canPostPayments && isActive;
+  const hasActionBar = canShare || showCollectAction;
 
   return (
     <div className="anim-slide-up">
@@ -127,7 +129,11 @@ export function MobileStudentProfile({
           reachable — 3.5rem bar + its safe-area inset + breathing room. */}
       <div
         className="pt-3"
-        style={{ paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 6rem)" }}
+        style={
+          hasActionBar
+            ? { paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 6rem)" }
+            : undefined
+        }
       >
         {tab === "fees" ? <div className="anim-fade-in">{feesContent}</div> : null}
         {tab === "family" ? <div className="anim-fade-in">{familyContent}</div> : null}
@@ -143,31 +149,34 @@ export function MobileStudentProfile({
           data-bottom-nav="false"; there is no fixed tab bar to clear, and
           adding --mobile-bottom-nav-offset here would float the bar 68px above
           the home indicator. */}
-      <div
-        className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-border bg-background/95 px-4 pt-2.5 backdrop-blur md:hidden print:hidden"
-        style={{ paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)" }}
-      >
-        {canShare ? (
-          <button
-            type="button"
-            onClick={() => setShareOpen(true)}
-            className="focus-ring h-14 w-28 shrink-0 rounded-2xl border border-success/30 bg-success-soft text-[13px] font-extrabold text-success-soft-foreground active:scale-[0.98]"
-          >
-            {t("studentWhatsAppCta")}
-          </button>
-        ) : null}
-        {canPostPayments && isActive ? (
-          <StudentRowCollectButton
-            studentId={studentId}
-            studentLabel={studentName}
-            classLabel={classLabel}
-            returnTo={returnTo}
-            label={t("studentCollectCta")}
-            variant="primary"
-            className="h-14 flex-1 justify-center rounded-2xl text-[15.5px] font-extrabold"
-          />
-        ) : null}
-      </div>
+      {hasActionBar ? (
+        <div
+          data-mobile-student-actions="true"
+          className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-border bg-background/95 px-4 pt-2.5 backdrop-blur md:hidden print:hidden"
+          style={{ paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)" }}
+        >
+          {canShare ? (
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="focus-ring h-14 w-28 shrink-0 rounded-2xl border border-success/30 bg-success-soft text-[13px] font-extrabold text-success-soft-foreground active:scale-[0.98]"
+            >
+              {t("studentWhatsAppCta")}
+            </button>
+          ) : null}
+          {showCollectAction ? (
+            <StudentRowCollectButton
+              studentId={studentId}
+              studentLabel={studentName}
+              classLabel={classLabel}
+              returnTo={returnTo}
+              label={t("studentCollectCta")}
+              variant="primary"
+              className="h-14 flex-1 justify-center rounded-2xl text-[15.5px] font-extrabold"
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       {canShare ? (
         <ShareFeeWhatsApp

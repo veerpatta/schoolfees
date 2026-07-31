@@ -5,15 +5,16 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { MobileStudentProfile } from "@/components/students/mobile-student-profile";
 import { MobileStudentList } from "@/components/students/student-list-table";
 import type { StudentListItem } from "@/lib/students/types";
 
 /**
  * The phone Students list and the phone student profile (mobile app v2).
  *
- * The list assertions render the real component; the profile assertions are
- * source-level, because that screen's one load-bearing detail is a CSS
- * clearance value that only matters against the live shell.
+ * The list and action-availability assertions render the real components.
+ * The remaining profile assertions stay source-level because their
+ * load-bearing CSS details only matter against the live shell.
  */
 
 const messages = JSON.parse(
@@ -108,6 +109,38 @@ function renderList(students: StudentListItem[]) {
   );
 }
 
+function renderProfile({
+  canPostPayments = false,
+  canShare = false,
+  isActive = false,
+}: {
+  canPostPayments?: boolean;
+  canShare?: boolean;
+  isActive?: boolean;
+} = {}) {
+  return renderWithIntl(
+    <MobileStudentProfile
+      studentId="student-1"
+      studentName="TEST Rahul Sharma"
+      classLabel="Class 6-A"
+      admissionNo="TEST-245"
+      fatherPhone={canShare ? "8123456789" : null}
+      motherPhone={null}
+      canPostPayments={canPostPayments}
+      canShare={canShare}
+      isActive={isActive}
+      returnTo="/protected/students"
+      initialTab="fees"
+      familyGroupId={null}
+      pendingAmount={14500}
+      feesContent={<p>Fees</p>}
+      familyContent={<p>Family</p>}
+      aboutContent={<p>About</p>}
+      familyCount={0}
+    />,
+  );
+}
+
 describe("phone students list", () => {
   it("puts identity, the class · SR line and the amount on one card", () => {
     const html = renderList([student()]);
@@ -189,6 +222,21 @@ describe("phone student profile", () => {
 
   it("reserves room below the scroll body so the last card stays reachable", () => {
     expect(profile).toContain('paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 6rem)"');
+  });
+
+  it("does not render an empty fixed bar or reserve space when no action is available", () => {
+    const html = renderProfile();
+
+    expect(html).not.toContain('data-mobile-student-actions="true"');
+    expect(html).not.toContain("mobile-safe-area-bottom, 0px) + 6rem");
+  });
+
+  it("keeps the fixed bar and scroll clearance when collection is available", () => {
+    const html = renderProfile({ canPostPayments: true, isActive: true });
+
+    expect(html).toContain('data-mobile-student-actions="true"');
+    expect(html).toContain("mobile-safe-area-bottom, 0px) + 6rem");
+    expect(html).toContain("/protected/payments?studentId=student-1");
   });
 
   it("asks which parent to call instead of hardcoding one number", () => {
