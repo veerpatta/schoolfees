@@ -9,6 +9,7 @@ import { StudentRowCollectButton } from "@/components/students/student-row-colle
 import { UnlinkSiblingTrigger } from "@/components/students/unlink-sibling-trigger";
 import { formatInr } from "@/lib/helpers/currency";
 import { appendSessionParam } from "@/lib/navigation/session-href";
+import { resolveSiblingPickerExclusions } from "@/lib/students/family-link";
 import type { StudentFamilyMemberDetail } from "@/lib/students/data";
 
 /**
@@ -56,6 +57,7 @@ export async function MobileStudentFamilyTab({
   const siblings = members.filter((member) => !member.isSelf);
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
+  const alreadyLinkedIds = resolveSiblingPickerExclusions({ familyGroupId, members });
   const linkTrigger = canEditStudent ? (
     <LinkSiblingTrigger
       studentId={studentId}
@@ -65,7 +67,7 @@ export async function MobileStudentFamilyTab({
       studentFatherName={currentStudent.fatherName}
       studentPhone={currentStudent.primaryPhone}
       sessionLabel={sessionLabel}
-      excludeStudentIds={members.map((member) => member.id)}
+      excludeStudentIds={alreadyLinkedIds}
       size="default"
       className="h-12 w-full justify-center rounded-xl text-[13px] font-extrabold"
     />

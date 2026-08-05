@@ -26,6 +26,31 @@
 - student family groups
 - student family members
 
+### How the 3rd Child Policy is applied
+
+- A student belongs to **one** family group, enforced by a unique index on
+  `student_family_members (student_id, academic_session_label)`.
+- Membership is keyed by **student**, not session: a family linked last year
+  stays linked. Membership rows are read across every session, and the link
+  actions backfill a row for the current session for every member.
+- The policy applies once **three or more** members are active AND sitting in a
+  class that belongs to the session being evaluated. It goes to the sibling in
+  the lowest class; only one child per family receives it.
+- Nothing is applied silently: it runs after an explicit staff action — linking
+  siblings, editing a member, or saving the Fee Setup discount block — and each
+  of those paths regenerates dues for the students it touched.
+- Unlinking withdraws the automatic assignment from the student who left (and
+  from whoever is left behind when the family drops below two). Rows flagged
+  `is_manual_override` are never touched by the automation.
+
+### Session-wide recheck
+
+Saving the discount block in Fee Setup calls `applyThirdChildPolicyForSession()`
+for every family in the session and then regenerates dues for the affected
+students. That is the supported way to backfill families that predate a fix —
+writing assignments directly in SQL would leave them disagreeing with the
+workbook projection, which only picks up a discount when dues are regenerated.
+
 ## Import/Export Behavior
 
 - import should avoid unsafe auto-assignment for complex sibling policy cases

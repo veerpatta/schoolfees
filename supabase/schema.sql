@@ -5239,6 +5239,16 @@ on public.student_conventional_discount_assignments (policy_id, academic_session
 create index if not exists idx_student_family_members_student
 on public.student_family_members (student_id, academic_session_label);
 
+create index if not exists idx_student_family_members_group
+on public.student_family_members (family_group_id);
+
+-- One student belongs to exactly one family group per session. The sibling
+-- link flow merges groups rather than refusing, and relies on there being a
+-- single group left to recompute the 3rd Child Policy against.
+-- See migration 20260805031500_one_family_per_student.sql.
+create unique index if not exists idx_student_family_members_student_session_unique
+on public.student_family_members (student_id, academic_session_label);
+
 create or replace function private.enforce_max_active_conventional_discounts()
 returns trigger
 language plpgsql

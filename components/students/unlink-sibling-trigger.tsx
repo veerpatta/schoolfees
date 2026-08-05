@@ -45,7 +45,9 @@ export function UnlinkSiblingTrigger({
         type="button"
         size="sm"
         variant="ghost"
-        className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-destructive"
+        // max-md bump: at h-7 this sat at 28px, well under a comfortable
+        // thumb target, right beside the sibling's profile link.
+        className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-destructive max-md:h-9 max-md:px-3"
         onClick={() => setConfirming(true)}
         aria-label={t("unlinkAria", { name: memberLabel })}
       >
@@ -64,7 +66,7 @@ export function UnlinkSiblingTrigger({
         type="submit"
         size="sm"
         variant="ghost"
-        className="h-7 gap-1 px-2 text-[11px] text-destructive"
+        className="h-7 gap-1 px-2 text-[11px] text-destructive max-md:h-9 max-md:px-3"
         disabled={pending}
       >
         {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : null}
@@ -74,7 +76,7 @@ export function UnlinkSiblingTrigger({
         type="button"
         size="sm"
         variant="ghost"
-        className="h-7 px-1.5 text-[11px]"
+        className="h-7 px-1.5 text-[11px] max-md:h-9 max-md:px-3"
         onClick={() => setConfirming(false)}
         disabled={pending}
         aria-label={t("unlinkCancelAria")}

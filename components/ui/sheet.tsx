@@ -166,6 +166,24 @@ export function Sheet({
   const closingFromPopstateRef = useRef(false);
   const pushedHistoryRef = useRef(false);
 
+  /**
+   * `onClose` is an inline arrow at essentially every call site, so its
+   * identity changes on every render of the owner. Reading it through a ref
+   * keeps the effects below keyed on `open` alone.
+   *
+   * This is load-bearing, not tidiness. When the history effect depended on
+   * `onClose`, one keystroke inside a sheet tore the effect down — firing
+   * `history.back()` — and immediately pushed a fresh marker entry. The queued
+   * traversal then landed on that NEW entry, the popstate handler saw a marker
+   * it did not recognise, and closed the sheet mid-interaction. That is the
+   * "the picker vanishes when I select a student" report; guarded by
+   * tests/ui/interaction/sheet-history-stability.test.tsx.
+   */
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   const closeWithHistory = useCallback(() => {
     if (historyDismiss && pushedHistoryRef.current && !closingFromPopstateRef.current) {
       // Popping our entry fires popstate, which runs onClose for us.
@@ -173,8 +191,8 @@ export function Sheet({
       window.history.back();
       return;
     }
-    onClose();
-  }, [historyDismiss, onClose]);
+    onCloseRef.current();
+  }, [historyDismiss]);
 
   useEffect(() => {
     if (!open || !historyDismiss) return;
@@ -193,7 +211,7 @@ export function Sheet({
       if (stillOurs === entryId) return;
       pushedHistoryRef.current = false;
       closingFromPopstateRef.current = true;
-      onClose();
+      onCloseRef.current();
       closingFromPopstateRef.current = false;
     };
 
@@ -207,7 +225,7 @@ export function Sheet({
         window.history.back();
       }
     };
-  }, [open, historyDismiss, onClose]);
+  }, [open, historyDismiss]);
 
   const handleKey = useCallback(
     (event: KeyboardEvent) => {
@@ -221,15 +239,20 @@ export function Sheet({
   useEffect(() => {
     if (!open) return;
     document.addEventListener("keydown", handleKey);
-    if (lockScroll) {
-      acquireSheetScrollLock();
-      return () => {
-        document.removeEventListener("keydown", handleKey);
-        releaseSheetScrollLock();
-      };
-    }
     return () => document.removeEventListener("keydown", handleKey);
-  }, [open, handleKey, lockScroll]);
+  }, [open, handleKey]);
+
+  /**
+   * Scroll lock is its own effect, keyed on `open`/`lockScroll` only. Sharing
+   * an effect with the keydown listener meant every re-render released and
+   * re-acquired the lock — and releasing writes `.mobile-app-main`'s scrollTop
+   * back to the captured value, so a phone scrolled visibly on every keystroke.
+   */
+  useEffect(() => {
+    if (!open || !lockScroll) return;
+    acquireSheetScrollLock();
+    return () => releaseSheetScrollLock();
+  }, [open, lockScroll]);
 
   /* ---- Audit 1.16: manual focus trap + restore ----
    * The sheet sets role="dialog" aria-modal="true" but did not trap Tab,
@@ -254,10 +277,18 @@ export function Sheet({
     if (panel) {
       // Defer focus to after the panel renders.
       const id = window.setTimeout(() => {
+        // A sheet can nominate where focus should land with
+        // `data-sheet-initial-focus`. Without it focus goes to the first
+        // focusable, which is the header's close button — so a picker's search
+        // field lost focus a tick after `autoFocus` put it there. Call sites
+        // that must NOT raise the on-screen keyboard simply omit the attribute.
+        const preferred = panel.querySelector<HTMLElement>("[data-sheet-initial-focus]");
         const focusables = panel.querySelectorAll<HTMLElement>(
           'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
         );
-        if (focusables.length > 0) {
+        if (preferred) {
+          preferred.focus();
+        } else if (focusables.length > 0) {
           focusables[0].focus();
         } else {
           panel.setAttribute("tabindex", "-1");

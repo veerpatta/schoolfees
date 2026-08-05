@@ -91,6 +91,12 @@ export type ThirdChildPolicyApplicationResult = {
   academicSessionLabel: string;
   recipientStudentId: string | null;
   affectedStudentIds: string[];
+  /** Distinct students linked into the family, whatever session their row carries. */
+  memberCount: number;
+  /** Members actually enrolled in `academicSessionLabel` — what the ≥3 rule counts. */
+  eligibleCount: number;
+  /** False when the session has no active `third_child` policy configured. */
+  policyConfigured: boolean;
 };
 
 const DISCOUNT_ASSIGNMENT_STUDENT_ID_CHUNK_SIZE = 100;
@@ -506,16 +512,16 @@ export async function applyThirdChildPolicyForFamilyGroup(
     return null;
   }
 
-  const policy = await loadThirdChildPolicy(supabase, academicSessionLabel);
-  if (!policy?.id) {
-    return null;
-  }
-
+  // Membership rows are read WITHOUT a session filter on purpose. A family
+  // linked in an earlier year keeps that year's row (the link is per student,
+  // not per session), and session-filtering here made a three-child family look
+  // like a one-child family — so the 3rd Child Policy silently never applied.
+  // Session scoping is still enforced below, where candidates must be active
+  // AND sitting in a class that belongs to `academicSessionLabel`.
   const { data: memberRowsRaw, error: membersError } = await supabase
     .from("student_family_members")
     .select("student_id")
-    .eq("family_group_id", normalizedFamilyGroupId)
-    .eq("academic_session_label", academicSessionLabel);
+    .eq("family_group_id", normalizedFamilyGroupId);
 
   if (membersError) {
     throw new Error(membersError.message);
@@ -525,12 +531,28 @@ export async function applyThirdChildPolicyForFamilyGroup(
     new Set(((memberRowsRaw ?? []) as ThirdChildFamilyMemberRow[]).map((row) => row.student_id)),
   );
 
+  const policy = await loadThirdChildPolicy(supabase, academicSessionLabel);
+  if (!policy?.id) {
+    return {
+      familyGroupId: normalizedFamilyGroupId,
+      academicSessionLabel,
+      recipientStudentId: null,
+      affectedStudentIds: [],
+      memberCount: memberStudentIds.length,
+      eligibleCount: 0,
+      policyConfigured: false,
+    };
+  }
+
   if (memberStudentIds.length === 0) {
     return {
       familyGroupId: normalizedFamilyGroupId,
       academicSessionLabel,
       recipientStudentId: null,
       affectedStudentIds: [],
+      memberCount: 0,
+      eligibleCount: 0,
+      policyConfigured: true,
     };
   }
 
@@ -621,7 +643,68 @@ export async function applyThirdChildPolicyForFamilyGroup(
     academicSessionLabel,
     recipientStudentId,
     affectedStudentIds: Array.from(affectedStudentIds),
+    memberCount: memberStudentIds.length,
+    eligibleCount: candidates.length,
+    policyConfigured: true,
   };
+}
+
+/**
+ * Turns OFF the automatically-applied 3rd Child Policy for students who are no
+ * longer part of a qualifying family (unlinked, or left behind when a family
+ * shrank below three children).
+ *
+ * `applyThirdChildPolicyForFamilyGroup` only ever deactivates rows for students
+ * still inside the group, so without this an unlinked child kept a ₹6,000
+ * tuition it no longer qualified for. Rows carrying `is_manual_override` are
+ * left alone — those were set deliberately by staff, not by this automation.
+ */
+export async function deactivateAutomaticThirdChildAssignments(payload: {
+  studentIds: readonly string[];
+  academicSessionLabel?: string | null;
+}): Promise<string[]> {
+  const studentIds = Array.from(new Set(payload.studentIds.map((id) => id.trim()).filter(Boolean)));
+  if (studentIds.length === 0) {
+    return [];
+  }
+
+  const supabase = createAdminClient();
+  let policyQuery = supabase
+    .from("conventional_discount_policies")
+    .select("id")
+    .eq("code", "third_child");
+
+  const academicSessionLabel = payload.academicSessionLabel?.trim() ?? "";
+  if (academicSessionLabel) {
+    policyQuery = policyQuery.eq("academic_session_label", academicSessionLabel);
+  }
+
+  const { data: policyRowsRaw, error: policyError } = await policyQuery;
+  if (policyError) {
+    throw new Error(policyError.message);
+  }
+
+  const policyIds = ((policyRowsRaw ?? []) as Array<{ id: string }>).map((row) => row.id);
+  if (policyIds.length === 0) {
+    return [];
+  }
+
+  const { data: updatedRaw, error: updateError } = await supabase
+    .from("student_conventional_discount_assignments")
+    .update({ is_active: false })
+    .in("student_id", studentIds)
+    .in("policy_id", policyIds)
+    .eq("is_active", true)
+    .eq("is_manual_override", false)
+    .select("student_id");
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  return Array.from(
+    new Set(((updatedRaw ?? []) as Array<{ student_id: string }>).map((row) => row.student_id)),
+  );
 }
 
 export async function applyThirdChildPolicyForStudentFamilies(payload: {
@@ -635,11 +718,13 @@ export async function applyThirdChildPolicyForStudentFamilies(payload: {
   }
 
   const supabase = createAdminClient();
+  // No session filter: a family linked in an earlier year keeps that year's
+  // membership row, and filtering on the session found no family at all — so
+  // editing a student never re-ran the 3rd Child Policy for their siblings.
   const { data, error } = await supabase
     .from("student_family_members")
     .select("family_group_id")
-    .eq("student_id", studentId)
-    .eq("academic_session_label", academicSessionLabel);
+    .eq("student_id", studentId);
 
   if (error) {
     throw new Error(error.message);

@@ -6,6 +6,7 @@ import { LinkSiblingTrigger } from "@/components/students/link-sibling-trigger";
 import { LinkSuspectedSiblingsButton } from "@/components/students/link-suspected-siblings-button";
 import { UnlinkSiblingTrigger } from "@/components/students/unlink-sibling-trigger";
 import { appendSessionParam } from "@/lib/navigation/session-href";
+import { resolveSiblingPickerExclusions } from "@/lib/students/family-link";
 import type { StudentFamilyMemberDetail } from "@/lib/students/data";
 
 type StudentFamilyPanelProps = {
@@ -34,6 +35,7 @@ export function StudentFamilyPanel({
   currentStudent,
 }: StudentFamilyPanelProps) {
   const siblings = members.filter((m) => !m.isSelf);
+  const alreadyLinkedIds = resolveSiblingPickerExclusions({ familyGroupId, members });
   const linkSiblingTrigger =
     canLinkSibling && currentStudent ? (
       <LinkSiblingTrigger
@@ -44,7 +46,7 @@ export function StudentFamilyPanel({
         studentFatherName={currentStudent.fatherName}
         studentPhone={currentStudent.primaryPhone}
         sessionLabel={sessionLabel}
-        excludeStudentIds={members.map((m) => m.id)}
+        excludeStudentIds={alreadyLinkedIds}
       />
     ) : null;
 
