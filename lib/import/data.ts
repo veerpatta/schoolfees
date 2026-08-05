@@ -979,13 +979,20 @@ export async function createStudentImportBatch(
   const activePolicy = await getFeePolicySummary();
   const supabase = await createClient();
   const normalizedTargetSessionLabel = targetSessionLabel?.trim() ?? "";
+  // Both modes must resolve to a concrete session. Update mode used to accept a
+  // blank target, which left the batch unscoped and allowed a class label to
+  // match a same-named class in another session — that is how 372 live students
+  // were repointed into TEST-2026-27. See
+  // supabase/migrations/20260805092228_repair_bulk_update_session_repoint.sql.
   const resolvedTargetSessionLabel =
-    mode === "add"
-      ? normalizedTargetSessionLabel || activePolicy.academicSessionLabel || masterOptions.currentSessionLabel || ""
-      : normalizedTargetSessionLabel;
+    normalizedTargetSessionLabel || activePolicy.academicSessionLabel || masterOptions.currentSessionLabel || "";
 
-  if (mode === "add" && !resolvedTargetSessionLabel) {
-    throw new Error("Select an academic year before bulk add upload.");
+  if (!resolvedTargetSessionLabel) {
+    throw new Error(
+      mode === "add"
+        ? "Select an academic year before bulk add upload."
+        : "Select an academic year before bulk update upload.",
+    );
   }
 
   if (
@@ -1029,7 +1036,7 @@ export async function createStudentImportBatch(
     .insert({
       filename: parsedFile.filename,
       import_mode: mode,
-      target_session_label: resolvedTargetSessionLabel || null,
+      target_session_label: resolvedTargetSessionLabel,
       source_format: parsedFile.sourceFormat,
       worksheet_name: parsedFile.worksheetName,
       file_size_bytes: parsedFile.fileSizeBytes,
@@ -1093,8 +1100,13 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
     typeof batchRow.target_session_label === "string" && batchRow.target_session_label.trim()
       ? batchRow.target_session_label.trim()
       : null;
-  if (batchRow.import_mode === "add" && !targetSessionLabel) {
-    throw new Error("Select an academic year before running bulk add validation.");
+  // Applies to both modes: an unscoped batch cannot resolve class labels safely.
+  if (!targetSessionLabel) {
+    throw new Error(
+      batchRow.import_mode === "add"
+        ? "Select an academic year before running bulk add validation."
+        : "Select an academic year before running bulk update validation.",
+    );
   }
   const [masterOptions, { data: existingStudents, error: studentError }, { data: feeSettings, error: feeSettingError }] =
     await Promise.all([
@@ -1113,19 +1125,19 @@ export async function runStudentImportDryRun(batchId: string, mapping: StudentIm
     throw new Error(`Unable to load fee settings for import validation: ${feeSettingError.message}`);
   }
 
-  const classesForValidation = targetSessionLabel
-    ? masterOptions.classOptions.filter((row) => row.sessionLabel === targetSessionLabel)
-    : masterOptions.classOptions;
+  // Always session-scoped. Never fall back to every class in every session —
+  // same-named classes exist in both the live and TEST sessions.
+  const classesForValidation = masterOptions.classOptions.filter(
+    (row) => row.sessionLabel === targetSessionLabel,
+  );
 
-  if (targetSessionLabel && classesForValidation.length === 0) {
+  if (classesForValidation.length === 0) {
     throw new Error(
       `No classes are saved for ${targetSessionLabel}. Add the session classes first, then return to student import.`,
     );
   }
 
-  const conventionalDiscountPolicies = targetSessionLabel
-    ? await getConventionalDiscountPolicies(targetSessionLabel)
-    : [];
+  const conventionalDiscountPolicies = await getConventionalDiscountPolicies(targetSessionLabel);
 
   const validationResult = executeStudentImportDryRun({
     mode: batchRow.import_mode === "update" ? "update" : "add",
@@ -1259,7 +1271,12 @@ function buildImportStudentInput(
 
   return {
     fullName: payload.fullName,
-    classId: payload.classId,
+    // Never rewrite a student's class from a blank/unmapped Class cell — an
+    // update row that leaves Class empty must keep the student where they are.
+    classId:
+      useExisting && !hasMappedValue(row, mapping, "classLabel")
+        ? existing?.classId ?? payload.classId
+        : payload.classId,
     admissionNo: payload.admissionNo,
     dateOfBirth:
       useExisting && !hasMappedValue(row, mapping, "dateOfBirth")

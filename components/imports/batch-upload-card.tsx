@@ -84,9 +84,13 @@ export function BatchUploadCard({
               defaultValue={defaultSessionLabel}
               disabled={!canManage || submitting}
               className="mt-2 block w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground"
-              required={mode === "add"}
+              required
             >
-              <option value="">Use current session</option>
+              {defaultSessionLabel ? null : (
+                <option value="" disabled>
+                  Select a session
+                </option>
+              )}
               {sessionOptions.map((sessionOption) => (
                 <option key={sessionOption.value} value={sessionOption.value}>
                   {sessionOption.label}
@@ -94,7 +98,8 @@ export function BatchUploadCard({
               ))}
             </select>
             <p className="mt-2 text-xs text-muted-foreground">
-              The selected session is stored with the batch and used for validation and dues generation.
+              Required. The selected session is stored with the batch and used to resolve classes,
+              validate rows and generate dues.
             </p>
           </div>
           <Button type="submit" disabled={!canManage || submitting}>

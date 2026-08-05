@@ -129,12 +129,17 @@ export function executeStudentImportDryRun({
   conventionalDiscountPolicies = [],
 }: StudentImportDryRunContext) {
   const normalizedTargetSessionLabel = targetSessionLabel?.trim().toLowerCase() ?? "";
-  const isSessionScoped = normalizedTargetSessionLabel.length > 0;
-  const classesForValidation = isSessionScoped
-    ? classes.filter(
-        (item) => item.sessionLabel.trim().toLowerCase() === normalizedTargetSessionLabel,
-      )
-    : classes;
+
+  // Fail closed. Without a session there is no safe way to resolve a class
+  // label: the same class names exist in the live and TEST sessions, and
+  // findReferenceMatch returns the first match in load order.
+  if (!normalizedTargetSessionLabel) {
+    throw new Error("An academic session is required to validate a student import batch.");
+  }
+
+  const classesForValidation = classes.filter(
+    (item) => item.sessionLabel.trim().toLowerCase() === normalizedTargetSessionLabel,
+  );
   const classIds = new Set(classesForValidation.map((item) => item.id));
   const routeIds = new Set(routes.map((item) => item.id));
   const existingById = new Map(existingStudents.map((student) => [student.id, student]));
@@ -201,7 +206,6 @@ export function executeStudentImportDryRun({
 
     if (
       mode === "update" &&
-      isSessionScoped &&
       updateTarget &&
       updateTarget.classSessionLabel.trim().toLowerCase() !== normalizedTargetSessionLabel
     ) {
@@ -340,9 +344,7 @@ export function executeStudentImportDryRun({
       errors.push({
         code: "ERR_CLASS_NOT_FOUND",
         field: "classLabel",
-        message: isSessionScoped
-          ? `Class "${classLabel}" was not found in academic session ${targetSessionLabel}. Use the session template or correct the class label.`
-          : `Class "${classLabel}" was not found. Use the downloaded template or choose an existing class.`,
+        message: `Class "${classLabel}" was not found in academic session ${targetSessionLabel}. Use the session template or correct the class label.`,
       });
     }
 
