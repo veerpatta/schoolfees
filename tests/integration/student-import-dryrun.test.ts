@@ -42,6 +42,7 @@ const updateMapping = {
 describe("student import dry-run", () => {
   it("treats add rows with only student name and class as valid", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "add",
       rows: [
         {
@@ -92,6 +93,7 @@ describe("student import dry-run", () => {
 
   it("marks existing SR rows as update rows instead of duplicates", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       rows: [
         {
           id: "row-1",
@@ -137,6 +139,7 @@ describe("student import dry-run", () => {
 
   it("allows add rows with blank SR no and warns that a temporary SR no will be generated", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "add",
       rows: [
         {
@@ -168,6 +171,7 @@ describe("student import dry-run", () => {
 
   it("blocks add rows that use an existing SR no", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "add",
       rows: [
         {
@@ -202,6 +206,7 @@ describe("student import dry-run", () => {
 
   it("warns on unknown routes in add mode and imports without route", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "add",
       rows: [
         {
@@ -233,6 +238,7 @@ describe("student import dry-run", () => {
 
   it("keeps warning-only add rows importable even when parent fields are blank", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "add",
       rows: [
         {
@@ -273,6 +279,7 @@ describe("student import dry-run", () => {
 
   it("keeps add rows valid when DOB is invalid and shows a warning instead", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "add",
       rows: [
         {
@@ -299,6 +306,7 @@ describe("student import dry-run", () => {
 
   it("blocks add rows with unknown class labels", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "add",
       rows: [
         {
@@ -324,6 +332,7 @@ describe("student import dry-run", () => {
 
   it("matches update rows by Student ID before SR no", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "update",
       rows: [
         {
@@ -371,6 +380,7 @@ describe("student import dry-run", () => {
 
   it("treats blank update cells as no change when Student ID identifies the row", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "update",
       rows: [
         {
@@ -414,6 +424,7 @@ describe("student import dry-run", () => {
 
   it("requires Student ID or SR no in update mode and does not match by name alone", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       mode: "update",
       rows: [
         {
@@ -448,6 +459,7 @@ describe("student import dry-run", () => {
 
   it("keeps a second same-file SR row reviewable as a duplicate", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       rows: [
         {
           id: "row-1",
@@ -481,6 +493,7 @@ describe("student import dry-run", () => {
 
   it("accepts signed other adjustment amounts", () => {
     const result = executeStudentImportDryRun({
+      targetSessionLabel: "2026-27",
       rows: [
         {
           id: "row-1",
@@ -591,5 +604,97 @@ describe("student import dry-run", () => {
     expect(
       result.rows[0].errors.some((issue) => issue.code === "ERR_UPDATE_TARGET_SESSION_MISMATCH"),
     ).toBe(true);
+  });
+
+  // Regression: a bulk update batch was once accepted with no target session.
+  // That disabled class-session filtering and repointed 372 live students into
+  // TEST-2026-27. Both modes must now refuse to validate an unscoped batch.
+  it.each(["add", "update"] as const)(
+    "refuses to validate a %s batch with no academic session",
+    (mode) => {
+      expect(() =>
+        executeStudentImportDryRun({
+          mode,
+          targetSessionLabel: null,
+          rows: [
+            {
+              id: "row-unscoped",
+              rowIndex: 2,
+              rawPayload: {
+                "Student ID": "student-1",
+                "Student Name": "Asha Sharma",
+                Class: "Class 1",
+              },
+            },
+          ],
+          mapping: updateMapping,
+          classes,
+          routes,
+          existingStudents: [
+            {
+              id: "student-1",
+              admissionNo: "SR001",
+              fullName: "Asha Sharma",
+              classId: "class-1",
+              classSessionLabel: "2026-27",
+              dateOfBirth: null,
+            },
+          ],
+          activeFeeSettingClassIds: new Set(["class-1"]),
+        }),
+      ).toThrow(/academic session is required/i);
+    },
+  );
+
+  // Regression: master data returns classes ordered by session_label DESC, so
+  // "TEST-2026-27" is listed before "2026-27" and used to win the first-match
+  // lookup. The target session must decide, not load order.
+  it("resolves a same-named class to the target session, not the first match in load order", () => {
+    const result = executeStudentImportDryRun({
+      mode: "update",
+      targetSessionLabel: "2026-27",
+      rows: [
+        {
+          id: "row-same-named-class",
+          rowIndex: 2,
+          rawPayload: {
+            "Student ID": "student-1",
+            "Student Name": "",
+            Class: "Class 1",
+            "SR No": "",
+          },
+        },
+      ],
+      mapping: updateMapping,
+      classes: [
+        // TEST first, mirroring the session_label DESC ordering of master data.
+        {
+          id: "class-1-test",
+          label: "Class 1",
+          sessionLabel: "TEST-2026-27",
+          aliases: ["class1", "class 1"],
+        },
+        ...classes,
+      ],
+      routes,
+      existingStudents: [
+        {
+          id: "student-1",
+          admissionNo: "SR001",
+          fullName: "Asha Sharma",
+          classId: "class-1",
+          classSessionLabel: "2026-27",
+          dateOfBirth: null,
+        },
+      ],
+      activeFeeSettingClassIds: new Set(["class-1", "class-1-test"]),
+    });
+
+    expect(result.rows[0]).toMatchObject({
+      status: "valid",
+      targetStudentId: "student-1",
+      normalizedPayload: { classId: "class-1" },
+    });
+    expect(result.rows[0].normalizedPayload?.classId).not.toBe("class-1-test");
   });
 });
