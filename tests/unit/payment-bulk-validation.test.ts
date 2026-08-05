@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PaymentMode } from "@/lib/db/types";
 import {
+  flagExistingReceiptDuplicates,
   flagIntraFileDuplicates,
   mapPaymentImportHeaders,
   resolvePaymentModeInput,
@@ -190,6 +191,8 @@ describe("flagIntraFileDuplicates", () => {
       remarks: null,
       status: "valid",
       messages: [],
+      intraFileDuplicate: false,
+      existingReceiptDuplicate: false,
       ...overrides,
     };
   }
@@ -213,5 +216,50 @@ describe("flagIntraFileDuplicates", () => {
       validated({ studentId: "student-2", admissionNo: "2487" }),
     ]);
     expect(rows.every((item) => item.status === "valid")).toBe(true);
+  });
+
+  it("tags intra-file duplicates so the commit path can waive the right guard", () => {
+    const rows = flagIntraFileDuplicates([validated({}), validated({})]);
+    expect(rows.every((item) => item.intraFileDuplicate)).toBe(true);
+    expect(rows.every((item) => !item.existingReceiptDuplicate)).toBe(true);
+  });
+
+  // Nothing used to check the database at validation time, so a row re-entering
+  // a payment already on the books reached the posting layer unflagged.
+  describe("flagExistingReceiptDuplicates", () => {
+    const existing = [
+      {
+        studentId: "student-1",
+        paymentDate: "2026-07-01",
+        amount: 6300,
+        receiptNumber: "SVP20260701-0001",
+      },
+    ];
+
+    it("warns when a receipt already exists for the same student, date and amount", () => {
+      const rows = flagExistingReceiptDuplicates([validated({})], existing);
+      expect(rows[0].status).toBe("warning");
+      expect(rows[0].existingReceiptDuplicate).toBe(true);
+      expect(rows[0].messages.join(" ")).toContain("SVP20260701-0001");
+    });
+
+    it("leaves a different amount, date or student alone", () => {
+      const rows = flagExistingReceiptDuplicates(
+        [
+          validated({ amount: 5000 }),
+          validated({ paymentDate: "2026-07-02" }),
+          validated({ studentId: "student-2" }),
+        ],
+        existing,
+      );
+      expect(rows.every((item) => item.status === "valid")).toBe(true);
+      expect(rows.every((item) => !item.existingReceiptDuplicate)).toBe(true);
+    });
+
+    it("does not resurrect rows that already failed validation", () => {
+      const rows = flagExistingReceiptDuplicates([validated({ status: "error" })], existing);
+      expect(rows[0].status).toBe("error");
+      expect(rows[0].existingReceiptDuplicate).toBe(false);
+    });
   });
 });

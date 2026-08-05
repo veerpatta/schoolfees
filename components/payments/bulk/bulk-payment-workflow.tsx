@@ -548,7 +548,11 @@ export function BulkPaymentWorkflow({
                               disabled={row.duplicateAcknowledged || phase === "committing"}
                               onCheckedChange={() => toggleAcknowledged(row.id)}
                             />
-                            <span>Confirmed as a separate payment</span>
+                            <span>
+                              {row.existingReceiptDuplicate
+                                ? "Confirmed: a further payment, not a re-entry of the existing receipt"
+                                : "Confirmed as a separate payment"}
+                            </span>
                           </label>
                         ) : null}
                       </td>

@@ -181,7 +181,59 @@ export function validatePaymentImportRow(
     remarks,
     status,
     messages,
+    intraFileDuplicate: false,
+    existingReceiptDuplicate: false,
   };
+}
+
+/** A receipt already on the books, keyed for same-day/same-amount matching. */
+export type ExistingReceiptKey = {
+  studentId: string;
+  paymentDate: string;
+  amount: number;
+  receiptNumber: string;
+};
+
+export function buildExistingReceiptKey(studentId: string, paymentDate: string, amount: number) {
+  return `${studentId}|${paymentDate}|${amount}`;
+}
+
+/**
+ * Flags rows that match a receipt ALREADY in the database for the same student,
+ * date and amount. Previously nothing checked this at validation time, so the
+ * only defence was postStudentPayment's same-day guard — which the intra-file
+ * acknowledgment silently switched off. Surfacing it here gives the operator the
+ * warning on the review screen, with its own acknowledgment.
+ */
+export function flagExistingReceiptDuplicates(
+  rows: ValidatedPaymentRow[],
+  existingReceipts: readonly ExistingReceiptKey[],
+): ValidatedPaymentRow[] {
+  if (existingReceipts.length === 0) return rows;
+
+  const byKey = new Map<string, string[]>();
+  for (const receipt of existingReceipts) {
+    const key = buildExistingReceiptKey(receipt.studentId, receipt.paymentDate, receipt.amount);
+    const list = byKey.get(key) ?? [];
+    list.push(receipt.receiptNumber);
+    byKey.set(key, list);
+  }
+
+  for (const row of rows) {
+    if (row.status === "error") continue;
+    if (!row.studentId || !row.paymentDate || row.amount === null) continue;
+
+    const matches = byKey.get(buildExistingReceiptKey(row.studentId, row.paymentDate, row.amount));
+    if (!matches?.length) continue;
+
+    row.existingReceiptDuplicate = true;
+    row.status = "warning";
+    row.messages.push(
+      `A receipt for this student, date and amount already exists (${matches.join(", ")}) — confirm this is a further payment, not a re-entry.`,
+    );
+  }
+
+  return rows;
 }
 
 /**
@@ -210,6 +262,7 @@ export function flagIntraFileDuplicates(rows: ValidatedPaymentRow[]): ValidatedP
     for (const index of indices) {
       const row = rows[index];
       if (row.status === "error") continue;
+      row.intraFileDuplicate = true;
       const sameAmountCount = row.amount !== null ? (amounts.get(row.amount) ?? 0) : 0;
       if (sameAmountCount > 1) {
         row.status = "warning";

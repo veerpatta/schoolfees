@@ -10,9 +10,11 @@ import {
   toFriendlyPaymentPostingError,
 } from "@/lib/payments/data";
 import {
+  flagExistingReceiptDuplicates,
   flagIntraFileDuplicates,
   mapPaymentImportHeaders,
   validatePaymentImportRow,
+  type ExistingReceiptKey,
   type PaymentImportStudentLookup,
 } from "@/lib/payments/bulk/validation";
 import {
@@ -36,6 +38,8 @@ type RowRecord = {
   validation_status: PaymentImportRowView["validationStatus"];
   validation_messages: unknown;
   duplicate_acknowledged: boolean;
+  intra_file_duplicate: boolean;
+  existing_receipt_duplicate: boolean;
   client_request_id: string;
   receipt_id: string | null;
   receipt_number: string | null;
@@ -59,6 +63,8 @@ function toRowView(row: RowRecord): PaymentImportRowView {
       ? (row.validation_messages as string[])
       : [],
     duplicateAcknowledged: row.duplicate_acknowledged,
+    intraFileDuplicate: row.intra_file_duplicate,
+    existingReceiptDuplicate: row.existing_receipt_duplicate,
     receiptId: row.receipt_id,
     receiptNumber: row.receipt_number,
     postedAt: row.posted_at,
@@ -78,14 +84,20 @@ async function lookupStudentsByAdmissionNo(admissionNos: string[]) {
     return lookup;
   }
 
+  // Matching is done on normalizeLookupToken (lowercased, punctuation stripped),
+  // which no SQL `in` can express — filtering by the raw spreadsheet values made
+  // "test-2026-1" miss a stored "TEST-2026-1" and report "no student found".
+  // One school, a few hundred students: read the roster and match in memory so
+  // the normalization actually applies.
   const { data, error } = await supabase
     .from("students")
-    .select("id, admission_no, full_name, status, class_ref:classes(session_label)")
-    .in("admission_no", admissionNos);
+    .select("id, admission_no, full_name, status, class_ref:classes(session_label)");
 
   if (error) {
     throw new Error(`Could not look up students: ${error.message}`);
   }
+
+  const wanted = new Set(admissionNos.map((value) => normalizeLookupToken(value)));
 
   for (const raw of (data ?? []) as Array<{
     id: string;
@@ -95,6 +107,7 @@ async function lookupStudentsByAdmissionNo(admissionNos: string[]) {
     class_ref: { session_label: string } | { session_label: string }[] | null;
   }>) {
     const key = normalizeLookupToken(raw.admission_no);
+    if (!wanted.has(key)) continue;
     const list = lookup.get(key) ?? [];
     list.push({
       id: raw.id,
@@ -107,6 +120,45 @@ async function lookupStudentsByAdmissionNo(admissionNos: string[]) {
   }
 
   return lookup;
+}
+
+/**
+ * Loads receipts already on the books for the students in this upload, so rows
+ * that re-enter an existing payment are flagged on the review screen instead of
+ * only being caught (or, once acknowledged, silently not caught) at posting time.
+ */
+async function lookupExistingReceipts(
+  rows: readonly ValidatedPaymentRow[],
+): Promise<ExistingReceiptKey[]> {
+  const studentIds = [...new Set(rows.map((row) => row.studentId).filter((id): id is string => !!id))];
+  const paymentDates = [...new Set(rows.map((row) => row.paymentDate).filter((d): d is string => !!d))];
+
+  if (studentIds.length === 0 || paymentDates.length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("receipts")
+    .select("student_id, payment_date, total_amount, receipt_number")
+    .in("student_id", studentIds)
+    .in("payment_date", paymentDates);
+
+  if (error) {
+    throw new Error(`Could not check existing receipts: ${error.message}`);
+  }
+
+  return ((data ?? []) as Array<{
+    student_id: string;
+    payment_date: string;
+    total_amount: number;
+    receipt_number: string;
+  }>).map((row) => ({
+    studentId: row.student_id,
+    paymentDate: row.payment_date,
+    amount: row.total_amount,
+    receiptNumber: row.receipt_number,
+  }));
 }
 
 export async function createPaymentImportBatch(
@@ -161,6 +213,7 @@ export async function createPaymentImportBatch(
     }),
   );
   flagIntraFileDuplicates(validated);
+  flagExistingReceiptDuplicates(validated, await lookupExistingReceipts(validated));
 
   const counts = {
     valid: validated.filter((row) => row.status === "valid").length,
@@ -203,6 +256,8 @@ export async function createPaymentImportBatch(
       remarks: row.remarks,
       validation_status: row.status,
       validation_messages: row.messages,
+      intra_file_duplicate: row.intraFileDuplicate,
+      existing_receipt_duplicate: row.existingReceiptDuplicate,
     })),
   );
 
@@ -229,7 +284,7 @@ export async function getPaymentImportBatchSummary(
       supabase
         .from("payment_import_rows")
         .select(
-          "id, row_number, admission_no, student_id, student_name, payment_date, payment_mode, amount, remarks, validation_status, validation_messages, duplicate_acknowledged, client_request_id, receipt_id, receipt_number, posted_at, post_error",
+          "id, row_number, admission_no, student_id, student_name, payment_date, payment_mode, amount, remarks, validation_status, validation_messages, duplicate_acknowledged, intra_file_duplicate, existing_receipt_duplicate, client_request_id, receipt_id, receipt_number, posted_at, post_error",
         )
         .eq("batch_id", batchId)
         .order("row_number", { ascending: true }),
@@ -278,6 +333,12 @@ export async function commitPaymentImportRows(payload: {
   rowIds: string[];
   acknowledgedRowIds: string[];
   receivedBy: string;
+  /**
+   * Whether the operator may waive the near-duplicate guard. postStudentPayment
+   * documents acknowledgeNearDuplicate as requiring payments:adjust, so the
+   * route verifies that before setting this.
+   */
+  canAcknowledgeNearDuplicate?: boolean;
 }): Promise<CommitPaymentImportResult> {
   const supabase = await createClient();
   const acknowledged = new Set(payload.acknowledgedRowIds);
@@ -298,7 +359,7 @@ export async function commitPaymentImportRows(payload: {
   const { data: rowsRaw, error: rowsError } = await supabase
     .from("payment_import_rows")
     .select(
-      "id, row_number, admission_no, student_id, student_name, payment_date, payment_mode, amount, remarks, validation_status, validation_messages, duplicate_acknowledged, client_request_id, receipt_id, receipt_number, posted_at, post_error",
+      "id, row_number, admission_no, student_id, student_name, payment_date, payment_mode, amount, remarks, validation_status, validation_messages, duplicate_acknowledged, intra_file_duplicate, existing_receipt_duplicate, client_request_id, receipt_id, receipt_number, posted_at, post_error",
     )
     .eq("batch_id", payload.batchId)
     .in("id", payload.rowIds);
@@ -324,7 +385,12 @@ export async function commitPaymentImportRows(payload: {
       results.push({ rowId: row.id, ok: false, error: "Row has validation errors." });
       continue;
     }
-    const isAcknowledged = row.duplicate_acknowledged || acknowledged.has(row.id);
+    // An acknowledgment only means anything on a row that actually carries a
+    // warning — a client cannot pre-acknowledge a clean row and thereby switch
+    // off a duplicate guard the operator was never shown.
+    const isAcknowledged =
+      row.validation_status === "warning" &&
+      (row.duplicate_acknowledged || acknowledged.has(row.id));
     if (row.validation_status === "warning" && !isAcknowledged) {
       results.push({
         rowId: row.id,
@@ -351,7 +417,15 @@ export async function commitPaymentImportRows(payload: {
           : "[Bulk upload]",
         receivedBy: payload.receivedBy,
         clientRequestId: row.client_request_id,
-        acknowledgeDailyDuplicate: isAcknowledged,
+        // The two guards are waived independently, and only for the warning the
+        // operator was actually shown. Rows post seconds apart, so a genuine
+        // second payment of the same amount inside one file needs the
+        // near-duplicate waiver (the <90s instant-repeat block is otherwise
+        // unconditional); re-entering a payment already on the books is a
+        // different question and needs its own acknowledgment.
+        acknowledgeNearDuplicate:
+          isAcknowledged && row.intra_file_duplicate && payload.canAcknowledgeNearDuplicate === true,
+        acknowledgeDailyDuplicate: isAcknowledged && row.existing_receipt_duplicate,
       });
 
       await supabase
@@ -394,15 +468,31 @@ export async function commitPaymentImportRows(payload: {
     .select("id", { count: "exact", head: true })
     .eq("batch_id", payload.batchId)
     .in("validation_status", ["valid", "warning"]);
+  // Rows still worth another attempt: postable, not yet posted, and without a
+  // recorded failure. Without this a batch containing a permanently failing row
+  // sat in 'committing' forever, because posted < postable can never close.
+  const { count: pendingCount } = await supabase
+    .from("payment_import_rows")
+    .select("id", { count: "exact", head: true })
+    .eq("batch_id", payload.batchId)
+    .in("validation_status", ["valid", "warning"])
+    .is("posted_at", null)
+    .is("post_error", null);
+
+  const postedTotal = postedCount ?? 0;
+  const postableTotal = postableCount ?? 0;
+  const stillPending = pendingCount ?? 0;
 
   await supabase
     .from("payment_import_batches")
     .update({
-      posted_rows: postedCount ?? 0,
+      posted_rows: postedTotal,
       status:
-        (postedCount ?? 0) >= (postableCount ?? 0) && (postableCount ?? 0) > 0
+        postableTotal > 0 && postedTotal >= postableTotal
           ? "committed"
-          : "committing",
+          : stillPending === 0
+            ? "failed"
+            : "committing",
     })
     .eq("id", payload.batchId);
 

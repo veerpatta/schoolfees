@@ -30,6 +30,10 @@ export type PaymentImportRowView = {
   validationStatus: PaymentImportRowStatus;
   validationMessages: string[];
   duplicateAcknowledged: boolean;
+  /** Same student appears more than once in this upload. */
+  intraFileDuplicate: boolean;
+  /** A receipt already exists for this student, date and amount. */
+  existingReceiptDuplicate: boolean;
   receiptId: string | null;
   receiptNumber: string | null;
   postedAt: string | null;
@@ -59,4 +63,8 @@ export type ValidatedPaymentRow = {
   remarks: string | null;
   status: PaymentImportRowStatus;
   messages: string[];
+  /** Same student appears more than once in this upload. */
+  intraFileDuplicate: boolean;
+  /** A receipt already exists for this student, date and amount. */
+  existingReceiptDuplicate: boolean;
 };

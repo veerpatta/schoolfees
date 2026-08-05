@@ -42,6 +42,10 @@ export async function POST(request: Request, context: RouteContext) {
       rowIds,
       acknowledgedRowIds,
       receivedBy: (staff.email as string | undefined) ?? "Bulk upload",
+      // Waiving the near-duplicate guard is the same override the Payment Desk
+      // gates behind payments:adjust, so require it here too rather than let
+      // payments:bulk alone unlock it.
+      canAcknowledgeNearDuplicate: hasStaffPermission(staff, "payments:adjust"),
     });
 
     if (result.posted > 0) {

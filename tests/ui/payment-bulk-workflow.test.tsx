@@ -17,6 +17,8 @@ function paymentRow(overrides: Partial<PaymentImportRowView>): PaymentImportRowV
     validationStatus: "valid",
     validationMessages: [],
     duplicateAcknowledged: false,
+    intraFileDuplicate: false,
+    existingReceiptDuplicate: false,
     receiptId: null,
     receiptNumber: null,
     postedAt: null,

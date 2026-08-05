@@ -20,6 +20,8 @@ type RowSeed = {
   id: string;
   validation_status?: string;
   duplicate_acknowledged?: boolean;
+  intra_file_duplicate?: boolean;
+  existing_receipt_duplicate?: boolean;
   posted_at?: string | null;
   receipt_id?: string | null;
   receipt_number?: string | null;
@@ -39,6 +41,8 @@ function rowSeed(overrides: RowSeed) {
     validation_status: "valid",
     validation_messages: [],
     duplicate_acknowledged: false,
+    intra_file_duplicate: false,
+    existing_receipt_duplicate: false,
     client_request_id: `crid-${overrides.id}`,
     receipt_id: null,
     receipt_number: null,
@@ -79,7 +83,33 @@ function mockClient(rows: ReturnType<typeof rowSeed>[]) {
                   count: rowUpdates.filter((update) => update.patch.posted_at).length,
                   error: null,
                 }),
-                in: vi.fn().mockResolvedValue({ count: rows.length, error: null }),
+                // `.in(...)` alone counts postable rows; chaining `.is(...)`
+                // narrows to rows still worth another attempt (not posted and
+                // with no recorded error), which decides the terminal status.
+                in: vi.fn(() => {
+                  let narrowed = false;
+                  const chain = {
+                    is: vi.fn(() => {
+                      narrowed = true;
+                      return chain;
+                    }),
+                    then: (resolve: (value: { count: number; error: null }) => unknown) =>
+                      resolve({
+                        count: narrowed
+                          ? rows.filter(
+                              (row) =>
+                                !rowUpdates.some(
+                                  (update) =>
+                                    update.id === row.id &&
+                                    (update.patch.posted_at || update.patch.post_error),
+                                ),
+                            ).length
+                          : rows.length,
+                        error: null,
+                      }),
+                  };
+                  return chain;
+                }),
               };
             }
             return {
@@ -178,7 +208,99 @@ describe("commitPaymentImportRows", () => {
     expect(result.results.find((item) => item.rowId === "row-1")).toMatchObject({ ok: false });
     expect(postStudentPayment).toHaveBeenCalledTimes(1);
     expect(postStudentPayment).toHaveBeenCalledWith(
-      expect.objectContaining({ clientRequestId: "crid-row-2", acknowledgeDailyDuplicate: true }),
+      expect.objectContaining({ clientRequestId: "crid-row-2" }),
+    );
+  });
+
+  // The two duplicate guards were previously driven by one flag: acknowledging
+  // an intra-file duplicate also switched off the same-day check against
+  // receipts already on the books, which could post a duplicate receipt.
+  it("waives only the near-duplicate guard for an intra-file duplicate", async () => {
+    const rows = [
+      rowSeed({ id: "row-1", validation_status: "warning", intra_file_duplicate: true }),
+    ];
+    mockClient(rows);
+
+    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    await commitPaymentImportRows({
+      batchId: "batch-1",
+      rowIds: ["row-1"],
+      acknowledgedRowIds: ["row-1"],
+      receivedBy: "admin@vpps.co.in",
+      canAcknowledgeNearDuplicate: true,
+    });
+
+    expect(postStudentPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        acknowledgeNearDuplicate: true,
+        acknowledgeDailyDuplicate: false,
+      }),
+    );
+  });
+
+  it("waives only the same-day guard for a row matching an existing receipt", async () => {
+    const rows = [
+      rowSeed({ id: "row-1", validation_status: "warning", existing_receipt_duplicate: true }),
+    ];
+    mockClient(rows);
+
+    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    await commitPaymentImportRows({
+      batchId: "batch-1",
+      rowIds: ["row-1"],
+      acknowledgedRowIds: ["row-1"],
+      receivedBy: "admin@vpps.co.in",
+      canAcknowledgeNearDuplicate: true,
+    });
+
+    expect(postStudentPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        acknowledgeNearDuplicate: false,
+        acknowledgeDailyDuplicate: true,
+      }),
+    );
+  });
+
+  it("does not waive the near-duplicate guard without payments:adjust", async () => {
+    const rows = [
+      rowSeed({ id: "row-1", validation_status: "warning", intra_file_duplicate: true }),
+    ];
+    mockClient(rows);
+
+    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    await commitPaymentImportRows({
+      batchId: "batch-1",
+      rowIds: ["row-1"],
+      acknowledgedRowIds: ["row-1"],
+      receivedBy: "accountant@vpps.co.in",
+      canAcknowledgeNearDuplicate: false,
+    });
+
+    expect(postStudentPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ acknowledgeNearDuplicate: false }),
+    );
+  });
+
+  // A client could otherwise pre-acknowledge a clean row and silently switch off
+  // a duplicate guard the operator was never shown.
+  it("ignores acknowledgments sent for rows that carry no warning", async () => {
+    const rows = [rowSeed({ id: "row-1", existing_receipt_duplicate: true })];
+    mockClient(rows);
+
+    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    await commitPaymentImportRows({
+      batchId: "batch-1",
+      rowIds: ["row-1"],
+      acknowledgedRowIds: ["row-1"],
+      receivedBy: "admin@vpps.co.in",
+      canAcknowledgeNearDuplicate: true,
+    });
+
+    expect(postStudentPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        acknowledgeNearDuplicate: false,
+        acknowledgeDailyDuplicate: false,
+      }),
     );
   });
 
