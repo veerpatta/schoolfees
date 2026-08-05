@@ -148,6 +148,13 @@ export type FeeHeadAmount = {
 export type ResolvedFeeBreakdown = {
   coreHeads: FeeHeadAmount[];
   customHeads: FeeHeadAmount[];
+  /**
+   * Workbook only. The per-student named heads that make up
+   * `otherAdjustmentAmount`, already expanded into their own rows inside
+   * `coreHeads`. Kept separately so callers can edit them; summing this AND
+   * reading `otherAdjustmentAmount` would double-count.
+   */
+  otherAdjustmentHeads: FeeHeadAmount[];
   annualTotal: number;
   calculationModel: FeeCalculationModel;
   studentType: "new" | "existing";
@@ -285,6 +292,8 @@ export type StudentFeeOverride = {
   customBooksFeeAmount: number | null;
   customAdmissionActivityMiscFeeAmount: number | null;
   customFeeHeadAmounts: Record<string, number>;
+  /** Display labels for `customFeeHeadAmounts`, keyed by the same slug. */
+  customOtherFeeHeadLabels: Record<string, string>;
   customLateFeeFlatAmount: number | null;
   otherAdjustmentHead: string | null;
   otherAdjustmentAmount: number | null;
@@ -334,6 +343,13 @@ export type FeeSetupPageData = {
 export type StudentFinancialSnapshot = {
   policy: FeePolicySummary;
   resolvedBreakdown: ResolvedFeeBreakdown;
+  /**
+   * What this student's tuition/transport would be with no per-student
+   * override — i.e. what "Class default" / "Route default" mean for them. Lets
+   * the fee-plan editor label the reset option with a real figure.
+   */
+  classDefaultTuitionFee: number;
+  routeDefaultTransportFee: number;
   currentOutstanding: number;
   creditBalance: number;
   refundableAmount: number;

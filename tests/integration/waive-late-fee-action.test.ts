@@ -4,10 +4,30 @@ import { hasRolePermission, type StaffRole } from "@/lib/auth/roles";
 
 const requireStaffPermission = vi.fn();
 const createClient = vi.fn();
-const syncAfterStudentChange = vi.fn();
 const recordActivity = vi.fn();
+const revalidateAfterPaymentPosting = vi.fn();
+const drainFinancialViewRefresh = vi.fn();
+
+/**
+ * `after()` callbacks are collected rather than run inline so each test can
+ * assert what the staffer waited for (nothing beyond the RPC) versus what was
+ * deferred until after the response.
+ */
+const afterCallbacks: Array<() => unknown> = [];
+
+async function flushAfter() {
+  while (afterCallbacks.length > 0) {
+    await afterCallbacks.shift()!();
+  }
+}
 
 vi.mock("server-only", () => ({}));
+
+vi.mock("next/server", () => ({
+  after: (callback: () => unknown) => {
+    afterCallbacks.push(callback);
+  },
+}));
 
 vi.mock("@/lib/supabase/session", () => ({
   requireStaffPermission,
@@ -17,15 +37,21 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
-  syncAfterStudentChange,
-}));
-
 vi.mock("@/lib/activity/events", () => ({
   recordActivity,
 }));
 
+vi.mock("@/lib/system-sync/finance-revalidation", () => ({
+  revalidateAfterPaymentPosting,
+}));
+
+vi.mock("@/lib/system-sync/financial-view-refresh", () => ({
+  drainFinancialViewRefresh,
+}));
+
 const STUDENT_ID = "00000000-0000-4000-8000-000000000111";
+const CLIENT_REQUEST_ID = "11111111-2222-4333-8444-555555555555";
+const SESSION_LABEL = "TEST-2026-27";
 
 type RpcRow = {
   ok: boolean;
@@ -63,17 +89,30 @@ function makeFormData(overrides: Record<string, string> = {}) {
   formData.set("studentId", STUDENT_ID);
   formData.set("amount", "500");
   formData.set("reason", "Family emergency, principal approval.");
+  formData.set("sessionLabel", SESSION_LABEL);
+  formData.set("clientRequestId", CLIENT_REQUEST_ID);
   for (const [key, value] of Object.entries(overrides)) {
     formData.set(key, value);
   }
   return formData;
 }
 
+async function loadAction() {
+  const { waiveLateFeeAction } = await import(
+    "@/app/protected/payments/waive-late-fee-actions"
+  );
+  const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } = await import(
+    "@/app/protected/payments/waive-late-fee-action-state"
+  );
+  return { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE };
+}
+
 describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    syncAfterStudentChange.mockResolvedValue(undefined);
+    afterCallbacks.length = 0;
     recordActivity.mockResolvedValue(undefined);
+    drainFinancialViewRefresh.mockResolvedValue(undefined);
     createClient.mockResolvedValue(
       buildSupabaseClient({
         ok: true,
@@ -84,12 +123,10 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
     );
   });
 
-  it("admin can waive: invokes the waive_late_fee RPC with the studentId/amount/remarks and triggers sync", async () => {
+  it("admin can waive: invokes the waive_late_fee RPC with the studentId/amount/remarks and threaded session + request id", async () => {
     setStaff("admin");
-    const { waiveLateFeeAction } =
-      await import("@/app/protected/payments/waive-late-fee-actions");
-    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
-      await import("@/app/protected/payments/waive-late-fee-action-state");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -99,16 +136,16 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
     expect(result.status).toBe("success");
     expect(result.newWaiverAmount).toBe(500);
 
-    const adminClient = await createClient.mock.results[0]?.value;
-    expect(adminClient.rpc).toHaveBeenCalledWith("waive_late_fee", {
+    const supabase = await createClient.mock.results[0]?.value;
+    expect(supabase.rpc).toHaveBeenCalledWith("waive_late_fee", {
       p_student_id: STUDENT_ID,
       p_amount: 500,
       p_remarks: "Family emergency, principal approval.",
-      p_session_label: null,
-      p_client_request_id: null,
+      p_session_label: SESSION_LABEL,
+      p_client_request_id: CLIENT_REQUEST_ID,
     });
 
-    expect(syncAfterStudentChange).toHaveBeenCalledWith(STUDENT_ID);
+    await flushAfter();
     expect(recordActivity).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "staff-1",
@@ -123,12 +160,61 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
     );
   });
 
+  it("revalidates only the payment-affected surfaces, never the whole finance tree", async () => {
+    setStaff("admin");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    await waiveLateFeeAction(INITIAL_WAIVE_LATE_FEE_ACTION_STATE, makeFormData());
+
+    expect(revalidateAfterPaymentPosting).toHaveBeenCalledWith([STUDENT_ID]);
+  });
+
+  it("defers the matview drain and activity log to after(), and drains before logging", async () => {
+    setStaff("admin");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    const order: string[] = [];
+    drainFinancialViewRefresh.mockImplementation(async () => {
+      order.push("drain");
+    });
+    recordActivity.mockImplementation(async () => {
+      order.push("activity");
+    });
+
+    await waiveLateFeeAction(INITIAL_WAIVE_LATE_FEE_ACTION_STATE, makeFormData());
+
+    // Nothing expensive ran on the click-to-toast path.
+    expect(drainFinancialViewRefresh).not.toHaveBeenCalled();
+    expect(recordActivity).not.toHaveBeenCalled();
+    expect(afterCallbacks).toHaveLength(1);
+
+    await flushAfter();
+    expect(order).toEqual(["drain", "activity"]);
+  });
+
+  it("drops a non-UUID clientRequestId rather than letting PostgREST reject the uuid parameter", async () => {
+    setStaff("admin");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    await waiveLateFeeAction(
+      INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
+      makeFormData({ clientRequestId: "not-a-uuid" }),
+    );
+
+    const supabase = await createClient.mock.results[0]?.value;
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "waive_late_fee",
+      expect.objectContaining({ p_client_request_id: null }),
+    );
+  });
+
   it("accountant can waive (same path as admin)", async () => {
     setStaff("accountant");
-    const { waiveLateFeeAction } =
-      await import("@/app/protected/payments/waive-late-fee-actions");
-    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
-      await import("@/app/protected/payments/waive-late-fee-action-state");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -136,19 +222,17 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
     );
 
     expect(result.status).toBe("success");
-    const adminClient = await createClient.mock.results[0]?.value;
-    expect(adminClient.rpc).toHaveBeenCalledTimes(1);
-    expect(adminClient.rpc.mock.calls[0][0]).toBe("waive_late_fee");
+    const supabase = await createClient.mock.results[0]?.value;
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
+    expect(supabase.rpc.mock.calls[0][0]).toBe("waive_late_fee");
   });
 
   it.each(["teacher", "fee_collector", "view_only"] as const)(
     "%s cannot waive — requireStaffPermission rejects before any write",
     async (role) => {
       setStaff(role);
-      const { waiveLateFeeAction } =
-        await import("@/app/protected/payments/waive-late-fee-actions");
-      const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
-        await import("@/app/protected/payments/waive-late-fee-action-state");
+      const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+        await loadAction();
 
       const result = await waiveLateFeeAction(
         INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -157,17 +241,16 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
       expect(result.status).toBe("error");
       expect(createClient).not.toHaveBeenCalled();
-      expect(syncAfterStudentChange).not.toHaveBeenCalled();
+      expect(revalidateAfterPaymentPosting).not.toHaveBeenCalled();
+      expect(afterCallbacks).toHaveLength(0);
       expect(hasRolePermission(role, "payments:waive_late_fee")).toBe(false);
     },
   );
 
   it("rejects when reason is shorter than 4 characters (input guard runs before any RPC call)", async () => {
     setStaff("accountant");
-    const { waiveLateFeeAction } =
-      await import("@/app/protected/payments/waive-late-fee-actions");
-    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
-      await import("@/app/protected/payments/waive-late-fee-action-state");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -190,10 +273,8 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       }),
     );
 
-    const { waiveLateFeeAction } =
-      await import("@/app/protected/payments/waive-late-fee-actions");
-    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
-      await import("@/app/protected/payments/waive-late-fee-action-state");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -202,7 +283,8 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
     expect(result.status).toBe("error");
     expect(result.message).toMatch(/cannot exceed/i);
-    expect(syncAfterStudentChange).not.toHaveBeenCalled();
+    expect(revalidateAfterPaymentPosting).not.toHaveBeenCalled();
+    expect(afterCallbacks).toHaveLength(0);
   });
 
   it("surfaces RPC rejection when there is no pending late fee", async () => {
@@ -216,10 +298,8 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       }),
     );
 
-    const { waiveLateFeeAction } =
-      await import("@/app/protected/payments/waive-late-fee-actions");
-    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
-      await import("@/app/protected/payments/waive-late-fee-action-state");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -228,7 +308,8 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
     expect(result.status).toBe("error");
     expect(result.message).toMatch(/no pending late fee/i);
-    expect(syncAfterStudentChange).not.toHaveBeenCalled();
+    expect(revalidateAfterPaymentPosting).not.toHaveBeenCalled();
+    expect(afterCallbacks).toHaveLength(0);
   });
 
   it("returns the additive new_waiver_amount the RPC computed under the lock", async () => {
@@ -242,10 +323,8 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       }),
     );
 
-    const { waiveLateFeeAction } =
-      await import("@/app/protected/payments/waive-late-fee-actions");
-    const { INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
-      await import("@/app/protected/payments/waive-late-fee-action-state");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
 
     const result = await waiveLateFeeAction(
       INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -254,6 +333,8 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
 
     expect(result.status).toBe("success");
     expect(result.newWaiverAmount).toBe(700);
+
+    await flushAfter();
     expect(recordActivity).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({

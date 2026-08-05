@@ -1804,6 +1804,10 @@ alter table public.student_fee_overrides
   add column if not exists custom_books_fee_amount integer check (custom_books_fee_amount >= 0),
   add column if not exists custom_admission_activity_misc_fee_amount integer check (custom_admission_activity_misc_fee_amount >= 0),
   add column if not exists custom_other_fee_heads jsonb,
+  -- Display labels for custom_other_fee_heads, keyed by the same slug. Amounts
+  -- stay in custom_other_fee_heads as plain integers because
+  -- v_workbook_student_financials sums them with ::integer.
+  add column if not exists custom_other_fee_head_labels jsonb,
   add column if not exists custom_late_fee_flat_amount integer check (custom_late_fee_flat_amount >= 0),
   add column if not exists student_type_override text check (student_type_override in ('new', 'existing')),
   add column if not exists transport_applies_override boolean;
@@ -1864,6 +1868,14 @@ alter table public.student_fee_overrides
   check (
     custom_other_fee_heads is null
     or jsonb_typeof(custom_other_fee_heads) = 'object'
+  );
+
+alter table public.student_fee_overrides
+  drop constraint if exists student_fee_overrides_custom_other_fee_head_labels_object,
+  add constraint student_fee_overrides_custom_other_fee_head_labels_object
+  check (
+    custom_other_fee_head_labels is null
+    or jsonb_typeof(custom_other_fee_head_labels) = 'object'
   );
 
 alter table public.student_fee_overrides

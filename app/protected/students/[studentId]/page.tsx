@@ -15,6 +15,7 @@ import { MobileStudentFamilyTab } from "@/components/students/mobile-student-fam
 import { MobileStudentProfile } from "@/components/students/mobile-student-profile";
 import { StudentAboutPanel } from "@/components/students/student-about-panel";
 import { StudentDangerZone } from "@/components/students/student-danger-zone";
+import { StudentFeePlanEditButton } from "@/components/students/student-fee-plan-edit-button";
 import { StudentIdentityStrip } from "@/components/students/student-identity-strip";
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
 import { ShareFeeWhatsApp } from "@/components/students/share-fee-whatsapp";
@@ -157,6 +158,9 @@ export default async function StudentDetailPage({
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canWaiveLateFee = hasStaffPermission(staff, "payments:waive_late_fee");
+  // Admin-only: `fees:write` sits in adminPermissions, while accountants get
+  // only `fees:view`.
+  const canEditFeePlan = hasStaffPermission(staff, "fees:write");
   const canViewLedger = hasStaffPermission(staff, "ledger:view");
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
@@ -244,9 +248,26 @@ export default async function StudentDetailPage({
     >
       {financialSnapshot ? (
         <>
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <ValueStatePill tone="policy">From Fee Setup</ValueStatePill>
             <ValueStatePill tone="calculated">Fee summary</ValueStatePill>
+            {canEditFeePlan ? (
+              <div className="ml-auto">
+                <StudentFeePlanEditButton
+                  studentId={student.id}
+                  studentLabel={student.fullName}
+                  sessionLabel={financialSnapshot.policy.academicSessionLabel}
+                  currentTuitionOverride={student.tuitionOverride}
+                  currentTransportOverride={student.transportOverride}
+                  classDefaultTuitionFee={financialSnapshot.classDefaultTuitionFee}
+                  routeDefaultTransportFee={financialSnapshot.routeDefaultTransportFee}
+                  currentHeads={financialSnapshot.resolvedBreakdown.otherAdjustmentHeads}
+                  conventionalDiscountLabels={
+                    financialSnapshot.resolvedBreakdown.conventionalDiscountLabels
+                  }
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1081,6 +1102,7 @@ export default async function StudentDetailPage({
         canEditStudent={canEditStudent}
         canWaiveLateFee={canWaiveLateFee}
         lateFeeWaiverAmount={student.lateFeeWaiverAmount ?? 0}
+        sessionLabel={financialSnapshot?.policy.academicSessionLabel ?? ""}
         canPrintReceipts={canPrintReceipts}
         canViewLedger={canViewLedger}
         latestReceiptId={receipts[0]?.id ?? null}

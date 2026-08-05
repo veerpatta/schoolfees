@@ -30,6 +30,7 @@ const BASE_PROPS = {
   canEditStudent: true,
   canWaiveLateFee: false,
   lateFeeWaiverAmount: 0,
+  sessionLabel: "TEST-2026-27",
   canPrintReceipts: true,
   canViewLedger: true,
   latestReceiptId: null,

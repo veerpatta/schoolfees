@@ -880,6 +880,12 @@ function applyProposedPayloadToSetupData(
       customAdmissionActivityMiscFeeAmount:
         studentPayload.customAdmissionActivityMiscFeeAmount,
       customFeeHeadAmounts: studentPayload.customFeeHeadAmounts,
+      // The Fee Setup preview does not edit per-student named-head labels, so
+      // carry whatever the student already has rather than blanking the rows.
+      customOtherFeeHeadLabels:
+        existingIndex >= 0
+          ? nextSetupData.studentOverrides[existingIndex].customOtherFeeHeadLabels
+          : {},
       customLateFeeFlatAmount: studentPayload.customLateFeeFlatAmount,
       otherAdjustmentHead: studentPayload.otherAdjustmentHead,
       otherAdjustmentAmount: studentPayload.otherAdjustmentAmount,

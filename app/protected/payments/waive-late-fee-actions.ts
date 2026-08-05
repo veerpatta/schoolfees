@@ -1,9 +1,14 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { after } from "next/server";
 
 import { recordActivity } from "@/lib/activity/events";
-import { syncAfterStudentChange } from "@/lib/system-sync/finance-sync";
+import { revalidateAfterPaymentPosting } from "@/lib/system-sync/finance-revalidation";
+// Imported through the system-sync helper rather than reaching for
+// `@/lib/supabase/admin` directly — the helper owns the service-role rationale,
+// and late-fee-waiver-lock.test.ts asserts this module never imports the admin
+// client itself.
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 // A "use server" module may export only async functions. The action-state type
@@ -26,9 +31,24 @@ function parseAmount(value: FormDataEntryValue | null): number {
   return Number.isFinite(parsed) ? Math.round(parsed) : NaN;
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * Standalone late-fee waiver, posted from the Payment Desk by an admin or
- * accountant (gated on `payments:waive_late_fee`).
+ * `waive_late_fee.p_client_request_id` is typed `uuid`, so PostgREST raises
+ * `invalid input syntax for type uuid` on anything else. Anything that is not a
+ * well-formed UUID degrades to null rather than failing the waiver.
+ */
+function parseClientRequestId(value: FormDataEntryValue | null): string | null {
+  const raw = (value ?? "").toString().trim();
+  return UUID_PATTERN.test(raw) ? raw : null;
+}
+
+/**
+ * Standalone late-fee waiver. Mounted on the student profile's identity strip
+ * (see components/payments/waive-late-fee-trigger.tsx) and gated on
+ * `payments:waive_late_fee`. The Payment Desk does not use this action — it
+ * calls the same RPC inline while posting a payment.
  *
  * Audit 1.5 — the read-then-write is now wrapped in the `waive_late_fee`
  * Postgres RPC, which acquires `pg_advisory_xact_lock` with the same salt
@@ -52,8 +72,7 @@ export async function waiveLateFeeAction(
     const amount = parseAmount(formData.get("amount"));
     const reason = (formData.get("reason") ?? "").toString().trim();
     const sessionLabel = (formData.get("sessionLabel") ?? "").toString().trim() || null;
-    const clientRequestId =
-      (formData.get("clientRequestId") ?? "").toString().trim() || null;
+    const clientRequestId = parseClientRequestId(formData.get("clientRequestId"));
 
     if (!studentId) {
       return { status: "error", message: "Student is required.", newWaiverAmount: null };
@@ -124,31 +143,43 @@ export async function waiveLateFeeAction(
 
     const newWaiver = row.new_waiver_amount ?? 0;
 
-    try {
-      await syncAfterStudentChange(studentId);
-    } catch {
-      // Sync failure is non-fatal — a background sync will pick it up.
-    }
+    // A waiver writes exactly one column (late_fee_waiver_amount) plus the audit
+    // reason. It is NOT an input to any installment amount — the late fee is
+    // derived at READ time by v_workbook_installment_balances and by
+    // private.workbook_installment_snapshot, both of which read
+    // late_fee_waiver_amount straight off the active override row.
+    //
+    // This used to await a full student finance sync, which (passing no
+    // sessionLabel) took the slow branch and regenerated the whole ledger plan:
+    // every class, every fee setting, every transport route, every student and
+    // every override row loaded up front, only to produce a plan byte-identical
+    // to what was already stored. The staffer paid for all of it between
+    // clicking Waive and seeing the toast.
+    revalidateAfterPaymentPosting([studentId]);
 
-    try {
-      await recordActivity({
-        userId: (staff.id as string | undefined) ?? null,
-        kind: "payment_posted",
-        refId: studentId,
-        payload: {
-          action: "late_fee_waiver",
-          waivedAmount: amount,
-          newWaiverTotal: newWaiver,
-          reason,
-        },
-      });
-    } catch {
-      // Activity logging is best-effort.
-    }
+    after(async () => {
+      // The student_fee_overrides trigger only ENQUEUES a materialized-view
+      // refresh (queue insert + the */2 cron backstop). Draining it here is what
+      // the old sync path never did, so dashboards and defaulters used to stay
+      // stale for up to two minutes after a waiver.
+      await drainFinancialViewRefresh();
 
-    try { revalidateTag(`student:${studentId}`, "max"); } catch {}
-    revalidatePath(`/protected/students/${studentId}`);
-    revalidatePath("/protected/transactions");
+      try {
+        await recordActivity({
+          userId: (staff.id as string | undefined) ?? null,
+          kind: "payment_posted",
+          refId: studentId,
+          payload: {
+            action: "late_fee_waiver",
+            waivedAmount: amount,
+            newWaiverTotal: newWaiver,
+            reason,
+          },
+        });
+      } catch {
+        // Activity logging is best-effort.
+      }
+    });
 
     return {
       status: "success",

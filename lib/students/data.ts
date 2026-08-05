@@ -156,6 +156,7 @@ type StudentFeeOverrideRow = {
   custom_books_fee_amount: number | null;
   custom_admission_activity_misc_fee_amount: number | null;
   custom_other_fee_heads: Record<string, unknown> | null;
+  custom_other_fee_head_labels?: Record<string, unknown> | null;
   custom_late_fee_flat_amount: number | null;
   other_adjustment_head: string | null;
   other_adjustment_amount: number | null;
@@ -651,7 +652,7 @@ async function getStudentFeeOverrideRow(studentId: string) {
   const { data, error } = await supabase
     .from("student_fee_overrides")
     .select(
-      "id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes",
+      "id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_other_fee_head_labels, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes",
     )
     .eq("student_id", studentId)
     .eq("is_active", true)
@@ -693,6 +694,11 @@ async function saveStudentFeeProfile(
       existingOverride?.custom_admission_activity_misc_fee_amount ?? null,
     customFeeHeadAmounts: parseCustomAmountMap(existingOverride?.custom_other_fee_heads ?? null),
     customFeeHeads: policy.customFeeHeads,
+    // Per-student named heads are ad-hoc and absent from the school-wide
+    // catalog. Without this pass-through the Edit Student form would silently
+    // delete them (and their labels) on every unrelated save.
+    customOtherFeeHeadLabels: existingOverride?.custom_other_fee_head_labels ?? null,
+    allowUncatalogedHeads: true,
     customLateFeeFlatAmount: existingOverride?.custom_late_fee_flat_amount ?? null,
     otherAdjustmentHead: payload.otherAdjustmentHead,
     otherAdjustmentAmount: payload.otherAdjustmentAmount,
@@ -893,7 +899,7 @@ async function getStudentsPageUncached(
       supabase
         .from("student_fee_overrides")
         .select(
-          "id, student_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes",
+          "id, student_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_other_fee_head_labels, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes",
         )
         .eq("is_active", true)
         .in("student_id", studentIds),

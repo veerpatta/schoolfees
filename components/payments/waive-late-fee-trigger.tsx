@@ -14,6 +14,7 @@ type WaiveLateFeeTriggerProps = {
   classLabel: string;
   pendingLateFeeAmount: number;
   currentWaiverAmount: number;
+  sessionLabel: string;
   className?: string;
   size?: "sm" | "default";
   variant?: "outline" | "default" | "ghost";
@@ -32,6 +33,7 @@ export function WaiveLateFeeTrigger({
   classLabel,
   pendingLateFeeAmount,
   currentWaiverAmount,
+  sessionLabel,
   className,
   size = "sm",
   variant = "outline",
@@ -64,6 +66,7 @@ export function WaiveLateFeeTrigger({
         classLabel={classLabel}
         pendingLateFeeAmount={pendingLateFeeAmount}
         currentWaiverAmount={currentWaiverAmount}
+        sessionLabel={sessionLabel}
       />
     </>
   );

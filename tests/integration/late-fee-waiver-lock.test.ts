@@ -116,4 +116,26 @@ describe("waiveLateFeeAction calls the RPC (audit 1.5)", () => {
   it("no longer goes through upsertStudentFeeOverride for waivers", () => {
     expect(source).not.toContain("upsertStudentFeeOverride");
   });
+
+  it("does not regenerate the ledger — a waiver changes no installment amount", () => {
+    // syncAfterStudentChange (no sessionLabel) took the slow branch and pulled
+    // the entire roster, every fee_setting and every override through
+    // getFeeSetupPageData, only to rebuild a byte-identical installment plan.
+    // The late fee is derived at read time from late_fee_waiver_amount.
+    expect(source).not.toContain("syncAfterStudentChange");
+    expect(source).not.toContain("prepareDuesForStudentsAutomatically");
+  });
+
+  it("keeps revalidation narrow — dues and ledger are untouched by a waiver", () => {
+    expect(source).toContain("revalidateAfterPaymentPosting");
+    expect(source).not.toContain("revalidateCoreFinancePaths");
+    expect(source).not.toContain("/protected/dues");
+    expect(source).not.toContain("/protected/ledger");
+  });
+
+  it("defers the matview drain and activity log behind after()", () => {
+    expect(source).toContain('from "next/server"');
+    expect(source).toContain("after(async () =>");
+    expect(source).toContain("drainFinancialViewRefresh");
+  });
 });

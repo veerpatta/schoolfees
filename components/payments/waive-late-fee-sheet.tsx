@@ -26,6 +26,7 @@ type WaiveLateFeeSheetProps = {
   classLabel: string;
   pendingLateFeeAmount: number;
   currentWaiverAmount: number;
+  sessionLabel: string;
 };
 
 export function WaiveLateFeeSheet({
@@ -37,10 +38,21 @@ export function WaiveLateFeeSheet({
   classLabel,
   pendingLateFeeAmount,
   currentWaiverAmount,
+  sessionLabel,
 }: WaiveLateFeeSheetProps) {
   const t = useTranslations("Payments");
   const [amount, setAmount] = useState<string>(String(pendingLateFeeAmount));
   const [reason, setReason] = useState<string>("");
+  // Regenerated per sheet-open, not per submit, so retrying the same attempt
+  // reuses the id. Waivers are additive server-side, so a double submit would
+  // otherwise waive twice.
+  const [clientRequestId, setClientRequestId] = useState<string>(() =>
+    crypto.randomUUID(),
+  );
+  // State, not a ref: the footer button sits outside the form and must actually
+  // re-render as disabled in the window between the action resolving and the
+  // success effect calling onClose().
+  const [submitted, setSubmitted] = useState(false);
   const [state, formAction, pending] = useActionState(
     waiveLateFeeAction,
     INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -50,8 +62,18 @@ export function WaiveLateFeeSheet({
     if (open) {
       setAmount(String(pendingLateFeeAmount));
       setReason("");
+      setClientRequestId(crypto.randomUUID());
+      setSubmitted(false);
     }
   }, [open, pendingLateFeeAmount]);
+
+  // An error means the waiver did not land, so allow a corrected retry. Success
+  // closes the sheet, and reopening resets the guard.
+  useEffect(() => {
+    if (state.status === "error") {
+      setSubmitted(false);
+    }
+  }, [state.status, state.message]);
 
   useEffect(() => {
     if (state.status === "success") {
@@ -69,7 +91,7 @@ export function WaiveLateFeeSheet({
     numericAmount > 0 &&
     numericAmount <= pendingLateFeeAmount;
   const validReason = reason.trim().length >= 4;
-  const canSubmit = validAmount && validReason && !pending;
+  const canSubmit = validAmount && validReason && !pending && !submitted;
 
   return (
     <Sheet
@@ -98,8 +120,15 @@ export function WaiveLateFeeSheet({
         </div>
       }
     >
-      <form id={WAIVE_FORM_ID} action={formAction} className="space-y-4">
+      <form
+        id={WAIVE_FORM_ID}
+        action={formAction}
+        onSubmit={() => setSubmitted(true)}
+        className="space-y-4"
+      >
         <input type="hidden" name="studentId" value={studentId} />
+        <input type="hidden" name="sessionLabel" value={sessionLabel} />
+        <input type="hidden" name="clientRequestId" value={clientRequestId} />
 
         <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
           <p>

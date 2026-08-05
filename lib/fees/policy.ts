@@ -33,6 +33,7 @@ import {
 } from "@/lib/fees/conventional-discounts";
 import type {
   ClassFeeDefault,
+  FeeHeadAmount,
   FeeHeadDefinition,
   FeePolicySnapshot,
   FeePolicySummary,
@@ -127,6 +128,7 @@ type StudentOverrideRow = {
   custom_books_fee_amount: number | null;
   custom_admission_activity_misc_fee_amount: number | null;
   custom_other_fee_heads: Record<string, unknown> | null;
+  custom_other_fee_head_labels?: Record<string, unknown> | null;
   custom_late_fee_flat_amount: number | null;
   other_adjustment_head: string | null;
   other_adjustment_amount: number | null;
@@ -206,6 +208,25 @@ function parseCustomAmountMap(value: Record<string, unknown> | null) {
     }
 
     acc[key] = numeric;
+    return acc;
+  }, {});
+}
+
+function parseCustomLabelMap(value: Record<string, unknown> | null | undefined) {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.entries(value).reduce<Record<string, string>>((acc, [key, raw]) => {
+    if (typeof raw !== "string") {
+      return acc;
+    }
+
+    const label = raw.trim();
+    if (key.trim() && label) {
+      acc[key] = label;
+    }
+
     return acc;
   }, {});
 }
@@ -485,9 +506,9 @@ async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
 async function loadFeeCollectionsUncached() {
   const supabase = await createClient();
   const studentOverridesSelectWithNotes =
-    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_other_fee_head_labels, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
   const studentOverridesSelectWithoutNotes =
-    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, updated_at";
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_other_fee_head_labels, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, updated_at";
 
   const studentOverridesRequest = supabase
     .from("student_fee_overrides")
@@ -625,12 +646,40 @@ function buildResolvedBreakdown(payload: {
   lateFeeWaiverAmount?: number;
   annualTotal?: number;
   booksExcludedFromWorkbook?: boolean;
+  /**
+   * Workbook only. When present, these replace the single collapsed
+   * "Other fee / adjustment" row. Their amounts MUST already sum to
+   * `otherAdjustmentAmount` — the totals below are driven by the scalar, so a
+   * mismatch shows up as a breakdown that does not add up to its own total.
+   */
+  otherAdjustmentHeads?: FeeHeadAmount[];
 }): ResolvedFeeBreakdown {
   const customHeadMap = new Map(
     payload.customFeeHeads.map((item) => [item.id, item.label]),
   );
 
   const isWorkbook = payload.calculationModel === "workbook_v1";
+  const otherAdjustmentHeads = isWorkbook ? payload.otherAdjustmentHeads ?? [] : [];
+
+  // Per-student named heads render as their own rows in place of the collapsed
+  // "Other fee / adjustment" line. They are NOT appended to `customHeads`:
+  // buildFeeBreakupDisplayRows renders [...coreHeads, ...customHeads], so a head
+  // in both places would show up twice, and the totals below sum customHeads.
+  const otherAdjustmentRows =
+    otherAdjustmentHeads.length > 0
+      ? otherAdjustmentHeads.map((head) => ({
+          id: `other_adjustment:${head.id}`,
+          label: head.label,
+          amount: head.amount,
+        }))
+      : [
+          {
+            id: "other_adjustment",
+            label: payload.otherAdjustmentHead?.trim() || "Other fee / adjustment",
+            amount: payload.otherAdjustmentAmount ?? 0,
+          },
+        ];
+
   const coreHeads = isWorkbook
     ? [
         { id: "tuition_fee", label: "Tuition fee", amount: payload.tuitionFee },
@@ -640,11 +689,7 @@ function buildResolvedBreakdown(payload: {
           label: "Academic fee",
           amount: Math.max(0, payload.academicFeeAmount ?? 0),
         },
-        {
-          id: "other_adjustment",
-          label: payload.otherAdjustmentHead?.trim() || "Other fee / adjustment",
-          amount: payload.otherAdjustmentAmount ?? 0,
-        },
+        ...otherAdjustmentRows,
       ]
     : [
         { id: "tuition_fee", label: "Tuition fee", amount: payload.tuitionFee },
@@ -675,6 +720,7 @@ function buildResolvedBreakdown(payload: {
   return {
     coreHeads,
     customHeads,
+    otherAdjustmentHeads,
     annualTotal,
     calculationModel: payload.calculationModel ?? "standard",
     studentType: payload.studentType ?? "existing",
@@ -869,6 +915,7 @@ export async function getFeeSetupPageData(
       customAdmissionActivityMiscFeeAmount:
         row.custom_admission_activity_misc_fee_amount,
       customFeeHeadAmounts: parseCustomAmountMap(row.custom_other_fee_heads),
+      customOtherFeeHeadLabels: parseCustomLabelMap(row.custom_other_fee_head_labels),
       customLateFeeFlatAmount: row.custom_late_fee_flat_amount,
       otherAdjustmentHead: row.other_adjustment_head,
       otherAdjustmentAmount: row.other_adjustment_amount,
@@ -1105,21 +1152,94 @@ export async function upsertGlobalFeePolicy(payload: {
   return data.id as string;
 }
 
+/**
+ * @param allowUncatalogedHeads Student-level named fee heads ("Uniform adj.")
+ *   are ad-hoc by design and never appear in the school-wide catalog on
+ *   `fee_policy_configs.custom_fee_heads`. Without this, every such head is
+ *   silently filtered out and the override row is written with `{}`.
+ */
 function buildOtherFeeHeadPayload(
   customFeeHeads: FeeHeadDefinition[],
   amounts: Record<string, number>,
+  allowUncatalogedHeads = false,
 ) {
   const allowedIds = new Set(customFeeHeads.map((item) => item.id));
 
   return Object.entries(amounts).reduce<Record<string, number>>((acc, [id, amount]) => {
     const normalizedId = normalizeFeeHeadId(id);
-    if (!normalizedId || !allowedIds.has(normalizedId) || amount <= 0) {
+    // amount <= 0 is dropped on purpose: v_workbook_student_financials sums
+    // this map with ::integer and would happily count a negative, while the TS
+    // resolver drops it — a silent SQL/TS divergence. Reductions belong in the
+    // explicitly signed other_adjustment_amount column instead.
+    if (!normalizedId || amount <= 0) {
+      return acc;
+    }
+
+    if (!allowUncatalogedHeads && !allowedIds.has(normalizedId)) {
       return acc;
     }
 
     acc[normalizedId] = amount;
     return acc;
   }, {});
+}
+
+/**
+ * Columns on student_fee_overrides that were added by later migrations. A build
+ * can reach an environment whose migration has not run yet, so writes drop these
+ * and retry rather than failing outright.
+ */
+const OPTIONAL_OVERRIDE_COLUMNS = [
+  "notes",
+  "custom_other_fee_head_labels",
+] as const;
+
+function stripMissingOverrideColumn(
+  values: Record<string, unknown>,
+  errorMessage: string,
+): Record<string, unknown> | null {
+  for (const column of OPTIONAL_OVERRIDE_COLUMNS) {
+    if (!(column in values)) {
+      continue;
+    }
+
+    // Postgres says `column "x" of relation ...`; PostgREST's schema cache says
+    // `Could not find the 'x' column`. Match either without matching a bare
+    // occurrence of a common word like "notes" elsewhere in the message.
+    const mentionsColumn =
+      errorMessage.includes(`student_fee_overrides.${column}`) ||
+      errorMessage.includes(`'${column}' column`) ||
+      errorMessage.includes(`"${column}"`);
+
+    if (mentionsColumn) {
+      const next = { ...values };
+      delete next[column];
+      return next;
+    }
+  }
+
+  return null;
+}
+
+/** Keeps the label map in lockstep with whatever amounts actually got written. */
+function buildOtherFeeHeadLabelPayload(
+  amountPayload: Record<string, number>,
+  labels: Record<string, unknown> | null | undefined,
+) {
+  const normalized = parseCustomLabelMap(labels);
+
+  const result = Object.keys(amountPayload).reduce<Record<string, string>>(
+    (acc, id) => {
+      const label = normalized[id];
+      if (label) {
+        acc[id] = label;
+      }
+      return acc;
+    },
+    {},
+  );
+
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 export async function upsertSchoolFeeDefaults(payload: {
@@ -1319,6 +1439,14 @@ export async function upsertStudentFeeOverride(payload: {
   customAdmissionActivityMiscFeeAmount: number | null;
   customFeeHeadAmounts: Record<string, number>;
   customFeeHeads: FeeHeadDefinition[];
+  /**
+   * Display labels for `customFeeHeadAmounts`, keyed by the same slug. Accepts
+   * the raw jsonb straight off a read so callers need no parser of their own;
+   * non-string and unmatched entries are dropped here.
+   */
+  customOtherFeeHeadLabels?: Record<string, unknown> | null;
+  /** See buildOtherFeeHeadPayload — required for ad-hoc per-student heads. */
+  allowUncatalogedHeads?: boolean;
   customLateFeeFlatAmount: number | null;
   otherAdjustmentHead: string | null;
   otherAdjustmentAmount: number | null;
@@ -1382,6 +1510,12 @@ export async function upsertStudentFeeOverride(payload: {
     throw new Error("Provide at least one override field or discount before saving.");
   }
 
+  const otherFeeHeadPayload = buildOtherFeeHeadPayload(
+    payload.customFeeHeads,
+    payload.customFeeHeadAmounts,
+    payload.allowUncatalogedHeads,
+  );
+
   const values = {
     student_id: payload.studentId,
     fee_setting_id: feeSetting.id as string,
@@ -1390,9 +1524,10 @@ export async function upsertStudentFeeOverride(payload: {
     custom_books_fee_amount: payload.customBooksFeeAmount,
     custom_admission_activity_misc_fee_amount:
       payload.customAdmissionActivityMiscFeeAmount,
-    custom_other_fee_heads: buildOtherFeeHeadPayload(
-      payload.customFeeHeads,
-      payload.customFeeHeadAmounts,
+    custom_other_fee_heads: otherFeeHeadPayload,
+    custom_other_fee_head_labels: buildOtherFeeHeadLabelPayload(
+      otherFeeHeadPayload,
+      payload.customOtherFeeHeadLabels,
     ),
     custom_late_fee_flat_amount: payload.customLateFeeFlatAmount,
     other_adjustment_head: payload.otherAdjustmentHead?.trim() || null,
@@ -1405,11 +1540,6 @@ export async function upsertStudentFeeOverride(payload: {
     notes: payload.notes,
     is_active: true,
   };
-  const valuesWithoutNotes = {
-    ...values,
-  };
-  delete (valuesWithoutNotes as { notes?: string | null }).notes;
-
   const { data: existing, error: existingError } = await supabase
     .from("student_fee_overrides")
     .select("id")
@@ -1422,17 +1552,21 @@ export async function upsertStudentFeeOverride(payload: {
   }
 
   if (existing?.id) {
-    let { error } = await supabase
-      .from("student_fee_overrides")
-      .update(values)
-      .eq("id", existing.id);
+    let attempt = values as Record<string, unknown>;
+    let error: { message: string } | null = null;
 
-    if (error && error.message.includes("student_fee_overrides.notes")) {
-      const fallback = await supabase
+    // Retry once per optional column so a deploy that lands ahead of its
+    // migration degrades to writing the columns that do exist.
+    for (;;) {
+      const result = await supabase
         .from("student_fee_overrides")
-        .update(valuesWithoutNotes)
+        .update(attempt)
         .eq("id", existing.id);
-      error = fallback.error;
+      error = result.error;
+
+      const retry = error ? stripMissingOverrideColumn(attempt, error.message) : null;
+      if (!retry) break;
+      attempt = retry;
     }
 
     if (error) {
@@ -1442,21 +1576,22 @@ export async function upsertStudentFeeOverride(payload: {
     return existing.id as string;
   }
 
-  let { data, error } = await supabase
-    .from("student_fee_overrides")
-    .insert(values)
-    .select("id")
-    .single();
+  let attempt = values as Record<string, unknown>;
+  let data: { id: string } | null = null;
+  let error: { message: string } | null = null;
 
-  if (error && error.message.includes("student_fee_overrides.notes")) {
-    const fallback = await supabase
+  for (;;) {
+    const result = await supabase
       .from("student_fee_overrides")
-      .insert(valuesWithoutNotes)
+      .insert(attempt)
       .select("id")
       .single();
+    data = result.data as { id: string } | null;
+    error = result.error;
 
-    data = fallback.data;
-    error = fallback.error;
+    const retry = error ? stripMissingOverrideColumn(attempt, error.message) : null;
+    if (!retry) break;
+    attempt = retry;
   }
 
   if (error) {
@@ -1522,12 +1657,46 @@ export function resolveStudentPolicyBreakdown(payload: {
           : null);
     const otherAdjustmentAmount =
       payload.studentOverride?.otherAdjustmentAmount ?? fallbackOtherAdjustmentAmount;
-    const tuitionBeforeConventionalDiscount =
-      payload.studentOverride?.customTuitionFeeAmount ?? base.tuitionFee;
-    const conventionalDiscountEffect = applyConventionalDiscountsToTuition({
-      baseTuition: tuitionBeforeConventionalDiscount,
-      assignments: payload.conventionalDiscountAssignments ?? [],
-    });
+
+    // Named per-student heads, expanded into their own display rows. Only used
+    // when the scalar other_adjustment_amount is NOT set — the scalar wins in
+    // both engines (see the CASE in v_workbook_student_financials), so honouring
+    // the jsonb here too would make the rows disagree with the total.
+    const overrideHeadLabels =
+      payload.studentOverride?.customOtherFeeHeadLabels ?? {};
+    const otherAdjustmentHeads =
+      payload.studentOverride?.otherAdjustmentAmount == null
+        ? legacyOtherAdjustmentEntries.map(([id, amount]) => ({
+            id,
+            label: overrideHeadLabels[id]?.trim() || titleCaseFromKey(id),
+            amount,
+          }))
+        : [];
+
+    const customTuitionFeeAmount =
+      payload.studentOverride?.customTuitionFeeAmount ?? null;
+    const hasCustomTuition = customTuitionFeeAmount !== null;
+    const tuitionBeforeConventionalDiscount = hasCustomTuition
+      ? customTuitionFeeAmount
+      : base.tuitionFee;
+    // A per-student custom tuition is an explicit, reason-logged decision. It
+    // REPLACES any conventional policy (RTE / Staff Child / 3rd Child) for this
+    // student rather than stacking with it, so the discount is not applied on
+    // top. The write path clears the assignments and nets the backfilled
+    // conventional amount out of discount_amount, which is what keeps this
+    // agreeing with v_workbook_student_financials (the view has no notion of
+    // which part of discount_amount was conventional).
+    const conventionalDiscountEffect = hasCustomTuition
+      ? {
+          beforeTuition: tuitionBeforeConventionalDiscount,
+          resultingTuition: tuitionBeforeConventionalDiscount,
+          discountApplied: 0,
+          appliedLabels: [] as string[],
+        }
+      : applyConventionalDiscountsToTuition({
+          baseTuition: tuitionBeforeConventionalDiscount,
+          assignments: payload.conventionalDiscountAssignments ?? [],
+        });
     const tuitionFee = conventionalDiscountEffect.resultingTuition;
     const transportFee =
       payload.studentOverride?.customTransportFeeAmount ??
@@ -1571,6 +1740,7 @@ export function resolveStudentPolicyBreakdown(payload: {
         academicFeeAmount,
         otherAdjustmentHead,
         otherAdjustmentAmount,
+        otherAdjustmentHeads,
         grossBaseBeforeDiscount: workbookCharges.grossBaseBeforeDiscount,
         discountApplied: workbookCharges.discountApplied,
         conventionalDiscountApplied: conventionalDiscountEffect.discountApplied,
@@ -1651,9 +1821,9 @@ async function getStudentFeeSetupData(payload: {
   const supabase = await createClient();
 
   const studentOverridesSelectWithNotes =
-    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_other_fee_head_labels, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
   const studentOverridesSelectWithoutNotes =
-    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, updated_at";
+    "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_other_fee_head_labels, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, updated_at";
 
   const studentOverridesRequest = supabase
     .from("student_fee_overrides")
@@ -1807,6 +1977,9 @@ async function getStudentFeeSetupData(payload: {
         customBooksFeeAmount: studentOverrideRaw.custom_books_fee_amount,
         customAdmissionActivityMiscFeeAmount: studentOverrideRaw.custom_admission_activity_misc_fee_amount,
         customFeeHeadAmounts: parseCustomAmountMap(studentOverrideRaw.custom_other_fee_heads),
+        customOtherFeeHeadLabels: parseCustomLabelMap(
+          studentOverrideRaw.custom_other_fee_head_labels,
+        ),
         customLateFeeFlatAmount: studentOverrideRaw.custom_late_fee_flat_amount,
         otherAdjustmentHead: studentOverrideRaw.other_adjustment_head,
         otherAdjustmentAmount: studentOverrideRaw.other_adjustment_amount,
@@ -1886,6 +2059,16 @@ async function getStudentFinancialSnapshotUncached(
     hasTransportRoute: Boolean(student.transport_route_id),
   });
 
+  // Mirrors the no-override branches of resolveStudentPolicyBreakdown so the
+  // fee-plan editor can show what clearing an override would fall back to.
+  const classDefaultTuitionFee =
+    (classDefault ?? pageData.schoolDefault).tuitionFee;
+  const routeDefaultTransportFee =
+    student.transport_route_id && routeDefault
+      ? routeDefault.annualFeeAmount ??
+        routeDefault.defaultInstallmentAmount * pageData.policy.installmentCount
+      : 0;
+
   if (pageData.policy.calculationModel === "workbook_v1") {
     const [
       { data: workbookStudentRaw, error: workbookStudentError },
@@ -1945,6 +2128,8 @@ async function getStudentFinancialSnapshotUncached(
     return {
       policy: pageData.policy,
       resolvedBreakdown: resolved.breakdown,
+    classDefaultTuitionFee,
+    routeDefaultTransportFee,
       currentOutstanding:
         financialState?.pending_amount ??
         workbookStudent?.outstanding_amount ??
@@ -1980,6 +2165,8 @@ async function getStudentFinancialSnapshotUncached(
   return {
     policy: pageData.policy,
     resolvedBreakdown: resolved.breakdown,
+    classDefaultTuitionFee,
+    routeDefaultTransportFee,
     currentOutstanding: balanceRows.reduce(
       (sum, row) => sum + row.outstanding_amount,
       0,

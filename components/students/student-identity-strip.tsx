@@ -53,6 +53,8 @@ type StudentIdentityStripProps = {
   canWaiveLateFee: boolean;
   /** Late fee already waived on this student (for the waive sheet's running total). */
   lateFeeWaiverAmount: number;
+  /** Active academic session, posted with the waiver for audit + idempotency. */
+  sessionLabel: string;
   canPrintReceipts: boolean;
   canViewLedger: boolean;
   latestReceiptId: string | null;
@@ -204,6 +206,7 @@ export function StudentIdentityStrip({
   canEditStudent,
   canWaiveLateFee,
   lateFeeWaiverAmount,
+  sessionLabel,
   canPrintReceipts,
   canViewLedger,
   latestReceiptId,
@@ -338,6 +341,7 @@ export function StudentIdentityStrip({
                         classLabel={student.classLabel}
                         pendingLateFeeAmount={pendingLateFeeAmount}
                         currentWaiverAmount={lateFeeWaiverAmount}
+                        sessionLabel={sessionLabel}
                       />
                     </div>
                   ) : null}
