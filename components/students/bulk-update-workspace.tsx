@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, Loader2, Upload } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
@@ -30,6 +31,7 @@ const MAX_PREVIEW_STUDENTS = 100;
 const MAX_PREVIEW_ERRORS = 25;
 
 export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWorkspaceProps) {
+  const router = useRouter();
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [selectedFieldKeys, setSelectedFieldKeys] = useState<string[]>([]);
   const [fileChosen, setFileChosen] = useState(false);
@@ -77,7 +79,14 @@ export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWo
       title: applyState.status === "success" ? "Bulk update saved" : "Bulk update problem",
       description: applyState.message,
     });
-  }, [applyState]);
+
+    // Without this the page keeps the class counts it was rendered with, so a
+    // student who has just moved to another class still appears in the old one
+    // and the save looks like it did nothing.
+    if (applyState.status === "success") {
+      router.refresh();
+    }
+  }, [applyState, router]);
 
   // Once an apply succeeds the on-screen preview describes values that no
   // longer exist. Drop it rather than leave a stale Apply button armed.

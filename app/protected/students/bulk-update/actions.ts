@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { recordActivity } from "@/lib/activity/events";
 import { getActiveSessionLabel } from "@/lib/session/active";
 import {
@@ -145,6 +147,7 @@ export async function applyBulkUpdateAction(
 ): Promise<BulkUpdateApplyState> {
   try {
     const staff = await requireStaffPermission("students:write");
+    const { classIds } = readSelections(formData);
 
     const result = await computePreview(formData);
 
@@ -197,6 +200,19 @@ export async function applyBulkUpdateAction(
     }
 
     revalidateFinanceSurfaces({ studentIds: touchedIds });
+    // The workspace itself is not a finance surface, so it was never in that
+    // list — leaving the class chips and their counts showing pre-apply numbers.
+    revalidatePath("/protected/students/bulk-update");
+
+    // A class change moves a student out of the classes that were selected, so
+    // they vanish from this list. That reads as "my change did not save" unless
+    // it is said out loud.
+    const movedOut = preview.applicableRows.filter((row) =>
+      row.changes.some(
+        (change) =>
+          change.fieldKey === "class" && change.toValue && !classIds.includes(change.toValue),
+      ),
+    );
 
     await recordActivity({
       userId: (staff?.id as string | undefined) ?? null,
@@ -219,13 +235,18 @@ export async function applyBulkUpdateAction(
       };
     }
 
+    const movedNote =
+      movedOut.length > 0
+        ? ` ${movedOut.length === 1 ? `${movedOut[0]!.fullName} (SR ${movedOut[0]!.admissionNo}) has` : `${movedOut.length} students have`} moved to another class, so ${movedOut.length === 1 ? "they are" : "they are"} no longer in this list.`
+        : "";
+
     return {
       status: "success",
       message: `Updated ${outcome.updatedFieldCount} value${
         outcome.updatedFieldCount === 1 ? "" : "s"
       } across ${outcome.updatedStudentCount} student${
         outcome.updatedStudentCount === 1 ? "" : "s"
-      }.`,
+      }.${movedNote}`,
       updatedStudentCount: outcome.updatedStudentCount,
       failures: [],
     };
