@@ -163,7 +163,9 @@ export function buildBulkUpdatePreview(payload: {
         changes: [],
         errors: [
           rawId || rawAdmission
-            ? `No student in this class list matches ${rawId ? `ID ${rawId}` : `SR ${rawAdmission}`}. The row was not applied.`
+            ? // Withdrawn students are deliberately absent from the sheet, so
+              // "not found" is now an expected outcome worth naming.
+              `No active student in the selected classes matches ${rawId ? `ID ${rawId}` : `SR ${rawAdmission}`}. The row was not applied — check the student has not been withdrawn or moved to another class.`
             : "This row has no Student ID or SR no.",
         ],
       });

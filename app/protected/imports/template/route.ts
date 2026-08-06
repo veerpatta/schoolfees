@@ -2,6 +2,7 @@ import type { UpdateTemplateStudent } from "@/lib/import/templates";
 import { getConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
 import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
 import { getMasterDataOptions } from "@/lib/master-data/data";
+import { ACTIVE_STUDENT_STATUS } from "@/lib/students/bulk-update/data";
 import { compareStudentRowsByName } from "@/lib/students/sort";
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
@@ -70,6 +71,9 @@ async function buildUpdateRows(sessionLabel: string | null): Promise<UpdateTempl
       supabase
         .from("students")
         .select("id, admission_no, full_name, father_name, primary_phone, notes, class_ref:classes(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)")
+        // Withdrawn students keep their old class, so without this filter every
+        // class template carries children who have left the school.
+        .eq("status", ACTIVE_STUDENT_STATUS)
         .order("full_name", { ascending: true }),
       supabase
         .from("student_fee_overrides")

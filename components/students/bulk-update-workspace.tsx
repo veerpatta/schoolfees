@@ -102,7 +102,7 @@ export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWo
     <div className="space-y-6">
       <SectionCard
         title="1. Choose classes"
-        description={`Classes in ${sessionLabel}. Only students in the classes you tick can be changed.`}
+        description={`Classes in ${sessionLabel}. Only active students in the classes you tick are included — withdrawn students are left out.`}
       >
         {classOptions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No classes found in {sessionLabel}.</p>

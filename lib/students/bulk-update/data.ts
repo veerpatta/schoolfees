@@ -19,6 +19,13 @@ import { createClient } from "@/lib/supabase/server";
  */
 const APPLY_CONCURRENCY = 20;
 
+/**
+ * Downloadable lists cover students who are actually in the class. Withdrawn
+ * records keep their old class_id, so without this they ride along in every
+ * template for that class.
+ */
+export const ACTIVE_STUDENT_STATUS = "active";
+
 export type BulkUpdateClassOption = {
   classId: string;
   label: string;
@@ -56,7 +63,9 @@ export async function getBulkUpdateClassOptions(
         .eq("session_label", sessionLabel)
         .order("sort_order", { ascending: true })
         .order("class_name", { ascending: true }),
-      supabase.from("students").select("class_id"),
+      // Same active-only rule as the snapshot, so the count on each class chip
+      // matches the number of rows the download actually contains.
+      supabase.from("students").select("class_id").eq("status", ACTIVE_STUDENT_STATUS),
     ]);
 
   if (classError) {
@@ -149,10 +158,14 @@ function toSnapshotStudent(
 }
 
 /**
- * Loads the students the sheet is allowed to touch. Scoping the snapshot to the
- * chosen classes is the outer safety net: a row for a student in another class
- * simply will not match, so an edited or pasted-together sheet cannot reach
- * beyond the selection the user made.
+ * Loads the students the sheet is allowed to touch. Two filters, both load
+ * bearing:
+ *
+ * - the chosen classes, so an edited or pasted-together sheet cannot reach
+ *   beyond the selection the user made;
+ * - `active` only. A withdrawn student still sits in their old class, so an
+ *   unfiltered Nursery download listed six children who have left the school
+ *   alongside the twenty who are actually in the class.
  */
 export async function loadBulkUpdateSnapshot(classIds: readonly string[]) {
   if (classIds.length === 0) {
@@ -164,6 +177,7 @@ export async function loadBulkUpdateSnapshot(classIds: readonly string[]) {
     .from("students")
     .select(SNAPSHOT_COLUMNS)
     .in("class_id", classIds)
+    .eq("status", ACTIVE_STUDENT_STATUS)
     .order("full_name", { ascending: true });
 
   if (error) {
