@@ -225,7 +225,6 @@ const PENDING_KNOWN_GAPS: string[] = [
   "components/imports/duplicate-audit-panel.tsx",
   "components/imports/import-commit-card.tsx",
   "components/imports/row-detail-card.tsx",
-  "components/payments/payment-desk-mobile.tsx",
 ];
 
 describe("fire-and-forget action forms show they are working", () => {

@@ -10,6 +10,7 @@ import { MetricCard } from "@/components/admin/metric-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeRecentTracker, ValueStatePill, WorkflowGuard } from "@/components/office/office-ui";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -2758,7 +2759,12 @@ export function PaymentDeskClient({
                   <form action={repairPaymentDeskStudentDuesAction}>
                     <input type="hidden" name="studentId" value={selectedStudentIssue.repairStudentId} />
                     <input type="hidden" name="sessionLabel" value={data.sessionLabel} />
-                    <Button type="submit">{selectedStudentIssue.actionLabel}</Button>
+                    {/* Rebuilding a student's dues is slow enough to look dead.
+                        The outcome is reported by ?repairNotice= on the desk
+                        page; this is the missing half — that it is working. */}
+                    <PendingSubmitButton pendingLabel="Repairing dues…">
+                      {selectedStudentIssue.actionLabel}
+                    </PendingSubmitButton>
                   </form>
                 ) : selectedStudentIssue.actionHref && selectedStudentIssue.actionLabel ? (
                   <Button asChild>

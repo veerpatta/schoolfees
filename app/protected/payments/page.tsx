@@ -91,8 +91,13 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
         }
       />
 
+      {/* The repair reports both outcomes through this one param, so the tone
+          has to follow the content. It was hardcoded to "warning", which made
+          a successful dues repair read as a problem. */}
       {repairNotice ? (
-        <OfficeNotice tone="warning">{repairNotice}</OfficeNotice>
+        <OfficeNotice tone={repairNotice.startsWith("Dues prepared") ? "success" : "warning"}>
+          {repairNotice}
+        </OfficeNotice>
       ) : null}
 
       <Suspense fallback={<PaymentDeskSkeleton />}>
