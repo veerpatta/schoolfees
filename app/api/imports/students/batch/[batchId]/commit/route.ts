@@ -7,6 +7,12 @@ import {
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
 
+// Commits at most STUDENT_IMPORT_COMMIT_CHUNK_SIZE approved rows per request
+// and reports what is left, so a large file is many short requests rather than
+// one that runs until the platform kills it. This export was missing entirely,
+// which is how a 531-row commit ran to the 300s ceiling and died.
+export const maxDuration = 60;
+
 type RouteContext = {
   params: Promise<{
     batchId: string;

@@ -5,7 +5,11 @@
 // sheet can therefore never wipe data, which is the failure mode that makes
 // spreadsheet-driven updates dangerous.
 
-import { CLEAR_KEYWORD, type BulkUpdateField } from "@/lib/students/bulk-update/fields";
+import {
+  CLEAR_KEYWORD,
+  STUDENT_TYPE_OPTIONS,
+  type BulkUpdateField,
+} from "@/lib/students/bulk-update/fields";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 
 export type CellOutcome =
@@ -182,6 +186,23 @@ export function parseCell(
         const allowed = STUDENT_STATUSES.map((item) => item.label).join(", ");
 
         return { kind: "error", message: `Status "${trimmed}" is not one of: ${allowed}.` };
+      }
+
+      return { kind: "set", value: match.value };
+    }
+
+    case "studentType": {
+      const match = STUDENT_TYPE_OPTIONS.find(
+        (item) =>
+          item.value === trimmed.toLowerCase() ||
+          item.label.toLowerCase() === trimmed.toLowerCase() ||
+          // "Old" is what the app shows for a continuing student, so staff
+          // reading the screen will type it even though we store "existing".
+          (item.value === "existing" && trimmed.toLowerCase() === "old"),
+      );
+
+      if (!match) {
+        return { kind: "error", message: `"${trimmed}" must be New or Existing.` };
       }
 
       return { kind: "set", value: match.value };

@@ -118,7 +118,10 @@ type StudentSnapshotRow = {
 const SNAPSHOT_COLUMNS =
   "id, admission_no, full_name, primary_phone, secondary_phone, father_name, mother_name, email, date_of_birth, address, class_id, transport_route_id, status, notes";
 
-function toSnapshotStudent(row: StudentSnapshotRow): BulkUpdateSnapshotStudent {
+function toSnapshotStudent(
+  row: StudentSnapshotRow,
+  studentType: string | null,
+): BulkUpdateSnapshotStudent {
   return {
     studentId: row.id,
     admissionNo: row.admission_no,
@@ -135,6 +138,11 @@ function toSnapshotStudent(row: StudentSnapshotRow): BulkUpdateSnapshotStudent {
       route: row.transport_route_id,
       status: row.status,
       notes: row.notes,
+      // A student with no active override row has no stored type, and the fee
+      // engine reads that absence as "existing" (Rs 500). Mirror that here so
+      // the preview compares against what the student is actually billed,
+      // rather than showing a spurious change for every such student.
+      studentType: studentType ?? "existing",
     },
   };
 }
@@ -161,7 +169,31 @@ export async function loadBulkUpdateSnapshot(classIds: readonly string[]) {
     throw new Error(`Unable to load students for these classes: ${error.message}`);
   }
 
-  return ((data ?? []) as StudentSnapshotRow[]).map(toSnapshotStudent);
+  const rows = (data ?? []) as StudentSnapshotRow[];
+
+  if (rows.length === 0) {
+    return [] as BulkUpdateSnapshotStudent[];
+  }
+
+  const { data: overrideRows, error: overrideError } = await supabase
+    .from("student_fee_overrides")
+    .select("student_id, student_type_override")
+    .in(
+      "student_id",
+      rows.map((row) => row.id),
+    )
+    .eq("is_active", true);
+
+  if (overrideError) {
+    throw new Error(`Unable to load student fee profiles: ${overrideError.message}`);
+  }
+
+  const typeByStudent = new Map(
+    ((overrideRows ?? []) as Array<{ student_id: string; student_type_override: string | null }>)
+      .map((row) => [row.student_id, row.student_type_override]),
+  );
+
+  return rows.map((row) => toSnapshotStudent(row, typeByStudent.get(row.id) ?? null));
 }
 
 export async function buildBulkUpdateLookups(sessionLabel: string) {
@@ -208,9 +240,62 @@ async function runWithConcurrency<T>(
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, pump));
 }
 
+/** Reason stamped on any fee-override row this workspace creates or edits. */
+const OVERRIDE_REASON = "Bulk student update";
+
 /**
- * Writes the previewed changes. Each student is a single UPDATE carrying every
- * changed column, so a student is never left half-updated.
+ * Finds the active fee setting for a student's class. Required because
+ * `student_fee_overrides.fee_setting_id` is NOT NULL, so a student who has
+ * never had an override cannot get one without it.
+ */
+async function resolveFeeSettingIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studentIds: readonly string[],
+) {
+  const { data: students, error: studentError } = await supabase
+    .from("students")
+    .select("id, class_id")
+    .in("id", studentIds);
+
+  if (studentError) {
+    throw new Error(`Unable to resolve classes for fee profiles: ${studentError.message}`);
+  }
+
+  const classIds = [
+    ...new Set(
+      ((students ?? []) as Array<{ id: string; class_id: string }>).map((row) => row.class_id),
+    ),
+  ];
+
+  const { data: settings, error: settingError } = await supabase
+    .from("fee_settings")
+    .select("id, class_id")
+    .in("class_id", classIds)
+    .eq("is_active", true);
+
+  if (settingError) {
+    throw new Error(`Unable to resolve fee settings: ${settingError.message}`);
+  }
+
+  const settingByClass = new Map(
+    ((settings ?? []) as Array<{ id: string; class_id: string }>).map((row) => [
+      row.class_id,
+      row.id,
+    ]),
+  );
+
+  return new Map(
+    ((students ?? []) as Array<{ id: string; class_id: string }>).map((row) => [
+      row.id,
+      settingByClass.get(row.class_id) ?? null,
+    ]),
+  );
+}
+
+/**
+ * Writes the previewed changes. Per student it is one UPDATE on `students` for
+ * the ordinary columns, plus at most one fee-override upsert — so a student is
+ * never left half-updated.
  */
 export async function applyBulkUpdate(
   rows: readonly BulkUpdateRowResult[],
@@ -220,21 +305,94 @@ export async function applyBulkUpdate(
   let updatedStudentCount = 0;
   let updatedFieldCount = 0;
 
-  await runWithConcurrency(rows, APPLY_CONCURRENCY, async (row) => {
-    if (!row.studentId || row.changes.length === 0 || row.errors.length > 0) {
-      return;
-    }
+  const applicable = rows.filter(
+    (row) => row.studentId && row.changes.length > 0 && row.errors.length === 0,
+  );
 
-    const patch: Record<string, string | null> = {};
+  // Only pay for the lookup when a fee-profile field is actually in play.
+  const needsOverride = applicable.filter((row) =>
+    row.changes.some((change) => change.target === "feeOverride"),
+  );
+  const feeSettingByStudent =
+    needsOverride.length > 0
+      ? await resolveFeeSettingIds(
+          supabase,
+          needsOverride.map((row) => row.studentId!),
+        )
+      : new Map<string, string | null>();
+
+  await runWithConcurrency(applicable, APPLY_CONCURRENCY, async (row) => {
+    const studentId = row.studentId!;
+    const studentPatch: Record<string, string | null> = {};
+    const overridePatch: Record<string, string | null> = {};
+
     for (const change of row.changes) {
-      patch[change.column] = change.toValue;
+      if (change.target === "feeOverride") {
+        overridePatch[change.column] = change.toValue;
+      } else {
+        studentPatch[change.column] = change.toValue;
+      }
     }
 
-    const { error } = await supabase.from("students").update(patch).eq("id", row.studentId);
+    if (Object.keys(studentPatch).length > 0) {
+      const { error } = await supabase.from("students").update(studentPatch).eq("id", studentId);
 
-    if (error) {
-      failures.push({ admissionNo: row.admissionNo, message: error.message });
-      return;
+      if (error) {
+        failures.push({ admissionNo: row.admissionNo, message: error.message });
+        return;
+      }
+    }
+
+    if (Object.keys(overridePatch).length > 0) {
+      const { data: existing, error: readError } = await supabase
+        .from("student_fee_overrides")
+        .select("id")
+        .eq("student_id", studentId)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (readError) {
+        failures.push({ admissionNo: row.admissionNo, message: readError.message });
+        return;
+      }
+
+      const existingId = ((existing ?? []) as Array<{ id: string }>)[0]?.id ?? null;
+
+      if (existingId) {
+        const { error } = await supabase
+          .from("student_fee_overrides")
+          .update({ ...overridePatch, reason: OVERRIDE_REASON })
+          .eq("id", existingId);
+
+        if (error) {
+          failures.push({ admissionNo: row.admissionNo, message: error.message });
+          return;
+        }
+      } else {
+        const feeSettingId = feeSettingByStudent.get(studentId) ?? null;
+
+        if (!feeSettingId) {
+          failures.push({
+            admissionNo: row.admissionNo,
+            message:
+              "No active fee setting for this student's class, so a fee profile could not be created. Save class fees in Fee Setup first.",
+          });
+          return;
+        }
+
+        const { error } = await supabase.from("student_fee_overrides").insert({
+          student_id: studentId,
+          fee_setting_id: feeSettingId,
+          is_active: true,
+          reason: OVERRIDE_REASON,
+          ...overridePatch,
+        });
+
+        if (error) {
+          failures.push({ admissionNo: row.admissionNo, message: error.message });
+          return;
+        }
+      }
     }
 
     updatedStudentCount += 1;

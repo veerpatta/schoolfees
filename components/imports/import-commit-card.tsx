@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { approveAllSafeRowsAction } from "@/app/protected/imports/actions";
 import { commitStudentImportBatchAction } from "@/app/protected/imports/actions";
 import { resumeStudentImportBatchAction } from "@/app/protected/imports/actions";
+import { isStaleImportRun } from "@/lib/import/run-state";
 import type { ImportBatchDetail, ImportMode } from "@/lib/import/types";
 
 type ImportCommitCardProps = {
@@ -20,7 +21,13 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
   const [resuming, setResuming] = useState(false);
   const [approvingSafeRows, setApprovingSafeRows] = useState(false);
   const hasApprovedRows = batch.reviewSummary.readyToImportRows > 0;
-  const isLocked = batch.status === "completed" || batch.status === "importing";
+  // `importing` only counts as locked while the run is actually alive. A batch
+  // whose run was killed used to sit in that status forever with the Import
+  // button disabled and no Resume offered — unusable, with rows unapplied.
+  const isRunning = batch.status === "importing" && !isStaleImportRun(batch);
+  const isLocked = batch.status === "completed" || isRunning;
+  // Some rows are already in, but approved rows remain: this is a paused import.
+  const isPartiallyImported = batch.importedRows > 0 && hasApprovedRows;
   const approvedCreates = batch.reviewSummary.readyCreateRows;
   const approvedUpdates = batch.reviewSummary.readyUpdateRows;
   const safePendingRows = Math.max(0, batch.reviewSummary.pendingSafeRows);
@@ -149,17 +156,23 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
                 ? batch.status === "completed"
                   ? "Students imported. Unresolved rows remain available for follow-up."
                   : "Import is in progress..."
-                : "Import runs only for reviewed approved rows. This keeps risky rows pending for manual follow-up."}
+                : isPartiallyImported
+                  ? `${batch.importedRows} row${batch.importedRows === 1 ? "" : "s"} saved so far. ${batch.reviewSummary.readyToImportRows} still to go — large files are saved in batches, so press Continue until it reports finished.`
+                  : "Import runs only for reviewed approved rows. This keeps risky rows pending for manual follow-up."}
             </p>
             <Button
               type="submit"
               disabled={!canManage || !hasApprovedRows || isLocked || submitting}
             >
               {submitting
-                ? "Importing..."
+                ? isPartiallyImported
+                  ? "Continuing..."
+                  : "Importing..."
                 : isLocked
                   ? "Students imported"
-                  : "Import valid students"}
+                  : isPartiallyImported
+                    ? `Continue import (${batch.reviewSummary.readyToImportRows} left)`
+                    : "Import valid students"}
             </Button>
           </div>
         </form>

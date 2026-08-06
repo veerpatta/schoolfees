@@ -11,7 +11,11 @@ import {
   type SheetTable,
 } from "@/lib/students/bulk-update/diff";
 import { applyListValidations, type ListValidation } from "@/lib/excel/data-validation";
-import { CLEAR_KEYWORD, type BulkUpdateField } from "@/lib/students/bulk-update/fields";
+import {
+  CLEAR_KEYWORD,
+  STUDENT_TYPE_OPTIONS,
+  type BulkUpdateField,
+} from "@/lib/students/bulk-update/fields";
 import { normalizeCellText } from "@/lib/students/bulk-update/cells";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 
@@ -47,8 +51,15 @@ function currentCellValue(
     return labels.routeLabelById.get(value) ?? "";
   }
 
+  // Pre-fill with the same label the dropdown offers. Writing the stored value
+  // ("active", "new") against a list of labels ("Active", "New") would make
+  // Excel flag every untouched row as invalid. The parser accepts both forms.
   if (field.kind === "status") {
-    return value;
+    return STUDENT_STATUSES.find((item) => item.value === value)?.label ?? value;
+  }
+
+  if (field.kind === "studentType") {
+    return STUDENT_TYPE_OPTIONS.find((item) => item.value === value)?.label ?? value;
   }
 
   return value;
@@ -67,6 +78,7 @@ const LIST_BACKED_FIELDS = {
   class: { column: 1, header: "Classes", definedName: "VPPS_BU_Classes", strict: true },
   route: { column: 2, header: "Routes", definedName: "VPPS_BU_Routes", strict: false },
   status: { column: 3, header: "Record status", definedName: "VPPS_BU_Status", strict: true },
+  studentType: { column: 4, header: "New/Old", definedName: "VPPS_BU_Type", strict: true },
 } as const;
 
 export async function buildBulkUpdateTemplateWorkbook(payload: {
@@ -125,9 +137,20 @@ export async function buildBulkUpdateTemplateWorkbook(payload: {
   const classLabels = payload.allClassLabels ?? payload.classLabels;
   const routeLabels = payload.allRouteLabels ?? [];
   const statusLabels = STUDENT_STATUSES.map((item) => item.label);
-  const listRowCount = Math.max(classLabels.length, routeLabels.length, statusLabels.length);
+  const typeLabels = STUDENT_TYPE_OPTIONS.map((item) => item.label);
+  const listRowCount = Math.max(
+    classLabels.length,
+    routeLabels.length,
+    statusLabels.length,
+    typeLabels.length,
+  );
   const listRows: string[][] = [
-    [LIST_BACKED_FIELDS.class.header, LIST_BACKED_FIELDS.route.header, LIST_BACKED_FIELDS.status.header],
+    [
+      LIST_BACKED_FIELDS.class.header,
+      LIST_BACKED_FIELDS.route.header,
+      LIST_BACKED_FIELDS.status.header,
+      LIST_BACKED_FIELDS.studentType.header,
+    ],
   ];
 
   for (let index = 0; index < listRowCount; index += 1) {
@@ -135,11 +158,12 @@ export async function buildBulkUpdateTemplateWorkbook(payload: {
       classLabels[index] ?? "",
       routeLabels[index] ?? "",
       statusLabels[index] ?? "",
+      typeLabels[index] ?? "",
     ]);
   }
 
   const listsSheet = XLSX.utils.aoa_to_sheet(listRows);
-  listsSheet["!cols"] = [{ wch: 26 }, { wch: 30 }, { wch: 18 }];
+  listsSheet["!cols"] = [{ wch: 26 }, { wch: 30 }, { wch: 18 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(workbook, listsSheet, BULK_UPDATE_LISTS_SHEET_NAME);
 
   return workbook;
@@ -160,6 +184,7 @@ export function buildBulkUpdateValidations(payload: {
     class: payload.classCount,
     route: payload.routeCount,
     status: STUDENT_STATUSES.length,
+    studentType: STUDENT_TYPE_OPTIONS.length,
   };
 
   const validations: ListValidation[] = [];

@@ -5,7 +5,11 @@
 // before anything is written, so "apply" is never a leap of faith.
 
 import { parseCell, lookupKey, type LookupResolver } from "@/lib/students/bulk-update/cells";
-import type { BulkUpdateField } from "@/lib/students/bulk-update/fields";
+import {
+  STUDENT_TYPE_OPTIONS,
+  type BulkUpdateField,
+  type BulkUpdateFieldTarget,
+} from "@/lib/students/bulk-update/fields";
 
 export const STUDENT_ID_HEADER = "Student ID";
 export const ADMISSION_NO_HEADER = "SR no";
@@ -29,6 +33,8 @@ export type BulkUpdateChange = {
   /** Raw value to write to the column. */
   toValue: string | null;
   column: string;
+  /** Which table `column` belongs to — students, or the fee-override row. */
+  target: BulkUpdateFieldTarget;
   affectsFees: boolean;
 };
 
@@ -209,26 +215,33 @@ export function buildBulkUpdatePreview(payload: {
         continue;
       }
 
-      const toLabel =
-        field.kind === "class"
-          ? (outcome.value ? lookups.classLabelById.get(outcome.value) ?? outcome.value : "—")
-          : field.kind === "route"
-            ? (outcome.value ? lookups.routeLabelById.get(outcome.value) ?? outcome.value : "—")
-            : displayValue(outcome.value);
-      const fromLabel =
-        field.kind === "class"
-          ? (currentValue ? lookups.classLabelById.get(currentValue) ?? currentValue : "—")
-          : field.kind === "route"
-            ? (currentValue ? lookups.routeLabelById.get(currentValue) ?? currentValue : "—")
-            : displayValue(currentValue);
+      const label = (value: string | null) => {
+        if (field.kind === "class") {
+          return value ? lookups.classLabelById.get(value) ?? value : "—";
+        }
+
+        if (field.kind === "route") {
+          return value ? lookups.routeLabelById.get(value) ?? value : "—";
+        }
+
+        if (field.kind === "studentType") {
+          return (
+            STUDENT_TYPE_OPTIONS.find((item) => item.value === value)?.label ??
+            displayValue(value)
+          );
+        }
+
+        return displayValue(value);
+      };
 
       changes.push({
         fieldKey: field.key,
         header: field.header,
-        fromLabel,
-        toLabel,
+        fromLabel: label(currentValue),
+        toLabel: label(outcome.value),
         toValue: outcome.value,
         column: field.column,
+        target: field.target,
         affectsFees: field.affectsFees,
       });
     }

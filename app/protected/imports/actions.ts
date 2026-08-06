@@ -28,6 +28,13 @@ import {
 } from "@/lib/system-sync/finance-sync";
 import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
 
+/**
+ * Wall-clock budget for one commit request. Comfortably inside the platform's
+ * function ceiling, so the action returns a progress message under its own
+ * control instead of being killed with the batch left mid-flight.
+ */
+const IMPORT_COMMIT_BUDGET_MS = 45_000;
+
 function normalizeImportMode(value: FormDataEntryValue | string | null): ImportMode {
   return value === "update" ? "update" : "add";
 }
@@ -251,7 +258,21 @@ export async function commitStudentImportBatchAction(formData: FormData) {
       throw new Error("Select an import batch before saving rows.");
     }
 
-    result = await commitStudentImportBatch(batchId);
+    // Commit in chunks under a wall-clock budget rather than one unbounded
+    // pass. Each chunk persists its own progress, so if this request is killed
+    // the already-saved rows stay saved and the batch is left continuable
+    // instead of stranded — the failure that silently dropped 99 approved rows
+    // from batch 59fb0977 on 2026-08-06.
+    const deadline = Date.now() + IMPORT_COMMIT_BUDGET_MS;
+
+    for (;;) {
+      result = await commitStudentImportBatch(batchId);
+
+      if (result.remainingCount === 0 || Date.now() >= deadline) {
+        break;
+      }
+    }
+
     await publishOfficeSyncEvent({
       sessionLabel: result.targetSessionLabel || "unknown",
       entityType: "import",
@@ -298,6 +319,20 @@ export async function commitStudentImportBatchAction(formData: FormData) {
   }
 
   revalidateImportPostCommit(result?.affectedStudentIds ?? []);
+
+  // Budget ran out with rows still queued. Say so plainly with the count — the
+  // old behaviour reported a finished import and silently dropped the rest.
+  if (result && result.remainingCount > 0) {
+    redirect(
+      buildImportsUrl(
+        batchId,
+        `Saved ${result.importedCount} row${result.importedCount === 1 ? "" : "s"} so far. ${result.remainingCount} still to go — press Import again to continue where it stopped.`,
+        undefined,
+        mode,
+      ),
+    );
+  }
+
   redirect(
     buildImportsUrl(
       batchId,

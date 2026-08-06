@@ -88,6 +88,29 @@ describe("bulk update cell parsing", () => {
     expect(parseCell(field("class"), "Class 9", lookups).kind).toBe("error");
   });
 
+  it("accepts New/Existing, and the Old wording the app shows on screen", () => {
+    expect(parseCell(field("studentType"), "New", lookups)).toEqual({
+      kind: "set",
+      value: "new",
+    });
+    expect(parseCell(field("studentType"), "existing", lookups)).toEqual({
+      kind: "set",
+      value: "existing",
+    });
+    // The student page labels a continuing student "Old", so staff type that.
+    expect(parseCell(field("studentType"), "Old", lookups)).toEqual({
+      kind: "set",
+      value: "existing",
+    });
+    expect(parseCell(field("studentType"), "maybe", lookups).kind).toBe("error");
+  });
+
+  it("refuses to clear the New/Old flag", () => {
+    // There is no unset state the fee engine could read: a missing value bills
+    // as Existing, which is a silent Rs 600 discount rather than a blank.
+    expect(parseCell(field("studentType"), "CLEAR", lookups).kind).toBe("error");
+  });
+
   it("accepts a status by label or by stored value", () => {
     expect(parseCell(field("status"), "Left", lookups)).toEqual({ kind: "set", value: "left" });
     expect(parseCell(field("status"), "active", lookups)).toEqual({ kind: "set", value: "active" });
@@ -225,5 +248,56 @@ describe("bulk update preview", () => {
     const result = preview(["Student ID", "Father phone"], [["s-2", "9333333333"]]);
 
     expect(result.applicableRows[0]?.changes.map((c) => c.fieldKey)).toEqual(["fatherPhone"]);
+  });
+});
+
+describe("New/Old in the preview", () => {
+  const typeFields = resolveBulkUpdateFields(["studentType"]);
+  // A student with no fee-override row bills as Existing, so that is what the
+  // snapshot reports — writing "Existing" for them must be a no-op, not a
+  // change that would create a pointless override row.
+  const typeSnapshot: BulkUpdateSnapshotStudent[] = [
+    { studentId: "s-1", admissionNo: "SVP-001", fullName: "Aarav", values: { studentType: "existing" } },
+    { studentId: "s-2", admissionNo: "SVP-002", fullName: "Diya", values: { studentType: "new" } },
+  ];
+
+  function typePreview(rows: unknown[][]) {
+    return buildBulkUpdatePreview({
+      table: { headers: ["Student ID", "New/Old"], rows },
+      fields: typeFields,
+      snapshot: typeSnapshot,
+      lookups,
+    });
+  }
+
+  it("reports no change when the sheet repeats the stored type", () => {
+    const result = typePreview([
+      ["s-1", "Existing"],
+      ["s-2", "New"],
+    ]);
+
+    expect(result.changeCount).toBe(0);
+    expect(result.feeImpactStudentIds).toEqual([]);
+  });
+
+  it("shows a flip with readable labels and marks the fee impact", () => {
+    const result = typePreview([["s-1", "New"]]);
+
+    expect(result.applicableRows[0]?.changes).toEqual([
+      expect.objectContaining({
+        fieldKey: "studentType",
+        fromLabel: "Existing",
+        toLabel: "New",
+        toValue: "new",
+        column: "student_type_override",
+        target: "feeOverride",
+        affectsFees: true,
+      }),
+    ]);
+    expect(result.feeImpactStudentIds).toEqual(["s-1"]);
+  });
+
+  it("treats Old in the sheet as the same value as Existing", () => {
+    expect(typePreview([["s-1", "Old"]]).changeCount).toBe(0);
   });
 });

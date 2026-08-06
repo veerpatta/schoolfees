@@ -13,6 +13,10 @@ import { buildAutoColumnMapping, validateColumnMapping } from "@/lib/import/mapp
 import { parseStudentImportFile } from "@/lib/import/parser";
 import { executeStudentImportDryRun } from "@/lib/import/dryRun";
 import { deriveAnomalyCategoriesForRow } from "@/lib/import/review";
+import {
+  STUDENT_IMPORT_COMMIT_CHUNK_SIZE,
+  isStaleImportRun,
+} from "@/lib/import/run-state";
 import { normalizeLookupToken, stringifyImportCell } from "@/lib/import/validation";
 import {
   studentImportFieldDefinitions,
@@ -1624,8 +1628,13 @@ export async function resumeStudentImportBatch(batchId: string) {
     throw new Error("This batch is already completed.");
   }
 
-  if (batchRow.status === "importing") {
-    throw new Error("Import is already running. Please wait for it to finish.");
+  // Same takeover rule as commit: a run that has gone quiet past the stale
+  // window was killed, and refusing to resume it is what left batches
+  // permanently stuck in `importing` with rows unapplied.
+  if (batchRow.status === "importing" && !isStaleImportRun(batchRow)) {
+    throw new Error(
+      "Import is already running. Wait for it to finish, or try again in a few minutes if it was interrupted.",
+    );
   }
 
   const rowRecords = await getImportRowsByBatchId(batchId);
@@ -1677,7 +1686,10 @@ export async function resumeStudentImportBatch(batchId: string) {
   return commitStudentImportBatch(batchId);
 }
 
-export async function commitStudentImportBatch(batchId: string) {
+export async function commitStudentImportBatch(
+  batchId: string,
+  options: { limit?: number } = {},
+) {
   const [batchRow, rowRecords] = await Promise.all([
     getImportBatchById(batchId),
     getImportRowsByBatchId(batchId),
@@ -1695,6 +1707,16 @@ export async function commitStudentImportBatch(batchId: string) {
     throw new Error("This batch is already completed.");
   }
 
+  // A batch left in `importing` used to be permanently unusable: this guard
+  // refused it and the Resume button never appeared for that status either.
+  // A run that has gone quiet for longer than the stale window was killed
+  // mid-flight (a platform timeout), so let the next caller take it over.
+  if (batchRow.status === "importing" && !isStaleImportRun(batchRow)) {
+    throw new Error(
+      "This import is already running. Wait for it to finish, or try again in a few minutes if it was interrupted.",
+    );
+  }
+
   const rows = rowRecords.map(toImportRowDetail);
   const approvedRows = rows.filter(
     (row) =>
@@ -1708,6 +1730,13 @@ export async function commitStudentImportBatch(batchId: string) {
       "There are no approved valid rows available to import. Approve clean rows from the QA queues first.",
     );
   }
+
+  // Rows handled in this call. The caller loops until `remainingCount` is 0, so
+  // no single request has to carry a 500-row file past the platform's function
+  // timeout — which is exactly how batch 59fb0977 died at 299s on 2026-08-06,
+  // leaving 99 approved rows silently unapplied.
+  const limit = Math.max(1, options.limit ?? STUDENT_IMPORT_COMMIT_CHUNK_SIZE);
+  let processedThisRun = 0;
 
   await updateImportBatch(batchId, {
     status: "importing",
@@ -1772,6 +1801,16 @@ export async function commitStudentImportBatch(batchId: string) {
       updatedRows.push(row);
       continue;
     }
+
+    // Budget spent — stop cleanly and let the caller come back for the rest.
+    // The row is pushed untouched so it stays `valid`/`approved` and is picked
+    // up by the next chunk.
+    if (processedThisRun >= limit) {
+      updatedRows.push(row);
+      continue;
+    }
+
+    processedThisRun += 1;
 
     try {
       const previousStudent =
@@ -1897,8 +1936,20 @@ export async function commitStudentImportBatch(batchId: string) {
     }
   }
 
+  // Approved rows this run did not reach. Parking the batch back on `validated`
+  // rather than leaving it `importing` is what makes a paused import instantly
+  // continuable: `importing` is the UI's locked state, so a batch that stopped
+  // there could not be retried at all.
+  const remainingCount = updatedRows.filter(
+    (row) =>
+      row.status === "valid" && row.normalizedPayload !== null && row.reviewStatus === "approved",
+  ).length;
+
+  const status =
+    remainingCount > 0 ? "validated" : failedRows > 0 || ledgerSyncError ? "failed" : "completed";
+
   await updateImportBatch(batchId, {
-    status: failedRows > 0 || ledgerSyncError ? "failed" : "completed",
+    status,
     valid_rows: summary.validRows,
     invalid_rows: summary.invalidRows,
     duplicate_rows: summary.duplicateRows,
@@ -1906,12 +1957,15 @@ export async function commitStudentImportBatch(batchId: string) {
     skipped_rows: summary.skippedRows,
     failed_rows: summary.failedRows,
     summary,
-    import_completed_at: new Date().toISOString(),
-    error_message: ledgerSyncError
-      ? `Students were imported, but dues could not be prepared: ${ledgerSyncError}`
-      : failedRows > 0
-        ? `${failedRows} row${failedRows === 1 ? "" : "s"} could not be saved during import.`
-        : null,
+    import_completed_at: remainingCount > 0 ? null : new Date().toISOString(),
+    error_message:
+      remainingCount > 0
+        ? null
+        : ledgerSyncError
+          ? `Students were imported, but dues could not be prepared: ${ledgerSyncError}`
+          : failedRows > 0
+            ? `${failedRows} row${failedRows === 1 ? "" : "s"} could not be saved during import.`
+            : null,
   });
 
   return {
@@ -1928,6 +1982,8 @@ export async function commitStudentImportBatch(batchId: string) {
     duesReasonSummary,
     affectedStudentIds: [...affectedStudentIds],
     targetSessionLabel,
-    status: failedRows > 0 || ledgerSyncError ? "failed" : "completed",
+    /** Approved rows still waiting. Non-zero means "call me again". */
+    remainingCount,
+    status,
   };
 }

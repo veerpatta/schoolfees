@@ -1,10 +1,12 @@
 // Field catalogue for the class-wise bulk update workspace.
 //
-// Every field here writes to a column on `public.students` and nothing else.
-// Fee-profile fields (tuition/discount/waiver/new-old flag) live on
-// `student_fee_overrides` and are deliberately NOT offered: they change money,
-// need an override row with a mandatory reason, and must not share a sheet that
-// office staff use to fix phone numbers.
+// Most fields write to a column on `public.students`. The New/Old student type
+// is the exception: it lives on `student_fee_overrides` and decides the
+// academic fee (Rs 1,100 for a new admission vs Rs 500 for a continuing
+// student), so it is marked `target: "feeOverride"` and carries a fee impact.
+// The money fields proper — tuition, transport, discount, late-fee waiver —
+// stay out: they need a per-student reason and do not belong in a sheet the
+// office uses to fix phone numbers.
 
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 
@@ -19,18 +21,23 @@ export type BulkUpdateFieldKey =
   | "class"
   | "route"
   | "status"
+  | "studentType"
   | "notes";
 
-export type BulkUpdateFieldGroup = "contact" | "placement" | "notes";
+export type BulkUpdateFieldGroup = "contact" | "placement" | "feeProfile" | "notes";
+
+/** Which table a field's column belongs to. */
+export type BulkUpdateFieldTarget = "students" | "feeOverride";
 
 export type BulkUpdateField = {
   key: BulkUpdateFieldKey;
   /** Column header written into the template and matched back on upload. */
   header: string;
   group: BulkUpdateFieldGroup;
-  /** The `public.students` column this field writes to. */
+  /** The column this field writes to, on the table named by `target`. */
   column: string;
-  kind: "text" | "phone" | "email" | "date" | "class" | "route" | "status";
+  target: BulkUpdateFieldTarget;
+  kind: "text" | "phone" | "email" | "date" | "class" | "route" | "status" | "studentType";
   /** `false` for NOT NULL columns — CLEAR is refused rather than crashing. */
   clearable: boolean;
   /** Dues are regenerated for students whose value actually changed. */
@@ -38,6 +45,12 @@ export type BulkUpdateField = {
   maxLength?: number;
   hint?: string;
 };
+
+/** Stored values of the New/Old flag, and how they read on screen. */
+export const STUDENT_TYPE_OPTIONS = [
+  { value: "new", label: "New" },
+  { value: "existing", label: "Existing" },
+] as const;
 
 /** Typed into any cell to blank a value on purpose. Blank means "leave alone". */
 export const CLEAR_KEYWORD = "CLEAR";
@@ -48,6 +61,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Father phone",
     group: "contact",
     column: "primary_phone",
+    target: "students",
     kind: "phone",
     clearable: true,
     affectsFees: false,
@@ -58,6 +72,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Mother phone",
     group: "contact",
     column: "secondary_phone",
+    target: "students",
     kind: "phone",
     clearable: true,
     affectsFees: false,
@@ -68,6 +83,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Father name",
     group: "contact",
     column: "father_name",
+    target: "students",
     kind: "text",
     clearable: true,
     affectsFees: false,
@@ -78,6 +94,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Mother name",
     group: "contact",
     column: "mother_name",
+    target: "students",
     kind: "text",
     clearable: true,
     affectsFees: false,
@@ -88,6 +105,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Email",
     group: "contact",
     column: "email",
+    target: "students",
     kind: "email",
     clearable: true,
     affectsFees: false,
@@ -98,6 +116,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Date of birth",
     group: "contact",
     column: "date_of_birth",
+    target: "students",
     kind: "date",
     clearable: true,
     affectsFees: false,
@@ -108,6 +127,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Address",
     group: "contact",
     column: "address",
+    target: "students",
     kind: "text",
     clearable: true,
     affectsFees: false,
@@ -118,6 +138,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Class",
     group: "placement",
     column: "class_id",
+    target: "students",
     kind: "class",
     // class_id is NOT NULL — a student always belongs to a class.
     clearable: false,
@@ -129,6 +150,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Transport route",
     group: "placement",
     column: "transport_route_id",
+    target: "students",
     kind: "route",
     clearable: true,
     affectsFees: true,
@@ -139,6 +161,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     header: "Record status",
     group: "placement",
     column: "status",
+    target: "students",
     kind: "status",
     // status is NOT NULL and enum-typed.
     clearable: false,
@@ -146,10 +169,25 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     hint: STUDENT_STATUSES.map((item) => item.label).join(" / "),
   },
   {
+    key: "studentType",
+    header: "New/Old",
+    group: "feeProfile",
+    column: "student_type_override",
+    // The only field that does not live on `students`.
+    target: "feeOverride",
+    kind: "studentType",
+    // A student is always one or the other; there is no "unset" that the fee
+    // engine could read, and a missing override row silently bills as Existing.
+    clearable: false,
+    affectsFees: true,
+    hint: "New = first year at the school. Existing = continuing student.",
+  },
+  {
     key: "notes",
     header: "Notes",
     group: "notes",
     column: "notes",
+    target: "students",
     kind: "text",
     clearable: true,
     affectsFees: false,
@@ -171,6 +209,12 @@ export const BULK_UPDATE_FIELD_GROUPS: ReadonlyArray<{
     group: "placement",
     label: "Class, route and status",
     description: "Changing these recalculates dues for the students that actually change.",
+  },
+  {
+    group: "feeProfile",
+    label: "New / Old student",
+    description:
+      "Sets the academic fee: ₹1,100 for a new admission, ₹500 for a continuing student. Changes here move money.",
   },
   { group: "notes", label: "Notes", description: "Free-text office notes." },
 ];

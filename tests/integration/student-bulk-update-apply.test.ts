@@ -47,7 +47,12 @@ function row(overrides: Partial<import("@/lib/students/bulk-update/diff").BulkUp
   } as import("@/lib/students/bulk-update/diff").BulkUpdateRowResult;
 }
 
-function change(column: string, toValue: string | null, affectsFees = false) {
+function change(
+  column: string,
+  toValue: string | null,
+  affectsFees = false,
+  target: "students" | "feeOverride" = "students",
+) {
   return {
     fieldKey: column,
     header: column,
@@ -55,6 +60,7 @@ function change(column: string, toValue: string | null, affectsFees = false) {
     toLabel: toValue ?? "—",
     toValue,
     column,
+    target,
     affectsFees,
   };
 }
