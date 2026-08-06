@@ -102,7 +102,7 @@ export function BatchUploadCard({
               validate rows and generate dues.
             </p>
           </div>
-          <Button type="submit" disabled={!canManage || submitting}>
+          <Button type="submit" disabled={!canManage || submitting} loading={submitting}>
             {submitting ? "Uploading..." : "Upload file"}
           </Button>
         </div>

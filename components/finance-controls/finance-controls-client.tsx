@@ -9,6 +9,7 @@ import {
   MobileRecordCard,
 } from "@/components/mobile-app/mobile-kit";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -114,26 +115,24 @@ function RefundRowActions({
             <input type="hidden" name="workflowAction" value="approve_refund" />
             <input type="hidden" name="refundRequestId" value={row.refundRequestId} />
             <input type="hidden" name="refundStatus" value="approved" />
-            <Button
-              type="submit"
+            <PendingSubmitButton
               size="sm"
               className="h-11 w-full bg-success text-success-foreground hover:bg-success/90 sm:h-8 sm:w-auto"
             >
               Approve
-            </Button>
+            </PendingSubmitButton>
           </form>
           <form action={formAction} className="contents sm:block">
             <input type="hidden" name="workflowAction" value="reject_refund" />
             <input type="hidden" name="refundRequestId" value={row.refundRequestId} />
             <input type="hidden" name="refundStatus" value="rejected" />
-            <Button
-              type="submit"
+            <PendingSubmitButton
               size="sm"
               variant="outline"
               className="h-11 w-full border-destructive/40 text-destructive hover:bg-destructive-soft sm:h-8 sm:w-auto"
             >
               Reject
-            </Button>
+            </PendingSubmitButton>
           </form>
         </div>
       ) : (
@@ -141,9 +140,9 @@ function RefundRowActions({
           <input type="hidden" name="workflowAction" value="process_refund" />
           <input type="hidden" name="refundRequestId" value={row.refundRequestId} />
           <input type="hidden" name="refundStatus" value="processed" />
-          <Button type="submit" size="sm">
+          <PendingSubmitButton size="sm">
             Mark processed
-          </Button>
+          </PendingSubmitButton>
         </form>
       )}
     </div>
@@ -191,9 +190,7 @@ function CorrectionReviewActions({
         </div>
       </div>
       <div className="flex items-center justify-end">
-        <Button type="submit" size="sm">
-          Save review
-        </Button>
+        <PendingSubmitButton size="sm">Save review</PendingSubmitButton>
       </div>
     </form>
   );

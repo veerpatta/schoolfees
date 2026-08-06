@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Button } from "@/components/ui/button";
@@ -87,7 +88,7 @@ export default async function FinanceControlsPage({ searchParams }: FinanceContr
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="submit">Load day</Button>
+            <PendingSubmitButton>Load day</PendingSubmitButton>
             <Button asChild variant="outline">
               <Link href={withSession("/protected/finance-controls")}>Today</Link>
             </Button>

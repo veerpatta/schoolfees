@@ -145,7 +145,7 @@ function RowReviewForm({
             placeholder="Reason or follow-up note"
           />
         </div>
-        <Button type="submit" disabled={!canManage || row.status === "imported" || submitting}>
+        <Button type="submit" disabled={!canManage || row.status === "imported" || submitting} loading={submitting}>
           {submitting ? "Saving..." : "Save review"}
         </Button>
       </div>

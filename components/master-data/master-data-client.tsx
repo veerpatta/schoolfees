@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -312,7 +313,7 @@ export function MasterDataClient({
             <Label htmlFor="newSessionNotes">Notes</Label>
             <Input id="newSessionNotes" name="sessionNotes" className="mt-1" />
           </div>
-          <Button type="submit" className="md:col-span-5 w-fit">Add session</Button>
+          <PendingSubmitButton className="md:col-span-5 w-fit">Add session</PendingSubmitButton>
         </form>
 
         <div className="max-h-[28rem] space-y-3 overflow-auto pr-1">
@@ -352,7 +353,7 @@ export function MasterDataClient({
                     <Input name="sessionNotes" defaultValue={session.notes ?? ""} className="mt-1" />
                   </div>
                   <div className="flex flex-wrap gap-2 md:col-span-5">
-                    <Button type="submit">Save session</Button>
+                    <PendingSubmitButton>Save session</PendingSubmitButton>
                   </div>
                 </form>
                 <form
@@ -377,7 +378,7 @@ export function MasterDataClient({
                   }}
                 >
                   <input type="hidden" name="sessionId" value={session.id} />
-                  <Button type="submit" variant="outline">Delete session</Button>
+                  <PendingSubmitButton variant="outline">Delete session</PendingSubmitButton>
                 </form>
                 {!session.is_current ? (
                   <form
@@ -395,7 +396,7 @@ export function MasterDataClient({
                   >
                     <input type="hidden" name="sessionLabel" value={session.session_label} />
                     <input type="hidden" name="confirmSessionLabel" value={session.session_label} />
-                    <Button type="submit" variant="outline">Make this the live session</Button>
+                    <PendingSubmitButton variant="outline">Make this the live session</PendingSubmitButton>
                   </form>
                 ) : null}
               </div>
@@ -467,7 +468,7 @@ export function MasterDataClient({
             <Label>Notes</Label>
             <Input name="classNotes" className="mt-1" />
           </div>
-          <Button type="submit" className="md:col-span-6 w-fit">Add class</Button>
+          <PendingSubmitButton className="md:col-span-6 w-fit">Add class</PendingSubmitButton>
         </form>
 
         <div className="max-h-[32rem] space-y-3 overflow-auto pr-1">
@@ -515,10 +516,10 @@ export function MasterDataClient({
                     <Input name="classNotes" defaultValue={item.notes ?? ""} className="mt-1" />
                   </div>
                   <div className="flex flex-wrap gap-2 md:col-span-6">
-                    <Button type="submit">Save class</Button>
-                    <Button type="submit" variant="outline" formAction={deleteClassFormAction}>
+                    <PendingSubmitButton>Save class</PendingSubmitButton>
+                    <PendingSubmitButton variant="outline" formAction={deleteClassFormAction}>
                       Delete class
-                    </Button>
+                    </PendingSubmitButton>
                   </div>
                 </form>
               </div>
@@ -577,7 +578,7 @@ export function MasterDataClient({
             <Label>Notes</Label>
             <Input name="routeNotes" className="mt-1" />
           </div>
-          <Button type="submit" className="md:col-span-5 w-fit">Add route</Button>
+          <PendingSubmitButton className="md:col-span-5 w-fit">Add route</PendingSubmitButton>
         </form>
 
         <div className="max-h-[32rem] space-y-3 overflow-auto pr-1">
@@ -625,10 +626,10 @@ export function MasterDataClient({
                     <Input name="routeNotes" defaultValue={item.notes ?? ""} className="mt-1" />
                   </div>
                   <div className="flex flex-wrap gap-2 md:col-span-5">
-                    <Button type="submit">Save route</Button>
-                    <Button type="submit" variant="outline" formAction={deleteRouteFormAction}>
+                    <PendingSubmitButton>Save route</PendingSubmitButton>
+                    <PendingSubmitButton variant="outline" formAction={deleteRouteFormAction}>
                       Delete route
-                    </Button>
+                    </PendingSubmitButton>
                   </div>
                 </form>
               </div>
@@ -660,7 +661,7 @@ export function MasterDataClient({
             <Label htmlFor="feeHeadLabel">Fee head label</Label>
             <Input id="feeHeadLabel" name="feeHeadLabel" className="mt-1" placeholder="Lab fee" required />
           </div>
-          <Button type="submit" className="w-fit">Add fee head</Button>
+          <PendingSubmitButton className="w-fit">Add fee head</PendingSubmitButton>
         </form>
 
         {feeHeads.length === 0 ? (
@@ -690,12 +691,12 @@ export function MasterDataClient({
                     </select>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="submit">Save</Button>
+                    <PendingSubmitButton>Save</PendingSubmitButton>
                   </div>
                 </form>
                 <form action={deleteFeeHeadFormAction} className="mt-2">
                   <input type="hidden" name="feeHeadId" value={item.id} />
-                  <Button type="submit" variant="outline">Delete</Button>
+                  <PendingSubmitButton variant="outline">Delete</PendingSubmitButton>
                 </form>
               </div>
             ))}
@@ -729,9 +730,9 @@ export function MasterDataClient({
                 <p className="font-medium text-foreground">{item.label}</p>
                 <p className="text-xs text-muted-foreground">{item.value}</p>
               </div>
-              <Button type="submit" variant="outline">
+              <PendingSubmitButton variant="outline">
                 {item.isActive ? "Disable" : "Enable"}
-              </Button>
+              </PendingSubmitButton>
             </form>
           ))}
         </div>

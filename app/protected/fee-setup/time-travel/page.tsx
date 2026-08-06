@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { MobileRecordCard } from "@/components/mobile-app/mobile-kit";
@@ -106,7 +107,7 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
               className="mt-2 h-10"
             />
           </div>
-          <Button type="submit">{t("timeTravelLoad")}</Button>
+          <PendingSubmitButton>{t("timeTravelLoad")}</PendingSubmitButton>
         </form>
       </SectionCard>
 

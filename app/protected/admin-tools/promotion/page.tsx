@@ -1,10 +1,10 @@
+import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { MobileDesktopOnlyNotice } from "@/components/mobile-app/mobile-kit";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getNextAcademicSessionLabel } from "@/lib/config/fee-rules";
@@ -103,7 +103,7 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
             />
           </div>
           <div className="sm:col-span-2">
-            <Button type="submit">{t("promotionBuildPreview")}</Button>
+            <PendingSubmitButton>{t("promotionBuildPreview")}</PendingSubmitButton>
             <p className="mt-2 text-xs text-muted-foreground">{t("promotionBuildPreviewHint")}</p>
           </div>
         </form>
@@ -140,9 +140,9 @@ export default async function PromotionIndexPage({ searchParams }: Props) {
                       required
                     />
                   </div>
-                  <Button type="submit" variant="destructive" className="h-9">
+                  <PendingSubmitButton variant="destructive" className="h-9">
                     {t("promotionDeleteButton")}
-                  </Button>
+                  </PendingSubmitButton>
                 </form>
               </li>
             ))}

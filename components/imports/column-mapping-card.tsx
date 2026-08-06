@@ -175,7 +175,7 @@ export function ColumnMappingCard({
               ? "Required for update: Student ID or SR no. Blank update cells mean no change."
               : "Required for add: student name and class. Blank SR no gets a temporary SR no."}
           </p>
-          <Button type="submit" disabled={!canManage || isLocked || submitting}>
+          <Button type="submit" disabled={!canManage || isLocked || submitting} loading={submitting}>
             {submitting ? "Checking rows..." : "Re-check rows"}
           </Button>
         </div>

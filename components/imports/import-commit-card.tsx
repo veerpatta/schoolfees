@@ -101,7 +101,7 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
               <p className="text-sm text-info-soft-foreground">
                 {safePendingRows} valid row{safePendingRows === 1 ? " is" : "s are"} pending. Approve all safe rows in one click.
               </p>
-              <Button type="submit" size="sm" variant="outline" disabled={!canManage || approvingSafeRows}>
+              <Button type="submit" size="sm" variant="outline" disabled={!canManage || approvingSafeRows} loading={approvingSafeRows}>
                 {approvingSafeRows ? "Approving..." : "Approve all safe rows"}
               </Button>
             </div>
@@ -123,7 +123,7 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
                   Resume retries them; already-imported rows are skipped.
                 </p>
               </div>
-              <Button type="submit" size="sm" variant="outline" disabled={!canManage || resuming}>
+              <Button type="submit" size="sm" variant="outline" disabled={!canManage || resuming} loading={resuming}>
                 {resuming
                   ? "Resuming..."
                   : firstFailedRowIndex !== null
@@ -163,6 +163,7 @@ export function ImportCommitCard({ batch, canManage, mode }: ImportCommitCardPro
             <Button
               type="submit"
               disabled={!canManage || !hasApprovedRows || isLocked || submitting}
+              loading={submitting}
             >
               {submitting
                 ? isPartiallyImported

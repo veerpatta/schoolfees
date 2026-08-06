@@ -210,21 +210,13 @@ describe("fire-and-forget action forms report their result", () => {
 
 /**
  * Forms the user can submit twice because nothing shows the first submit
- * registered. Phase 2 of the smoothness work empties this list; it must only
- * ever shrink.
- *
- * The imports/* cards each track their own `submitting` boolean and swap the
- * button label, so they are not silent — they simply lack a spinner. They stay
- * listed so the gap is visible rather than quietly accepted.
+ * registered. This list must only ever shrink.
  */
 const PENDING_KNOWN_GAPS: string[] = [
+  // The per-entry decision <select> submits its own tiny form inside a wide
+  // table of them. A spinner per row would be noise; the redirect and the
+  // FlashNotice are the signal.
   "app/protected/admin-tools/promotion/[runId]/page.tsx",
-  "app/protected/admin-tools/promotion/page.tsx",
-  "components/imports/batch-upload-card.tsx",
-  "components/imports/column-mapping-card.tsx",
-  "components/imports/duplicate-audit-panel.tsx",
-  "components/imports/import-commit-card.tsx",
-  "components/imports/row-detail-card.tsx",
 ];
 
 describe("fire-and-forget action forms show they are working", () => {

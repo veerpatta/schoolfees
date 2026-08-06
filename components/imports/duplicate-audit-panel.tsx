@@ -128,7 +128,7 @@ function RowChoice({
           <input type="hidden" name="rowId" value={row.rowId} />
           <input type="hidden" name="importMode" value={mode} />
           <input type="hidden" name="decision" value="mark_duplicate" />
-          <Button type="submit" size="sm" variant="outline" disabled={!canManage || busy}>
+          <Button type="submit" size="sm" variant="outline" disabled={!canManage || busy} loading={busy}>
             Mark as duplicate (skip)
           </Button>
         </form>
@@ -138,7 +138,7 @@ function RowChoice({
           <input type="hidden" name="rowId" value={row.rowId} />
           <input type="hidden" name="importMode" value={mode} />
           <input type="hidden" name="decision" value="proceed_new" />
-          <Button type="submit" size="sm" variant="ghost" disabled={!canManage || busy}>
+          <Button type="submit" size="sm" variant="ghost" disabled={!canManage || busy} loading={busy}>
             Proceed as new
           </Button>
         </form>
@@ -149,7 +149,7 @@ function RowChoice({
             <input type="hidden" name="rowId" value={row.rowId} />
             <input type="hidden" name="importMode" value={mode} />
             <input type="hidden" name="decision" value="clear" />
-            <Button type="submit" size="sm" variant="ghost" disabled={!canManage || busy}>
+            <Button type="submit" size="sm" variant="ghost" disabled={!canManage || busy} loading={busy}>
               Reset decision
             </Button>
           </form>
