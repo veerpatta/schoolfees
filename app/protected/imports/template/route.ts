@@ -2,6 +2,7 @@ import type { UpdateTemplateStudent } from "@/lib/import/templates";
 import { getConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
 import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
 import { getMasterDataOptions } from "@/lib/master-data/data";
+import { compareStudentRowsByName } from "@/lib/students/sort";
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
 
@@ -89,6 +90,9 @@ async function buildUpdateRows(sessionLabel: string | null): Promise<UpdateTempl
   );
 
   return ((students ?? []) as StudentExportRow[])
+    // Same A-Z rule as every other downloadable student list, applied in JS so
+    // it does not shift with the database collation.
+    .sort(compareStudentRowsByName)
     .filter((student) => {
       if (!sessionLabel) {
         return true;

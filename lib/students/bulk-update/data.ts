@@ -6,6 +6,7 @@ import {
   type BulkUpdateSnapshotStudent,
 } from "@/lib/students/bulk-update/diff";
 import type { BulkUpdateField } from "@/lib/students/bulk-update/fields";
+import { compareStudentRowsByName } from "@/lib/students/sort";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -163,13 +164,14 @@ export async function loadBulkUpdateSnapshot(classIds: readonly string[]) {
     .from("students")
     .select(SNAPSHOT_COLUMNS)
     .in("class_id", classIds)
-    .order("admission_no", { ascending: true });
+    .order("full_name", { ascending: true });
 
   if (error) {
     throw new Error(`Unable to load students for these classes: ${error.message}`);
   }
 
-  const rows = (data ?? []) as StudentSnapshotRow[];
+  // Re-sorted in JS so the order does not depend on the database collation.
+  const rows = ((data ?? []) as StudentSnapshotRow[]).sort(compareStudentRowsByName);
 
   if (rows.length === 0) {
     return [] as BulkUpdateSnapshotStudent[];
