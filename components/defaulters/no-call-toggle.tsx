@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { BellOff, Loader2 } from "lucide-react";
 
 import { setNoCallFlagAction } from "@/app/protected/defaulters/actions";
+import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -60,8 +61,16 @@ export function NoCallToggle({
     startTransition(async () => {
       const result = await setNoCallFlagAction({ studentId, sessionLabel, noCall: next });
       if (!result.ok) {
+        // The error used to live only in the title= tooltip, which nobody sees
+        // without hovering — and never on a phone at all. Keep the tooltip,
+        // but say it out loud too, since the toggle visibly snaps back.
         setError(result.message ?? t("noCallError"));
         onRevert?.(noCall);
+        toast({
+          title: t("noCallError"),
+          description: result.message ?? undefined,
+          tone: "danger",
+        });
       }
     });
   }

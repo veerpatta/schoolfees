@@ -160,7 +160,10 @@ export async function updatePromotionEntryDecisionAction(formData: FormData) {
       decision: decisionRaw as PromotionEntryDecision,
     });
     revalidatePath(`/protected/admin-tools/promotion/${runId}`);
-    redirect(`/protected/admin-tools/promotion/${runId}`);
+    // ?done= so the run page can confirm the save. Without it the dropdown
+    // simply re-rendered and there was no way to tell a saved decision from
+    // one that never took.
+    redirect(`/protected/admin-tools/promotion/${runId}?done=entryDecisionSaved`);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to update decision.";

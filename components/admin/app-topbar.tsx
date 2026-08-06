@@ -4,11 +4,12 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ChevronDown, KeyRound, LogOut, UserRound } from "lucide-react";
+import { ChevronDown, KeyRound, UserRound } from "lucide-react";
 
 import { roleLabels, type StaffRole } from "@/lib/auth/roles";
 import { getProtectedRouteMeta } from "@/lib/config/navigation";
 import { appendCurrentSessionParam } from "@/lib/navigation/session-href";
+import { SignOutSubmit } from "@/components/auth/sign-out-submit";
 import { logoutAction } from "@/app/auth/login/actions";
 import {
   DropdownMenu,
@@ -129,13 +130,9 @@ export function AppTopBar({
               <DropdownMenuSeparator />
               <form action={logoutAction}>
                 <DropdownMenuItem asChild>
-                  <button
-                    type="submit"
-                    className="flex w-full items-center gap-2 text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="size-4" aria-hidden="true" />
+                  <SignOutSubmit className="flex w-full items-center gap-2 text-destructive focus:text-destructive">
                     Sign out
-                  </button>
+                  </SignOutSubmit>
                 </DropdownMenuItem>
               </form>
             </DropdownMenuContent>
@@ -222,13 +219,9 @@ export function MobileHeader({
             <DropdownMenuSeparator />
             <form action={logoutAction}>
               <DropdownMenuItem asChild>
-                <button
-                  type="submit"
-                  className="flex w-full items-center gap-2 text-destructive focus:text-destructive"
-                >
-                  <LogOut className="size-4" aria-hidden="true" />
+                <SignOutSubmit className="flex w-full items-center gap-2 text-destructive focus:text-destructive">
                   Sign out
-                </button>
+                </SignOutSubmit>
               </DropdownMenuItem>
             </form>
           </DropdownMenuContent>

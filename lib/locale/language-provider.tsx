@@ -11,6 +11,7 @@ import {
 } from "react";
 import { NextIntlClientProvider } from "next-intl";
 
+import { toast } from "@/components/ui/toast";
 import { type AppLocale, supportedLocales } from "@/i18n/locales";
 import { setLocaleAction } from "@/lib/locale/actions";
 
@@ -69,9 +70,22 @@ export function LanguageProvider({
     (next: AppLocale) => {
       if (next === locale) return;
       if (!(supportedLocales as readonly string[]).includes(next)) return;
+      const previous = locale;
       setLocaleState(next);
-      startTransition(() => {
-        void setLocaleAction(next);
+      startTransition(async () => {
+        try {
+          await setLocaleAction(next);
+        } catch {
+          // The language flipped locally but never persisted, so it would
+          // silently revert on the next page load. Put it back and say so
+          // rather than let the user discover it later.
+          setLocaleState(previous);
+          toast({
+            title: "Language not saved",
+            description: "The app language could not be changed. Please try again.",
+            tone: "danger",
+          });
+        }
       });
     },
     [locale],

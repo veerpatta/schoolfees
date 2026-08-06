@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { FlashNotice } from "@/components/admin/flash-notice";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { MobileDesktopOnlyNotice } from "@/components/mobile-app/mobile-kit";
@@ -114,6 +115,15 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
           target: run.targetSessionLabel,
         })}
         reason="Reviewing and overriding each student's promotion decision is a wide table. Open this run on a computer where you can see the whole class at once."
+      />
+
+      {/* Per-entry decision saves end in a redirect, so there is no action
+          state to render. FlashNotice turns ?done= into a toast, then strips
+          the param so a reload does not replay it. */}
+      <FlashNotice
+        messages={{
+          entryDecisionSaved: { title: "Decision saved", tone: "success" },
+        }}
       />
 
       {resolved?.error ? (

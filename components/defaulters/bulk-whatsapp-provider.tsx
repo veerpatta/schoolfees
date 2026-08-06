@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+
+import { toast } from "@/components/ui/toast";
 import { useTranslations } from "next-intl";
 import { MessageSquare, X } from "lucide-react";
 
@@ -152,11 +154,29 @@ export function BulkWhatsappProvider({ rows, templates, children, sessionLabel }
 
     if (sessionLabel && sentIds.length > 0) {
       startTransition(async () => {
-        await logWhatsAppSendAttempts({
+        // The result used to be discarded entirely, so a follow-up that failed
+        // to log looked identical to one that saved.
+        const result = await logWhatsAppSendAttempts({
           sessionLabel,
           studentIds: sentIds,
           templateName: activeTemplate.name,
         });
+
+        if (result.ok) {
+          toast({
+            title: "Follow-up logged",
+            description: `${sentIds.length} student${sentIds.length === 1 ? "" : "s"} recorded.`,
+            tone: "success",
+          });
+        } else {
+          toast({
+            title: "Follow-up not logged",
+            description:
+              result.message ?? "The messages were sent, but the log could not be saved.",
+            tone: "danger",
+          });
+        }
+
         router.refresh();
       });
     }

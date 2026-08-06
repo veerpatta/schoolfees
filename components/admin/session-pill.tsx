@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/toast";
 import {
   isTestAcademicSessionLabel,
   parseAcademicSessionLabel,
@@ -319,12 +320,25 @@ export function SessionPill({
         } else {
           // Nothing was navigated, so there is no URL to walk back — just drop
           // the optimistic label and let the pill show the truth again.
+          // Silently reverting was the bug: the label snapped back to the old
+          // session with no explanation, which reads as the pill ignoring you.
           sessionSyncGuard.label = null;
           setOptimisticLabel(null);
+          toast({
+            title: "Could not switch session",
+            description: `${label} could not be opened. You are still on ${currentLabel}.`,
+            tone: "danger",
+          });
         }
-      } catch {
+      } catch (error) {
         sessionSyncGuard.label = null;
         setOptimisticLabel(null);
+        toast({
+          title: "Could not switch session",
+          description:
+            error instanceof Error ? error.message : `You are still on ${currentLabel}.`,
+          tone: "danger",
+        });
       } finally {
         // Cleared HERE, not synchronously after startNavTransition. React
         // batches a set(true)/set(false) pair in the same handler, so the old

@@ -11,6 +11,7 @@ import {
 import { releaseAllSheetScrollLocks, Sheet } from "@/components/ui/sheet";
 import type { AvailableSessionRow } from "@/lib/session/available-sessions";
 import { useSessionSwitching } from "@/lib/session/switching-context";
+import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 import {
@@ -163,12 +164,25 @@ export function MobileSessionPill({
             router.replace(confirmedHref, { scroll: false });
           });
         } else {
+          // Same rule as the desktop pill: a silent revert reads as the pill
+          // ignoring the tap.
           sessionSyncGuard.label = null;
           setOptimisticLabel(null);
+          toast({
+            title: "Could not switch session",
+            description: `${label} could not be opened. You are still on ${currentLabel}.`,
+            tone: "danger",
+          });
         }
-      } catch {
+      } catch (error) {
         sessionSyncGuard.label = null;
         setOptimisticLabel(null);
+        toast({
+          title: "Could not switch session",
+          description:
+            error instanceof Error ? error.message : `You are still on ${currentLabel}.`,
+          tone: "danger",
+        });
       } finally {
         // Cleared here rather than synchronously after startNavTransition:
         // React batches a set(true)/set(false) pair in one handler, so the old

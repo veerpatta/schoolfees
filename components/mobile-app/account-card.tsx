@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { KeyRound, LogOut, UserRound } from "lucide-react";
+import { KeyRound, UserRound } from "lucide-react";
 
+import { SignOutSubmit } from "@/components/auth/sign-out-submit";
 import { logoutAction } from "@/app/auth/login/actions";
 import { IconTile, MobileRow } from "@/components/mobile-app/mobile-kit";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -77,13 +78,9 @@ export function MobileAccountCard({
       </div>
 
       <form action={logoutAction}>
-        <button
-          type="submit"
-          className="focus-ring flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-destructive/40 bg-card px-4 text-[13.5px] font-extrabold text-destructive transition-colors active:bg-destructive-soft"
-        >
-          <LogOut className="size-4" aria-hidden="true" />
+        <SignOutSubmit className="focus-ring flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-destructive/40 bg-card px-4 text-[13.5px] font-extrabold text-destructive transition-colors active:bg-destructive-soft">
           {t("signOut")}
-        </button>
+        </SignOutSubmit>
       </form>
     </div>
   );

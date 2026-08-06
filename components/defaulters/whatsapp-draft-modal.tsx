@@ -7,6 +7,7 @@ import { Check, Copy, MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { toast } from "@/components/ui/toast";
 import { UpiQrCode } from "@/components/payments/upi-qr-code";
 import { schoolProfile } from "@/lib/config/school";
 import { formatInr } from "@/lib/helpers/currency";
@@ -84,7 +85,16 @@ export function WhatsAppDraftModal({
       if (result.ok) {
         setLogged(true);
         router.refresh();
+        return;
       }
+
+      // No else branch before: a failed log left the row looking unlogged with
+      // no reason given, so staff could not tell it from one never attempted.
+      toast({
+        title: "Follow-up not logged",
+        description: result.message ?? "The message was sent, but the log could not be saved.",
+        tone: "danger",
+      });
     });
   }
 
