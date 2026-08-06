@@ -200,6 +200,11 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
                   {t("addStudent")}
                 </Link>
               </Button>
+              <Button asChild variant="outline">
+                <Link href={withSession("/protected/students/bulk-update")}>
+                  {t("bulkUpdate")}
+                </Link>
+              </Button>
               <StudentBulkImportDialogTrigger
                 sessionOptions={sessionOptions}
                 defaultSessionLabel={filters.sessionLabel}

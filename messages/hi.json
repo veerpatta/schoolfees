@@ -1019,6 +1019,7 @@
     "title": "बच्चे",
     "description": "बच्चे जोड़ें, खोजें, एक साथ अपडेट करें और फीस अपवादों की समीक्षा करें।",
     "addStudent": "बच्चा जोड़ें",
+    "bulkUpdate": "एक साथ अपडेट",
     "templatesMenuAria": "और टेम्पलेट",
     "templatesMenuLabel": "टेम्पलेट",
     "downloadAddTemplate": "बच्चे जोड़ने का टेम्पलेट",

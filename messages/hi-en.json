@@ -1019,6 +1019,7 @@
     "title": "Bachhe",
     "description": "Bachhe add karo, khojo, ek saath update karo aur fee exceptions ki review karo.",
     "addStudent": "Bachha add karo",
+    "bulkUpdate": "Ek saath update",
     "templatesMenuAria": "Aur templates",
     "templatesMenuLabel": "Templates",
     "downloadAddTemplate": "Add template download",

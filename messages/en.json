@@ -1019,6 +1019,7 @@
     "title": "Students",
     "description": "Add, search, bulk update, and review student-specific fee exceptions.",
     "addStudent": "Add Student",
+    "bulkUpdate": "Bulk update",
     "templatesMenuAria": "More templates",
     "templatesMenuLabel": "Templates",
     "downloadAddTemplate": "Download Add Template",
