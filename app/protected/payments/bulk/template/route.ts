@@ -1,5 +1,4 @@
-import { workbookToXlsxBuffer } from "@/lib/import/templates";
-import { buildPaymentImportTemplateWorkbook } from "@/lib/payments/bulk/template";
+import { buildPaymentImportTemplateFile } from "@/lib/payments/bulk/template";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 
 export async function GET() {
@@ -8,8 +7,7 @@ export async function GET() {
     return new Response("Forbidden", { status: 403 });
   }
 
-  const workbook = await buildPaymentImportTemplateWorkbook();
-  const buffer = await workbookToXlsxBuffer(workbook);
+  const buffer = await buildPaymentImportTemplateFile();
 
   return new Response(new Uint8Array(buffer), {
     headers: {

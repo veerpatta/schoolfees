@@ -148,16 +148,18 @@ export async function GET(request: Request) {
     label: item.routeCode ? `${item.label} (${item.routeCode})` : item.label,
   }));
 
+  const conventionalPolicies = targetSessionLabel
+    ? (await getConventionalDiscountPolicies(targetSessionLabel))
+        .filter((item) => item.isActive)
+        .map((item) => ({ label: item.displayName }))
+    : [];
+
+  // The *File builders write the workbook and then stamp the dropdowns onto the
+  // zip — SheetJS cannot emit data validations on its own.
   if (mode === "update") {
-    const { buildUpdateStudentsTemplateWorkbook, workbookToXlsxBuffer } = await import(
-      "@/lib/import/templates"
-    );
-    const conventionalPolicies = targetSessionLabel
-      ? (await getConventionalDiscountPolicies(targetSessionLabel))
-          .filter((item) => item.isActive)
-          .map((item) => ({ label: item.displayName }))
-      : [];
-    const workbook = await buildUpdateStudentsTemplateWorkbook(
+    const { buildUpdateStudentsTemplateFile } = await import("@/lib/import/templates");
+
+    const buffer = await buildUpdateStudentsTemplateFile(
       await buildUpdateRows(normalizedSessionLabel),
       {
         classes: classesForTemplate.map((item) => ({ label: item.label })),
@@ -165,16 +167,15 @@ export async function GET(request: Request) {
         conventionalPolicies,
       },
     );
-    return xlsxResponse(await workbookToXlsxBuffer(workbook), "student-update-template.xlsx");
+    return xlsxResponse(buffer, "student-update-template.xlsx");
   }
 
-  const { buildAddStudentsTemplateWorkbook, workbookToXlsxBuffer } = await import(
-    "@/lib/import/templates"
-  );
-  const workbook = await buildAddStudentsTemplateWorkbook(
+  const { buildAddStudentsTemplateFile } = await import("@/lib/import/templates");
+  const buffer = await buildAddStudentsTemplateFile(
     classesForTemplate.map((item) => ({ label: item.label })),
     routesForTemplate,
+    conventionalPolicies,
   );
 
-  return xlsxResponse(await workbookToXlsxBuffer(workbook), "student-add-template.xlsx");
+  return xlsxResponse(buffer, "student-add-template.xlsx");
 }

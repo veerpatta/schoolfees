@@ -1,3 +1,5 @@
+import { applyListValidations, type ListValidation } from "@/lib/excel/data-validation";
+
 export type ImportTemplateOption = {
   label: string;
 };
@@ -114,6 +116,112 @@ function setSheetLayout(
   sheet["!freeze"] = { xSplit: 0, ySplit: 1 };
 }
 
+export const LISTS_SHEET_NAME = "Current Lists";
+export const ADD_TEMPLATE_SHEET_NAME = "Fill Students Here";
+export const UPDATE_TEMPLATE_SHEET_NAME = "Update Students Here";
+
+/**
+ * Rows a dropdown covers. Generous on purpose: staff paste extra rows below the
+ * pre-filled ones and the dropdown has to reach them too.
+ */
+const DROPDOWN_LAST_ROW = 2000;
+
+/** Column positions on the "Current Lists" sheet, 1-based. */
+const LIST_COLUMNS = {
+  classes: 1,
+  routes: 2,
+  newOld: 3,
+  conventionalPolicies: 4,
+} as const;
+
+/**
+ * Builds the dropdown spec for a student template. Each list points at its own
+ * exact range rather than one padded block, otherwise the shorter lists show a
+ * tail of blank entries in the dropdown.
+ *
+ * A list with no entries is skipped: an empty range is not a valid source and
+ * would make Excel report the file as corrupt.
+ */
+function buildStudentTemplateValidations(payload: {
+  sheetName: string;
+  columns: { class: number; route: number; newOld: number; policy1: number; policy2: number };
+  classes: readonly ImportTemplateOption[];
+  routes: readonly ImportTemplateOption[];
+  conventionalPolicies: readonly ImportTemplateOption[];
+  lastRow: number;
+}): ListValidation[] {
+  const shared = {
+    sheetName: payload.sheetName,
+    sourceSheetName: LISTS_SHEET_NAME,
+    sourceFirstRow: 2,
+    targetFirstRow: 2,
+    targetLastRow: payload.lastRow,
+  };
+
+  const validations: ListValidation[] = [];
+
+  if (payload.classes.length > 0) {
+    validations.push({
+      ...shared,
+      sourceColumn: LIST_COLUMNS.classes,
+      sourceLastRow: payload.classes.length + 1,
+      targetColumn: payload.columns.class,
+      definedName: "VPPS_Classes",
+      prompt: "Pick a class that exists in this academic session.",
+      error: "That class is not in the school's class list for this session.",
+      strict: true,
+    });
+  }
+
+  if (payload.routes.length > 0) {
+    validations.push({
+      ...shared,
+      sourceColumn: LIST_COLUMNS.routes,
+      sourceLastRow: payload.routes.length + 1,
+      targetColumn: payload.columns.route,
+      definedName: "VPPS_Routes",
+      prompt: "Pick a transport route, or leave blank for no transport.",
+      error: "That route is not in the school's route list.",
+    });
+  }
+
+  validations.push({
+    ...shared,
+    sourceColumn: LIST_COLUMNS.newOld,
+    sourceLastRow: 3, // exactly two values: New, Existing
+    targetColumn: payload.columns.newOld,
+    definedName: "VPPS_StudentType",
+    prompt: "New = first year at the school. Existing = continuing student.",
+    error: "Type must be New or Existing.",
+    strict: true,
+  });
+
+  if (payload.conventionalPolicies.length > 0) {
+    validations.push(
+      {
+        ...shared,
+        sourceColumn: LIST_COLUMNS.conventionalPolicies,
+        sourceLastRow: payload.conventionalPolicies.length + 1,
+        targetColumn: payload.columns.policy1,
+        definedName: "VPPS_Policies1",
+        prompt: "Pick an active discount policy, or leave blank.",
+        error: "That policy is not active for this year.",
+      },
+      {
+        ...shared,
+        sourceColumn: LIST_COLUMNS.conventionalPolicies,
+        sourceLastRow: payload.conventionalPolicies.length + 1,
+        targetColumn: payload.columns.policy2,
+        definedName: "VPPS_Policies2",
+        prompt: "Second policy only if the student genuinely has two.",
+        error: "That policy is not active for this year.",
+      },
+    );
+  }
+
+  return validations;
+}
+
 function appendListsSheet(
   XLSX: XlsxModule,
   workbook: XlsxWorkBook,
@@ -135,7 +243,7 @@ function appendListsSheet(
 
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   setSheetLayout(sheet, [28, 32, 14, 28]);
-  XLSX.utils.book_append_sheet(workbook, sheet, "Current Lists");
+  XLSX.utils.book_append_sheet(workbook, sheet, LISTS_SHEET_NAME);
 }
 
 function buildUpdateInstructionsRows() {
@@ -257,6 +365,7 @@ function buildUpdateExampleRows(options: Required<UpdateTemplateWorkbookOptions>
 export async function buildAddStudentsTemplateWorkbook(
   classes: readonly ImportTemplateOption[],
   routes: readonly ImportTemplateOption[],
+  conventionalPolicies: readonly ImportTemplateOption[] = [],
 ) {
   const XLSX = await import("xlsx");
   const workbook = XLSX.utils.book_new();
@@ -265,9 +374,9 @@ export async function buildAddStudentsTemplateWorkbook(
   setSheetLayout(fillSheet, [24, 24, 16, 24, 16, 28, 14, 24, 24, 30, 30, 28]);
   setSheetLayout(exampleSheet, [26, 24, 16, 24, 16, 28, 14, 24, 24, 30, 30, 36]);
 
-  XLSX.utils.book_append_sheet(workbook, fillSheet, "Fill Students Here");
+  XLSX.utils.book_append_sheet(workbook, fillSheet, ADD_TEMPLATE_SHEET_NAME);
   XLSX.utils.book_append_sheet(workbook, exampleSheet, "Examples");
-  appendListsSheet(XLSX, workbook, classes, routes);
+  appendListsSheet(XLSX, workbook, classes, routes, conventionalPolicies);
 
   return workbook;
 }
@@ -359,7 +468,7 @@ export async function buildUpdateStudentsTemplateWorkbook(
     34,
   ]);
 
-  XLSX.utils.book_append_sheet(workbook, updateSheet, "Update Students Here");
+  XLSX.utils.book_append_sheet(workbook, updateSheet, UPDATE_TEMPLATE_SHEET_NAME);
   XLSX.utils.book_append_sheet(workbook, readMeSheet, "Read Me");
   XLSX.utils.book_append_sheet(workbook, exampleSheet, "Examples");
   appendListsSheet(
@@ -380,4 +489,60 @@ export async function workbookToXlsxBuffer(workbook: XlsxWorkBook) {
     bookType: "xlsx",
     type: "buffer",
   }) as Buffer;
+}
+
+/**
+ * Writes a workbook and stamps the dropdowns on. SheetJS cannot emit data
+ * validations itself, so this is always a two-step: write, then patch the zip.
+ */
+export async function workbookToValidatedXlsxBuffer(
+  workbook: XlsxWorkBook,
+  validations: readonly ListValidation[],
+) {
+  const raw = await workbookToXlsxBuffer(workbook);
+
+  return Buffer.from(applyListValidations(new Uint8Array(raw), validations));
+}
+
+/** Ready-to-download Add template, dropdowns included. */
+export async function buildAddStudentsTemplateFile(
+  classes: readonly ImportTemplateOption[],
+  routes: readonly ImportTemplateOption[],
+  conventionalPolicies: readonly ImportTemplateOption[] = [],
+) {
+  const workbook = await buildAddStudentsTemplateWorkbook(classes, routes, conventionalPolicies);
+
+  return workbookToValidatedXlsxBuffer(
+    workbook,
+    buildStudentTemplateValidations({
+      sheetName: ADD_TEMPLATE_SHEET_NAME,
+      // Student name, Class, SR no, Father name, Phone, Route, New/Old, Policy 1, Policy 2, ...
+      columns: { class: 2, route: 6, newOld: 7, policy1: 8, policy2: 9 },
+      classes,
+      routes,
+      conventionalPolicies,
+      lastRow: DROPDOWN_LAST_ROW,
+    }),
+  );
+}
+
+/** Ready-to-download Update template, dropdowns included. */
+export async function buildUpdateStudentsTemplateFile(
+  rows: readonly UpdateTemplateStudent[],
+  options: UpdateTemplateWorkbookOptions = {},
+) {
+  const workbook = await buildUpdateStudentsTemplateWorkbook(rows, options);
+
+  return workbookToValidatedXlsxBuffer(
+    workbook,
+    buildStudentTemplateValidations({
+      sheetName: UPDATE_TEMPLATE_SHEET_NAME,
+      // Student ID, SR no, Student name, Class, Father name, Phone, Route, New/Old, Policy 1, Policy 2, ...
+      columns: { class: 4, route: 7, newOld: 8, policy1: 9, policy2: 10 },
+      classes: options.classes ?? [],
+      routes: options.routes ?? [],
+      conventionalPolicies: options.conventionalPolicies ?? [],
+      lastRow: Math.max(rows.length + 1, DROPDOWN_LAST_ROW),
+    }),
+  );
 }

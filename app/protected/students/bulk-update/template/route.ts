@@ -8,6 +8,7 @@ import {
 import { resolveBulkUpdateFields } from "@/lib/students/bulk-update/fields";
 import {
   buildBulkUpdateTemplateWorkbook,
+  buildBulkUpdateValidations,
   workbookToBuffer,
 } from "@/lib/students/bulk-update/workbook";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
 
   try {
     const sessionLabel = await getActiveSessionLabel();
-    const { classes, resolver } = await buildBulkUpdateLookups(sessionLabel);
+    const { classes, routes, resolver } = await buildBulkUpdateLookups(sessionLabel);
 
     // Query-string class ids are untrusted: keep them inside the active session
     // so a crafted link cannot export another year's students.
@@ -64,6 +65,11 @@ export async function GET(request: Request) {
 
     const selectedClassLabels = selected.map((item) => item.label);
 
+    // Dropdowns list every class/route in the session, not just the selected
+    // ones — the point is to move a student to another class without typing.
+    const allClassLabels = classes.map((item) => item.label);
+    const allRouteLabels = routes.map((item) => item.label);
+
     const workbook = await buildBulkUpdateTemplateWorkbook({
       students,
       fields,
@@ -72,9 +78,19 @@ export async function GET(request: Request) {
         routeLabelById: resolver.routeLabelById,
       },
       classLabels: selectedClassLabels,
+      allClassLabels,
+      allRouteLabels,
     });
 
-    const buffer = await workbookToBuffer(workbook);
+    const buffer = await workbookToBuffer(
+      workbook,
+      buildBulkUpdateValidations({
+        fields,
+        classCount: allClassLabels.length,
+        routeCount: allRouteLabels.length,
+        rowCount: students.length,
+      }),
+    );
     const stamp = new Date().toISOString().slice(0, 10);
     const filename = `bulk-update-${sessionLabel}-${stamp}.xlsx`;
 

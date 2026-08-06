@@ -13,6 +13,8 @@ describe("bulk payment workbook template", () => {
       "Read Me",
       "Examples — do not upload",
       "Field Guide",
+      // Backs the Payment mode dropdown; last so it stays out of the way.
+      "Current Lists",
     ]);
 
     const fillSheet = workbook.Sheets["Fill Payments Here"];

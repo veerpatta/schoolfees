@@ -1,3 +1,5 @@
+import { workbookToValidatedXlsxBuffer } from "@/lib/import/templates";
+
 import { PAYMENT_IMPORT_MAX_ROWS, PAYMENT_TEMPLATE_HEADERS } from "./types";
 
 type XlsxModule = typeof import("xlsx");
@@ -151,5 +153,46 @@ export async function buildPaymentImportTemplateWorkbook(): Promise<XlsxWorkBook
   fieldGuideSheet["!cols"] = [{ wch: 20 }, { wch: 14 }, { wch: 55 }, { wch: 38 }];
   XLSX.utils.book_append_sheet(workbook, fieldGuideSheet, "Field Guide");
 
+  // Backs the Payment mode dropdown. A dedicated sheet rather than reusing the
+  // Field Guide: the source range must contain the accepted values and nothing
+  // else, or blanks and prose show up inside the dropdown.
+  const listsSheet = XLSX.utils.aoa_to_sheet([
+    ["Payment modes"],
+    ...PAYMENT_MODE_OPTIONS.map((mode) => [mode]),
+  ]);
+  listsSheet["!cols"] = [{ wch: 22 }];
+  XLSX.utils.book_append_sheet(workbook, listsSheet, PAYMENT_LISTS_SHEET_NAME);
+
   return workbook;
+}
+
+export const PAYMENT_LISTS_SHEET_NAME = "Current Lists";
+export const PAYMENT_FILL_SHEET_NAME = "Fill Payments Here";
+
+/** Exactly the modes the bulk importer accepts — see docs/product/school-rules.md. */
+export const PAYMENT_MODE_OPTIONS = ["Cash", "UPI", "Bank transfer", "Cheque"] as const;
+
+/** Ready-to-download payment template, Payment mode dropdown included. */
+export async function buildPaymentImportTemplateFile() {
+  const workbook = await buildPaymentImportTemplateWorkbook();
+
+  return workbookToValidatedXlsxBuffer(workbook, [
+    {
+      sheetName: PAYMENT_FILL_SHEET_NAME,
+      sourceSheetName: PAYMENT_LISTS_SHEET_NAME,
+      sourceColumn: 1,
+      sourceFirstRow: 2,
+      sourceLastRow: PAYMENT_MODE_OPTIONS.length + 1,
+      // SR no, Amount, Payment date, Payment mode, Remarks
+      targetColumn: 4,
+      targetFirstRow: 2,
+      targetLastRow: PAYMENT_IMPORT_MAX_ROWS + 1,
+      definedName: "VPPS_PaymentModes",
+      prompt: "Cash, UPI, Bank transfer or Cheque.",
+      error: "Payment mode must be exactly Cash, UPI, Bank transfer or Cheque.",
+      // Unlike routes or classes, this list never grows at runtime, so a wrong
+      // value is always a mistake worth refusing outright.
+      strict: true,
+    },
+  ]);
 }
