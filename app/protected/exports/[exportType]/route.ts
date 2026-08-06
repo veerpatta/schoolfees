@@ -245,6 +245,58 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     ),
   ]);
 
+  // The workbook financials view carries the fee projection plus name/phone/DOB,
+  // but not the rest of the student master (address, email, joined/left dates,
+  // notes, audit stamps) or the sibling grouping. Read those straight from the
+  // source tables so the Students sheet is the whole record, not a subset.
+  const [studentDetailResult, familyMemberResult] = await Promise.all([
+    fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
+      supabase
+        .from("students")
+        .select(
+          "id, address, email, joined_on, left_on, notes, photo_path, created_at, updated_at",
+        )
+        .in("id", chunk),
+    ),
+    fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
+      supabase
+        .from("student_family_members")
+        .select(
+          "student_id, sibling_order, is_policy_candidate, manual_order_override, notes, family_ref:student_family_groups(family_label, guardian_name, guardian_phone)",
+        )
+        .eq("academic_session_label", sessionLabel)
+        .in("student_id", chunk),
+    ),
+  ]);
+
+  const studentDetailById = new Map(
+    ((studentDetailResult.data ?? []) as Array<{
+      id: string;
+      address: string | null;
+      email: string | null;
+      joined_on: string | null;
+      left_on: string | null;
+      notes: string | null;
+      photo_path: string | null;
+      created_at: string | null;
+      updated_at: string | null;
+    }>).map((row) => [row.id, row]),
+  );
+
+  const familyByStudentId = new Map(
+    ((familyMemberResult.data ?? []) as Array<{
+      student_id: string;
+      sibling_order: number | null;
+      is_policy_candidate: boolean | null;
+      manual_order_override: boolean | null;
+      notes: string | null;
+      family_ref:
+        | { family_label: string | null; guardian_name: string | null; guardian_phone: string | null }
+        | { family_label: string | null; guardian_name: string | null; guardian_phone: string | null }[]
+        | null;
+    }>).map((row) => [row.student_id, row]),
+  );
+
   const adjustments = (adjustmentsResult.data ?? []) as Array<{
     id: string;
     student_id: string;
@@ -344,9 +396,15 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `which reduces that student's applied/paid amount.`,
     ``,
     `SHEET GLOSSARY`,
-    `* Students          — EVERY student in the session (active, inactive, AND`,
-    `                      graduated — see the Status column), with class, route,`,
-    `                      phones, full fee breakdown, discount, waiver, dues.`,
+    `* Students          — EVERY student in the session (active, inactive, left`,
+    `                      AND graduated — see the Status column) and the WHOLE`,
+    `                      stored record: Student ID, SR no, name, class, route,`,
+    `                      father/mother name and phone, date of birth, email,`,
+    `                      address, joined/left dates, family + sibling grouping,`,
+    `                      notes, audit stamps, and the full fee breakdown —`,
+    `                      discount, waiver, dues, next due, status.`,
+    `                      "Student ID" is the same id the bulk update template`,
+    `                      uses, so this sheet round-trips back into an import.`,
     `* Installments      — per-student per-installment expected/paid/pending/late fee.`,
     `* Payments          — every receipt with mode, reference, total amount.`,
     `* Adjustments       — append-only corrections/reversals (refunds, write-offs,`,
@@ -397,15 +455,33 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   XLSX.utils.book_append_sheet(
     workbook,
     XLSX.utils.json_to_sheet(
-      financials.map((row) => ({
+      financials.map((row) => {
+        const detail = studentDetailById.get(row.studentId);
+        const family = familyByStudentId.get(row.studentId);
+        const familyGroup = firstOf(family?.family_ref);
+        return {
+        "Student ID": row.studentId,
         "SR no": row.admissionNo,
         "Student": row.studentName,
         "Class": row.classLabel,
         "Status": row.recordStatus,
         "Student type": row.studentStatusLabel,
         "Route": row.transportRouteName ?? "",
+        "Father name": row.fatherName ?? "",
+        "Mother name": row.motherName ?? "",
         "Father phone": row.fatherPhone ?? "",
         "Mother phone": row.motherPhone ?? "",
+        "Date of birth": row.dateOfBirth ?? "",
+        "Email": detail?.email ?? "",
+        "Address": detail?.address ?? "",
+        "Joined on": detail?.joined_on ?? "",
+        "Left on": detail?.left_on ?? "",
+        "Family group": familyGroup?.family_label ?? "",
+        "Guardian name": familyGroup?.guardian_name ?? "",
+        "Guardian phone": familyGroup?.guardian_phone ?? "",
+        "Sibling order": family?.sibling_order ?? "",
+        "Sibling policy candidate": family ? (family.is_policy_candidate ? "yes" : "no") : "",
+        "Sibling order overridden": family ? (family.manual_order_override ? "yes" : "no") : "",
         "Tuition fee": row.tuitionFee,
         "Transport fee": row.transportFee,
         "Academic fee": row.academicFee,
@@ -422,7 +498,13 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         "Next due amount": row.nextDueAmount ?? 0,
         "Last payment date": row.lastPaymentDate ?? "",
         "Status label": row.statusLabel,
-      })),
+        "Student notes": detail?.notes ?? "",
+        "Sibling notes": family?.notes ?? "",
+        "Has photo": detail?.photo_path ? "yes" : "no",
+        "Record created at": detail?.created_at ?? "",
+        "Record updated at": detail?.updated_at ?? "",
+        };
+      }),
     ),
     "Students",
   );
