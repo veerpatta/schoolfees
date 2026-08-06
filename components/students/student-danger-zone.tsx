@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
@@ -27,6 +27,7 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
   // one hidden by CSS but still in the DOM). A hardcoded id made both inputs
   // share it, so the desktop <label> focused the hidden phone input.
   const confirmFieldId = useId();
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const [archiveState, archiveFormAction, archivePending] = useActionState(
     archiveStudentAction,
@@ -89,9 +90,25 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
       : archiveState.status === "error"
         ? archiveState.message
         : null;
+  // Successes were announced only as a toast, which lasts five seconds and is
+  // easy to miss on a page that is refreshing underneath it. The outcome now
+  // also stays on the panel until the next action.
+  const successMessage =
+    archiveState.status === "success"
+      ? archiveState.message
+      : deleteState.status === "success"
+        ? deleteState.message
+        : null;
 
   return (
-    <details className="overflow-hidden rounded-lg border border-border bg-card">
+    <details
+      // Uncontrolled, this panel snapped shut on the router.refresh() that
+      // follows a withdrawal — taking the result message with it. Forcing it
+      // open whenever there is something to report keeps the outcome visible.
+      open={panelOpen || Boolean(successMessage) || Boolean(errorMessage)}
+      onToggle={(event) => setPanelOpen((event.target as HTMLDetailsElement).open)}
+      className="overflow-hidden rounded-lg border border-border bg-card"
+    >
       <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-destructive">
         {t("dangerSummary")}
       </summary>
@@ -119,6 +136,14 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
           {errorMessage ? (
             <p role="alert" className="mt-2 font-medium text-destructive">
               {errorMessage}
+            </p>
+          ) : null}
+          {successMessage ? (
+            <p
+              role="status"
+              className="mt-2 rounded-md bg-success-soft px-3 py-2 font-medium text-success-soft-foreground"
+            >
+              {successMessage}
             </p>
           ) : null}
         </div>
