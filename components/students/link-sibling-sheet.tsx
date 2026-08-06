@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Check, Loader2, Search, UserCheck, X, AlertTriangle } from "lucide-react";
 
@@ -68,6 +69,7 @@ export function LinkSiblingSheet({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     linkSiblingsAction,
     INITIAL_LINK_SIBLING_ACTION_STATE,
@@ -117,6 +119,8 @@ export function LinkSiblingSheet({
 
   useEffect(() => {
     if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
       toast({
         title: tToasts("siblingLinkedTitle"),
         description: state.message ?? "",
@@ -124,7 +128,7 @@ export function LinkSiblingSheet({
       reset();
       onClose();
     }
-  }, [state.status, state.message, onClose, reset, tToasts]);
+  }, [state.status, state.message, onClose, reset, tToasts, router]);
 
   const exclude = useMemo(
     () => new Set<string>([studentId, ...excludeStudentIds]),

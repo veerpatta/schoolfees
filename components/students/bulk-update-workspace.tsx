@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, Loader2, Upload } from "lucide-react";
 
@@ -34,8 +34,13 @@ export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWo
   const router = useRouter();
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [selectedFieldKeys, setSelectedFieldKeys] = useState<string[]>([]);
-  const [fileChosen, setFileChosen] = useState(false);
+  // React 19 resets an uncontrolled form once its action settles, which wiped
+  // the file input the moment "Check changes" returned — so Apply posted no
+  // file and demanded the same upload a second time. Holding the File here and
+  // dispatching the actions ourselves keeps one upload good for both steps.
+  const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dispatching, startDispatch] = useTransition();
 
   const [previewState, previewAction, previewPending] = useActionState(
     previewBulkUpdateAction,
@@ -96,16 +101,24 @@ export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWo
     return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
   }
 
-  const hiddenSelections = (
-    <>
-      {selectedClassIds.map((id) => (
-        <input key={id} type="hidden" name="classIds" value={id} />
-      ))}
-      {selectedFieldKeys.map((key) => (
-        <input key={key} type="hidden" name="fieldKeys" value={key} />
-      ))}
-    </>
-  );
+  /** Built from component state, so it survives the post-action form reset. */
+  function buildPayload() {
+    const payload = new FormData();
+    selectedClassIds.forEach((id) => payload.append("classIds", id));
+    selectedFieldKeys.forEach((key) => payload.append("fieldKeys", key));
+    if (file) {
+      payload.set("file", file);
+    }
+    return payload;
+  }
+
+  function runPreview() {
+    startDispatch(() => previewAction(buildPayload()));
+  }
+
+  function runApply() {
+    startDispatch(() => applyAction(buildPayload()));
+  }
 
   return (
     <div className="space-y-6">
@@ -243,23 +256,20 @@ export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWo
         {/* One form, two submit buttons: Apply re-posts the very same file so
             the server recomputes the change set against current stored values
             rather than trusting a list sent by the browser. */}
-        <form className="space-y-4">
+        <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            {hiddenSelections}
             <input
               ref={fileInputRef}
               type="file"
-              name="file"
               accept=".xlsx,.xls,.csv"
-              required
-              onChange={() => setFileChosen(Boolean(fileInputRef.current?.files?.length))}
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               className="text-sm file:mr-3 file:rounded-md file:border file:border-border-strong file:bg-card file:px-3 file:py-1.5 file:text-sm"
             />
             <Button
-              type="submit"
-              formAction={previewAction}
+              type="button"
+              onClick={runPreview}
               variant="outline"
-              disabled={previewPending || applyPending || !canDownload || !fileChosen}
+              disabled={previewPending || applyPending || dispatching || !canDownload || !file}
             >
               {previewPending ? (
                 <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
@@ -268,6 +278,11 @@ export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWo
               )}
               Check changes
             </Button>
+            {file ? (
+              <p className="text-sm text-muted-foreground">
+                {file.name} — one upload covers both checking and applying.
+              </p>
+            ) : null}
           </div>
 
           {previewState.status === "error" && previewState.message ? (
@@ -402,7 +417,11 @@ export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWo
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
-                    <Button type="submit" formAction={applyAction} disabled={applyPending}>
+                    <Button
+                      type="button"
+                      onClick={runApply}
+                      disabled={applyPending || dispatching}
+                    >
                       {applyPending ? (
                         <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
                       ) : (
@@ -421,7 +440,7 @@ export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWo
               ) : null}
             </div>
           ) : null}
-        </form>
+        </div>
 
         {applyState.status === "success" && applyState.message ? (
           <p className="mt-4 flex items-center gap-2 text-sm font-medium text-success-soft-foreground">

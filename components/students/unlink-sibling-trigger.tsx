@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Unlink, X } from "lucide-react";
 
@@ -25,6 +26,7 @@ export function UnlinkSiblingTrigger({
 }: UnlinkSiblingTriggerProps) {
   const t = useTranslations("MobileApp");
   const [confirming, setConfirming] = useState(false);
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     unlinkSiblingAction,
     INITIAL_UNLINK_SIBLING_ACTION_STATE,
@@ -32,12 +34,14 @@ export function UnlinkSiblingTrigger({
 
   useEffect(() => {
     if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
       toast({ title: t("unlinkDoneTitle"), description: state.message ?? "" });
       setConfirming(false);
     } else if (state.status === "error" && state.message) {
       toast({ title: t("unlinkFailedTitle"), description: state.message });
     }
-  }, [state.status, state.message, t]);
+  }, [state.status, state.message, t, router]);
 
   if (!confirming) {
     return (

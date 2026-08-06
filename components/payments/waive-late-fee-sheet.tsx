@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
@@ -53,6 +54,7 @@ export function WaiveLateFeeSheet({
   // re-render as disabled in the window between the action resolving and the
   // success effect calling onClose().
   const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     waiveLateFeeAction,
     INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
@@ -77,13 +79,15 @@ export function WaiveLateFeeSheet({
 
   useEffect(() => {
     if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
       toast({
         title: t("waiveTriggerLabel"),
         description: state.message ?? "",
       });
       onClose();
     }
-  }, [state.status, state.message, onClose, t]);
+  }, [state.status, state.message, onClose, t, router]);
 
   const numericAmount = Number(amount);
   const validAmount =

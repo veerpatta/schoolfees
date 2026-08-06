@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { VoiceNoteRecorder } from "@/components/defaulters/voice-note-recorder";
 import type { PhoneEntry } from "@/components/students/phone-chooser";
+import { useActionFeedback } from "@/hooks/use-action-feedback";
 import {
   logContactAction,
   type LogContactState,
@@ -81,6 +82,11 @@ export function ContactPopover({
     logContactAction,
     INITIAL_STATE,
   );
+
+  useActionFeedback(state, {
+    successTitle: "Contact logged",
+    errorTitle: "Contact not logged",
+  });
   const [outcome, setOutcome] = useState<typeof OUTCOMES[number]["value"]>(initialOutcome);
   const [phoneLabel, setPhoneLabel] = useState<string | null>(
     () => defaultPhoneLabel ?? phoneEntries[0]?.label ?? null,

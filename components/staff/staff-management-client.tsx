@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { roleLabels, staffRoles, type StaffRole } from "@/lib/auth/roles";
 import { formatDateTimeIst } from "@/lib/helpers/date";
+import { useActionFeedback } from "@/hooks/use-action-feedback";
 import type {
   StaffAccountRecord,
   StaffFormActionState,
@@ -89,6 +90,11 @@ function CreateStaffForm({
   ) => Promise<StaffFormActionState>;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+
+  useActionFeedback(state, {
+    successTitle: "Staff account created",
+    errorTitle: "Staff account not created",
+  });
 
   return (
     <form action={formAction} className="space-y-4">
@@ -190,6 +196,11 @@ function StaffAccessForm({
     initialState,
   );
 
+  useActionFeedback(state, {
+    successTitle: "Staff account updated",
+    errorTitle: "Staff account not updated",
+  });
+
   return (
     <form action={formAction} className="space-y-4">
       <ActionNotice state={state} />
@@ -290,6 +301,11 @@ function ResetPasswordForm({
     action.bind(null, account.id),
     initialState,
   );
+
+  useActionFeedback(state, {
+    successTitle: "Password reset",
+    errorTitle: "Password not reset",
+  });
 
   return (
     <form action={formAction} className="space-y-4">

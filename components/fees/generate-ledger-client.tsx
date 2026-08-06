@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useActionState } from "react";
+import { useActionState } from "react";
 import { AlertCircle, ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { appendCurrentSessionParam } from "@/lib/navigation/session-href";
@@ -20,6 +20,7 @@ import {
 import { Label } from "@/components/ui/label";
 import type { LedgerRegenerationActionState } from "@/lib/fees/types";
 
+import { useActionFeedback } from "@/hooks/use-action-feedback";
 type GenerateLedgerClientProps = {
   initialState: LedgerRegenerationActionState;
   action: (
@@ -55,15 +56,14 @@ function AlertBox({
 
 export function GenerateLedgerClient({ initialState, action }: GenerateLedgerClientProps) {
   const t = useTranslations("FeeSetup");
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [state, formAction, pending] = useActionState(action, initialState);
 
-  useEffect(() => {
-    if (state.status === "success") {
-      router.refresh();
-    }
-  }, [router, state.status]);
+  // Refreshed on success but said nothing; the hook does both.
+  useActionFeedback(state, {
+    successTitle: "Dues generated",
+    errorTitle: "Dues not generated",
+  });
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">

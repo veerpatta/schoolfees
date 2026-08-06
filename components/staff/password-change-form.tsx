@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { StaffFormActionState } from "@/lib/staff-management/data";
 
+import { useActionFeedback } from "@/hooks/use-action-feedback";
 type PasswordChangeFormProps = {
   initialState: StaffFormActionState;
   action: (
@@ -20,6 +21,11 @@ export function PasswordChangeForm({
   action,
 }: PasswordChangeFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
+
+  useActionFeedback(state, {
+    successTitle: "Password updated",
+    errorTitle: "Password not updated",
+  });
 
   return (
     <form action={formAction} className="space-y-4">

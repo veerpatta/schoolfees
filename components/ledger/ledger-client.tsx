@@ -19,6 +19,7 @@ import {
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatMediumDate } from "@/lib/helpers/date";
 
+import { useActionFeedback } from "@/hooks/use-action-feedback";
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
@@ -68,6 +69,11 @@ export function LedgerClient({ data, canAddAdjustments, submitLedgerAdjustmentAc
     submitLedgerAdjustmentAction,
     INITIAL_LEDGER_ADJUSTMENT_ACTION_STATE,
   );
+
+  useActionFeedback(state, {
+    successTitle: "Ledger updated",
+    errorTitle: "Ledger not updated",
+  });
 
   const selectedStudent = data.selectedStudent;
 

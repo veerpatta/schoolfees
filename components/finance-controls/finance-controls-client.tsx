@@ -16,6 +16,7 @@ import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
+import { useActionFeedbackMany } from "@/hooks/use-action-feedback";
 import type {
   FinanceControlsPageData,
   FinanceCorrectionReviewRow,
@@ -900,6 +901,11 @@ export function FinanceControlsClient({
     actions.submitCorrectionReviewAction,
     initialActionState,
   );
+
+  useActionFeedbackMany([refundState, correctionState], {
+    successTitle: "Finance controls updated",
+    errorTitle: "Finance controls not updated",
+  });
 
   return (
     <div className="space-y-6">

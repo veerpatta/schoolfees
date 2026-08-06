@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import type { ClassStatus } from "@/lib/db/types";
 import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 
+import { useActionFeedbackMany } from "@/hooks/use-action-feedback";
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
@@ -176,6 +177,28 @@ export function MasterDataClient({
     actions.setPaymentModeActiveAction,
     initialActionState,
   );
+  // Every list on this page saves through its own action; without this none of
+  // them said anything or refreshed, so a created class simply did not appear.
+  useActionFeedbackMany(
+    [
+      sessionCreateState,
+      sessionUpdateState,
+      sessionDeleteState,
+      setLiveSessionState,
+      classCreateState,
+      classUpdateState,
+      classDeleteState,
+      routeCreateState,
+      routeUpdateState,
+      routeDeleteState,
+      feeHeadCreateState,
+      feeHeadUpdateState,
+      feeHeadDeleteState,
+      paymentModeState,
+    ],
+    { successTitle: "Master data updated", errorTitle: "Master data not updated" },
+  );
+
   const [classSearch, setClassSearch] = useState("");
   const [routeSearch, setRouteSearch] = useState("");
 

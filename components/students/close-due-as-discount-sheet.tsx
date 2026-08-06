@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
@@ -51,6 +52,7 @@ export function CloseDueAsDiscountSheet({
   const tToasts = useTranslations("Toasts");
   const [amount, setAmount] = useState<string>(String(pendingAmount));
   const [reason, setReason] = useState<string>("");
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     closeDueAsDiscountAction,
     INITIAL_STATE,
@@ -65,13 +67,15 @@ export function CloseDueAsDiscountSheet({
 
   useEffect(() => {
     if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
       toast({
         title: tToasts("balanceClosedTitle"),
         description: state.message ?? tToasts("balanceClosedFallback"),
       });
       onClose();
     }
-  }, [state.status, state.message, onClose, tToasts]);
+  }, [state.status, state.message, onClose, tToasts, router]);
 
   const numericAmount = Number(amount) || 0;
   const isAmountValid = numericAmount > 0 && numericAmount <= pendingAmount;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Users } from "lucide-react";
 
@@ -21,6 +22,7 @@ export function LinkSuspectedSiblingsButton({
   count,
 }: LinkSuspectedSiblingsButtonProps) {
   const t = useTranslations("MobileApp");
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     linkSuspectedSiblingsAction,
     INITIAL_LINK_SIBLING_ACTION_STATE,
@@ -28,11 +30,13 @@ export function LinkSuspectedSiblingsButton({
 
   useEffect(() => {
     if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
       toast({ title: t("linkSuspectedDoneTitle"), description: state.message ?? "" });
     } else if (state.status === "error" && state.message) {
       toast({ title: t("linkSuspectedFailedTitle"), description: state.message });
     }
-  }, [state.status, state.message, t]);
+  }, [state.status, state.message, t, router]);
 
   return (
     <form action={formAction}>

@@ -45,6 +45,12 @@ type StudentsPageProps = {
     transportRouteId?: string;
     status?: StudentListFilters["status"];
     page?: string;
+    /**
+     * Set when a student was just deleted from their profile. The delete
+     * navigates here, and a toast fired mid-navigation is easy to miss, so the
+     * confirmation is rendered on the destination instead.
+     */
+    removed?: string;
   }>;
 };
 
@@ -184,6 +190,15 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
     // still a child, so space-y would push the phone's sticky search header
     // 24px down the screen. Flex `gap` ignores display:none children.
     <div className="flex flex-col gap-6">
+      {resolvedSearchParams?.removed ? (
+        <p
+          role="status"
+          className="rounded-lg border border-border bg-success-soft px-4 py-3 text-sm font-medium text-success-soft-foreground"
+        >
+          {resolvedSearchParams.removed} was removed from Student Master.
+        </p>
+      ) : null}
+
       <PageHeader
         eyebrow={t("eyebrow")}
         title={t("title")}

@@ -11,6 +11,7 @@ import { StudentPhotoUpload } from "@/components/students/student-photo-upload";
 import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
+import { useActionFeedback } from "@/hooks/use-action-feedback";
 import {
   INITIAL_STUDENT_FORM_ACTION_STATE,
   type StudentClassOption,
@@ -146,6 +147,11 @@ export function StudentForm({
     action,
     INITIAL_STUDENT_FORM_ACTION_STATE,
   );
+
+  useActionFeedback(state, {
+    successTitle: "Student saved",
+    errorTitle: "Student not saved",
+  });
 
   const values =
     state.status === "error" && state.submittedValues

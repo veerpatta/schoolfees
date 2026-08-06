@@ -47,7 +47,13 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
         archiveState.status === "success" ? t("dangerWithdrawDone") : t("dangerActionFailed"),
       description: archiveState.message,
     });
-  }, [archiveState, t]);
+
+    // Withdrawing keeps you on the page, so without this the record still reads
+    // as active and the change looks like it did not happen.
+    if (archiveState.status === "success") {
+      router.refresh();
+    }
+  }, [archiveState, router, t]);
 
   useEffect(() => {
     if (deleteState.status === "idle" || !deleteState.message) {
@@ -60,12 +66,15 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
     });
 
     // The record this page is about no longer exists — staying here would
-    // render a 404 on the next refresh.
+    // render a 404 on the next refresh. The confirmation travels in the URL
+    // rather than as a toast: a toast fired while the page is navigating and
+    // re-rendering is easy to miss entirely, which is what made a successful
+    // delete look like nothing had happened.
     if (deleteState.deleted) {
-      router.replace("/protected/students");
-      router.refresh();
+      const removed = `${deletionSafety.fullName} (SR ${deletionSafety.admissionNo})`;
+      router.replace(`/protected/students?removed=${encodeURIComponent(removed)}`);
     }
-  }, [deleteState, router, t]);
+  }, [deleteState, router, t, deletionSafety.fullName, deletionSafety.admissionNo]);
 
   const deleteExplanation = deletionSafety.hardDeleteAllowed
     ? deletionSafety.generatedDuesDeleteAllowed

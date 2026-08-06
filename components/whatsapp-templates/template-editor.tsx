@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ export function TemplateEditor({ open, onClose, template }: Props) {
   const t = useTranslations("AdminTools");
   const isEdit = template !== null;
   const action = isEdit ? updateTemplateAction : createTemplateAction;
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(action, INITIAL);
   const [body, setBody] = useState(template?.body ?? "");
   const [name, setName] = useState(template?.name ?? "");
@@ -88,10 +90,12 @@ export function TemplateEditor({ open, onClose, template }: Props) {
 
   useEffect(() => {
     if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
       toast({ title: state.message ?? t("whatsappEditorTemplateSaved") });
       onClose();
     }
-  }, [state.status, state.message, onClose, t]);
+  }, [state.status, state.message, onClose, t, router]);
 
   const placeholders = useMemo(() => extractPlaceholders(body), [body]);
   const preview = useMemo(() => renderWhatsappTemplate(body, PREVIEW_VARS), [body]);
@@ -254,15 +258,18 @@ export function TemplateEditor({ open, onClose, template }: Props) {
 
 export function DeleteTemplateButton({ template }: { template: WhatsappTemplate }) {
   const t = useTranslations("AdminTools");
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(deleteTemplateAction, INITIAL);
 
   useEffect(() => {
     if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
       toast({ title: t("whatsappEditorDeletedToast") });
     } else if (state.status === "error" && state.message) {
       toast({ title: t("whatsappEditorDeleteErrorTitle"), description: state.message });
     }
-  }, [state.status, state.message, t]);
+  }, [state.status, state.message, t, router]);
 
   return (
     <form

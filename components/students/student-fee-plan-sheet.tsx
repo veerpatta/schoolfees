@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Loader2, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,8 @@ export function StudentFeePlanSheet({
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  const router = useRouter();
+
   const [state, formAction, pending] = useActionState(
     saveStudentFeePlanAction,
     INITIAL_STUDENT_FEE_PLAN_ACTION_STATE,
@@ -102,13 +105,15 @@ export function StudentFeePlanSheet({
 
   useEffect(() => {
     if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
       toast({ title: "Fee plan updated", description: state.message ?? "" });
       onClose();
     }
     if (state.status === "error") {
       setSubmitted(false);
     }
-  }, [state.status, state.message, onClose]);
+  }, [state.status, state.message, onClose, router]);
 
   const tuitionValid =
     tuitionMode === "default" || /^\d+$/.test(tuitionAmount.trim());
