@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { formatInr } from "@/lib/helpers/currency";
 
 type FormatType = "inr" | "percent" | "number";
@@ -67,6 +68,8 @@ export function CountUp({
   const startedAtRef = useRef<number | null>(null);
   const fromRef = useRef<number>(startFrom);
 
+  const reduced = useReducedMotion();
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -76,7 +79,6 @@ export function CountUp({
     // read as a static number there while desktop got the full choreography.
     // rAF on a single tabular span is not the thing to economise on; reduced
     // motion, below, is the switch that genuinely needs to be honoured.
-    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (reduced || value === fromRef.current) {
       setDisplay(value);
       fromRef.current = value;
@@ -111,7 +113,7 @@ export function CountUp({
         rafRef.current = null;
       }
     };
-  }, [value, duration]);
+  }, [value, duration, reduced]);
 
   const render = formatter ?? ((v: number) => formatBuiltIn(format, v));
 

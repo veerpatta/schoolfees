@@ -382,6 +382,14 @@
     animation: toast-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  /* New keyframe, justified per the house rule: nothing existing runs in
+     reverse. anim-print-away is a print-slot specific transform, not a
+     general exit. A toast that vanishes mid-sentence reads as a glitch;
+     240ms in, 180ms out keeps exit faster than entry as elsewhere. */
+  .anim-toast-out {
+    animation: toast-out 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
   .anim-pulse-dot {
     animation: pulse-dot 2.4s ease-in-out infinite;
   }
@@ -631,6 +639,7 @@
   .anim-print-out,
   .anim-print-away,
   .anim-toast-in,
+  .anim-toast-out,
   .anim-pulse-dot,
   .animate-bottom-sheet-up,
   .animate-success-check,
@@ -653,6 +662,22 @@
   .anim-check-draw {
     animation: none !important;
     stroke-dashoffset: 0 !important;
+  }
+
+  /* Tailwind transition-* utilities are not `animation:` rules, so the list
+     above never covered them. Collapse them rather than leave hover/colour
+     tweens running at full length. */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+
+  /* Deliberately NOT silenced. A pending button's spinner is the only signal
+     that work is in flight — removing it would mean a reduced-motion user
+     cannot tell a slow save from a dead one. Slow it instead. */
+  .animate-spin {
+    animation-duration: 1.6s !important;
   }
 }
 
@@ -746,6 +771,11 @@
 @keyframes toast-in {
   from { opacity: 0; transform: translate3d(0, 18px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.98); }
 }
 
 /* =====================================================================

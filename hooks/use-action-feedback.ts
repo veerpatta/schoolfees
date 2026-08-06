@@ -77,9 +77,14 @@ export function useActionFeedback(
     lastHandled.current = state;
 
     if (SUCCESS_STATUSES.has(status)) {
-      if (state.message) {
-        toast({ title: successTitle, description: state.message });
-      }
+      // Always announce. Gating this on `state.message` was a silent-success
+      // path hiding inside the hook that exists to prevent silent success —
+      // an action that returns success with no sentence still has to say so.
+      toast({
+        title: successTitle,
+        description: state.message ?? undefined,
+        tone: "success",
+      });
 
       if (refreshOnSuccess) {
         router.refresh();
@@ -95,6 +100,7 @@ export function useActionFeedback(
       toast({
         title: errorTitle,
         description: state.message ?? "Something went wrong. Please try again.",
+        tone: "danger",
       });
       onError?.(state);
     }
@@ -138,14 +144,17 @@ export function useActionFeedbackMany(
       announced.current.add(state);
 
       if (SUCCESS_STATUSES.has(status)) {
-        if (state.message) {
-          toast({ title: successTitle, description: state.message });
-        }
+        toast({
+          title: successTitle,
+          description: state.message ?? undefined,
+          tone: "success",
+        });
         sawSuccess = true;
       } else if (ERROR_STATUSES.has(status)) {
         toast({
           title: errorTitle,
           description: state.message ?? "Something went wrong. Please try again.",
+          tone: "danger",
         });
       }
     }

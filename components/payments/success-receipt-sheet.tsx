@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { CountUp } from "@/components/ui/count-up";
 import { SuccessCheckMark } from "@/components/payments/success-check-mark";
 import { formatInr } from "@/lib/helpers/currency";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { cn } from "@/lib/utils";
 
 /** Matches UNDO_WINDOW_MS in receipt-undo-action and the RPC's own check. */
@@ -124,16 +125,14 @@ export function SuccessReceiptSheet({
   onUndoPayment,
 }: SuccessReceiptSheetProps) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
-  // Read once on mount rather than via a live listener: the sheet is a
-  // short-lived, fire-once surface, and a mid-animation preference flip is
-  // not a case worth extra state for. The CSS animations are silenced by the
-  // global reduced-motion block regardless; this only governs the JS count-up.
-  const [prefersReducedMotion] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
+  // Shared hook rather than a lazy-useState matchMedia read. The old version
+  // returned the real answer on the client's first render while the server
+  // HTML had been built from `false` — a hydration mismatch waiting to be
+  // noticed. useReducedMotion is hydration-safe by construction. It is live
+  // rather than read-once now, which costs nothing: it only governs the exit
+  // delay and the JS count-up. The CSS animations are silenced by the global
+  // reduced-motion block regardless.
+  const prefersReducedMotion = useReducedMotion();
   const [undoState, setUndoState] = useState<
     "idle" | "confirming" | "working" | "done" | "error"
   >("idle");

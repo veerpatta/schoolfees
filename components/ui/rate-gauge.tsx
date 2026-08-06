@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { cn } from "@/lib/utils";
 
 type RateGaugeProps = {
@@ -22,10 +23,11 @@ export function RateGauge({ value, size = "md", className }: RateGaugeProps) {
   const circumference = 2 * Math.PI * r;
   const targetOffset = circumference * (1 - clamped / 100);
 
+  const reduced = useReducedMotion();
+
   useEffect(() => {
     const arc = arcRef.current;
     if (!arc) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
       arc.style.strokeDashoffset = String(targetOffset);
       return;
@@ -35,7 +37,7 @@ export function RateGauge({ value, size = "md", className }: RateGaugeProps) {
     void arc.getBoundingClientRect();
     arc.style.transition = "stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1)";
     arc.style.strokeDashoffset = String(targetOffset);
-  }, [circumference, targetOffset]);
+  }, [circumference, targetOffset, reduced]);
 
   return (
     <svg
