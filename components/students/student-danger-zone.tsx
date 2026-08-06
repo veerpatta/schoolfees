@@ -1,26 +1,85 @@
-import { getTranslations } from "next-intl/server";
+"use client";
+
+import { useActionState, useEffect, useId } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import type { StudentDeletionSafety } from "@/lib/students/types";
 
 import {
   archiveStudentAction,
   hardDeleteStudentAction,
 } from "@/app/protected/students/actions";
+import { INITIAL_STUDENT_DANGER_ACTION_STATE } from "@/app/protected/students/danger-action-state";
 
 type StudentDangerZoneProps = {
   studentId: string;
   deletionSafety: StudentDeletionSafety;
 };
 
-export async function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZoneProps) {
-  const t = await getTranslations("MobileApp");
+export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZoneProps) {
+  const t = useTranslations("MobileApp");
+  const router = useRouter();
+  // The student page renders this block twice (phone branch + desktop branch,
+  // one hidden by CSS but still in the DOM). A hardcoded id made both inputs
+  // share it, so the desktop <label> focused the hidden phone input.
+  const confirmFieldId = useId();
+
+  const [archiveState, archiveFormAction, archivePending] = useActionState(
+    archiveStudentAction,
+    INITIAL_STUDENT_DANGER_ACTION_STATE,
+  );
+  const [deleteState, deleteFormAction, deletePending] = useActionState(
+    hardDeleteStudentAction,
+    INITIAL_STUDENT_DANGER_ACTION_STATE,
+  );
+
+  useEffect(() => {
+    if (archiveState.status === "idle" || !archiveState.message) {
+      return;
+    }
+
+    toast({
+      title:
+        archiveState.status === "success" ? t("dangerWithdrawDone") : t("dangerActionFailed"),
+      description: archiveState.message,
+    });
+  }, [archiveState, t]);
+
+  useEffect(() => {
+    if (deleteState.status === "idle" || !deleteState.message) {
+      return;
+    }
+
+    toast({
+      title: deleteState.status === "success" ? t("dangerDeleteDone") : t("dangerActionFailed"),
+      description: deleteState.message,
+    });
+
+    // The record this page is about no longer exists — staying here would
+    // render a 404 on the next refresh.
+    if (deleteState.deleted) {
+      router.replace("/protected/students");
+      router.refresh();
+    }
+  }, [deleteState, router, t]);
 
   const deleteExplanation = deletionSafety.hardDeleteAllowed
     ? deletionSafety.generatedDuesDeleteAllowed
       ? t("dangerDeleteWithDues")
       : t("dangerDeleteClean")
     : t("dangerDeleteBlocked");
+
+  const pending = archivePending || deletePending;
+  const errorMessage =
+    deleteState.status === "error"
+      ? deleteState.message
+      : archiveState.status === "error"
+        ? archiveState.message
+        : null;
 
   return (
     <details className="overflow-hidden rounded-lg border border-border bg-card">
@@ -48,31 +107,45 @@ export async function StudentDangerZone({ studentId, deletionSafety }: StudentDa
             </p>
           ) : null}
           <p className="mt-2">{deleteExplanation}</p>
+          {errorMessage ? (
+            <p role="alert" className="mt-2 font-medium text-destructive">
+              {errorMessage}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <form action={archiveStudentAction}>
+          <form action={archiveFormAction}>
             <input type="hidden" name="studentId" value={studentId} />
-            <Button type="submit" variant="outline">
+            <Button type="submit" variant="outline" disabled={pending}>
+              {archivePending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+              ) : null}
               {t("dangerWithdrawCta")}
             </Button>
           </form>
           {deletionSafety.hardDeleteAllowed || deletionSafety.canForceDeleteTestRecord ? (
-            <form action={hardDeleteStudentAction} className="flex max-w-xs flex-col gap-2">
+            <form action={deleteFormAction} className="flex max-w-xs flex-col gap-2">
               <input type="hidden" name="studentId" value={studentId} />
               {deletionSafety.canForceDeleteTestRecord && !deletionSafety.hardDeleteAllowed ? (
                 <input type="hidden" name="forceTestRecord" value="yes" />
               ) : null}
-              <label className="text-xs font-medium text-muted-foreground" htmlFor="confirmDelete">
+              <label className="text-xs font-medium text-muted-foreground" htmlFor={confirmFieldId}>
                 {t("dangerConfirmLabel", { sr: deletionSafety.admissionNo })}
               </label>
               <input
-                id="confirmDelete"
+                id={confirmFieldId}
                 name="confirmDelete"
                 required
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 className="h-9 rounded-md border border-border-strong px-3 text-sm"
                 placeholder={deletionSafety.admissionNo}
               />
-              <Button type="submit" variant="destructive">
+              <Button type="submit" variant="destructive" disabled={pending}>
+                {deletePending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                ) : null}
                 {deletionSafety.generatedDuesDeleteAllowed
                   ? t("dangerDeleteWithDuesCta")
                   : t("dangerDeleteCta")}

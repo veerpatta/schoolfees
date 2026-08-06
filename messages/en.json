@@ -1842,6 +1842,9 @@
     "dangerWithdrawCta": "Withdraw student",
     "dangerConfirmLabel": "Type SR {sr} to confirm deleting this wrong student",
     "dangerDeleteCta": "Delete wrong student",
-    "dangerDeleteWithDuesCta": "Delete wrong student and unpaid dues"
+    "dangerDeleteWithDuesCta": "Delete wrong student and unpaid dues",
+    "dangerActionFailed": "Could not finish",
+    "dangerWithdrawDone": "Student withdrawn",
+    "dangerDeleteDone": "Student deleted"
   }
 }

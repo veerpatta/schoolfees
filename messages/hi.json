@@ -1842,6 +1842,9 @@
     "dangerWithdrawCta": "छात्र को हटाएँ",
     "dangerConfirmLabel": "गलत छात्र मिटाने के लिए SR {sr} लिखें",
     "dangerDeleteCta": "गलत छात्र मिटाएँ",
-    "dangerDeleteWithDuesCta": "गलत छात्र और बाकी किस्तें मिटाएँ"
+    "dangerDeleteWithDuesCta": "गलत छात्र और बाकी किस्तें मिटाएँ",
+    "dangerActionFailed": "पूरा नहीं हो सका",
+    "dangerWithdrawDone": "छात्र हटा दिया गया",
+    "dangerDeleteDone": "छात्र मिटा दिया गया"
   }
 }

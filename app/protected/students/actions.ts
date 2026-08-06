@@ -2,6 +2,10 @@
 
 import { recordActivity } from "@/lib/activity/events";
 import {
+  matchesDeleteConfirmation,
+  type StudentDangerActionState,
+} from "@/app/protected/students/danger-action-state";
+import {
   bulkUpdateStudentFields,
   createStudent,
   archiveStudent,
@@ -454,61 +458,113 @@ function buildStudentDuesMessage(payload: {
   }`;
 }
 
-export async function archiveStudentAction(formData: FormData) {
-  await requireStaffPermission("students:write");
+// Both danger-zone actions return state instead of throwing. A `throw` from a
+// server action bound straight to `<form action={...}>` escapes to the nearest
+// error boundary: staff saw a blank "something went wrong" screen with no clue
+// which record failed or why, and the typed SR no was lost.
+export async function archiveStudentAction(
+  _prevState: StudentDangerActionState,
+  formData: FormData,
+): Promise<StudentDangerActionState> {
   const studentId = (formData.get("studentId") ?? "").toString().trim();
 
   if (!studentId) {
-    throw new Error("Student is required.");
+    return { status: "error", message: "Student is required.", deleted: false };
   }
 
-  const student = await getStudentDetail(studentId);
+  try {
+    await requireStaffPermission("students:write");
 
-  await archiveStudent(studentId);
-  await prepareDuesForStudentsAutomatically({
-    studentIds: [studentId],
-    sessionLabel: student?.classSessionLabel || undefined,
-    reason: "Student withdrawn",
-  });
-  revalidateFinanceSurfaces({ studentIds: [studentId] });
-  await publishOfficeSyncEvent({
-    sessionLabel: student?.classSessionLabel || "unknown",
-    entityType: "student",
-    entityId: studentId,
-    action: "archived",
-    affectedStudentIds: [studentId],
-  });
+    const student = await getStudentDetail(studentId);
+
+    await archiveStudent(studentId);
+    await prepareDuesForStudentsAutomatically({
+      studentIds: [studentId],
+      sessionLabel: student?.classSessionLabel || undefined,
+      reason: "Student withdrawn",
+    });
+    revalidateFinanceSurfaces({ studentIds: [studentId] });
+    await publishOfficeSyncEvent({
+      sessionLabel: student?.classSessionLabel || "unknown",
+      entityType: "student",
+      entityId: studentId,
+      action: "archived",
+      affectedStudentIds: [studentId],
+    });
+
+    return {
+      status: "success",
+      message: "Student withdrawn. Receipts and payment history stay saved.",
+      deleted: false,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unexpected error while withdrawing this student.",
+      deleted: false,
+    };
+  }
 }
 
-export async function hardDeleteStudentAction(formData: FormData) {
-  await requireStaffPermission("students:write");
+export async function hardDeleteStudentAction(
+  _prevState: StudentDangerActionState,
+  formData: FormData,
+): Promise<StudentDangerActionState> {
   const studentId = (formData.get("studentId") ?? "").toString().trim();
 
   if (!studentId) {
-    throw new Error("Student is required.");
+    return { status: "error", message: "Student is required.", deleted: false };
   }
 
-  const safety = await getStudentDeletionSafety(studentId);
+  try {
+    await requireStaffPermission("students:write");
 
-  if (!safety) {
-    throw new Error("Student record was not found.");
+    const safety = await getStudentDeletionSafety(studentId);
+
+    if (!safety) {
+      return {
+        status: "error",
+        message: "Student record was not found. It may already have been deleted.",
+        deleted: false,
+      };
+    }
+
+    const confirmation = (formData.get("confirmDelete") ?? "").toString();
+    if (!matchesDeleteConfirmation(confirmation, safety.admissionNo)) {
+      return {
+        status: "error",
+        message: `SR no did not match. Type ${safety.admissionNo} to confirm deleting this record.`,
+        deleted: false,
+      };
+    }
+
+    const forceTestRecord = formData.get("forceTestRecord") === "yes";
+    await hardDeleteStudent(studentId, { forceTestRecord });
+    revalidateFinanceSurfaces({ studentIds: [studentId] });
+    await publishOfficeSyncEvent({
+      sessionLabel: safety.sessionLabel || "unknown",
+      entityType: "student",
+      entityId: studentId,
+      action: "deleted",
+      affectedStudentIds: [studentId],
+    });
+
+    return {
+      status: "success",
+      message: `${safety.fullName} (SR ${safety.admissionNo}) was deleted.`,
+      deleted: true,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error ? error.message : "Unexpected error while deleting this student.",
+      deleted: false,
+    };
   }
-
-  const confirmation = (formData.get("confirmDelete") ?? "").toString().trim();
-  if (confirmation !== safety.admissionNo) {
-    throw new Error("Type the student's SR no exactly before deleting this record.");
-  }
-
-  const forceTestRecord = formData.get("forceTestRecord") === "yes";
-  await hardDeleteStudent(studentId, { forceTestRecord });
-  revalidateFinanceSurfaces({ studentIds: [studentId] });
-  await publishOfficeSyncEvent({
-    sessionLabel: safety.sessionLabel || "unknown",
-    entityType: "student",
-    entityId: studentId,
-    action: "deleted",
-    affectedStudentIds: [studentId],
-  });
 }
 
 export type BulkStudentEditResult = {

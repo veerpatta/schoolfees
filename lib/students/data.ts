@@ -1521,6 +1521,11 @@ export async function getStudentDeletionSafety(studentId: string): Promise<Stude
     importReferenceCount,
     feeOverrideCount,
     auditLogCount,
+    receiptAdjustmentCount,
+    receiptFinanceAdjustmentCount,
+    carryForwardBalanceCount,
+    sessionReanchorLogCount,
+    paymentImportRowCount,
   ] = await Promise.all([
     countRows("installments", studentId),
     countRows("receipts", studentId),
@@ -1532,6 +1537,15 @@ export async function getStudentDeletionSafety(studentId: string): Promise<Stude
     countImportStudentReferences(studentId).catch(() => 0),
     countRows("student_fee_overrides", studentId).catch(() => 0),
     countRows("audit_logs", studentId, "record_id").catch(() => 0),
+    // The five counts below back `on delete restrict` / `no action` foreign keys
+    // that used to be invisible to this check: the delete button was offered and
+    // Postgres then refused the DELETE. The first two block; the rest are cleaned
+    // up by hardDeleteStudent().
+    countRows("receipt_adjustments", studentId).catch(() => 0),
+    countRows("receipt_finance_adjustments", studentId).catch(() => 0),
+    countRows("student_carry_forward_balances", studentId).catch(() => 0),
+    countRows("student_session_reanchor_log", studentId).catch(() => 0),
+    countRows("payment_import_rows", studentId).catch(() => 0),
   ]);
   const deletePolicy = getStudentDeletePolicy({
     installmentCount,
@@ -1539,6 +1553,8 @@ export async function getStudentDeletionSafety(studentId: string): Promise<Stude
     paymentCount,
     adjustmentCount,
     refundRequestCount,
+    receiptAdjustmentCount,
+    receiptFinanceAdjustmentCount,
     blockedInstallmentCount,
     ledgerRegenerationRowCount,
     sessionLabel: student.classSessionLabel,
@@ -1562,6 +1578,11 @@ export async function getStudentDeletionSafety(studentId: string): Promise<Stude
     importReferenceCount,
     feeOverrideCount,
     auditLogCount,
+    receiptAdjustmentCount,
+    receiptFinanceAdjustmentCount,
+    carryForwardBalanceCount,
+    sessionReanchorLogCount,
+    paymentImportRowCount,
     hardDeleteBlockers: deletePolicy.hardDeleteBlockers,
     sessionLabel: student.classSessionLabel,
     admissionNo: student.admissionNo,
@@ -1651,6 +1672,51 @@ export async function hardDeleteStudent(studentId: string, options: { forceTestR
   }
 
   const supabase = createAdminClient();
+
+  // Derived / staging rows that hold an `on delete restrict` (or `no action`)
+  // foreign key on this student. None of them is posted money — the money
+  // tables are blockers above — but Postgres will still refuse the DELETE while
+  // they exist, which is what made "delete" fail silently for staff. Clear them
+  // first, in dependency order, before touching the student row itself.
+  if (safety.carryForwardBalanceCount > 0) {
+    const { error: carryForwardError } = await supabase
+      .from("student_carry_forward_balances")
+      .delete()
+      .eq("student_id", studentId);
+
+    if (carryForwardError) {
+      throw new Error(
+        `Unable to remove carried-forward balance rows: ${carryForwardError.message}`,
+      );
+    }
+  }
+
+  if (safety.sessionReanchorLogCount > 0) {
+    const { error: reanchorError } = await supabase
+      .from("student_session_reanchor_log")
+      .delete()
+      .eq("student_id", studentId);
+
+    if (reanchorError) {
+      throw new Error(`Unable to remove session reanchor log rows: ${reanchorError.message}`);
+    }
+  }
+
+  // Payment import staging keeps its audit row; only the student pointer is
+  // released (the column is nullable and the FK is `no action`).
+  if (safety.paymentImportRowCount > 0) {
+    const { error: paymentImportError } = await supabase
+      .from("payment_import_rows")
+      .update({ student_id: null })
+      .eq("student_id", studentId);
+
+    if (paymentImportError) {
+      throw new Error(
+        `Unable to unlink staged payment import rows: ${paymentImportError.message}`,
+      );
+    }
+  }
+
   if (safety.installmentCount > 0) {
     const { error: installmentDeleteError } = await supabase
       .from("installments")
@@ -1665,6 +1731,17 @@ export async function hardDeleteStudent(studentId: string, options: { forceTestR
   const { error } = await supabase.from("students").delete().eq("id", studentId);
 
   if (error) {
+    // 23503 = foreign_key_violation: some table still references this student.
+    // Name it instead of leaking the raw Postgres text, and point staff at the
+    // action that always works.
+    if (error.code === "23503") {
+      throw new Error(
+        `This student is still linked to other records (${
+          error.details ?? error.message
+        }), so the record cannot be deleted. Withdraw the student instead.`,
+      );
+    }
+
     throw new Error(`Unable to delete student safely: ${error.message}`);
   }
 }

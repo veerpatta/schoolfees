@@ -162,6 +162,16 @@ export type StudentDetail = {
   importReferenceCount: number;
   feeOverrideCount: number;
     auditLogCount: number;
+  /** Blocks hard delete — posted receipt corrections. */
+  receiptAdjustmentCount: number;
+  /** Blocks hard delete — posted receipt finance corrections. */
+  receiptFinanceAdjustmentCount: number;
+  /** Cleaned up by hardDeleteStudent; restricting FK, not posted money. */
+  carryForwardBalanceCount: number;
+  /** Cleaned up by hardDeleteStudent; restricting FK, not posted money. */
+  sessionReanchorLogCount: number;
+  /** Unlinked (student_id set to null) by hardDeleteStudent. */
+  paymentImportRowCount: number;
     hardDeleteBlockers: string[];
     sessionLabel: string;
   admissionNo: string;

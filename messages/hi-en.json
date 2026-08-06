@@ -1842,6 +1842,9 @@
     "dangerWithdrawCta": "Chhatra ko hatayein",
     "dangerConfirmLabel": "Galat chhatra mitane ke liye SR {sr} likhein",
     "dangerDeleteCta": "Galat chhatra mitayein",
-    "dangerDeleteWithDuesCta": "Galat chhatra aur baaki kistein mitayein"
+    "dangerDeleteWithDuesCta": "Galat chhatra aur baaki kistein mitayein",
+    "dangerActionFailed": "Poora nahi ho saka",
+    "dangerWithdrawDone": "Chhatra hata diya gaya",
+    "dangerDeleteDone": "Chhatra mita diya gaya"
   }
 }
