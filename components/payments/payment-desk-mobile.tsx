@@ -3397,7 +3397,7 @@ export function PaymentDeskClient({
               {previewBreakdown.map((item, index) => (
                 <div
                   key={item.installmentId}
-                  className="rounded-xl border border-border bg-card p-3 text-sm animate-slide-up-fade"
+                  className="rounded-xl border border-border bg-card p-3 text-sm anim-slide-up"
                   style={{ animationDelay: `${index * 40}ms` }}
                 >
                   <div className="flex items-center justify-between">

@@ -86,7 +86,7 @@ export function DeskTotalsSection({
                 return (
                   <div
                     key={receipt.id}
-                    className="rounded-xl border border-border bg-card p-3 shadow-sm animate-slide-up-fade"
+                    className="rounded-xl border border-border bg-card p-3 shadow-sm anim-slide-up"
                     style={{ animationDelay: `${index * 35}ms` }}
                   >
                     <button
@@ -117,7 +117,7 @@ export function DeskTotalsSection({
                       </div>
                     </button>
                     {expanded ? (
-                      <div className="mt-3 space-y-2 border-t border-border pt-3 text-sm text-muted-foreground animate-slide-up-fade">
+                      <div className="mt-3 space-y-2 border-t border-border pt-3 text-sm text-muted-foreground anim-slide-up">
                         <p>{receipt.studentLabel}</p>
                         <div className="flex flex-wrap gap-2">
                           <Button asChild size="sm" variant="outline">

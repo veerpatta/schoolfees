@@ -337,10 +337,6 @@
     animation: slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .anim-scale-in {
-    animation: scale-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
   /* Legacy aliases — kept so existing class names and tests keep working.
      They all route to the four canonical keyframes above. */
   .animate-bottom-sheet-up { animation: slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -630,7 +626,6 @@
 
   .anim-fade-in,
   .anim-slide-up,
-  .anim-scale-in,
   .anim-shimmer,
   .anim-route-progress,
   .anim-check-halo,

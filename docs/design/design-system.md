@@ -223,7 +223,7 @@ For each significant screen, decisions were made against four questions:
 |---|---|---|---|
 | Page mount | `anim-fade-in` on the shell content wrapper | 180ms | `out-expo` |
 | Sheet open | `anim-slide-up` | 220ms | `out-expo` |
-| Modal / dialog open | `anim-scale-in` (0.97 → 1) + fade | 180ms | `out-expo` |
+| Toast exit | `anim-toast-out` (fade + 8px drop) | 180ms | `out-expo` |
 | Skeleton | `anim-shimmer` translate-x gradient | 1500ms | linear cycle |
 | Route progress | top hairline bar fades in/out | 380ms window | linear |
 | KPI mount | `<CountUp>` ease-out cubic | 600ms | ease-out cubic |
@@ -285,19 +285,135 @@ finance app. Optimistic UI is appropriate for non-financial mutations
 (student edits, fee setup drafts, follow-up notes) — apply it there if
 needed.
 
-### 5.4 Top progress bar refinement
+### 5.4 Top progress bar — done
 
-`<RouteProgress>` currently shows on any pathname or query change with a
-fixed 380ms window. A more accurate signal would hook into Next.js'
-`useLinkStatus` (App Router) per-Link to bind progress to actual server-component
-streaming. The current implementation is a strict improvement over nothing
-and a strict simplification of an NProgress dependency.
+`<RouteProgress>` is now driven by `useLinkStatus` through `<NavLink>`, which
+broadcasts a `vpps-nav` window event (the same transport `toast.tsx` uses).
+
+It used to key off `usePathname()` + `useSearchParams()`, which only change
+*after* a navigation commits, then hide on a fixed 380ms timer — so a slow
+route showed nothing during the wait and flashed a bar once the page was
+already visible. Backwards.
+
+Tunings, each fixing a specific artefact:
+
+- **120ms show delay** — an instant navigation must never flash.
+- **300ms minimum visible** — a 140ms navigation must never strobe.
+- **15s backstop** — a link unmounting mid-navigation must not pin the bar on.
+
+The pathname effect is deliberately **kept** as the hide trigger and as the
+fallback for navigations that never touch a `NavLink` (`router.push`, form
+redirects, `router.refresh`), so a regression degrades to the old behaviour
+rather than to nothing.
+
+Applied to the sidebar and phone bottom nav only — each `NavLink` costs a
+client component, and the fallback covers the rest.
+
+**Limitation:** `useLinkStatus` reports pending only for navigations that
+actually reach the server. See §5.6 for why that is currently *all* of them.
+
+### 5.6 `force-dynamic` in the root layout — investigated, leave it alone
+
+`app/layout.tsx` sets `export const dynamic = "force-dynamic"`. It looks like
+the single biggest cause of slow navigation — it appears to force a server
+round trip for every route change and defeat the Router Cache. **It is not, and
+removing it would change nothing.** Recorded here so this is not re-litigated.
+
+Every `/protected` route is *already* dynamic for two independent reasons, both
+load-bearing:
+
+| Cause | Where | Why it cannot move |
+|---|---|---|
+| `cookies()` for locale | `i18n/request.ts:24`, awaited by the root layout via `getLocale()` | `isLocaleSwitcherEnabled()` defaults to **true**, so the cookie is read on every request |
+| `cookies()` for auth | `lib/supabase/server.ts:9`, via `requireAuthenticatedStaff()` in `app/protected/layout.tsx:18` | Session and RBAC are read per request; this is the security boundary |
+
+Reading `cookies()` opts a route into dynamic rendering on its own. So the
+directive is not what makes the app dynamic — the cookie reads are, and neither
+can be pushed down without giving up per-request locale or per-request auth.
+
+The directive also has a separate, deliberate job: its comment and
+`tests/integration/vercel-deployment-config.test.ts:16` record that it keeps
+Vercel's Next 16 adapter consistently emitting lambdas for every App Router
+page, which the deployment guards depend on.
+
+**Conclusion: not a performance lever. Do not remove it.** If navigation feels
+slow, the cost is in per-route data fetching, not in this directive — measure
+the route's own queries instead.
 
 ### 5.5 Component count
 
 We grew the primitive count by 7 (`Money`, `KpiCard`, `EmptyState`, `Notice`,
 `Section`, `Sheet`, `CountUp`). Review at the 3-month mark — anything we
 didn't reuse 3+ times across the app is a candidate for deletion.
+
+### 5.7 Feedback contract
+
+Every user-triggered change tells the user what happened, and the page reflects
+it without a manual reload. `tests/unit/action-feedback-contract.test.ts`
+enforces this, so a reviewer can cite this section rather than a regex.
+
+The four rules:
+
+1. **A `useActionState` surface must run `useActionFeedback`** (or the `Many`
+   variant). The hook toasts the result and calls `router.refresh()` on success.
+2. **A form bound straight to an imported server action must report its
+   outcome** — a toast, a `<FlashNotice>`, or a `redirect()` to `?notice=` /
+   `?error=` / `?done=` that the destination renders.
+3. **No discarded action promises.** `void someAction(...)` cannot fail
+   visibly; there is no legitimate use.
+4. **A submit control shows it was pressed** — `PendingSubmitButton` for
+   server-action forms, `<Button loading>` for `useState`-driven ones.
+
+The test asserts *exact equality* against checked-in lists, so it fails in both
+directions: a new gap fails, and a fixed gap left in the list also fails. Seed
+any new list by **running** the detectors, never by hand. Every allowlist entry
+carries the reason it is acceptable.
+
+Failure is never silent: an error with no message still gets a sentence.
+Success is never silent either — the hook used to suppress the toast when the
+action returned no message, which was a silent-success path hiding inside the
+hook meant to prevent silent success.
+
+Tone is not colour-only. A success/danger toast carries an icon as well as a
+rail (WCAG 1.4.1), and danger takes `role="alert"` plus a longer dismiss.
+
+**Optimistic UI stays banned for financial mutations** (§5.3). `useActionFeedback`
++ `PendingSubmitButton` is the sanctioned substitute.
+
+### 5.8 Downloads
+
+Export routes generate XLSX and printable HTML on demand and declare
+`maxDuration = 60`. A download is a plain navigation to an attachment response,
+so the page never changes — clicking one produced *no UI change at all*, and
+staff clicked again.
+
+There is no client event for "an attachment arrived": `<a download>` fires
+nothing, and an iframe's `onload` does not fire for an attachment. So
+`<DownloadAnchor>` puts a nonce on the URL and `withDownloadToken` echoes it
+back as a short-lived cookie; the client polls for it and clears the spinner
+when the response reaches the browser.
+
+**The rule: never intercept the click.** No `preventDefault`, no `fetch`, no
+blob. The browser performs the same navigation it always did, so the native
+download shelf, `target="_blank"` printing, and the no-JS path all still work.
+`tests/ui/exports-page-links.test.tsx` asserts this against the primitive.
+
+Why not `fetch` + blob, which would signal precisely: it discards the download
+shelf, breaks the printable-HTML flow, buffers a whole workbook in tab memory,
+and loses the file if the tab closes mid-request.
+
+Two related traps, both of which have shipped as bugs here:
+
+- **Never point a `<Link>` at a download route.** The App Router intercepts the
+  click and a non-RSC response silently no-ops — the button does nothing. Three
+  live instances were found and fixed.
+- **`SameSite=Lax`, not `Strict`.** A download is a top-level navigation, and
+  `Strict` drops the cookie on the `target="_blank"` PDF route.
+
+The signal means "the response reached the browser", not "the file finished
+writing to disk". For a 60-second generation that is the number that matters.
+A 90s timeout says "still preparing" rather than spinning forever — a spinner
+that never stops is the same dead-click bug in a new costume.
 
 ---
 
