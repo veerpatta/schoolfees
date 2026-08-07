@@ -64,6 +64,10 @@ function readFlag(name, fallback = null) {
 
 const sessionLabel = readFlag("session", "2026-27");
 const apply = process.argv.includes("--apply");
+// Repair only the students whose dues would GO DOWN. The increases are a
+// different decision — on this data they are hand-written settlements, not
+// stale ledgers — so they never ride along with a discount repair.
+const onlyDecreases = process.argv.includes("--only-decreases");
 const baseUrl = readFlag("url", process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -183,24 +187,35 @@ async function main() {
     { header: "Drift", get: (row) => rupees(row.drift) },
   ]);
 
-  // Split by direction, because they mean opposite things to a parent and the
-  // second kind must never be applied without someone looking at it.
-  const owesLess = drifted.filter((row) => row.drift < 0);
-  const owesMore = drifted.filter((row) => row.drift > 0);
-  const netChange = drifted.reduce((sum, row) => sum + row.drift, 0);
+  // drift = what the policy says - what the ledger holds.
+  //   drift < 0 → the ledger is charging MORE than the policy. Repairing LOWERS
+  //               the parent's dues. This is the discount-never-landed case.
+  //   drift > 0 → the ledger is charging LESS than the policy. Repairing RAISES
+  //               the parent's dues, which is never a silent operation.
+  const duesWouldFall = drifted.filter((row) => row.drift < 0);
+  const duesWouldRise = drifted.filter((row) => row.drift > 0);
 
-  console.log(`\n${drifted.length} student(s), net ${rupees(netChange)}.`);
-  console.log(`  ${owesMore.length} would see dues GO DOWN (a discount that never landed).`);
-  console.log(`  ${owesLess.length} would see dues GO UP  (ledger below current policy).`);
+  console.log(`\n${drifted.length} student(s) drifted.`);
+  console.log(
+    `  ${duesWouldFall.length} would see dues GO DOWN by ${rupees(
+      duesWouldFall.reduce((sum, row) => sum + Math.abs(row.drift), 0),
+    )} — a discount that never landed.`,
+  );
+  console.log(
+    `  ${duesWouldRise.length} would see dues GO UP by ${rupees(
+      duesWouldRise.reduce((sum, row) => sum + row.drift, 0),
+    )} — ledger below current policy.`,
+  );
 
-  if (owesLess.length > 0) {
+  if (duesWouldRise.length > 0) {
     console.log(
       "\n  ⚠  Raising a parent's dues is not a silent repair. Review these before --apply:",
     );
-    printTable(owesLess, [
+    printTable(duesWouldRise, [
       { header: "SR", get: (row) => row.admission_no ?? "" },
       { header: "Name", get: (row) => row.student_name ?? "" },
-      { header: "Increase", get: (row) => rupees(Math.abs(row.drift)) },
+      { header: "Class", get: (row) => row.class_label ?? "" },
+      { header: "Increase", get: (row) => rupees(row.drift) },
     ]);
   }
 
@@ -221,7 +236,7 @@ async function main() {
   const response = await fetch(`${baseUrl}/api/admin/repair-discount-drift`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${secret}` },
-    body: JSON.stringify({ sessionLabel, dryRun: false }),
+    body: JSON.stringify({ sessionLabel, dryRun: false, onlyDecreases }),
   });
 
   const payload = await response.json();
@@ -236,6 +251,14 @@ async function main() {
       `${payload.applied.installmentsToInsert} inserted, ` +
       `${payload.applied.lockedInstallments} kept for review.`,
   );
+
+  if (payload.skippedIncreases?.length) {
+    console.log(
+      `
+Skipped ${payload.skippedIncreases.length} student(s) whose dues would have gone UP. ` +
+        "Review them before deciding.",
+    );
+  }
 
   if (payload.residualCreditStudents?.length) {
     console.log("\n## Now refundable (discount exceeded the balance)\n");

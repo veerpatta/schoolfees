@@ -172,7 +172,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: auth.reason }, { status: 401 });
   }
 
-  let body: { sessionLabel?: string; dryRun?: boolean; studentIds?: string[] };
+  let body: {
+    sessionLabel?: string;
+    dryRun?: boolean;
+    studentIds?: string[];
+    onlyDecreases?: boolean;
+  };
 
   try {
     body = await request.json();
@@ -191,7 +196,18 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
 
   try {
-    const before = await findDrift(supabase, sessionLabel, body.studentIds);
+    const allDrift = await findDrift(supabase, sessionLabel, body.studentIds);
+
+    // `drift > 0` means the ledger charges LESS than the policy, so repairing
+    // RAISES what a parent owes. On this data that group is not stale — those
+    // ledgers were hand-written (whole year collapsed onto installment 1,
+    // 2-4 at zero) as negotiated settlements, and several of those students are
+    // currently settled. Regenerating them would re-bill a family. Opt in
+    // explicitly, per student, after a human has read the list.
+    const before = body.onlyDecreases ? allDrift.filter((row) => row.drift < 0) : allDrift;
+    const skippedIncreases = body.onlyDecreases
+      ? allDrift.filter((row) => row.drift > 0)
+      : [];
 
     if (before.length === 0) {
       return NextResponse.json({
@@ -199,11 +215,11 @@ export async function POST(request: Request) {
         sessionLabel,
         dryRun,
         driftedCount: 0,
-        message: "No drift found. Every active student's ledger matches their resolved fee policy.",
+        message: "No drift found in scope. Every targeted student's ledger matches their resolved fee policy.",
         before: [],
-        after: [],
         remaining: [],
         residualCreditStudents: [],
+        skippedIncreases,
       });
     }
 
@@ -231,6 +247,7 @@ export async function POST(request: Request) {
         residualCreditStudents: preview.residualCreditStudents,
         blockedInstallmentsForReview: preview.blockedInstallmentsForReview,
         skippedStudents: preview.skippedStudents,
+        skippedIncreases,
         message: "Dry run only. Nothing was written.",
       });
     }
@@ -280,6 +297,7 @@ export async function POST(request: Request) {
       residualCreditStudents: result.residualCreditStudents,
       blockedInstallmentsForReview: result.blockedInstallmentsForReview,
       skippedStudents: result.skippedStudents,
+      skippedIncreases,
       remaining,
     });
   } catch (error) {
