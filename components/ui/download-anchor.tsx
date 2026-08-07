@@ -7,7 +7,7 @@ import { toast } from "@/components/ui/toast";
 import {
   DOWNLOAD_TOKEN_COOKIE,
   DOWNLOAD_TOKEN_PARAM,
-} from "@/lib/helpers/download-token";
+} from "@/lib/helpers/download-token-shared";
 import { cn } from "@/lib/utils";
 
 /**

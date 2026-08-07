@@ -18,11 +18,12 @@
  * workbook in tab memory, and loses the file if the tab closes mid-request.
  */
 
-/** Query parameter carrying the client's nonce. */
-export const DOWNLOAD_TOKEN_PARAM = "dl";
+import {
+  DOWNLOAD_TOKEN_COOKIE,
+  DOWNLOAD_TOKEN_PARAM,
+} from "@/lib/helpers/download-token-shared";
 
-/** Cookie the server echoes it back in. Read by JS, so NOT HttpOnly. */
-export const DOWNLOAD_TOKEN_COOKIE = "vpps-dl";
+export { DOWNLOAD_TOKEN_COOKIE, DOWNLOAD_TOKEN_PARAM };
 
 /** Long enough for the client's 250ms poll to see it, short enough to vanish. */
 const TOKEN_MAX_AGE_SECONDS = 30;
