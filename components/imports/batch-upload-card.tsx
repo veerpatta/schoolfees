@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { SectionCard } from "@/components/admin/section-card";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { uploadStudentImportBatchAction } from "@/app/protected/imports/actions";
@@ -52,9 +52,9 @@ export function BatchUploadCard({
         : "Upload the add-students file. Student name and class are enough to create a row."}
       actions={
         <Button asChild size="sm" variant="outline">
-          <Link href={templateHref}>
+          <DownloadAnchor href={templateHref} download>
             {mode === "update" ? "Download Existing Students for Update" : "Download Add Template"}
-          </Link>
+          </DownloadAnchor>
         </Button>
       }
     >

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import type { ImportBatchDialogSummary, ImportMode } from "@/lib/import/types";
 import { appendCurrentSessionParam } from "@/lib/navigation/session-href";
@@ -299,11 +300,11 @@ export function StudentBulkImportDialogTrigger({
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" asChild>
-                      <Link href={templateHref}>
+                      <DownloadAnchor href={templateHref} download>
                         {mode === "update"
                           ? "Download Existing Students for Update"
                           : "Download Template"}
-                      </Link>
+                      </DownloadAnchor>
                     </Button>
                     <Button onClick={uploadAndValidate} disabled={!selectedFile || uploading || committing}>
                       {uploading ? "Uploading..." : "Upload and Validate"}

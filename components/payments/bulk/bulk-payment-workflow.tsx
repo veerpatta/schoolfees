@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Download, FileSpreadsheet, Link2, RotateCcw, ShieldCheck } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatInr } from "@/lib/helpers/currency";
@@ -395,14 +396,14 @@ export function BulkPaymentWorkflow({
             </div>
 
             <div className="flex flex-col justify-center gap-2 sm:flex-row lg:flex-col">
-              <a
+              <DownloadAnchor
                 href="/protected/payments/bulk/template"
                 download
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-surface-2"
               >
                 <Download className="size-4" aria-hidden="true" />
                 Download guided template
-              </a>
+              </DownloadAnchor>
               <Button
                 type="button"
                 disabled={uploading || !selectedFile}

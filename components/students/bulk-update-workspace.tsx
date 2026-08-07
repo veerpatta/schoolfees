@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, Loader2, Upload } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import {
@@ -231,10 +232,10 @@ export function BulkUpdateWorkspace({ sessionLabel, classOptions }: BulkUpdateWo
         <div className="flex flex-wrap items-center gap-3">
           {templateHref ? (
             <Button asChild>
-              <a href={templateHref}>
+              <DownloadAnchor href={templateHref} download>
                 <Download className="mr-2 size-4" aria-hidden="true" />
                 Download Excel template
-              </a>
+              </DownloadAnchor>
             </Button>
           ) : (
             <Button disabled>

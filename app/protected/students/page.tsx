@@ -5,6 +5,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeActionBar, OfficeNotice } from "@/components/office/office-ui";
 import { StudentSessionMismatchActions } from "@/components/students/student-session-mismatch-actions";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { StudentBulkImportDialogTrigger } from "@/components/students/student-bulk-import-dialog";
 import { StudentQuickLoad } from "@/components/students/student-quick-load";
 import { Button } from "@/components/ui/button";
@@ -231,15 +232,27 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
+                  {/* DownloadAnchor, not Link: these hrefs return a binary
+                      attachment, and client-side navigation to a non-RSC
+                      response silently no-ops. As <Link> they did nothing at
+                      all — this is a bug fix, not polish. */}
                   <DropdownMenuItem asChild>
-                    <Link href={withSession(`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`)}>
+                    <DownloadAnchor
+                      href={withSession(`/protected/imports/template?mode=add&sessionLabel=${encodeURIComponent(filters.sessionLabel)}`)}
+                      download
+                      className="flex w-full items-center gap-2"
+                    >
                       {t("downloadAddTemplate")}
-                    </Link>
+                    </DownloadAnchor>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href={withSession("/protected/imports/template?mode=update")}>
+                    <DownloadAnchor
+                      href={withSession("/protected/imports/template?mode=update")}
+                      download
+                      className="flex w-full items-center gap-2"
+                    >
                       {t("downloadUpdateTemplate")}
-                    </Link>
+                    </DownloadAnchor>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

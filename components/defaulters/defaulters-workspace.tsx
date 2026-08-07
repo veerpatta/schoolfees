@@ -24,6 +24,7 @@ import { OldBalanceChip } from "@/components/shared/old-balance-chip";
 import { WhatsAppDraftModal } from "@/components/defaulters/whatsapp-draft-modal";
 import { WorklistDrawer } from "@/components/defaulters/worklist-drawer";
 import { buildStudentPhoneEntries, type PhoneEntry } from "@/components/students/phone-chooser";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
 import { formatInr } from "@/lib/helpers/currency";
@@ -636,11 +637,11 @@ function CallQueueHeader({
             <span className="sm:hidden">WhatsApp</span>
           </Button>
           <Button asChild variant="outline" size="mobile" className="px-2">
-            <Link href={exportHref}>
+            <DownloadAnchor href={exportHref} download>
               <Download className="size-4" aria-hidden="true" />
               <span className="hidden sm:inline">{t("callQueueDownloadList")}</span>
               <span className="sm:hidden">{t("callQueueDownloadShort")}</span>
-            </Link>
+            </DownloadAnchor>
           </Button>
         </div>
       </div>

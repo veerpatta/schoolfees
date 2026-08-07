@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useId, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
+import { useActionFeedback } from "@/hooks/use-action-feedback";
 import type { StudentDeletionSafety } from "@/lib/students/types";
 
 import {
@@ -38,44 +38,33 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
     INITIAL_STUDENT_DANGER_ACTION_STATE,
   );
 
-  useEffect(() => {
-    if (archiveState.status === "idle" || !archiveState.message) {
-      return;
-    }
+  // Withdrawing keeps you on the page, so the hook's refresh is what stops the
+  // record still reading as active. Using the shared hook rather than a bespoke
+  // effect also brings its identity guard: the hand-rolled version re-fired
+  // whenever the component re-rendered with an equal state object, so a single
+  // withdrawal could announce itself twice.
+  useActionFeedback(archiveState, {
+    successTitle: t("dangerWithdrawDone"),
+    errorTitle: t("dangerActionFailed"),
+  });
 
-    toast({
-      title:
-        archiveState.status === "success" ? t("dangerWithdrawDone") : t("dangerActionFailed"),
-      description: archiveState.message,
-    });
-
-    // Withdrawing keeps you on the page, so without this the record still reads
-    // as active and the change looks like it did not happen.
-    if (archiveState.status === "success") {
-      router.refresh();
-    }
-  }, [archiveState, router, t]);
-
-  useEffect(() => {
-    if (deleteState.status === "idle" || !deleteState.message) {
-      return;
-    }
-
-    toast({
-      title: deleteState.status === "success" ? t("dangerDeleteDone") : t("dangerActionFailed"),
-      description: deleteState.message,
-    });
-
-    // The record this page is about no longer exists — staying here would
-    // render a 404 on the next refresh. The confirmation travels in the URL
-    // rather than as a toast: a toast fired while the page is navigating and
-    // re-rendering is easy to miss entirely, which is what made a successful
+  useActionFeedback(deleteState, {
+    successTitle: t("dangerDeleteDone"),
+    errorTitle: t("dangerActionFailed"),
+    // The record is gone; refreshing this page would render a 404. Navigate
+    // instead, carrying the confirmation in the URL — a toast fired while the
+    // page is navigating away is easy to miss, which is what made a successful
     // delete look like nothing had happened.
-    if (deleteState.deleted) {
+    refreshOnSuccess: false,
+    onSuccess: (state) => {
+      if (!(state as typeof deleteState).deleted) {
+        return;
+      }
+
       const removed = `${deletionSafety.fullName} (SR ${deletionSafety.admissionNo})`;
       router.replace(`/protected/students?removed=${encodeURIComponent(removed)}`);
-    }
-  }, [deleteState, router, t, deletionSafety.fullName, deletionSafety.admissionNo]);
+    },
+  });
 
   const deleteExplanation = deletionSafety.hardDeleteAllowed
     ? deletionSafety.generatedDuesDeleteAllowed

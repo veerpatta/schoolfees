@@ -6,6 +6,7 @@ import { serializeCsv } from "@/lib/reports/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 import { formatExportName } from "@/lib/helpers/export";
 
+import { withDownloadToken } from "@/lib/helpers/download-token";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -202,11 +203,14 @@ export async function GET(request: NextRequest) {
     }
   })();
 
-  return new Response(serializeCsv(csvData), {
-    headers: {
-      "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="${csvData.filename}"`,
-      "cache-control": "no-store",
-    },
-  });
+  return withDownloadToken(
+    request,
+    new Response(serializeCsv(csvData), {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": `attachment; filename="${csvData.filename}"`,
+        "cache-control": "no-store",
+      },
+    }),
+  );
 }

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 
+import { withDownloadToken } from "@/lib/helpers/download-token";
 import {
   getReportCsvData,
   normalizeReportFilters,
@@ -27,11 +28,14 @@ export async function GET(request: NextRequest) {
   const filters = normalizeReportFilters(request.nextUrl.searchParams);
   const csvData = await getReportCsvData(filters);
 
-  return new Response(serializeCsv(csvData), {
-    headers: {
-      "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="${csvData.filename}"`,
-      "cache-control": "no-store",
-    },
-  });
+  return withDownloadToken(
+    request,
+    new Response(serializeCsv(csvData), {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": `attachment; filename="${csvData.filename}"`,
+        "cache-control": "no-store",
+      },
+    }),
+  );
 }

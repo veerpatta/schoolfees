@@ -7,6 +7,7 @@ import { compareStudentRowsByName } from "@/lib/students/sort";
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
 
+import { withDownloadToken } from "@/lib/helpers/download-token";
 type StudentClassRef = {
   session_label: string;
   class_name: string;
@@ -55,13 +56,13 @@ function routeLabel(row: StudentRouteRef) {
   return row.route_code ? `${row.route_name} (${row.route_code})` : row.route_name;
 }
 
-function xlsxResponse(buffer: Buffer, filename: string) {
-  return new Response(new Uint8Array(buffer), {
+function xlsxResponse(request: Request, buffer: Buffer, filename: string) {
+  return withDownloadToken(request, new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
-  });
+  }));
 }
 
 async function buildUpdateRows(sessionLabel: string | null): Promise<UpdateTemplateStudent[]> {
@@ -175,7 +176,7 @@ export async function GET(request: Request) {
         conventionalPolicies,
       },
     );
-    return xlsxResponse(buffer, "student-update-template.xlsx");
+    return xlsxResponse(request, buffer, "student-update-template.xlsx");
   }
 
   const { buildAddStudentsTemplateFile } = await import("@/lib/import/templates");
@@ -185,5 +186,5 @@ export async function GET(request: Request) {
     conventionalPolicies,
   );
 
-  return xlsxResponse(buffer, "student-add-template.xlsx");
+  return xlsxResponse(request, buffer, "student-add-template.xlsx");
 }

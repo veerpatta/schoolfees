@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OfficeNotice } from "@/components/office/office-ui";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import { MobileRecordCard } from "@/components/mobile-app/mobile-kit";
 import { formatInr } from "@/lib/helpers/currency";
@@ -74,7 +75,9 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
         description="Recover still-pending fees from students who have left, graduated, or gone inactive."
         actions={
           <Button asChild variant="outline" size="sm">
-            <Link href="/protected/exports/left-student-dues">Export</Link>
+            <DownloadAnchor href="/protected/exports/left-student-dues" download>
+              Export
+            </DownloadAnchor>
           </Button>
         }
       />

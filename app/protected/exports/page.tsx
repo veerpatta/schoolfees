@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download, Sparkles, FileText } from "lucide-react";
 
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { OfficeNotice } from "@/components/office/office-ui";
@@ -190,24 +191,26 @@ export default async function ExportsPage({ searchParams }: ExportsPageProps) {
                           in; the PDF is for sharing. Tinting one of two
                           identical grey buttons is what lets a thumb pick the
                           right one without reading. */}
-                      <a
+                      <DownloadAnchor
                         href={xlsxHref}
                         download
+                        pendingLabel={t("formatXlsx")}
                         className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-success/30 bg-success-soft px-2.5 text-xs font-bold text-success-soft-foreground hover:bg-success-soft/80 md:h-auto md:rounded-md md:py-1.5 md:font-medium"
                       >
                         <Download className="size-3.5" aria-hidden="true" />
                         {t("formatXlsx")}
-                      </a>
+                      </DownloadAnchor>
                       {supportsPdf ? (
-                        <a
+                        <DownloadAnchor
                           href={pdfHref}
                           target="_blank"
                           rel="noopener"
+                          pendingLabel={t("formatPdf")}
                           className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-2 px-2.5 text-xs font-bold text-foreground hover:bg-surface-3 md:h-auto md:rounded-md md:py-1.5 md:font-medium"
                         >
                           <FileText className="size-3.5" aria-hidden="true" />
                           {t("formatPdf")}
-                        </a>
+                        </DownloadAnchor>
                       ) : null}
                     </div>
                   </div>

@@ -29,6 +29,7 @@ import { OptimisticBanner } from "@/components/dashboard/optimistic-banner";
 import { MissingDuesBanner } from "@/components/shared/missing-dues-banner";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { composeMorningBrief } from "@/lib/dashboard/morning-brief";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -2322,25 +2323,38 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <div className="grid gap-2.5 sm:grid-cols-2">
             {[
               { href: "/protected/students/new", label: t("emptyAddStudent"), detail: t("emptyAddStudentDetail") },
-              { href: "/protected/imports/template", label: t("emptyBulkAdd"), detail: t("emptyBulkAddDetail") },
+              // A download, not a page. As a <Link> this quick action did
+              // nothing at all: the App Router intercepts the click and a
+              // binary attachment response silently no-ops.
+              { href: "/protected/imports/template", label: t("emptyBulkAdd"), detail: t("emptyBulkAddDetail"), download: true },
               { href: "/protected/fee-setup", label: t("emptyOpenFeeSetup"), detail: t("emptyOpenFeeSetupDetail") },
               { href: "/protected/admin-tools", label: t("emptyAdminTools"), detail: t("emptyAdminToolsDetail") },
-            ].map((action) => (
-              <Link
-                key={action.href}
-                href={withSession(action.href)}
-                className="group flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 transition-colors hover:border-border-strong hover:bg-surface-2"
-              >
-                <span>
-                  <span className="block text-sm font-semibold text-foreground">{action.label}</span>
-                  <span className="block text-xs text-muted-foreground">{action.detail}</span>
-                </span>
-                <ArrowRight
-                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground"
-                  aria-hidden="true"
-                />
-              </Link>
-            ))}
+            ].map((action) => {
+              const body = (
+                <>
+                  <span>
+                    <span className="block text-sm font-semibold text-foreground">{action.label}</span>
+                    <span className="block text-xs text-muted-foreground">{action.detail}</span>
+                  </span>
+                  <ArrowRight
+                    className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground"
+                    aria-hidden="true"
+                  />
+                </>
+              );
+              const className =
+                "group flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 transition-colors hover:border-border-strong hover:bg-surface-2";
+
+              return action.download ? (
+                <DownloadAnchor key={action.href} href={withSession(action.href)} download className={className}>
+                  {body}
+                </DownloadAnchor>
+              ) : (
+                <Link key={action.href} href={withSession(action.href)} className={className}>
+                  {body}
+                </Link>
+              );
+            })}
           </div>
         </Section>
       ) : null}

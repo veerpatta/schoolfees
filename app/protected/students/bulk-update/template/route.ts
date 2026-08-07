@@ -13,6 +13,7 @@ import {
 } from "@/lib/students/bulk-update/workbook";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 
+import { withDownloadToken } from "@/lib/helpers/download-token";
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
@@ -94,14 +95,17 @@ export async function GET(request: Request) {
     const stamp = new Date().toISOString().slice(0, 10);
     const filename = `bulk-update-${sessionLabel}-${stamp}.xlsx`;
 
-    return new NextResponse(new Uint8Array(buffer), {
+    return withDownloadToken(
+      request,
+      new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "no-store",
-      },
-    });
+          "Cache-Control": "no-store",
+        },
+      }),
+    );
   } catch (error) {
     return NextResponse.json(
       {

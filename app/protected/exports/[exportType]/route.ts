@@ -35,6 +35,7 @@ import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst } from "@/lib/helpers/date";
 import { recordActivity } from "@/lib/activity/events";
 
+import { withDownloadToken } from "@/lib/helpers/download-token";
 // Heavy exports (ai-context-bundle builds a 16-sheet workbook from ~14 reads)
 // overrun Vercel's default function timeout on real data volumes.
 export const maxDuration = 60;
@@ -878,7 +879,16 @@ function parseDefaulterFiltersFromQuery(request: NextRequest): DefaulterFilters 
   };
 }
 
+/**
+ * Wraps every export response with the download-echo cookie, so the client's
+ * spinner knows when the file actually started arriving. This route has a
+ * dozen return paths; wrapping once here beats touching each of them.
+ */
 export async function GET(request: NextRequest, context: RouteContext) {
+  return withDownloadToken(request, await handleExport(request, context));
+}
+
+async function handleExport(request: NextRequest, context: RouteContext) {
   const staff = await getAuthenticatedStaff();
   if (!staff) {
     return new Response("Unauthorized", { status: 401 });

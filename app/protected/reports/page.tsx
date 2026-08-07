@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { PrintReportButton } from "@/components/reports/print-report-button";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -169,11 +170,15 @@ function ReportFiltersSection({
       actions={
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href={exportHref}>Export CSV</Link>
+            <DownloadAnchor href={exportHref} download>
+              Export CSV
+            </DownloadAnchor>
           </Button>
           {printHref ? (
             <Button asChild variant="outline">
-              <Link href={printHref} target="_blank">Print view</Link>
+              <DownloadAnchor href={printHref} target="_blank" successTitle="Print view ready">
+                Print view
+              </DownloadAnchor>
             </Button>
           ) : reportDefinitions[report].printFriendly ? (
             <PrintReportButton />

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
@@ -89,10 +89,13 @@ describe("StudentDangerZone feedback", () => {
     await user.click(screen.getByRole("button", { name: /withdraw student/i }));
 
     // Reported twice on purpose: the transient toast and the panel message.
-    const shown = await screen.findAllByText(
-      "Student withdrawn. Receipts and payment history stay saved.",
-    );
-    expect(shown.length).toBeGreaterThanOrEqual(2);
+    // waitFor, not findAllByText — the latter resolves on the FIRST match, so
+    // it races whichever of the two renders first and flakes under load.
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("Student withdrawn. Receipts and payment history stay saved."),
+      ).toHaveLength(2);
+    });
     expect(refresh).toHaveBeenCalled();
   });
 

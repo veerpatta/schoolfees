@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FinanceControlsClient } from "@/components/finance-controls/finance-controls-client";
@@ -68,7 +69,9 @@ export default async function FinanceControlsPage({ searchParams }: FinanceContr
               tone={canApprove ? "good" : canWrite ? "accent" : "neutral"}
             />
             <Button asChild variant="outline">
-              <Link href={exportHref}>Export day book</Link>
+              <DownloadAnchor href={exportHref} download>
+                Export day book
+              </DownloadAnchor>
             </Button>
           </div>
         }
