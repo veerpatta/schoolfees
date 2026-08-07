@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { NavLink } from "@/components/admin/nav-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ChevronRight, Ellipsis, X } from "lucide-react";
@@ -133,7 +133,7 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
                       const href = appendCurrentSessionParam(item.href, searchParams);
 
                       return (
-                        <Link
+                        <NavLink
                           key={item.href}
                           href={href}
                           aria-current={active ? "page" : undefined}
@@ -164,7 +164,7 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
                                 : item.description}
                             </span>
                           </span>
-                        </Link>
+                        </NavLink>
                       );
                     })}
                   </div>
@@ -175,7 +175,7 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
                   The phone app has no top bar, so this is the only place the
                   signed-in identity appears outside Settings itself. */}
               {staffEmail ? (
-                <Link
+                <NavLink
                   href={appendCurrentSessionParam("/protected/settings", searchParams)}
                   onClick={() => setOverflowOpen(false)}
                   className="focus-ring flex min-h-14 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 transition-colors active:bg-surface-2"
@@ -195,7 +195,7 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
                     className="size-[18px] shrink-0 text-subtle-foreground"
                     aria-hidden="true"
                   />
-                </Link>
+                </NavLink>
               ) : null}
 
               <p className="pb-2 text-center text-[10.5px] font-semibold text-subtle-foreground">
@@ -285,14 +285,14 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
             }
 
             return (
-              <Link
+              <NavLink
                 key={item.href}
                 href={href ?? item.href}
                 aria-current={active ? "page" : undefined}
                 className="focus-ring relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1 transition-colors"
               >
                 {content}
-              </Link>
+              </NavLink>
             );
           })}
         </div>

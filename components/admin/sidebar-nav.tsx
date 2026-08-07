@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import Link from "next/link";
+import { NavLink } from "@/components/admin/nav-link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -85,7 +85,7 @@ export function SidebarNav({
 
     if (isTopbar) {
       return (
-        <Link
+        <NavLink
           key={item.href}
           href={href}
           prefetch={isEager}
@@ -102,14 +102,14 @@ export function SidebarNav({
         >
           <Icon className="size-3.5" aria-hidden="true" />
           <span className="truncate">{translateLabel(item)}</span>
-        </Link>
+        </NavLink>
       );
     }
 
     const count = counts?.[item.href];
 
     return (
-      <Link
+      <NavLink
         key={item.href}
         href={href}
         prefetch={isEager}
@@ -163,7 +163,7 @@ export function SidebarNav({
             {count > 999 ? "999+" : count}
           </span>
         ) : null}
-      </Link>
+      </NavLink>
     );
   };
 
