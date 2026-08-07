@@ -160,7 +160,9 @@
     "previewValidBadge": "Valid · verified",
     "previewReversedBadge": "Reversed · no longer valid",
     "printA4Action": "Print A4",
-    "paidStamp": "PAID"
+    "paidStamp": "PAID",
+    "yearClearedStamp": "YEAR CLEARED",
+    "yearClearedNote": "No further fees are due for this session."
   },
   "hi": {
     "indexEyebrow": "रसीदें",
@@ -323,6 +325,8 @@
     "previewValidBadge": "मान्य · सत्यापित",
     "previewReversedBadge": "निरस्त · अब मान्य नहीं",
     "printA4Action": "A4 प्रिंट करें",
-    "paidStamp": "भुगतान"
+    "paidStamp": "भुगतान",
+    "yearClearedStamp": "वर्ष पूर्ण",
+    "yearClearedNote": "इस सत्र के लिए कोई शुल्क शेष नहीं है।"
   }
 }

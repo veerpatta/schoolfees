@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { recordActivity } from "@/lib/activity/events";
 import { getActiveSessionLabel } from "@/lib/session/active";
@@ -17,6 +18,7 @@ import {
   prepareDuesForStudentsAutomatically,
   revalidateFinanceSurfaces,
 } from "@/lib/system-sync/finance-sync";
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 
 import type {
   BulkUpdateApplyState,
@@ -185,6 +187,10 @@ export async function applyBulkUpdateAction(
           studentIds: preview.feeImpactStudentIds,
           reason: "Bulk student update",
         });
+        // Installment writes only enqueue a matview refresh (20260726154843);
+        // without this the bulk-updated students keep showing their old dues
+        // until the */2 cron fires.
+        after(drainFinancialViewRefresh);
       } catch (error) {
         // The student rows are already saved; surface this without pretending
         // the whole apply failed.

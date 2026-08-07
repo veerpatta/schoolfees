@@ -6,6 +6,7 @@ import { generateSessionLedgersAction } from "@/lib/fees/generator";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { revalidateSessionFinance } from "@/lib/system-sync/finance-sync";
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 
 function sessionHealthUrl(params: Record<string, string | number>) {
   const searchParams = new URLSearchParams();
@@ -67,6 +68,10 @@ export async function reconcileSessionAction(formData: FormData) {
       throw new Error(updateError.message);
     }
 
+    // This is the repair tool. Regenerating a whole session enqueues one
+    // matview refresh and nothing drains it, so the operator ran the repair,
+    // saw unchanged numbers, and ran it again. Drain before revalidating.
+    await drainFinancialViewRefresh();
     revalidateSessionFinance(label);
   } catch (error) {
     const message = getErrorMessage(error);

@@ -35,7 +35,12 @@ type WorkbookStudentFinancialRow = {
   other_adjustment_head: string | null;
   other_adjustment_amount: number;
   gross_base_before_discount: number;
+  /** Both discount lines together. gross - discount_amount = base_charge_total. */
   discount_amount: number;
+  /** Optional so the app still boots if 20260807120000 has not been applied yet. */
+  conventional_discount_amount?: number | null;
+  student_discount_amount?: number | null;
+  conventional_discount_labels?: string | null;
   late_fee_waiver_amount: number;
   base_charge_total: number;
   late_fee_total: number;
@@ -81,6 +86,7 @@ type WorkbookInstallmentBalanceRow = {
   due_date: string;
   base_charge: number;
   paid_amount: number;
+  discount_closeout_amount?: number | null;
   adjustment_amount: number;
   applied_amount: number;
   raw_late_fee: number;
@@ -164,7 +170,15 @@ export type WorkbookStudentFinancial = {
   otherAdjustmentHead: string | null;
   otherAdjustmentAmount: number;
   grossBaseBeforeDiscount: number;
+  /**
+   * Total of both discount lines. Split across the two fields below: the
+   * conventional part comes from an RTE / Staff Child / 3rd Child policy, the
+   * student part is the owner-entered extra on top of it.
+   */
   discountAmount: number;
+  conventionalDiscountAmount: number;
+  studentDiscountAmount: number;
+  conventionalDiscountLabels: string | null;
   lateFeeWaiverAmount: number;
   baseChargeTotal: number;
   lateFeeTotal: number;
@@ -214,6 +228,8 @@ export type WorkbookInstallmentBalance = {
   lastPaymentDate: string | null;
   baseCharge: number;
   paidAmount: number;
+  /** Balance cleared by a discount-mode write-off. Not cash. */
+  discountCloseoutAmount: number;
   adjustmentAmount: number;
   rawLateFee: number;
   waiverApplied: number;
@@ -347,6 +363,12 @@ function mapFinancialRow(row: WorkbookStudentFinancialRow): WorkbookStudentFinan
     otherAdjustmentAmount: row.other_adjustment_amount,
     grossBaseBeforeDiscount: row.gross_base_before_discount,
     discountAmount: row.discount_amount,
+    // Fall back to "all of it is a student discount" when the columns are
+    // absent, which is what the view reported before 20260807120000. Keeps the
+    // total honest whichever side of the migration this code runs against.
+    conventionalDiscountAmount: row.conventional_discount_amount ?? 0,
+    studentDiscountAmount: row.student_discount_amount ?? row.discount_amount ?? 0,
+    conventionalDiscountLabels: row.conventional_discount_labels ?? null,
     lateFeeWaiverAmount: row.late_fee_waiver_amount,
     baseChargeTotal: row.base_charge_total,
     lateFeeTotal: row.late_fee_total,
@@ -408,6 +430,7 @@ function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallm
     lastPaymentDate: row.last_payment_date,
     baseCharge: row.base_charge,
     paidAmount: row.paid_amount,
+    discountCloseoutAmount: row.discount_closeout_amount ?? 0,
     adjustmentAmount: row.adjustment_amount,
     rawLateFee: row.raw_late_fee,
     waiverApplied: row.waiver_applied,

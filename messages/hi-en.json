@@ -1095,6 +1095,7 @@
     "duesNotPrepared": "Baaki taiyaar nahi",
     "feePositionLoading": "Fees load ho rahi hai",
     "yearClear": "Saal ka baaki saaf ✓",
+    "nothingDueYet": "Abhi kuch baaki nahi",
     "overdueBadge": "{amount} overdue",
     "lateFeeSuffix": "+ {amount} late fee",
     "lateFeeWaived": "Late fee maaf",
@@ -1404,7 +1405,9 @@
     "previewValidBadge": "Valid · verified",
     "previewReversedBadge": "Reversed · ab valid nahi",
     "printA4Action": "Print A4",
-    "paidStamp": "PAID"
+    "paidStamp": "PAID",
+    "yearClearedStamp": "YEAR CLEARED",
+    "yearClearedNote": "Is satra ke liye koi shulk baaki nahi hai."
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",

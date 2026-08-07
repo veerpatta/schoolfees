@@ -42,6 +42,7 @@ function student(overrides: Partial<StudentListItem> = {}): StudentListItem {
     installment3Base: 250,
     installment4Base: 250,
     totalPaid: 0,
+    discountClosedAmount: 0,
     lateFeeTotal: 0,
     totalDue: 1000,
     overdueAmount: 0,

@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+
 import { recordActivity } from "@/lib/activity/events";
 import {
   matchesDeleteConfirmation,
@@ -44,6 +46,7 @@ import {
   type OfficeSyncOutcome,
 } from "@/lib/system-sync/office-sync";
 import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 
 const STUDENT_SAVED_DUES_FAILED_MESSAGE =
   "Student record was saved, but dues could not be prepared automatically. Open Admin Tools \u2192 Session Health if this student does not appear in Payment Desk.";
@@ -64,6 +67,7 @@ function buildStudentDuesSyncOutcome(payload: {
     affectedStudentIds: payload.studentIds,
     readyForPaymentCount: payload.duesResult.readyForPaymentCount,
     duesNeedAttentionCount: payload.duesResult.duesNeedAttentionCount,
+    protectedRowCount: payload.duesResult.protectedRowCount,
     reasonSummary: payload.duesResult.reasonSummary,
   });
 }
@@ -186,6 +190,7 @@ export async function createStudentAction(
   }
 
   let syncMessage = "";
+  let duesStatus: StudentDuesMessage["status"] = "success";
   let syncOutcome: OfficeSyncOutcome;
 
   try {
@@ -203,18 +208,29 @@ export async function createStudentAction(
         sessionLabel: resolvedSessionLabel,
         reason: "Student added",
       });
+      // Writing installments only ENQUEUES a matview refresh (migration
+      // 20260726154843). Without this drain the new student's dues stay
+      // invisible on every list and profile until the */2 cron fires — the
+      // office adds a student and installments 1 and 2 look absent for two
+      // minutes. revalidateFinanceSurfaces alone busts the Next.js cache and
+      // re-queries a stale matview.
+      after(drainFinancialViewRefresh);
       syncOutcome = buildStudentDuesSyncOutcome({
         sessionLabel: resolvedSessionLabel,
         studentIds: affectedStudentIds,
         duesResult,
       });
 
-      syncMessage = buildStudentDuesMessage({
+      const duesMessage = buildStudentDuesMessage({
         action: "added",
         readyForPaymentCount: duesResult.readyForPaymentCount,
         duesNeedAttentionCount: duesResult.duesNeedAttentionCount,
+        protectedRowCount: duesResult.protectedRowCount,
+        residualCreditTotal: duesResult.residualCreditTotal,
         reasonSummary: duesResult.reasonSummary,
       });
+      syncMessage = duesMessage.message;
+      duesStatus = duesMessage.status;
     } else {
       revalidateFinanceSurfaces({ studentIds: affectedStudentIds });
       syncOutcome = buildSyncedOfficeSyncOutcome({
@@ -232,7 +248,7 @@ export async function createStudentAction(
     });
 
     return {
-      status: "success",
+      status: duesStatus,
       message: syncMessage || "Student record created successfully.",
       fieldErrors: {},
       studentId,
@@ -379,6 +395,7 @@ export async function updateStudentAction(
       );
 
     let syncMessage = "";
+    let duesStatus: StudentDuesMessage["status"] = "success";
     let syncOutcome: OfficeSyncOutcome;
 
     if (shouldSyncDues) {
@@ -387,18 +404,26 @@ export async function updateStudentAction(
         sessionLabel: resolvedSessionLabel,
         reason: "Student updated",
       });
+      // See the note on the create path: the refresh is queued, not applied.
+      // A discount edit that does not drain leaves the fee snapshot showing
+      // the pre-discount figure until the cron catches up.
+      after(drainFinancialViewRefresh);
       syncOutcome = buildStudentDuesSyncOutcome({
         sessionLabel: resolvedSessionLabel,
         studentIds: affectedStudentIds,
         duesResult,
       });
 
-      syncMessage = ` ${buildStudentDuesMessage({
+      const duesMessage = buildStudentDuesMessage({
         action: "updated",
         readyForPaymentCount: duesResult.readyForPaymentCount,
         duesNeedAttentionCount: duesResult.duesNeedAttentionCount,
+        protectedRowCount: duesResult.protectedRowCount,
+        residualCreditTotal: duesResult.residualCreditTotal,
         reasonSummary: duesResult.reasonSummary,
-      })}`;
+      });
+      syncMessage = ` ${duesMessage.message}`;
+      duesStatus = duesMessage.status;
     } else {
       revalidateFinanceSurfaces({ studentIds: affectedStudentIds });
       syncOutcome = buildSyncedOfficeSyncOutcome({
@@ -426,7 +451,7 @@ export async function updateStudentAction(
     });
 
     return {
-      status: "success",
+      status: duesStatus,
       message: syncMessage ? `Student record updated successfully.${syncMessage}` : "Student record updated successfully.",
       fieldErrors: {},
       studentId: updatedStudentId,
@@ -440,22 +465,76 @@ export async function updateStudentAction(
   }
 }
 
+type StudentDuesMessage = { status: "success" | "warning"; message: string };
+
+function formatRupees(amount: number) {
+  return `₹${amount.toLocaleString("en-IN")}`;
+}
+
+/**
+ * What the office is told after a save that touched fee records.
+ *
+ * This used to be a two-branch string: "dues could not be prepared" or the
+ * green "Student updated and fee records updated." There was no third case for
+ * "the save happened, but some rows were left alone" — so a discount applied to
+ * a student who had already paid returned the green sentence while the
+ * installments never moved.
+ */
 function buildStudentDuesMessage(payload: {
   action: "added" | "updated";
   readyForPaymentCount: number;
   duesNeedAttentionCount: number;
+  protectedRowCount: number;
+  residualCreditTotal: number;
   reasonSummary: string | null;
-}) {
-  if (payload.duesNeedAttentionCount === 0 && payload.readyForPaymentCount > 0) {
-    return payload.action === "added"
-      ? "Student added and dues prepared. Open Payment Desk to collect payment."
-      : "Student updated and fee records updated.";
+}): StudentDuesMessage {
+  const savedVerb = payload.action === "added" ? "saved" : "updated";
+
+  if (payload.duesNeedAttentionCount > 0) {
+    return {
+      status: "warning",
+      message: `Student ${savedVerb}, but dues could not be prepared. ${
+        payload.reasonSummary ?? "Check Fee Setup for this class and year."
+      }`,
+    };
   }
 
-  const savedVerb = payload.action === "added" ? "saved" : "updated";
-  return `Student ${savedVerb}, but dues could not be prepared. ${
-    payload.reasonSummary ?? "Check Fee Setup for this class and year."
-  }`;
+  if (payload.protectedRowCount > 0) {
+    const rowWord = payload.protectedRowCount === 1 ? "row" : "rows";
+    const verb = payload.protectedRowCount === 1 ? "was" : "were";
+    return {
+      status: "warning",
+      message:
+        `Student ${savedVerb}. ${payload.protectedRowCount} fee ${rowWord} already carrying ` +
+        `payments ${verb} left unchanged. Open Admin Tools → Session Health to review ` +
+        `before collecting.`,
+    };
+  }
+
+  if (payload.residualCreditTotal > 0) {
+    return {
+      status: "warning",
+      message:
+        `Student ${savedVerb} and fee records updated. The discount is larger than the ` +
+        `unpaid balance, so ${formatRupees(payload.residualCreditTotal)} is now refundable. ` +
+        `Open Finance Controls to process a refund.`,
+    };
+  }
+
+  if (payload.readyForPaymentCount > 0) {
+    return {
+      status: "success",
+      message:
+        payload.action === "added"
+          ? "Student added and dues prepared. Open Payment Desk to collect payment."
+          : "Student updated and fee records updated.",
+    };
+  }
+
+  return {
+    status: "warning",
+    message: `Student ${savedVerb}, but no fee record changed. Open Admin Tools → Session Health to check Fee Setup.`,
+  };
 }
 
 // Both danger-zone actions return state instead of throwing. A `throw` from a
@@ -483,6 +562,7 @@ export async function archiveStudentAction(
       sessionLabel: student?.classSessionLabel || undefined,
       reason: "Student withdrawn",
     });
+    after(drainFinancialViewRefresh);
     revalidateFinanceSurfaces({ studentIds: [studentId] });
     await publishOfficeSyncEvent({
       sessionLabel: student?.classSessionLabel || "unknown",
@@ -735,6 +815,7 @@ export async function bulkUpdateStudentsAction(
       studentIds,
       reason: "Bulk student edit",
     });
+    after(drainFinancialViewRefresh);
     syncOutcome = buildStudentDuesSyncOutcome({
       sessionLabel: duesResult.raw?.academicSessionLabel || "unknown",
       studentIds,
@@ -826,6 +907,7 @@ export async function realignRecentImportsToActiveSessionAction(): Promise<{
     reason: "Recent import session realign",
   });
 
+  after(drainFinancialViewRefresh);
   revalidateFinanceSurfaces({ studentIds: movedStudentIds });
   await publishOfficeSyncEvent({
     sessionLabel: duesResult.raw?.academicSessionLabel || "unknown",

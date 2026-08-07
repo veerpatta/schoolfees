@@ -1095,6 +1095,7 @@
     "duesNotPrepared": "Dues not prepared",
     "feePositionLoading": "Loading fees",
     "yearClear": "Year Clear ✓",
+    "nothingDueYet": "Nothing due yet",
     "overdueBadge": "{amount} overdue",
     "lateFeeSuffix": "+ {amount} late fee",
     "lateFeeWaived": "Late fee waived",
@@ -1404,7 +1405,9 @@
     "previewValidBadge": "Valid · verified",
     "previewReversedBadge": "Reversed · no longer valid",
     "printA4Action": "Print A4",
-    "paidStamp": "PAID"
+    "paidStamp": "PAID",
+    "yearClearedStamp": "YEAR CLEARED",
+    "yearClearedNote": "No further fees are due for this session."
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",

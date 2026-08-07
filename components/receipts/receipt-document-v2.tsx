@@ -6,6 +6,7 @@ import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatMediumDate } from "@/lib/helpers/date";
 import { amountInWordsHindi } from "@/lib/helpers/amount-in-words-hi";
 import { localizedFeeLabel } from "@/lib/fees/fee-label";
+import { isYearCleared } from "@/lib/fees/year-clear";
 import type { ReceiptDetail } from "@/lib/receipts/types";
 import { cn } from "@/lib/utils";
 
@@ -184,6 +185,10 @@ export function ReceiptDocumentV2({
 }: ReceiptDocumentV2Props) {
   const isDraft = mode === "draft";
   const isSaved = mode === "saved";
+  const isYearClear = isYearCleared({
+    outstandingAmount: receipt.currentOutstanding,
+    totalPaid: receipt.totalPaidToDate,
+  });
 
   const installmentRows = receipt.breakdown.map((item) => ({
     paymentId: item.paymentId,
@@ -824,9 +829,21 @@ export function ReceiptDocumentV2({
                 </p>
               </>
             ) : (
-              <p className="font-medium text-success-soft-foreground">
-                {t.en("allDuesClearedLine")} · <span lang="hi">{t.hi("allDuesClearedLine")}</span>
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium text-success-soft-foreground">
+                  {t.en("allDuesClearedLine")} · <span lang="hi">{t.hi("allDuesClearedLine")}</span>
+                </p>
+                {/* Same stamp as V3, so a reprint on the legacy layout still
+                    proves the year was closed. */}
+                {isYearClear ? (
+                  <span
+                    className="shrink-0 -rotate-[7deg] rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-95"
+                    aria-hidden="true"
+                  >
+                    {t.en("yearClearedStamp")}
+                  </span>
+                ) : null}
+              </div>
             )}
           </div>
         </section>

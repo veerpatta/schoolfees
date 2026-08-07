@@ -196,6 +196,17 @@ export default async function StudentDetailPage({
   const feeBreakupRows = financialSnapshot
     ? buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown)
     : [];
+  // The Discount card used to render `student.discountAmount`, which is the raw
+  // student_fee_overrides column and therefore ZERO for anyone on an RTE /
+  // Staff Child / 3rd Child policy — the card said "no discount" while the fee
+  // table two divs below listed a Rs 15,000 conventional discount. Sum the
+  // resolver's discount rows instead, exactly as the mobile Finance glance
+  // already does, so the two halves of the same page agree.
+  const totalDiscountAmount = feeBreakupRows
+    .filter((row) => row.kind === "discount")
+    .reduce((sum, row) => sum + Math.abs(row.amount), 0);
+  const conventionalDiscountLabels =
+    financialSnapshot?.resolvedBreakdown.conventionalDiscountLabels ?? [];
 
   // Payment stat cards — computed from already-fetched data, no extra DB calls
   const allPayments = ledger?.payments ?? [];
@@ -285,7 +296,10 @@ export default async function StudentDetailPage({
             </div>
             <div className="rounded-lg border border-border bg-surface-2/60 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Discount</p>
-              <p className="mt-2 font-semibold text-foreground"><Money value={student.discountAmount} /></p>
+              <p className="mt-2 font-semibold text-foreground"><Money value={totalDiscountAmount} /></p>
+              {conventionalDiscountLabels.length > 0 ? (
+                <p className="mt-1 text-[11px] text-muted-foreground">{conventionalDiscountLabels.join(", ")}</p>
+              ) : null}
             </div>
             <div className="rounded-lg border border-border bg-surface-2/60 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Late fee waiver</p>

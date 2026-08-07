@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import {
   applyThirdChildPolicyForFamilyGroup,
@@ -8,6 +9,7 @@ import {
   type ThirdChildPolicyApplicationResult,
 } from "@/lib/fees/conventional-discounts";
 import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import type {
@@ -455,6 +457,10 @@ export async function linkSiblingsAction(
       sessionLabel,
       reason: "Sibling linked manually",
     });
+    // Linking siblings can trigger the 3rd Child Policy, which rewrites
+    // installments. That write only enqueues a matview refresh
+    // (20260726154843), so drain it or the new discount stays invisible.
+    after(drainFinancialViewRefresh);
   }
 
   revalidatePath("/protected/students");
@@ -608,6 +614,7 @@ export async function linkSuspectedSiblingsAction(
       sessionLabel,
       reason: "Suspected siblings linked",
     });
+    after(drainFinancialViewRefresh);
   }
 
   revalidatePath("/protected/students");
@@ -716,6 +723,8 @@ export async function unlinkSiblingAction(
       sessionLabel,
       reason: "Sibling unlinked manually",
     });
+    // Unlinking can REMOVE a 3rd Child discount, raising dues. Same drain.
+    after(drainFinancialViewRefresh);
   }
 
   revalidatePath("/protected/students");

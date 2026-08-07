@@ -20,6 +20,8 @@ export type ActionFeedbackOptions = {
   successTitle?: string;
   /** Toast heading on failure. */
   errorTitle?: string;
+  /** Toast heading when the action succeeded but something needs a look. */
+  warningTitle?: string;
   /**
    * Re-render the server components on success so the change is visible without
    * a manual reload. Turn off only when the surface navigates away itself.
@@ -30,6 +32,13 @@ export type ActionFeedbackOptions = {
 };
 
 const SUCCESS_STATUSES = new Set(["success", "ok", "done", "completed"]);
+/**
+ * The action DID its work, but part of it needs a human. A discount that could
+ * not be applied to a paid installment is the case this exists for: reporting
+ * it as a plain success is how a Rs 2,000 discount went unnoticed for two
+ * months. Warning states still refresh — the save happened.
+ */
+const WARNING_STATUSES = new Set(["warning", "needs_review", "partial"]);
 const ERROR_STATUSES = new Set(["error", "failed", "failure"]);
 
 export function isSuccessStatus(status?: string | null) {
@@ -38,6 +47,10 @@ export function isSuccessStatus(status?: string | null) {
 
 export function isErrorStatus(status?: string | null) {
   return ERROR_STATUSES.has((status ?? "").toString().toLowerCase());
+}
+
+export function isWarningStatus(status?: string | null) {
+  return WARNING_STATUSES.has((status ?? "").toString().toLowerCase());
 }
 
 /**
@@ -57,6 +70,7 @@ export function useActionFeedback(
   const {
     successTitle = "Saved",
     errorTitle = "Could not save",
+    warningTitle = "Saved — needs a look",
     refreshOnSuccess = true,
     onSuccess,
     onError,
@@ -94,6 +108,22 @@ export function useActionFeedback(
       return;
     }
 
+    if (WARNING_STATUSES.has(status)) {
+      toast({
+        title: warningTitle,
+        description: state.message ?? undefined,
+        tone: "warning",
+      });
+
+      // The save DID happen, so the screen still has to catch up.
+      if (refreshOnSuccess) {
+        router.refresh();
+      }
+
+      onSuccess?.(state);
+      return;
+    }
+
     if (ERROR_STATUSES.has(status)) {
       // Never swallow a failure silently: fall back to a generic sentence when
       // the action did not supply one.
@@ -104,7 +134,7 @@ export function useActionFeedback(
       });
       onError?.(state);
     }
-  }, [state, router, successTitle, errorTitle, refreshOnSuccess, onSuccess, onError]);
+  }, [state, router, successTitle, errorTitle, warningTitle, refreshOnSuccess, onSuccess, onError]);
 }
 
 /**
@@ -120,6 +150,7 @@ export function useActionFeedbackMany(
   const {
     successTitle = "Saved",
     errorTitle = "Could not save",
+    warningTitle = "Saved — needs a look",
     refreshOnSuccess = true,
   } = options;
 
@@ -150,6 +181,13 @@ export function useActionFeedbackMany(
           tone: "success",
         });
         sawSuccess = true;
+      } else if (WARNING_STATUSES.has(status)) {
+        toast({
+          title: warningTitle,
+          description: state.message ?? undefined,
+          tone: "warning",
+        });
+        sawSuccess = true;
       } else if (ERROR_STATUSES.has(status)) {
         toast({
           title: errorTitle,
@@ -162,5 +200,5 @@ export function useActionFeedbackMany(
     if (sawSuccess && refreshOnSuccess) {
       router.refresh();
     }
-  }, [states, router, successTitle, errorTitle, refreshOnSuccess]);
+  }, [states, router, successTitle, errorTitle, warningTitle, refreshOnSuccess]);
 }

@@ -382,6 +382,7 @@ const LEDGER_PREVIEW_SKIPPED: LedgerGenerationPreview = {
   installmentsToUpdate: 0,
   installmentsToCancel: 0,
   lockedInstallments: 0,
+  residualCreditTotal: 0,
   expectedScheduledInstallments: 0,
   affectedStudents: 0,
 };

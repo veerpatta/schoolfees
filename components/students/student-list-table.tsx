@@ -13,6 +13,7 @@ import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { timeAgoShort } from "@/lib/helpers/time-ago";
 import type { StudentListItem } from "@/lib/students/types";
+import { isYearCleared } from "@/lib/fees/year-clear";
 import { cn } from "@/lib/utils";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
@@ -80,12 +81,30 @@ function OutstandingCell({ student, t }: { student: StudentListItem; t: Students
     );
   }
 
-  if (student.outstandingAmount <= 0) {
+  // Shared with the profile's Fee snapshot so the list and the student page can
+  // never disagree. `outstandingAmount <= 0` alone used to stamp a student whose
+  // dues had simply never been prepared.
+  if (isYearCleared({
+    outstandingAmount: student.outstandingAmount,
+    totalPaid: student.totalPaid,
+    discountClosedAmount: student.discountClosedAmount,
+  })) {
     return (
       <div className="flex flex-col items-end gap-1">
         <CheckCircle2 className="h-5 w-5 text-success" />
         <Badge variant="success" dot className="rounded-full text-[10px] py-0 px-2 font-semibold whitespace-nowrap">
           {t("yearClear")}
+        </Badge>
+      </div>
+    );
+  }
+
+  if (student.outstandingAmount <= 0) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <span className="text-sm font-semibold text-muted-foreground font-mono">—</span>
+        <Badge variant="outline" className="rounded-full text-[10px] py-0 px-2 font-medium border-border">
+          {t("nothingDueYet")}
         </Badge>
       </div>
     );
@@ -235,9 +254,21 @@ function MobileOutstanding({
     );
   }
 
-  if (student.outstandingAmount <= 0) {
+  if (isYearCleared({
+    outstandingAmount: student.outstandingAmount,
+    totalPaid: student.totalPaid,
+    discountClosedAmount: student.discountClosedAmount,
+  })) {
     return (
       <span className="text-[12.5px] font-extrabold text-success">{t("yearClear")}</span>
+    );
+  }
+
+  if (student.outstandingAmount <= 0) {
+    return (
+      <span className="tabular text-[11px] font-semibold text-muted-foreground">
+        {t("nothingDueYet")}
+      </span>
     );
   }
 

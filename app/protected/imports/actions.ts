@@ -27,6 +27,7 @@ import {
   revalidateCoreFinancePaths,
 } from "@/lib/system-sync/finance-sync";
 import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 
 /**
  * Wall-clock budget for one commit request. Comfortably inside the platform's
@@ -297,6 +298,10 @@ export async function commitStudentImportBatchAction(formData: FormData) {
           reason: "Bulk import auto-prepare",
           useSystemClient: true,
         });
+        // The installment writes above only enqueue a matview refresh
+        // (20260726154843). Drain it here or the freshly imported students
+        // read as "Dues not prepared" until the */2 cron fires.
+        await drainFinancialViewRefresh();
       });
     }
 
@@ -438,6 +443,7 @@ export async function resumeStudentImportBatchAction(formData: FormData) {
           reason: "Resume failed import auto-prepare",
           useSystemClient: true,
         });
+        await drainFinancialViewRefresh();
       });
     }
 
