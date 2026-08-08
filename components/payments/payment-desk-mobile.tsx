@@ -4,6 +4,7 @@ import { useActionState, useCallback, useDeferredValue, useEffect, useId, useMem
 import { createPortal } from "react-dom";
 
 import { PostingReceiptSheet } from "@/components/payments/posting-receipt-sheet";
+import { usePostingIndicator } from "@/hooks/use-posting-indicator";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -297,8 +298,6 @@ export function PaymentDeskClient({
   const [acknowledgeNearDuplicate, setAcknowledgeNearDuplicate] = useState(false);
   const [lastPrintMode, setLastPrintMode] = useState<"yes" | "no">("no");
   const [mounted, setMounted] = useState(false);
-  const [showPostingSheet, setShowPostingSheet] = useState(false);
-  const [isSlowPost, setIsSlowPost] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const [dismissedActionStateKey, setDismissedActionStateKey] = useState<string | null>(null);
   const [dismissedTodayReceiptId, setDismissedTodayReceiptId] = useState<string | null>(null);
@@ -680,26 +679,7 @@ export function PaymentDeskClient({
   // to its "posting" phase — the fast-post path dispatches the latter before the
   // form even submits, so it covers the gap the pending flag misses.
   const isPostInFlight = (pending || isPosting) && !isSuccessOpen && !isDuplicateOpen;
-
-  useEffect(() => {
-    if (!isPostInFlight) {
-      setShowPostingSheet(false);
-      setIsSlowPost(false);
-      return;
-    }
-
-    // 120ms before showing, matching RouteProgress: a post that resolves almost
-    // instantly must not strobe a full-screen sheet at the clerk.
-    const showTimer = setTimeout(() => setShowPostingSheet(true), 120);
-    // At 8s, stop implying this is nearly done — same threshold the confirm
-    // sheet already uses for its slow-save copy.
-    const slowTimer = setTimeout(() => setIsSlowPost(true), 8000);
-
-    return () => {
-      clearTimeout(showTimer);
-      clearTimeout(slowTimer);
-    };
-  }, [isPostInFlight]);
+  const { showPostingSheet, isSlowPost } = usePostingIndicator(isPostInFlight);
 
   // Locks `.mobile-app-main` on phones, not just body — see the hook.
   useOverlayScrollLock(isConfirmOpen || isSuccessOpen || isDuplicateOpen || showPostingSheet);

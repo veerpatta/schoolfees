@@ -19,6 +19,7 @@ import {
 } from "@/lib/students/data";
 import type { StudentStatus } from "@/lib/db/types";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
+import { formatInr } from "@/lib/helpers/currency";
 import { applyThirdChildPolicyForStudentFamilies } from "@/lib/fees/conventional-discounts";
 import {
   type StudentFormInput,
@@ -467,10 +468,6 @@ export async function updateStudentAction(
 
 type StudentDuesMessage = { status: "success" | "warning"; message: string };
 
-function formatRupees(amount: number) {
-  return `₹${amount.toLocaleString("en-IN")}`;
-}
-
 /**
  * What the office is told after a save that touched fee records.
  *
@@ -516,7 +513,7 @@ function buildStudentDuesMessage(payload: {
       status: "warning",
       message:
         `Student ${savedVerb} and fee records updated. The discount is larger than the ` +
-        `unpaid balance, so ${formatRupees(payload.residualCreditTotal)} is now refundable. ` +
+        `unpaid balance, so ${formatInr(payload.residualCreditTotal)} is now refundable. ` +
         `Open Finance Controls to process a refund.`,
     };
   }

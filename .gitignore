@@ -37,6 +37,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*.local
 .env
+# ...and any backup of one. `.env*.local` does NOT match `.env.local.bak-*`,
+# so a rotated copy was one `git add -A` away from committing live keys.
+.env.local.*
+.env.*.bak*
+*.env.bak*
 
 # vercel
 .vercel

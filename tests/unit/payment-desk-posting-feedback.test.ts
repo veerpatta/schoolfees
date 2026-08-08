@@ -51,9 +51,15 @@ describe("payment desk shows that a post is in flight", () => {
   });
 
   it("delays the sheet so a fast post does not strobe, and escalates when slow", () => {
+    // The timing lives in its own hook — the desk client is already past its
+    // size budget and slated for a split, so new logic goes outside it.
+    const indicator = read("hooks/use-posting-indicator.ts");
+
     // Same anti-flash constant RouteProgress uses.
-    expect(desk).toContain("setShowPostingSheet(true), 120");
-    expect(desk).toContain("setIsSlowPost(true), 8000");
+    expect(indicator).toContain("SHOW_DELAY_MS = 120");
+    expect(indicator).toContain("SLOW_AFTER_MS = 8000");
+    expect(indicator).toContain("clearTimeout");
+    expect(desk).toContain("usePostingIndicator(isPostInFlight)");
   });
 
   it("disables and spins the mobile Collect button while posting", () => {
