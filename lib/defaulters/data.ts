@@ -118,7 +118,12 @@ async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessi
     .select(
       "id, class_id, admission_no, full_name, father_name, primary_phone, transport_route_id, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
     )
-    .eq("status", "active")
+    // Leavers are included so a student who paid part of the year and then left
+    // can still be chased for the rest -- that is the school rule. It does not
+    // pull in the ones who never paid: withdrawing a student cancels their clean
+    // unpaid installments, so they have no dues, no pending amount, and drop out
+    // of the defaulter list on their own further down.
+    .in("status", ["active", "left"])
     .eq("class_ref.session_label", sessionLabel)
     .eq("class_ref.status", "active")
     .order("full_name", { ascending: true });

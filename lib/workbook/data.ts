@@ -617,7 +617,15 @@ export async function getWorkbookStudentFinancials(filters?: {
     }
 
     if (filters?.activeOnly) {
-      query = query.eq("record_status", "active");
+      // "Active only" means financially in scope, which is not quite the same as
+      // on the roll. A student who left owing money still owes it: the school
+      // rule is that a leaver who never paid has their dues cancelled (the
+      // withdraw action cancels every clean unpaid installment, so they carry
+      // nothing anyway), but a leaver who HAD paid keeps their remaining dues
+      // and they must still be collected. Filtering on record_status alone hid
+      // Rs 17,250 of collectable money across three students in the live
+      // session -- the ledger held the debt while every report denied it.
+      query = query.or("record_status.eq.active,total_paid.gt.0");
     }
 
     return query;
