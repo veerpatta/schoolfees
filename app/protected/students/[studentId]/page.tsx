@@ -178,6 +178,18 @@ export default async function StudentDetailPage({
   // exactly what the old candidate check keyed on.
   const effectivePendingLateFeeAmount = pendingLateFeeAmount;
 
+  // Installments that still carry a late fee, so the waive sheet can aim at one
+  // rather than handing the server a bare rupee amount. Capped at what is still
+  // outstanding on the row: a late fee already collected is not "waivable" in the
+  // sense the cashier means.
+  const waivableInstallments = installmentBalances
+    .map((item) => ({
+      installmentId: item.installmentId,
+      label: getDisplayInstallmentLabel(item),
+      remainingLateFee: Math.min(item.finalLateFee, item.pendingAmount),
+    }))
+    .filter((item) => item.remainingLateFee > 0);
+
   // The policy RATE, used only by the mobile overdue warning ("a ₹1,000 late fee
   // applies"). Not a figure this student owes — that is pendingLateFeeAmount.
   const lateFeeFlatAmount = financialSnapshot?.policy.lateFeeFlatAmount ?? 0;
@@ -1099,6 +1111,7 @@ export default async function StudentDetailPage({
         prevYearDuesAmount={prevYearDuesAmount}
         overdueAmount={overdueAmount}
         pendingLateFeeAmount={effectivePendingLateFeeAmount}
+        waivableInstallments={waivableInstallments}
         creditBalance={financialSnapshot?.creditBalance ?? 0}
         nextDueDate={firstPendingInstallment?.dueDate ?? null}
         nextDueLabel={firstPendingInstallment ? getDisplayInstallmentLabel(firstPendingInstallment) : null}

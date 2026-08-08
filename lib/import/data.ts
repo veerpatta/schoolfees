@@ -1330,10 +1330,6 @@ function buildImportStudentInput(
       useExisting && !hasMappedValue(row, mapping, "discountAmount")
         ? existing?.discountAmount ?? 0
         : override.discountAmount,
-    lateFeeWaiverAmount:
-      useExisting && !hasMappedValue(row, mapping, "lateFeeWaiverAmount")
-        ? existing?.lateFeeWaiverAmount ?? 0
-        : override.lateFeeWaiverAmount,
     otherAdjustmentHead:
       useExisting && !hasMappedValue(row, mapping, "otherAdjustmentHead")
         ? existing?.otherAdjustmentHead ?? null

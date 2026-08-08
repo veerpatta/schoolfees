@@ -199,24 +199,25 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
   lateFeeCharged: {
     key: "lateFeeCharged",
     label: "Late Fee (charged)",
-    summary: "Raw late fee the system charged this installment.",
+    summary: "Flat late fee charged because the installment passed its due date unpaid.",
     detail:
-      "Charged when an installment had any payment after its due date. Currently a flat ₹1,000 per overdue installment (per active policy). The 'waived' portion may be subtracted before the parent owes it — see Late Fee Waived.",
+      "Charged the day an installment goes past its due date with any fee still unsettled — currently a flat ₹1,000 per overdue installment. Once charged it STAYS owed until it is actually paid or explicitly waived; clearing the base afterwards does not remove it. An installment settled in full on or before its due date is never charged, and a previous-year (carry-forward) row never accrues a late fee at all.",
+    source: "v_workbook_installment_balances.raw_late_fee",
   },
   lateFeeWaived: {
     key: "lateFeeWaived",
     label: "Late Fee Waived",
-    summary: "Portion of the late fee written off by the school.",
+    summary: "Late fee forgiven by the school on a specific installment.",
     detail:
-      "Authorized waiver amount, applied in installment order. If the late fee charged equals the waiver, the parent owes ₹0 on the late-fee line for that installment.",
-    source: "student_fee_overrides.late_fee_waiver_amount",
+      "Each waiver is recorded against the one installment it forgives, with the amount, the reason, who approved it and when. It stays on that installment permanently — later payments cannot move it. An admin can reverse a waiver, which restores the charge and leaves both the waiver and its reversal in the record.",
+    source: "student_late_fee_waivers",
   },
   lateFeePending: {
     key: "lateFeePending",
     label: "Late Fee Pending",
-    summary: "Late fee still owed after waiver.",
+    summary: "Late fee still owed after waivers.",
     detail:
-      "Late Fee Charged − Late Fee Waived, on the installments where the charged amount exceeds the waiver. Aggregated across all installments at the student level. This is the late-fee portion of Outstanding; it is tracked separately so it never drives overdue/defaulter status.",
+      "Late Fee Charged − Late Fee Waived, summed across the student's installments. This is the late-fee portion of Outstanding. It is tracked separately because it never drives overdue or defaulter status — a student who owes nothing but a late fee is not chased as a defaulter.",
     source: "v_workbook_student_financials.late_fee_outstanding_amount",
   },
   baseCharge: {

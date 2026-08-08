@@ -84,7 +84,6 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
               tuitionOverride: "",
               transportOverride: "",
               discountAmount: "0",
-              lateFeeWaiverAmount: "0",
               otherAdjustmentHead: "",
               otherAdjustmentAmount: "",
               feeProfileReason: "Student fee profile",

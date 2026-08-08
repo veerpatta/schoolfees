@@ -4,9 +4,7 @@ import { cache } from "react";
 
 import { hasAnyRolePermission, type StaffRole } from "@/lib/auth/roles";
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { getWorkbookInstallmentRows } from "@/lib/workbook/data";
 import {
-  buildCarryForwardSummary,
   getCarryForwardSourceSession,
   getDisplayInstallmentLabel,
   isCarryForwardInstallment,
@@ -308,41 +306,91 @@ function compareCarryForwardAwareInstallments(
   return left.installmentNo - right.installmentNo;
 }
 
+/**
+ * Narrow shape returned by `get_dashboard_fee_split`. One row, seven integers.
+ */
+type DashboardFeeSplitRow = {
+  current_year_expected: number | null;
+  current_year_collected: number | null;
+  current_year_pending: number | null;
+  previous_year_original: number | null;
+  previous_year_collected: number | null;
+  previous_year_pending: number | null;
+  late_fee_pending: number | null;
+};
+
+/** Just enough of an installment row to normalize a label. */
+type InstallmentLabelMetaRow = {
+  installment_no: number;
+  installment_label: string | null;
+  is_carry_forward: boolean | null;
+  source_session_label: string | null;
+};
+
 async function augmentCarryForwardDashboardResult(
   sessionLabel: string,
   result: DashboardSummaryRpcResult,
 ) {
-  const hasSplit =
-    typeof result.kpis.currentYearPending === "number" &&
-    typeof result.kpis.currentYearExpected === "number" &&
-    typeof result.kpis.currentYearCollected === "number" &&
-    typeof result.kpis.previousYearPending === "number" &&
-    typeof result.kpis.lateFeePending === "number";
-
   const hasCarryForwardLabel =
     result.installmentSummary?.some((row) => isCarryForwardInstallment(row)) ||
     result.classInstallmentMatrix?.some((row) =>
       row.installments.some((installment) => isCarryForwardInstallment(installment)),
     );
 
-  if (hasSplit && hasCarryForwardLabel) {
-    normalizeInstallmentSummaryLabels(result);
-    return;
-  }
-
   try {
-    const installmentRows = await getWorkbookInstallmentRows({ sessionLabel });
-    const split = buildCarryForwardSummary(installmentRows);
+    const supabase = await getCacheSafeClient();
+
+    // The split used to be reduced in Node from EVERY installment row for the
+    // session -- ~2,100 rows shipped from Mumbai on every dashboard render to
+    // produce seven integers. Worse, that reduction ran over a view that joins
+    // students with no status predicate, so struck-off students were counted
+    // (late fee pending read Rs 7,000 against a true Rs 6,000), and it clamped
+    // paid and adjustment at zero individually, silently dropping reversals
+    // (collected read Rs 46,000 high). Both are fixed in SQL now.
+    const { data: splitData, error: splitError } = await supabase.rpc(
+      "get_dashboard_fee_split",
+      { p_session_label: sessionLabel },
+    );
+
+    const split = (Array.isArray(splitData) ? splitData[0] : splitData) as
+      | DashboardFeeSplitRow
+      | null
+      | undefined;
+
+    if (splitError || !split) {
+      throw splitError ?? new Error("get_dashboard_fee_split returned no row");
+    }
+
     result.kpis = {
       ...result.kpis,
-      currentYearExpected: split.currentYearExpected,
-      currentYearCollected: split.currentYearCollected,
-      currentYearPending: split.currentYearPending,
-      previousYearOriginal: split.previousYearOriginal,
-      previousYearPending: split.previousYearPending,
-      previousYearCollected: split.previousYearCollected,
-      lateFeePending: split.lateFeePending,
+      currentYearExpected: split.current_year_expected ?? 0,
+      currentYearCollected: split.current_year_collected ?? 0,
+      currentYearPending: split.current_year_pending ?? 0,
+      previousYearOriginal: split.previous_year_original ?? 0,
+      previousYearPending: split.previous_year_pending ?? 0,
+      previousYearCollected: split.previous_year_collected ?? 0,
+      lateFeePending: split.late_fee_pending ?? 0,
     };
+
+    // Labels only need the distinct installment shapes, and only when the RPC
+    // did not already carry carry-forward metadata. Four narrow columns instead
+    // of the whole row, and skipped entirely in the common case.
+    if (hasCarryForwardLabel) {
+      normalizeInstallmentSummaryLabels(result);
+      return;
+    }
+
+    const { data: metaData } = await supabase
+      .from("v_workbook_installment_balances")
+      .select("installment_no, installment_label, is_carry_forward, source_session_label")
+      .eq("session_label", sessionLabel);
+
+    const installmentRows = ((metaData ?? []) as InstallmentLabelMetaRow[]).map((row) => ({
+      installmentNo: row.installment_no,
+      installmentLabel: row.installment_label,
+      isCarryForward: row.is_carry_forward ?? false,
+      sourceSessionLabel: row.source_session_label,
+    }));
 
     const installmentSummaryByKey = new Map<
       string,

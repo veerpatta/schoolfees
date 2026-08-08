@@ -72,7 +72,6 @@ export function getStudentFormInput(formData: FormData): StudentFormInput {
     tuitionOverride: asTrimmedString(formData.get("tuitionOverride")),
     transportOverride: asTrimmedString(formData.get("transportOverride")),
     discountAmount: asTrimmedString(formData.get("discountAmount")),
-    lateFeeWaiverAmount: asTrimmedString(formData.get("lateFeeWaiverAmount")),
     otherAdjustmentHead: asTrimmedString(formData.get("otherAdjustmentHead")),
     otherAdjustmentAmount: asTrimmedString(formData.get("otherAdjustmentAmount")),
     feeProfileReason: asTrimmedString(formData.get("feeProfileReason")),
@@ -117,7 +116,6 @@ export function validateStudentInput(
   const tuitionOverride = parseOptionalWholeNumber(input.tuitionOverride);
   const transportOverride = parseOptionalWholeNumber(input.transportOverride);
   const discountAmount = parseOptionalWholeNumber(input.discountAmount);
-  const lateFeeWaiverAmount = parseOptionalWholeNumber(input.lateFeeWaiverAmount);
   const otherAdjustmentAmount = parseOptionalWholeNumber(input.otherAdjustmentAmount);
   const conventionalPolicyIds = Array.from(new Set(input.conventionalPolicyIds));
   const feeProfileReason =
@@ -180,13 +178,6 @@ export function validateStudentInput(
     fieldErrors.discountAmount = "Discount must be a whole number.";
   }
 
-  if (
-    Number.isNaN(lateFeeWaiverAmount) ||
-    (lateFeeWaiverAmount !== null && lateFeeWaiverAmount < 0)
-  ) {
-    fieldErrors.lateFeeWaiverAmount = "Late fee waiver must be a whole number.";
-  }
-
   if (Number.isNaN(otherAdjustmentAmount)) {
     fieldErrors.otherAdjustmentAmount = "Other adjustment must be a whole number.";
   }
@@ -235,7 +226,6 @@ export function validateStudentInput(
       tuitionOverride,
       transportOverride,
       discountAmount: discountAmount ?? 0,
-      lateFeeWaiverAmount: lateFeeWaiverAmount ?? 0,
       otherAdjustmentHead: normalizedOtherAdjustmentHead,
       otherAdjustmentAmount,
       feeProfileReason,

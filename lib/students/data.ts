@@ -94,6 +94,8 @@ type StudentWorkbookFinancialRow = {
   academic_fee?: number | null;
   gross_base_before_discount?: number | null;
   discount_amount?: number | null;
+  /** Re-sourced in 20260808140000 to sum public.student_late_fee_waivers. */
+  late_fee_waiver_amount?: number | null;
   base_total_due?: number | null;
   base_charge_total?: number | null;
   installment1_base?: number | null;
@@ -673,7 +675,6 @@ async function saveStudentFeeProfile(
     payload.studentTypeOverride !== null ||
     payload.tuitionOverride !== null ||
     payload.transportOverride !== null ||
-    payload.lateFeeWaiverAmount > 0 ||
     payload.discountAmount > 0 ||
     payload.otherAdjustmentHead !== null ||
     payload.otherAdjustmentAmount !== null;
@@ -701,7 +702,11 @@ async function saveStudentFeeProfile(
     customLateFeeFlatAmount: existingOverride?.custom_late_fee_flat_amount ?? null,
     otherAdjustmentHead: payload.otherAdjustmentHead,
     otherAdjustmentAmount: payload.otherAdjustmentAmount,
-    lateFeeWaiverAmount: payload.lateFeeWaiverAmount,
+    // Preserved, never set from this form. Late-fee waivers live in
+    // public.student_late_fee_waivers; a form field here was a lost update
+    // waiting to happen, silently reverting any waiver granted while the page
+    // was open.
+    lateFeeWaiverAmount: existingOverride?.late_fee_waiver_amount ?? 0,
     discountAmount: payload.discountAmount,
     studentTypeOverride: payload.studentTypeOverride,
     transportAppliesOverride: existingOverride?.transport_applies_override ?? null,
@@ -900,7 +905,7 @@ async function getStudentsPageUncached(
       supabase
         .from("v_workbook_student_financials")
         .select(
-          "student_id, workbook_student_key, student_status_label, tuition_fee, transport_fee, academic_fee, gross_base_before_discount, discount_amount, base_total_due, base_charge_total, installment1_base, installment2_base, installment3_base, installment4_base, total_paid, total_discount_closeouts, late_fee_total, total_due, outstanding_amount, next_due_label, next_due_date, next_due_amount, status_label, last_payment_date, last_payment_amount, duplicate_sr_flag, missing_dob_flag, missing_class_flag, missing_status_flag",
+          "student_id, workbook_student_key, student_status_label, tuition_fee, transport_fee, academic_fee, gross_base_before_discount, discount_amount, late_fee_waiver_amount, base_total_due, base_charge_total, installment1_base, installment2_base, installment3_base, installment4_base, total_paid, total_discount_closeouts, late_fee_total, total_due, outstanding_amount, next_due_label, next_due_date, next_due_amount, status_label, last_payment_date, last_payment_amount, duplicate_sr_flag, missing_dob_flag, missing_class_flag, missing_status_flag",
         )
         .in("student_id", studentIds),
       supabase
@@ -1258,7 +1263,7 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
     getStudentFeeOverrideRow(studentId),
     supabase
       .from("v_workbook_student_financials")
-      .select("student_id, student_status_label, tuition_fee, outstanding_amount")
+      .select("student_id, student_status_label, tuition_fee, outstanding_amount, late_fee_waiver_amount")
       .eq("student_id", studentId)
       .maybeSingle(),
     getStudentConventionalDiscountAssignments({
@@ -1319,7 +1324,9 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
     tuitionOverride: overrideRow?.custom_tuition_fee_amount ?? null,
     transportOverride: overrideRow?.custom_transport_fee_amount ?? null,
     discountAmount: overrideRow?.discount_amount ?? 0,
-    lateFeeWaiverAmount: overrideRow?.late_fee_waiver_amount ?? 0,
+    // From the workbook view, which now sums public.student_late_fee_waivers.
+    // The student_fee_overrides column it used to read is retired.
+    lateFeeWaiverAmount: financial?.late_fee_waiver_amount ?? 0,
     otherAdjustmentHead: overrideRow?.other_adjustment_head ?? null,
     otherAdjustmentAmount: overrideRow?.other_adjustment_amount ?? null,
     overrideReason: overrideRow?.reason ?? null,

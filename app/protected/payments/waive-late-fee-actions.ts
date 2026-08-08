@@ -56,10 +56,14 @@ function parseClientRequestId(value: FormDataEntryValue | null): string | null {
  * waivers (and concurrent waiver + payment) per student so the late fee
  * cannot be zeroed out twice.
  *
- * The RPC updates only the `late_fee_waiver_amount` and audit `reason`
- * fields on the active student_fee_overrides row (insert path used only when
- * no row exists yet). Posted payments / receipts / payment_adjustments are
- * never touched.
+ * The RPC writes one row per installment into public.student_late_fee_waivers.
+ * It no longer touches student_fee_overrides at all — that column was a
+ * student-level pool with no installment attached, re-allocated on every read,
+ * which is why a waiver appeared to "come back" after a partial payment. Posted
+ * payments / receipts / payment_adjustments are never touched.
+ *
+ * `installmentId` is optional: supplied, the waiver is pinned to that one
+ * installment; omitted, the RPC allocates oldest-first by due date.
  */
 export async function waiveLateFeeAction(
   _previous: WaiveLateFeeActionState,
@@ -73,6 +77,10 @@ export async function waiveLateFeeAction(
     const reason = (formData.get("reason") ?? "").toString().trim();
     const sessionLabel = (formData.get("sessionLabel") ?? "").toString().trim() || null;
     const clientRequestId = parseClientRequestId(formData.get("clientRequestId"));
+    // Empty string = "all pending, oldest first", which is what the RPC does when
+    // p_installment_id is null. Anything malformed degrades to that rather than
+    // failing the waiver.
+    const installmentId = parseClientRequestId(formData.get("installmentId"));
 
     if (!studentId) {
       return { status: "error", message: "Student is required.", newWaiverAmount: null };
@@ -114,6 +122,7 @@ export async function waiveLateFeeAction(
       p_remarks: reason,
       p_session_label: sessionLabel,
       p_client_request_id: clientRequestId,
+      p_installment_id: installmentId,
     });
 
     if (rpcError) {

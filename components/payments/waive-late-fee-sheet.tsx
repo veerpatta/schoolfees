@@ -18,6 +18,15 @@ import { formatInr } from "@/lib/helpers/currency";
 /** Lets the pinned footer button submit the form it sits outside of. */
 const WAIVE_FORM_ID = "waive-late-fee-form";
 
+/** One installment the staff member may target, with what is left to waive on it. */
+export type WaivableInstallment = {
+  installmentId: string;
+  label: string;
+  remainingLateFee: number;
+};
+
+const ALL_PENDING = "";
+
 type WaiveLateFeeSheetProps = {
   open: boolean;
   onClose: () => void;
@@ -28,6 +37,12 @@ type WaiveLateFeeSheetProps = {
   pendingLateFeeAmount: number;
   currentWaiverAmount: number;
   sessionLabel: string;
+  /**
+   * Installments that still carry a late fee. When two or more are supplied the
+   * sheet offers a target picker; a waiver then belongs to that installment
+   * permanently. Omitted or single, the RPC allocates oldest-first.
+   */
+  waivableInstallments?: WaivableInstallment[];
 };
 
 export function WaiveLateFeeSheet({
@@ -40,13 +55,16 @@ export function WaiveLateFeeSheet({
   pendingLateFeeAmount,
   currentWaiverAmount,
   sessionLabel,
+  waivableInstallments = [],
 }: WaiveLateFeeSheetProps) {
   const t = useTranslations("Payments");
   const [amount, setAmount] = useState<string>(String(pendingLateFeeAmount));
   const [reason, setReason] = useState<string>("");
+  const [installmentId, setInstallmentId] = useState<string>(ALL_PENDING);
   // Regenerated per sheet-open, not per submit, so retrying the same attempt
-  // reuses the id. Waivers are additive server-side, so a double submit would
-  // otherwise waive twice.
+  // reuses the id. The server is now idempotent on it (a replay returns the
+  // original result instead of stacking a second waiver), so this is what makes
+  // a double-tap safe rather than merely unlikely.
   const [clientRequestId, setClientRequestId] = useState<string>(() =>
     crypto.randomUUID(),
   );
@@ -64,6 +82,7 @@ export function WaiveLateFeeSheet({
     if (open) {
       setAmount(String(pendingLateFeeAmount));
       setReason("");
+      setInstallmentId(ALL_PENDING);
       setClientRequestId(crypto.randomUUID());
       setSubmitted(false);
     }
@@ -89,11 +108,17 @@ export function WaiveLateFeeSheet({
     }
   }, [state.status, state.message, onClose, t, router]);
 
+  const selectedInstallment = waivableInstallments.find(
+    (item) => item.installmentId === installmentId,
+  );
+  // Targeting one installment caps the waiver at what that installment still
+  // carries; otherwise the ceiling is the student's whole pending late fee.
+  const maxWaivable = selectedInstallment?.remainingLateFee ?? pendingLateFeeAmount;
+  const showInstallmentPicker = waivableInstallments.length > 1;
+
   const numericAmount = Number(amount);
   const validAmount =
-    Number.isFinite(numericAmount) &&
-    numericAmount > 0 &&
-    numericAmount <= pendingLateFeeAmount;
+    Number.isFinite(numericAmount) && numericAmount > 0 && numericAmount <= maxWaivable;
   const validReason = reason.trim().length >= 4;
   const canSubmit = validAmount && validReason && !pending && !submitted;
 
@@ -133,6 +158,7 @@ export function WaiveLateFeeSheet({
         <input type="hidden" name="studentId" value={studentId} />
         <input type="hidden" name="sessionLabel" value={sessionLabel} />
         <input type="hidden" name="clientRequestId" value={clientRequestId} />
+        <input type="hidden" name="installmentId" value={installmentId} />
 
         <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
           <p>
@@ -148,6 +174,35 @@ export function WaiveLateFeeSheet({
           ) : null}
         </div>
 
+        {showInstallmentPicker ? (
+          <div className="space-y-2">
+            <Label htmlFor="waive-late-fee-installment">{t("waiveInstallmentLabel")}</Label>
+            <select
+              id="waive-late-fee-installment"
+              value={installmentId}
+              onChange={(event) => {
+                const next = event.target.value;
+                setInstallmentId(next);
+                const target = waivableInstallments.find(
+                  (item) => item.installmentId === next,
+                );
+                setAmount(String(target?.remainingLateFee ?? pendingLateFeeAmount));
+              }}
+              className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value={ALL_PENDING}>
+                {t("waiveInstallmentAll", { amount: formatInr(pendingLateFeeAmount) })}
+              </option>
+              {waivableInstallments.map((item) => (
+                <option key={item.installmentId} value={item.installmentId}>
+                  {item.label} — {formatInr(item.remainingLateFee)}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">{t("waiveInstallmentHint")}</p>
+          </div>
+        ) : null}
+
         <div className="space-y-2">
           <Label htmlFor="waive-late-fee-amount">{t("waiveAmountLabel")}</Label>
           <Input
@@ -156,14 +211,14 @@ export function WaiveLateFeeSheet({
             type="number"
             inputMode="numeric"
             min={1}
-            max={pendingLateFeeAmount}
+            max={maxWaivable}
             step={1}
             required
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            {t("waiveAmountHint", { amount: formatInr(pendingLateFeeAmount) })}
+            {t("waiveAmountHint", { amount: formatInr(maxWaivable) })}
           </p>
         </div>
 

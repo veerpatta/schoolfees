@@ -143,6 +143,9 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       p_remarks: "Family emergency, principal approval.",
       p_session_label: SESSION_LABEL,
       p_client_request_id: CLIENT_REQUEST_ID,
+      // Null means "allocate oldest-first" — the sheet only sends an id when the
+      // staff member aims the waiver at one installment.
+      p_installment_id: null,
     });
 
     await flushAfter();

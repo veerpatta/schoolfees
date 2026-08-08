@@ -129,6 +129,7 @@ export type StudentDetail = {
   tuitionOverride: number | null;
   transportOverride: number | null;
   discountAmount: number;
+  /** Effective waiver total from public.student_late_fee_waivers. Read-only. */
   lateFeeWaiverAmount: number;
   otherAdjustmentHead: string | null;
   otherAdjustmentAmount: number | null;
@@ -196,7 +197,6 @@ export type StudentFormInput = {
   tuitionOverride: string;
   transportOverride: string;
   discountAmount: string;
-  lateFeeWaiverAmount: string;
   otherAdjustmentHead: string;
   otherAdjustmentAmount: string;
   feeProfileReason: string;
@@ -226,7 +226,6 @@ export type StudentValidatedInput = {
   tuitionOverride: number | null;
   transportOverride: number | null;
   discountAmount: number;
-  lateFeeWaiverAmount: number;
   otherAdjustmentHead: string | null;
   otherAdjustmentAmount: number | null;
   feeProfileReason: string;
