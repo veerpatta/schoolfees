@@ -1103,6 +1103,7 @@
     "lateFeeSuffix": "+ {amount} late fee",
     "lateFeeWaived": "Late fee maaf",
     "pendingBadge": "Baaki",
+    "lateFeeOnlyBadge": "Late fee baaki",
     "onTrackHint": "Sahi raftaar mein",
     "srMissingBadge": "SR nahi hai",
     "lastViewedByYou": "{when} aapne dekha tha",

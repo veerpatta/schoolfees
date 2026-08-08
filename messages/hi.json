@@ -1103,6 +1103,7 @@
     "lateFeeSuffix": "+ {amount} लेट फीस",
     "lateFeeWaived": "लेट फीस माफ",
     "pendingBadge": "बकाया",
+    "lateFeeOnlyBadge": "लेट फीस बाकी",
     "onTrackHint": "सही रफ्तार में",
     "srMissingBadge": "SR नहीं है",
     "lastViewedByYou": "{when} आपने देखा था",
