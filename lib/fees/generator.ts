@@ -421,17 +421,31 @@ function classifyInstallmentLock(payload: {
     return locked("adjustment_posted", "Installment has adjustment entries");
   };
 
-  if (structurallyDiffers(existing, payload.plannedInstallment)) {
-    return lockedForMoney();
-  }
-
-  // Money-only change. The allocator has already floored the planned amount at
-  // what was applied to this row, so anything at or below the current charge is
-  // safe to write. Anything above it is a re-bill.
+  // A re-bill. Never automatic, whatever else is different.
   if (plannedAmountDue(payload.plannedInstallment) > existing.amount_due) {
     return lockedForMoney();
   }
 
+  // Same charge, only the terms differ — a pure rewrite of what a receipt said.
+  // No money moves, so there is nothing worth the risk: hold it for a human.
+  if (
+    plannedAmountDue(payload.plannedInstallment) === existing.amount_due &&
+    structurallyDiffers(existing, payload.plannedInstallment)
+  ) {
+    return lockedForMoney();
+  }
+
+  // A reduction. The allocator has already floored the planned amount at what
+  // was applied to this row, so it is safe to write.
+  //
+  // This is allowed even when the label, due date or late-fee amount have
+  // drifted — the caller writes ONLY the money and preserves those fields.
+  // Refusing the whole row on a stale label was blocking real discounts: three
+  // students carried rows labelled "Installment 1" (the generator now emits
+  // "Installment 1 (20-04-2026)") with late_fee_flat_amount 0 against a policy
+  // of 1000, so every paid row was structurally different and a Rs 2,000
+  // discount had nowhere to land. Moving the money is the safe half; changing
+  // a parent's late-fee exposure is the half that still needs a human.
   return { kind: "safe_reduction" };
 }
 
@@ -779,12 +793,21 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
 
     const grossBaseBeforeDiscount = resolved.breakdown.grossBaseBeforeDiscount ??
       (tuitionAmount + transportAmount + (resolved.breakdown.academicFeeAmount ?? 0) + (resolved.breakdown.otherAdjustmentAmount ?? 0));
-    if (grossBaseBeforeDiscount < discountAmount) {
+    // Compare the discount the resolver ACTUALLY applied, not the raw override
+    // column. Patch C backfilled each student's conventional amount into
+    // student_fee_overrides.discount_amount, and the resolver nets that portion
+    // back out (policy.ts:1714-1718) — so for a student carrying two policies
+    // the raw column can exceed the post-conventional total while the effective
+    // owner discount is zero. Comparing the raw column skipped SR 2243
+    // outright ("discount 8500 exceeds annual total 6500") and left a real
+    // Rs 2,500 over-charge in place.
+    const effectiveDiscountApplied = resolved.breakdown.discountApplied ?? discountAmount;
+    if (grossBaseBeforeDiscount < effectiveDiscountApplied) {
       skippedStudents.push(
         toSkippedStudent(
           student,
           "DISCOUNT_EXCEEDS_DUES",
-          `Discount for student (${discountAmount}) exceeds the annual total (${grossBaseBeforeDiscount}).`,
+          `Discount for student (${effectiveDiscountApplied}) exceeds the annual total (${grossBaseBeforeDiscount}).`,
         ),
       );
       continue;
@@ -928,9 +951,21 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
         return;
       }
 
+      // On a row that carries money, a reduction writes ONLY the money. The
+      // label, due date and late-fee amount are what the parent's receipt
+      // reported and what the late-fee clock runs on, so they are preserved
+      // verbatim — see classifyInstallmentLock.
+      const carriesMoney = paidAmount > 0 || adjustmentAmount !== 0;
       installmentsToUpdate.push({
         id: existingInstallment.id,
         ...plannedInstallment,
+        ...(lock.kind === "safe_reduction" && carriesMoney
+          ? {
+              installment_label: existingInstallment.installment_label,
+              due_date: existingInstallment.due_date,
+              late_fee_flat_amount: existingInstallment.late_fee_flat_amount,
+            }
+          : {}),
       });
       affectedStudentIds.add(student.id);
     });

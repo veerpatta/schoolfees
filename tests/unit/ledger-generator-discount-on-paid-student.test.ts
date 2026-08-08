@@ -197,9 +197,13 @@ describe("a discount on a student who has already paid", () => {
     expect(result.residualCreditStudents).toEqual([]);
   });
 
-  it("still refuses to RAISE a charge on a row someone has paid against", async () => {
-    // A fee increase, not a discount. The row carries money, so re-billing it
-    // has to stay a human decision.
+  it("never re-bills a paid row, and puts a fee rise on the unpaid ones", async () => {
+    // A fee increase, not a discount, with installment 1 already paid.
+    //
+    // The paid row is left exactly as the receipt reported it. The increase
+    // lands on the three rows carrying no money, so the year still totals
+    // 36,000 — the earlier behaviour proposed 9,000 for the paid row, had it
+    // refused, and quietly left the year 4,000 short.
     buildWorkbookInstallmentCharges.mockReturnValue({
       installmentCharges: [9000, 9000, 9000, 9000],
       grossBaseBeforeDiscount: 36000,
@@ -214,10 +218,13 @@ describe("a discount on a student who has already paid", () => {
     const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
 
-    const blocked = result.blockedInstallmentsForReview.find((row) => row.installmentNo === 1);
-    expect(blocked).toMatchObject({ reasonCode: "fully_paid", actionNeeded: "update" });
-    // The paid row was never written; the untouched rows still update normally.
+    // The paid row is untouched — not written, and not flagged either, because
+    // nothing was ever proposed for it.
     expect(updates.map((row) => row.id)).toEqual(["inst-2", "inst-3", "inst-4"]);
+    expect(result.blockedInstallmentsForReview).toEqual([]);
+
+    const written = updates.reduce((total, row) => total + Number(row.values.base_amount), 0);
+    expect(written + 5000).toBe(36000);
   });
 
   it("reports a refundable credit when the discount exceeds everything still owed", async () => {
@@ -270,5 +277,76 @@ describe("a discount on a student who has already paid", () => {
     const plan = await previewLedgerGenerationDetailed({ scopedStudentIds: ["student-1"] });
 
     expect(plan.blockedInstallmentsForReview.map((row) => row.installmentNo)).toContain(1);
+  });
+});
+
+describe("a stale label must not block a real discount", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getFeeSetupPageData.mockResolvedValue(setupData);
+  });
+
+  it("writes only the money when a paid row's terms have drifted", async () => {
+    // SR 2261 / 2259 / 2243 all carried rows labelled plainly "Installment 1"
+    // (the generator now emits "Installment 1 (20-04-2026)") with
+    // late_fee_flat_amount 0 against a policy of 1000. Every paid row was
+    // therefore structurally different, the whole row was refused, and a
+    // Rs 2,000 discount had nowhere to land.
+    buildWorkbookInstallmentCharges.mockReturnValue({
+      installmentCharges: [6750, 6750, 6750, 6750],
+      grossBaseBeforeDiscount: 29000,
+      discountApplied: 2000,
+      baseTotalDue: 27000,
+    });
+
+    const stale = [installment(1, 7625), installment(2, 7125), installment(3, 7125), installment(4, 7125)].map(
+      (row) => ({
+        ...row,
+        installment_label: `Installment ${row.installment_no}`, // no date suffix
+        late_fee_flat_amount: 0, // policy says 1000
+      }),
+    );
+    const updates = mockDb({
+      installments: stale,
+      payments: [
+        { installment_id: "inst-1", amount: 7625 },
+        { installment_id: "inst-2", amount: 7125 },
+        { installment_id: "inst-3", amount: 7125 },
+        { installment_id: "inst-4", amount: 5125 },
+      ],
+    });
+
+    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
+
+    const written = new Map(updates.map((row) => [row.id, row.values]));
+    // The discount lands on the only row with headroom.
+    expect(written.get("inst-4")?.base_amount).toBe(5125);
+    // …and the receipt's own terms are left exactly as printed.
+    expect(written.get("inst-4")?.installment_label).toBe("Installment 4");
+    expect(written.get("inst-4")?.late_fee_flat_amount).toBe(0);
+    expect(result.installmentsToUpdate).toBeGreaterThan(0);
+  });
+
+  it("still refuses a pure terms rewrite when no money moves", async () => {
+    // Same drifted label and late fee, but the amount is unchanged. Nothing is
+    // gained by rewriting it and a parent's late-fee exposure would change, so
+    // it stays a human decision.
+    buildWorkbookInstallmentCharges.mockReturnValue({
+      installmentCharges: [5000, 5000, 5000, 5000],
+      grossBaseBeforeDiscount: 20000,
+      discountApplied: 0,
+      baseTotalDue: 20000,
+    });
+
+    const stale = [installment(1, 5000), installment(2, 5000), installment(3, 5000), installment(4, 5000)].map(
+      (row) => ({ ...row, installment_label: `Installment ${row.installment_no}`, late_fee_flat_amount: 0 }),
+    );
+    mockDb({ installments: stale, payments: [{ installment_id: "inst-1", amount: 5000 }] });
+
+    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
+
+    expect(result.blockedInstallmentsForReview.map((row) => row.installmentNo)).toContain(1);
   });
 });

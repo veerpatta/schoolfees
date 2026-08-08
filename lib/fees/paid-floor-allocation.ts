@@ -65,9 +65,43 @@ export function allocateChargesRespectingPaidFloors(payload: {
 }): PaidFloorAllocation {
   const rowByIndex = new Map(payload.rows.map((row) => [row.index, row]));
   const floors = payload.plannedCharges.map((_, index) => floorFor(rowByIndex.get(index)));
-  const charges = payload.plannedCharges.map((amount, index) => Math.max(amount, floors[index] ?? 0));
+
+  // A row "carries money" if a payment or an adjustment has landed on it. Those
+  // are the rows a receipt has already reported, so they are seeded at their
+  // CURRENT charge rather than at the naive even split.
+  //
+  // Seeding them at the split was subtly wrong and left three students
+  // unrepairable: re-splitting a reduction evenly wants to RAISE some paid rows
+  // (to the new average) while lowering others, and a raise on a paid row is
+  // correctly refused upstream — so the reduction had nowhere to land and the
+  // student stayed drifted. Starting from what each paid row already charges
+  // means a reduction only ever moves in one direction.
+  const carriesMoney = payload.plannedCharges.map((_, index) => {
+    const row = rowByIndex.get(index);
+    return Boolean(row && row.appliedAmount > 0);
+  });
+  const charges = payload.plannedCharges.map((planned, index) => {
+    const row = rowByIndex.get(index);
+    return carriesMoney[index] ? (row?.existingAmountDue ?? 0) : Math.max(planned, floors[index] ?? 0);
+  });
 
   let excess = charges.reduce((sum, amount) => sum + amount, 0) - payload.plannedTotal;
+
+  // Under-target: only the rows carrying nothing may grow. Raising a paid row
+  // is a re-bill, and this function never proposes one.
+  if (excess < 0) {
+    const freeIndexes = charges
+      .map((_, index) => index)
+      .filter((index) => !carriesMoney[index]);
+
+    for (let position = freeIndexes.length - 1; position >= 0 && excess < 0; position -= 1) {
+      const index = freeIndexes[position]!;
+      const isFirst = position === 0;
+      const share = isFirst ? -excess : Math.min(-excess, Math.ceil(-excess / (position + 1)));
+      charges[index] = (charges[index] ?? 0) + share;
+      excess += share;
+    }
+  }
 
   // Pass 1 — reclaim from unpaid headroom, LATEST installment first. Parents
   // pay the early installments, so the last row is normally the one still open;

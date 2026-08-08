@@ -152,9 +152,17 @@ describe("allocateChargesRespectingPaidFloors", () => {
     expect(result.residualCreditAmount).toBe(0);
   });
 
-  it("handles an increase without inventing headroom", () => {
-    // A fee rise, not a discount. Nothing is below a floor, so the plan passes
-    // through unchanged and the lock check upstream decides what may be written.
+  it("puts a fee rise on the unpaid rows and keeps the annual total intact", () => {
+    // A fee rise, not a discount, on a student who has paid installment 1.
+    //
+    // The naive even split would have proposed 9,000 for the paid row too. That
+    // gets refused upstream (correctly — it is a re-bill), and the refusal used
+    // to be the end of it: rows 2-4 went to 9,000, row 1 stayed at 5,000, and
+    // the year quietly totalled 32,000 instead of 36,000. The school lost
+    // Rs 4,000 and nothing said so.
+    //
+    // The increase now lands on the rows carrying no money, so the annual total
+    // is right AND no receipt is contradicted.
     const plannedCharges = [9000, 9000, 9000, 9000];
     const result = allocateChargesRespectingPaidFloors({
       plannedCharges,
@@ -167,7 +175,8 @@ describe("allocateChargesRespectingPaidFloors", () => {
       ],
     });
 
-    expect(result.charges).toEqual(plannedCharges);
+    expect(sum(result.charges)).toBe(36000);
+    expect(result.charges[0]).toBe(5000);
     expect(result.residualCreditAmount).toBe(0);
   });
 
@@ -183,5 +192,75 @@ describe("allocateChargesRespectingPaidFloors", () => {
 
     expect(result.charges[0]).toBe(8625);
     expect(result.charges.slice(1)).toEqual([8125, 8125, 8125]);
+  });
+});
+
+describe("a reduction never has to raise a paid row to land", () => {
+  it("absorbs a discount when every installment is already paid", () => {
+    // The three students that survived the first repair run: paid across all
+    // four installments, and a discount that had to come off somewhere.
+    // Seeding paid rows at the naive even split wanted to RAISE the later ones
+    // to the new average, that raise was correctly refused, and the reduction
+    // had nowhere to go — so they stayed drifted. Paid rows now start at their
+    // current charge, so the discount only ever moves downward.
+    const plannedCharges = [6750, 6750, 6750, 6750]; // 27,000 after a 2,000 discount
+    const rows: PaidFloorRow[] = [
+      { index: 0, existingAmountDue: 8000, appliedAmount: 8000 },
+      { index: 1, existingAmountDue: 7000, appliedAmount: 7000 },
+      { index: 2, existingAmountDue: 7000, appliedAmount: 7000 },
+      { index: 3, existingAmountDue: 7000, appliedAmount: 5000 },
+    ];
+
+    const result = allocateChargesRespectingPaidFloors({
+      plannedCharges,
+      plannedTotal: 27000,
+      rows,
+    });
+
+    expect(sum(result.charges)).toBe(27000);
+    // Nothing went up, so nothing gets refused upstream.
+    for (const row of rows) {
+      expect(result.charges[row.index]!).toBeLessThanOrEqual(row.existingAmountDue);
+      expect(result.charges[row.index]!).toBeGreaterThanOrEqual(
+        Math.min(row.existingAmountDue, row.appliedAmount),
+      );
+    }
+    expect(result.residualCreditAmount).toBe(0);
+  });
+
+  it("puts an increase only on the installments carrying no money", () => {
+    // The staff-child shape: whole year sat on a paid installment 1 with 2-4 at
+    // zero. The correct half-tuition total has to land on 2-4.
+    const plannedCharges = [5250, 4750, 4750, 4750];
+    const result = allocateChargesRespectingPaidFloors({
+      plannedCharges,
+      plannedTotal: 19500,
+      rows: [
+        { index: 0, existingAmountDue: 5250, appliedAmount: 5250 },
+        { index: 1, existingAmountDue: 0, appliedAmount: 0 },
+        { index: 2, existingAmountDue: 0, appliedAmount: 0 },
+        { index: 3, existingAmountDue: 0, appliedAmount: 0 },
+      ],
+    });
+
+    expect(sum(result.charges)).toBe(19500);
+    expect(result.charges[0]).toBe(5250); // the paid row is untouched
+    expect(sum(result.charges.slice(1))).toBe(14250);
+  });
+
+  it("still refuses to grow a paid row when there is nowhere else to put it", () => {
+    const result = allocateChargesRespectingPaidFloors({
+      plannedCharges: [9000, 9000],
+      plannedTotal: 18000,
+      rows: [
+        { index: 0, existingAmountDue: 5000, appliedAmount: 5000 },
+        { index: 1, existingAmountDue: 5000, appliedAmount: 5000 },
+      ],
+    });
+
+    // Both rows carry money, so the allocator leaves them where they are and
+    // lets classifyInstallmentLock report the shortfall for review.
+    expect(result.charges).toEqual([5000, 5000]);
+    expect(result.residualCreditAmount).toBe(0);
   });
 });
