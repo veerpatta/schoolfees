@@ -176,6 +176,10 @@ export function WaiveLateFeeSheet({
 
         {showInstallmentPicker ? (
           <div className="space-y-2">
+            {/* h-11 and 16px text on a phone: clears the 44px touch target the
+                rest of the mobile sheets keep to, and stops iOS zooming the
+                viewport on focus. Back to h-10/14px from sm up, matching the
+                inputs beside it. */}
             <Label htmlFor="waive-late-fee-installment">{t("waiveInstallmentLabel")}</Label>
             <select
               id="waive-late-fee-installment"
@@ -188,7 +192,7 @@ export function WaiveLateFeeSheet({
                 );
                 setAmount(String(target?.remainingLateFee ?? pendingLateFeeAmount));
               }}
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              className="flex h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
             >
               <option value={ALL_PENDING}>
                 {t("waiveInstallmentAll", { amount: formatInr(pendingLateFeeAmount) })}

@@ -166,13 +166,20 @@ export function StudentDangerZone({
               Writes the amount off with an auditable discount receipt. No cash is recorded
               and it never counts towards collection.
             </p>
-            <div className="mt-2.5 flex flex-wrap gap-2">
+            {/*
+              Full-width, 44px-tall stacked buttons on a phone — the same shape
+              every other destructive action on the mobile screens uses, and big
+              enough to hit with a thumb. They collapse back to inline auto-width
+              from sm up, where the labels sit comfortably side by side.
+            */}
+            <div className="mt-2.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {closeBalance.pendingAmount > 0 ? (
                 <Button
                   type="button"
                   variant="outline"
                   disabled={pending}
                   onClick={() => setCloseSheet("current")}
+                  className="h-11 w-full justify-center rounded-xl text-[12.5px] font-extrabold sm:h-9 sm:w-auto sm:rounded-md sm:text-sm sm:font-medium"
                 >
                   Close this year&rsquo;s balance ({formatInr(closeBalance.pendingAmount)})
                 </Button>
@@ -183,6 +190,7 @@ export function StudentDangerZone({
                   variant="outline"
                   disabled={pending}
                   onClick={() => setCloseSheet("oldBalance")}
+                  className="h-11 w-full justify-center rounded-xl text-[12.5px] font-extrabold sm:h-9 sm:w-auto sm:rounded-md sm:text-sm sm:font-medium"
                 >
                   Close old balance ({formatInr(closeBalance.oldBalanceAmount)})
                 </Button>

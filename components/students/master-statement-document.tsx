@@ -60,17 +60,22 @@ export function MasterStatementDocument({
   });
 
   return (
-    <article className="mx-auto w-full max-w-4xl rounded-xl border border-border-strong bg-card p-6 text-foreground shadow-sm print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none">
+    <article className="mx-auto w-full max-w-4xl rounded-xl border border-border-strong bg-card p-4 text-foreground shadow-sm sm:p-6 print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none">
       <header className="border-b border-border-strong pb-4">
-        <div className="flex items-start justify-between gap-4">
+        {/*
+          Letterhead left, student right is an A4 idea. On a phone the two halves
+          fight for about 170px each and the school name wraps to four lines, so
+          they stack instead — and go back to side-by-side from sm up and on paper.
+        */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 print:flex-row print:items-start print:justify-between">
           <div>
-            <p className="text-lg font-semibold uppercase tracking-wide">{schoolProfile.name}</p>
+            <p className="text-base font-semibold uppercase tracking-wide sm:text-lg">{schoolProfile.name}</p>
             <p className="text-sm text-muted-foreground">Master fee statement</p>
             <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
               Academic session {financialSnapshot.policy.academicSessionLabel}
             </p>
           </div>
-          <div className="flex items-start gap-3 text-right text-sm">
+          <div className="flex items-start gap-3 text-sm sm:text-right print:text-right">
             <div>
               <p className="font-semibold text-foreground">{student.fullName}</p>
               <p className="text-muted-foreground">SR no {student.admissionNo}</p>
@@ -186,7 +191,47 @@ export function MasterStatementDocument({
 
       <section className="py-4">
         <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Installment-wise dues</p>
-        <div className="overflow-hidden rounded-md border border-border-strong">
+
+        {/*
+          Six columns do not fit a phone. Rather than let the table run off the
+          edge — the complaint that started this — the same rows are stacked as
+          cards below 768px, matching how receipts and dues are read everywhere
+          else in the app. The table itself is kept for desktop AND for print,
+          because a printed statement is an A4 document regardless of what the
+          person printing it was holding.
+        */}
+        <div className="md:hidden print:hidden divide-y divide-border rounded-md border border-border-strong">
+          {installmentBalances.map((item) => (
+            <div key={item.installmentId} className="space-y-1.5 px-3 py-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-sm font-semibold text-foreground">{item.installmentLabel}</span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums">
+                  {formatInr(item.pendingAmount)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Due {formatShortDate(item.dueDate)}</span>
+                <span>Outstanding</span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span>
+                  Base <span className="font-medium text-foreground">{formatInr(item.baseCharge)}</span>
+                </span>
+                <span>
+                  Paid <span className="font-medium text-foreground">{formatInr(item.paidAmount)}</span>
+                </span>
+                {item.finalLateFee > 0 ? (
+                  <span>
+                    Late fee{" "}
+                    <span className="font-medium text-destructive">{formatInr(item.finalLateFee)}</span>
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden md:block print:block overflow-hidden rounded-md border border-border-strong">
           <table className="w-full border-collapse text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -235,7 +280,61 @@ export function MasterStatementDocument({
             No payments have been received for this session yet.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-md border border-border-strong">
+          <>
+          <div className="md:hidden print:hidden divide-y divide-border rounded-md border border-border-strong">
+            {paymentTimeline.map((entry) => (
+              <div key={entry.id} className="space-y-1.5 px-3 py-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="font-mono text-xs font-semibold text-foreground">
+                    {entry.receiptNumber}
+                  </span>
+                  <span
+                    className={`shrink-0 text-sm font-semibold tabular-nums ${
+                      entry.isReversed ? "line-through opacity-60" : ""
+                    }`}
+                  >
+                    {formatInr(entry.totalAmount)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>{formatShortDate(entry.paymentDate)}</span>
+                  <span className="truncate">
+                    {entry.isDiscount ? "Closed as discount" : entry.paymentModeLabel}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  {entry.isReversed ? (
+                    <Stamp variant="void" size="sm" rotate={-4}>Reversed</Stamp>
+                  ) : entry.isDiscount ? (
+                    <Stamp variant="closed-as-discount" size="sm" rotate={-4}>Written off</Stamp>
+                  ) : (
+                    <Stamp variant="paid" size="sm" rotate={-4}>Paid</Stamp>
+                  )}
+                  {entry.isReversed ? null : (
+                    <span className="text-xs text-muted-foreground">
+                      Balance after{" "}
+                      <span className="font-medium tabular-nums text-foreground">
+                        {formatInr(entry.balanceAfter)}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div className="flex items-center justify-between gap-3 bg-surface-2 px-3 py-2.5">
+              <span className="text-sm font-semibold text-foreground">Total received</span>
+              <span className="flex items-center gap-2">
+                {isYearClear ? (
+                  <Stamp variant="year-cleared" size="sm" rotate={-4}>Year Cleared</Stamp>
+                ) : null}
+                <span className="text-sm font-semibold tabular-nums">
+                  {formatInr(timelineReceivedTotal)}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div className="hidden md:block print:block overflow-hidden rounded-md border border-border-strong">
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -303,6 +402,7 @@ export function MasterStatementDocument({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 
