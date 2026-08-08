@@ -1,3 +1,4 @@
+import { Stamp } from "@/components/ui/stamp";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 
@@ -836,12 +837,9 @@ export function ReceiptDocumentV2({
                 {/* Same stamp as V3, so a reprint on the legacy layout still
                     proves the year was closed. */}
                 {isYearClear ? (
-                  <span
-                    className="shrink-0 -rotate-[7deg] rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-95"
-                    aria-hidden="true"
-                  >
+                  <Stamp variant="year-cleared" className="shrink-0">
                     {t.en("yearClearedStamp")}
-                  </span>
+                  </Stamp>
                 ) : null}
               </div>
             )}

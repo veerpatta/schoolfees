@@ -10,7 +10,6 @@ export type DuesSyncStudentSnapshot = {
   tuitionOverride: NullableFeeNumber;
   transportOverride: NullableFeeNumber;
   discountAmount: number;
-  lateFeeWaiverAmount: number;
   otherAdjustmentHead: string | null;
   otherAdjustmentAmount: NullableFeeNumber;
 };
@@ -46,7 +45,6 @@ export function shouldSyncStudentDuesForChange(
     normalizeNullableNumber(previous.tuitionOverride) !== normalizeNullableNumber(next.tuitionOverride) ||
     normalizeNullableNumber(previous.transportOverride) !== normalizeNullableNumber(next.transportOverride) ||
     previous.discountAmount !== next.discountAmount ||
-    previous.lateFeeWaiverAmount !== next.lateFeeWaiverAmount ||
     normalizeNullableText(previous.otherAdjustmentHead) !== normalizeNullableText(next.otherAdjustmentHead) ||
     normalizeNullableNumber(previous.otherAdjustmentAmount) !== normalizeNullableNumber(next.otherAdjustmentAmount)
   );

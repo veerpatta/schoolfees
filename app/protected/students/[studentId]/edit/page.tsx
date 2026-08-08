@@ -96,7 +96,6 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
             tuitionOverride: student.tuitionOverride?.toString() ?? "",
             transportOverride: student.transportOverride?.toString() ?? "",
             discountAmount: student.discountAmount.toString(),
-            lateFeeWaiverAmount: student.lateFeeWaiverAmount.toString(),
             otherAdjustmentHead: student.otherAdjustmentHead ?? "",
             otherAdjustmentAmount: student.otherAdjustmentAmount?.toString() ?? "",
             feeProfileReason: student.overrideReason ?? "Student fee profile",

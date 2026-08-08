@@ -44,57 +44,26 @@ export function calculatePendingLateFeeAmount(rows: readonly InstallmentLike[]) 
   );
 }
 
-/**
- * Per-installment candidate ("accruing") late fee for overdue installments
- * whose late fee has NOT yet materialized in the workbook view — the view only
- * materializes a late fee once a payment posts after the due date, so a
- * never-paid overdue installment reads `finalLateFee = 0` there.
+/*
+ * `calculateCandidateLateFees` / `calculateCandidateLateFeeAmount` used to live
+ * here and have been REMOVED. Do not reintroduce them.
  *
- * This mirrors `private.workbook_installment_snapshot(..., include_candidate :=
- * true)`: the student's `late_fee_waiver_amount` is a single waiver POOL that the
- * DB consumes across installments in order (`least(raw_late_fee, remaining_pool)`),
- * NOT a per-installment deduction. Consuming it the same way here keeps the
- * displayed figure equal to what `waive_late_fee` will accept.
+ * They existed because the two late-fee engines disagreed:
+ * v_workbook_installment_balances only materialized a late fee once a payment
+ * landed after the due date, so a never-paid overdue installment read
+ * `final_late_fee = 0` there while the Payment Desk showed Rs 1,000. This
+ * "candidate" mirror papered over that gap in TypeScript.
  *
- * Carry-forward (previous-year) installments are excluded — they never accrue a
- * late fee in the DB, so counting them would over-state the pending late fee.
+ * Since the rule was unified (migration 20260808140000) an overdue installment
+ * always carries its flat late fee in BOTH engines, so `final_late_fee` off the
+ * matview is the whole truth. Keeping the mirror would now actively double-count:
+ * a grandfathered installment reads `final_late_fee = 0` because it is fully
+ * WAIVED, while still being `balance_status = 'overdue'` — precisely the
+ * condition the candidate check keyed on. It would invent a Rs 1,000 charge that
+ * the ledger says is forgiven.
  *
- * `rows` must be supplied in installment order. Returns an array aligned to
- * `rows` (0 for non-candidate installments).
+ * Read `finalLateFee` directly.
  */
-export function calculateCandidateLateFees(
-  rows: readonly InstallmentLike[],
-  lateFeeFlatAmount: number,
-  studentLateFeeWaiver: number,
-): number[] {
-  const flat = toAmount(lateFeeFlatAmount);
-  let remainingWaiver = toAmount(studentLateFeeWaiver);
-  return rows.map((row) => {
-    const isCandidate =
-      row.balanceStatus === "overdue" && toAmount(row.finalLateFee) === 0 && !row.isCarryForward;
-    if (!isCandidate || flat <= 0) {
-      return 0;
-    }
-    const applied = Math.min(flat, remainingWaiver);
-    remainingWaiver -= applied;
-    return flat - applied;
-  });
-}
-
-/**
- * Total candidate late fee across all installments — the sum of
- * {@link calculateCandidateLateFees}.
- */
-export function calculateCandidateLateFeeAmount(
-  rows: readonly InstallmentLike[],
-  lateFeeFlatAmount: number,
-  studentLateFeeWaiver: number,
-): number {
-  return calculateCandidateLateFees(rows, lateFeeFlatAmount, studentLateFeeWaiver).reduce(
-    (sum, value) => sum + value,
-    0,
-  );
-}
 
 export function calculateOverdueBaseAmount(rows: readonly InstallmentLike[]) {
   return rows

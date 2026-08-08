@@ -11,6 +11,7 @@ import { StudentPhotoUpload } from "@/components/students/student-photo-upload";
 import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
+import { NO_TRANSPORT_LABEL } from "@/lib/transport/label";
 import { useActionFeedback } from "@/hooks/use-action-feedback";
 import {
   INITIAL_STUDENT_FORM_ACTION_STATE,
@@ -35,7 +36,6 @@ type StudentFormValues = {
   tuitionOverride: string;
   transportOverride: string;
   discountAmount: string;
-  lateFeeWaiverAmount: string;
   otherAdjustmentHead: string;
   otherAdjustmentAmount: string;
   feeProfileReason: string;
@@ -91,7 +91,6 @@ const studentFormFieldLabels: Partial<Record<keyof StudentFormValues, string>> =
   tuitionOverride: "Tuition override",
   transportOverride: "Transport override",
   discountAmount: "Discount",
-  lateFeeWaiverAmount: "Late fee waiver",
   otherAdjustmentHead: "Other adjustment",
   otherAdjustmentAmount: "Other adjustment amount",
   feeProfileReason: "Fee exception reason",
@@ -323,7 +322,7 @@ export function StudentForm({
               className={`${selectClassName} mt-2`}
               {...getFieldAccessibility(state, "transportRouteId")}
             >
-              <option value="">No Transport</option>
+              <option value="">{NO_TRANSPORT_LABEL}</option>
               {routeOptions.map((routeOption) => (
                 <option key={routeOption.id} value={routeOption.id}>
                   {routeOption.routeCode
@@ -574,20 +573,6 @@ export function StudentForm({
                 {...getFieldAccessibility(state, "discountAmount")}
               />
               <FieldError fieldName="discountAmount" message={getFieldError(state, "discountAmount")} />
-            </div>
-            <div>
-              <Label htmlFor="lateFeeWaiverAmount">Late fee waiver</Label>
-              <Input
-                id="lateFeeWaiverAmount"
-                name="lateFeeWaiverAmount"
-                type="number"
-                inputMode="decimal"
-                min={0}
-                defaultValue={values.lateFeeWaiverAmount}
-                className="mt-2"
-                {...getFieldAccessibility(state, "lateFeeWaiverAmount")}
-              />
-              <FieldError fieldName="lateFeeWaiverAmount" message={getFieldError(state, "lateFeeWaiverAmount")} />
             </div>
             <div>
               <Label htmlFor="otherAdjustmentHead">Other adjustment</Label>

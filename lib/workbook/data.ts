@@ -6,6 +6,7 @@ import { fetchAllPages, fetchInChunks } from "@/lib/helpers/chunk";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentFormOptions } from "@/lib/students/data";
 
@@ -300,12 +301,8 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
-function buildRouteLabel(value: ReceiptRouteRow | null) {
-  if (!value) {
-    return "No Transport";
-  }
-
-  return value.route_code ? `${value.route_name} (${value.route_code})` : value.route_name;
+function buildRouteLabel(value: ReceiptRouteRow | null, transportFeeAmount?: number | null) {
+  return buildTransportRouteLabel({ route: value, transportFeeAmount });
 }
 
 function sortWorkbookClassOptions(options: WorkbookClassOption[]) {
@@ -620,7 +617,15 @@ export async function getWorkbookStudentFinancials(filters?: {
     }
 
     if (filters?.activeOnly) {
-      query = query.eq("record_status", "active");
+      // "Active only" means financially in scope, which is not quite the same as
+      // on the roll. A student who left owing money still owes it: the school
+      // rule is that a leaver who never paid has their dues cancelled (the
+      // withdraw action cancels every clean unpaid installment, so they carry
+      // nothing anyway), but a leaver who HAD paid keeps their remaining dues
+      // and they must still be collected. Filtering on record_status alone hid
+      // Rs 17,250 of collectable money across three students in the live
+      // session -- the ledger held the debt while every report denied it.
+      query = query.or("record_status.eq.active,total_paid.gt.0");
     }
 
     return query;

@@ -5,6 +5,7 @@ import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { resolveReceiptSessionLabel } from "@/lib/receipts/session-label";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 import type {
   ConventionalDiscountAssignmentSummary,
   ReceiptBreakdownItem,
@@ -181,14 +182,11 @@ function buildClassLabel(classRef: StudentClassRow | StudentClassRow[] | null) {
   return parts.join(" - ");
 }
 
-function buildRouteLabel(routeRef: StudentRouteRow | StudentRouteRow[] | null) {
-  const value = toSingleRecord(routeRef);
-
-  if (!value) {
-    return "No Transport";
-  }
-
-  return value.route_code ? `${value.route_name} (${value.route_code})` : value.route_name;
+function buildRouteLabel(
+  routeRef: StudentRouteRow | StudentRouteRow[] | null,
+  transportFeeAmount?: number | null,
+) {
+  return buildTransportRouteLabel({ route: toSingleRecord(routeRef), transportFeeAmount });
 }
 
 function buildFeeSummary(

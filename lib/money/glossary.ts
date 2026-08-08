@@ -10,6 +10,7 @@
 
 export type MoneyTermKey =
   | "totalDue"
+  | "expectedFees"
   | "totalPaid"
   | "outstanding"
   | "pending"
@@ -60,10 +61,18 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
   totalDue: {
     key: "totalDue",
     label: "Total Due",
-    summary: "What the student owes for the academic year.",
+    summary: "What the student owes right now — fees, plus any unwaived late fee.",
     detail:
-      "Sum of tuition + transport + academic fee + other heads, after any annual discount, plus any late fees the system has charged this year. Recomputed every time you load the page — no stale snapshots.",
+      "Sum of tuition + transport + academic fee + other heads, after any annual discount, plus any late fee still owed. Recomputed every time you load the page — no stale snapshots. Note this is what a student OWES, which is not the same as Expected Fees: the school's fee book excludes late fee entirely. If a student owes ₹6,000 of fees and a ₹1,000 late fee, Total Due is ₹7,000 but only ₹6,000 of it is expected fee.",
     source: "v_workbook_student_financials.total_due",
+  },
+  expectedFees: {
+    key: "expectedFees",
+    label: "Expected Fees",
+    summary: "The fees the school set out to collect. Never includes late fee.",
+    detail:
+      "Sum of every installment's base charge, after discounts. A late fee is deliberately excluded: it exists to get the fee in on time, it is issued expecting to be waived, and it is not money the school planned to collect. Counting it here would also make the figure grow on its own — every due date that passed would inflate what the school appears to be owed without anyone deciding to charge anything. Late fee is tracked on its own lines instead: Late Fee (charged), Late Fee Waived and Late Fee Pending.",
+    source: "v_workbook_student_financials.base_charge_total",
   },
   totalPaid: {
     key: "totalPaid",
@@ -199,24 +208,25 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
   lateFeeCharged: {
     key: "lateFeeCharged",
     label: "Late Fee (charged)",
-    summary: "Raw late fee the system charged this installment.",
+    summary: "Flat late fee charged because the installment passed its due date unpaid.",
     detail:
-      "Charged when an installment had any payment after its due date. Currently a flat ₹1,000 per overdue installment (per active policy). The 'waived' portion may be subtracted before the parent owes it — see Late Fee Waived.",
+      "Charged the day an installment goes past its due date with any fee still unsettled — currently a flat ₹1,000 per overdue installment. Once charged it STAYS owed until it is actually paid or explicitly waived; clearing the base afterwards does not remove it. An installment settled in full on or before its due date is never charged, and a previous-year (carry-forward) row never accrues a late fee at all.",
+    source: "v_workbook_installment_balances.raw_late_fee",
   },
   lateFeeWaived: {
     key: "lateFeeWaived",
     label: "Late Fee Waived",
-    summary: "Portion of the late fee written off by the school.",
+    summary: "Late fee forgiven by the school on a specific installment.",
     detail:
-      "Authorized waiver amount, applied in installment order. If the late fee charged equals the waiver, the parent owes ₹0 on the late-fee line for that installment.",
-    source: "student_fee_overrides.late_fee_waiver_amount",
+      "Each waiver is recorded against the one installment it forgives, with the amount, the reason, who approved it and when. It stays on that installment permanently — later payments cannot move it. An admin can reverse a waiver, which restores the charge and leaves both the waiver and its reversal in the record.",
+    source: "student_late_fee_waivers",
   },
   lateFeePending: {
     key: "lateFeePending",
     label: "Late Fee Pending",
-    summary: "Late fee still owed after waiver.",
+    summary: "Late fee still owed after waivers.",
     detail:
-      "Late Fee Charged − Late Fee Waived, on the installments where the charged amount exceeds the waiver. Aggregated across all installments at the student level. This is the late-fee portion of Outstanding; it is tracked separately so it never drives overdue/defaulter status.",
+      "Late Fee Charged − Late Fee Waived, summed across the student's installments. This is the late-fee portion of Outstanding. It is tracked separately because it never drives overdue or defaulter status — a student who owes nothing but a late fee is not chased as a defaulter.",
     source: "v_workbook_student_financials.late_fee_outstanding_amount",
   },
   baseCharge: {
@@ -324,6 +334,7 @@ export function getMoneyTerm(key: MoneyTermKey): MoneyTerm {
 }
 
 export const MONEY_GLOSSARY_ORDER: readonly MoneyTermKey[] = [
+  "expectedFees",
   "totalDue",
   "totalPaid",
   "outstanding",

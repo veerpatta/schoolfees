@@ -511,8 +511,6 @@ export function executeStudentImportDryRun({
         transportOverride:
           transportOverride.value !== null ? transportOverride.value.toString() : "",
         discountAmount: discountAmount.value !== null ? discountAmount.value.toString() : "0",
-        lateFeeWaiverAmount:
-          lateFeeWaiverAmount.value !== null ? lateFeeWaiverAmount.value.toString() : "0",
         otherAdjustmentHead,
         otherAdjustmentAmount:
           otherAdjustmentAmount.value !== null ? otherAdjustmentAmount.value.toString() : "",

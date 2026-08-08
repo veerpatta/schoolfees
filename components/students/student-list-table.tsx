@@ -111,13 +111,20 @@ function OutstandingCell({ student, t }: { student: StudentListItem; t: Students
   }
 
   const isOverdue = student.overdueAmount > 0;
-  // pendingLateFeeAmount already includes the accruing (candidate) late fee for
-  // never-paid overdue installments (see lib/students/data.ts), so it matches the
-  // profile page and the waive cap. lateFeeTotal is only a degraded fallback for
-  // when installment balances failed to load.
+  // pendingLateFeeAmount comes straight off the workbook view now that both
+  // engines charge an overdue installment its flat late fee; lateFeeTotal is
+  // only a degraded fallback for when installment balances failed to load.
   const effectiveLateFee = student.pendingLateFeeAmount > 0
     ? student.pendingLateFeeAmount
     : (isOverdue && student.lateFeeTotal > 0 ? student.lateFeeTotal : 0);
+
+  // "Overdue" deliberately means BASE fees past their due date, never late fee
+  // (see lib/money/glossary.ts). That is the right rule, but it left a student
+  // who had cleared every rupee of fee and still owed a Rs 1,000 late fee
+  // rendering as "Pending - On track", which reads as nothing to do. Now that an
+  // overdue installment always carries its fee, that state is common enough to
+  // name.
+  const isLateFeeOnly = !isOverdue && effectiveLateFee > 0;
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -147,13 +154,23 @@ function OutstandingCell({ student, t }: { student: StudentListItem; t: Students
           </>
         ) : (
           <div className="flex flex-col items-end gap-0.5">
-            <Badge variant="warning" dot className="rounded-full text-[10px] py-0 px-2 font-semibold whitespace-nowrap">
-              {t("pendingBadge")}
+            <Badge
+              variant="warning"
+              dot
+              className="rounded-full text-[10px] py-0 px-2 font-semibold whitespace-nowrap"
+            >
+              {isLateFeeOnly ? t("lateFeeOnlyBadge") : t("pendingBadge")}
             </Badge>
-            <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-success-soft-foreground mt-0.5 whitespace-nowrap">
-              <Clock className="h-2.5 w-2.5" />
-              {t("onTrackHint")}
-            </span>
+            {isLateFeeOnly ? (
+              <span className="text-[9px] font-semibold text-destructive/80 mt-0.5 whitespace-nowrap">
+                {t("lateFeeSuffix", { amount: formatInr(effectiveLateFee) })}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-success-soft-foreground mt-0.5 whitespace-nowrap">
+                <Clock className="h-2.5 w-2.5" />
+                {t("onTrackHint")}
+              </span>
+            )}
           </div>
         )}
       </div>

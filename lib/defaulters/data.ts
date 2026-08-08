@@ -16,6 +16,7 @@ import {
 } from "@/lib/defaulters/contacts";
 import { resolvePromiseStatus } from "@/lib/defaulters/promise-lifecycle";
 import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 
 import type {
   DefaulterFilters,
@@ -79,12 +80,11 @@ function buildClassLabel(value: {
     .join(" - ");
 }
 
-function buildRouteLabel(value: { route_name: string; route_code: string | null } | null) {
-  if (!value) {
-    return "No Transport";
-  }
-
-  return value.route_code ? `${value.route_name} (${value.route_code})` : value.route_name;
+function buildRouteLabel(
+  value: { route_name: string; route_code: string | null } | null,
+  customTransportFeeAmount?: number | null,
+) {
+  return buildTransportRouteLabel({ route: value, customTransportFeeAmount });
 }
 
 function parseMinimumPendingAmount(value: string) {
@@ -118,7 +118,12 @@ async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessi
     .select(
       "id, class_id, admission_no, full_name, father_name, primary_phone, transport_route_id, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
     )
-    .eq("status", "active")
+    // Leavers are included so a student who paid part of the year and then left
+    // can still be chased for the rest -- that is the school rule. It does not
+    // pull in the ones who never paid: withdrawing a student cancels their clean
+    // unpaid installments, so they have no dues, no pending amount, and drop out
+    // of the defaulter list on their own further down.
+    .in("status", ["active", "left"])
     .eq("class_ref.session_label", sessionLabel)
     .eq("class_ref.status", "active")
     .order("full_name", { ascending: true });
@@ -395,7 +400,10 @@ export async function getDefaultersPageData(
         classLabel: row.classLabel,
         studentStatusLabel: row.studentStatusLabel,
         transportRouteId: row.transportRouteId,
-        transportRouteLabel: row.transportRouteName ?? "No Transport",
+        transportRouteLabel: buildTransportRouteLabel({
+          routeName: row.transportRouteName,
+          transportFeeAmount: row.transportFee,
+        }),
         totalDue: row.baseChargeTotal,
         totalPaid: row.totalPaid,
         totalPending: row.outstandingAmount,
@@ -639,7 +647,10 @@ export async function getDefaulterExportRows(
       fatherName: row.fatherName,
       fatherPhone: row.fatherPhone,
       motherPhone: row.motherPhone,
-      transportRouteLabel: row.transportRouteName ?? "No Transport",
+      transportRouteLabel: buildTransportRouteLabel({
+        routeName: row.transportRouteName,
+        transportFeeAmount: row.transportFee,
+      }),
       totalPending: row.outstandingAmount,
       overdueAmount: calculateOverdueBaseAmount(overdueByStudent.get(row.studentId) ?? []),
       lateFeeTotal: row.lateFeeTotal,

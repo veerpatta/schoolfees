@@ -33,9 +33,15 @@ type CloseDueAsDiscountSheetProps = {
   studentLabel: string;
   studentAdmissionNo: string;
   classLabel: string;
+  /** Ceiling for the write-off: this year's pending, or the old balance. */
   pendingAmount: number;
-  currentDiscount: number;
   sessionLabel: string;
+  /**
+   * `oldBalance` targets the previous-year carry-forward row. Those rows are
+   * dated before installment 1, and the posting RPC allocates by due date
+   * ascending, so a write-off of exactly the old balance lands on them first.
+   */
+  variant?: "current" | "oldBalance";
 };
 
 export function CloseDueAsDiscountSheet({
@@ -46,9 +52,10 @@ export function CloseDueAsDiscountSheet({
   studentAdmissionNo,
   classLabel,
   pendingAmount,
-  currentDiscount,
   sessionLabel,
+  variant = "current",
 }: CloseDueAsDiscountSheetProps) {
+  const isOldBalance = variant === "oldBalance";
   const tToasts = useTranslations("Toasts");
   const [amount, setAmount] = useState<string>(String(pendingAmount));
   const [reason, setReason] = useState<string>("");
@@ -79,7 +86,6 @@ export function CloseDueAsDiscountSheet({
 
   const numericAmount = Number(amount) || 0;
   const isAmountValid = numericAmount > 0 && numericAmount <= pendingAmount;
-  const newDiscount = currentDiscount + (isAmountValid ? numericAmount : 0);
   const newPending = pendingAmount - (isAmountValid ? numericAmount : 0);
 
   return (
@@ -89,8 +95,12 @@ export function CloseDueAsDiscountSheet({
         if (pending) return;
         onClose();
       }}
-      title="Close balance as discount"
-      description="Adds the amount to this student's discount override. The workbook re-runs and the pending balance updates."
+      title={isOldBalance ? "Close old balance as discount" : "Close balance as discount"}
+      description={
+        isOldBalance
+          ? "Writes off what this student still owes from a previous year. Posts a discount receipt — no cash changes hands, and it is excluded from collection totals."
+          : "Writes off what this student still owes. Posts a discount receipt — no cash changes hands, and it is excluded from collection totals."
+      }
       size="full"
       /* Pinned outside the scroll body so the amount/reason keyboard cannot
          bury the confirm action. */
@@ -148,8 +158,9 @@ export function CloseDueAsDiscountSheet({
             />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Current pending: <span className="font-semibold text-foreground">{formatInr(pendingAmount)}</span>
-            . Tip: leave the amount as-is to fully clear the balance, or enter a smaller value to write off a portion.
+            {isOldBalance ? "Old balance outstanding: " : "Current pending: "}
+            <span className="font-semibold text-foreground">{formatInr(pendingAmount)}</span>
+            . Leave the amount as-is to clear it in full, or enter less to write off part of it.
           </p>
         </div>
 
@@ -169,23 +180,23 @@ export function CloseDueAsDiscountSheet({
 
         <div className="rounded-lg border border-border bg-card px-3 py-3 text-sm">
           <p className="mb-2 text-[10px] uppercase tracking-wide text-muted-foreground">Preview</p>
+          {/*
+            This used to preview "Current discount + Close-out = New discount",
+            which described something the action never does: it posts a
+            payment_mode='discount' receipt, it does not touch
+            student_fee_overrides.discount_amount. The figure it showed was the
+            raw override column, so it was also simply wrong for any student on
+            an RTE / Staff Child / 3rd Child policy. What actually changes is
+            what the family owes.
+          */}
           <ul className="space-y-1">
             <li className="flex justify-between">
-              <span className="text-muted-foreground">Current discount</span>
-              <span className="font-mono tabular-nums">{formatInr(currentDiscount)}</span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-muted-foreground">+ Close-out</span>
+              <span className="text-muted-foreground">Written off</span>
               <span className="font-mono tabular-nums text-success-soft-foreground">
-                + {formatInr(isAmountValid ? numericAmount : 0)}
+                {formatInr(isAmountValid ? numericAmount : 0)}
               </span>
             </li>
-            <li className="flex justify-between border-t border-border pt-1 font-semibold">
-              <span>New discount</span>
-              <span className="font-mono tabular-nums">{formatInr(newDiscount)}</span>
-            </li>
-            <li className="mt-2 flex justify-between font-semibold">
-              <span>Pending</span>
+            <li className="flex justify-between font-semibold"><span>Pending</span>
               <span className="font-mono tabular-nums">
                 {formatInr(pendingAmount)}
                 <span className="mx-1 text-muted-foreground">→</span>
@@ -204,10 +215,11 @@ export function CloseDueAsDiscountSheet({
         </div>
 
         <div className="rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
-          <p className="font-semibold">This affects future installment regenerations.</p>
+          <p className="font-semibold">This writes money off the books.</p>
           <p className="mt-0.5">
-            Existing receipts are not changed. The discount is recorded on the student fee
-            override with the reason above so the audit trail is preserved.
+            A receipt is posted with payment mode &ldquo;discount&rdquo; and the reason above,
+            so the write-off is auditable. No cash is recorded and it does not count towards
+            collection totals. Existing receipts are never changed.
           </p>
         </div>
 

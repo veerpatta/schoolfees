@@ -18,6 +18,7 @@ import { StudentAvatar } from "@/components/students/student-avatar";
 import { StudentContactActions } from "@/components/students/student-contact-actions";
 import { OldBalanceChip } from "@/components/shared/old-balance-chip";
 import { WaiveLateFeeTrigger } from "@/components/payments/waive-late-fee-trigger";
+import type { WaivableInstallment } from "@/components/payments/waive-late-fee-sheet";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { Button } from "@/components/ui/button";
 import { calculateDaysOverdue } from "@/lib/fees/due-amounts";
@@ -43,6 +44,8 @@ type StudentIdentityStripProps = {
   prevYearDuesAmount: number;
   overdueAmount: number;
   pendingLateFeeAmount: number;
+  /** Installments still carrying a late fee, so a waiver can be aimed at one. */
+  waivableInstallments?: WaivableInstallment[];
   creditBalance: number;
   nextDueDate: string | null;
   nextDueLabel: string | null;
@@ -197,6 +200,7 @@ export function StudentIdentityStrip({
   prevYearDuesAmount,
   overdueAmount,
   pendingLateFeeAmount,
+  waivableInstallments,
   creditBalance,
   nextDueDate,
   nextDueLabel,
@@ -342,6 +346,7 @@ export function StudentIdentityStrip({
                         pendingLateFeeAmount={pendingLateFeeAmount}
                         currentWaiverAmount={lateFeeWaiverAmount}
                         sessionLabel={sessionLabel}
+                        waivableInstallments={waivableInstallments}
                       />
                     </div>
                   ) : null}

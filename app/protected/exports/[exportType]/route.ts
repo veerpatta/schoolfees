@@ -22,6 +22,7 @@ import {
   getStudentConventionalDiscountAssignments,
 } from "@/lib/fees/data";
 import { getMasterDataOptions } from "@/lib/master-data/data";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 import {
   getWorkbookInstallmentRows,
   getWorkbookStudentFinancials,
@@ -1133,7 +1134,10 @@ async function handleExport(request: NextRequest, context: RouteContext) {
         "Class": row.classLabel,
         "Father": row.fatherName ?? "",
         "Phone": row.fatherPhone ?? "",
-        "Route": row.transportRouteName ?? "No Transport",
+        "Route": buildTransportRouteLabel({
+          routeName: row.transportRouteName,
+          transportFeeAmount: row.transportFee,
+        }),
         "Total due": row.baseChargeTotal,
         "Paid": row.totalPaid,
         "Outstanding": row.outstandingAmount,

@@ -310,7 +310,6 @@ export async function updateStudentAction(
       formData.set("tuitionOverride", existing.tuitionOverride?.toString() ?? "");
       formData.set("transportOverride", existing.transportOverride?.toString() ?? "");
       formData.set("discountAmount", existing.discountAmount.toString());
-      formData.set("lateFeeWaiverAmount", existing.lateFeeWaiverAmount.toString());
       formData.set("otherAdjustmentHead", existing.otherAdjustmentHead ?? "");
       formData.set(
         "otherAdjustmentAmount",

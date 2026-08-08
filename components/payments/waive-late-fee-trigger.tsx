@@ -5,7 +5,10 @@ import { useTranslations } from "next-intl";
 import { ReceiptText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { WaiveLateFeeSheet } from "@/components/payments/waive-late-fee-sheet";
+import {
+  WaiveLateFeeSheet,
+  type WaivableInstallment,
+} from "@/components/payments/waive-late-fee-sheet";
 
 type WaiveLateFeeTriggerProps = {
   studentId: string;
@@ -15,6 +18,8 @@ type WaiveLateFeeTriggerProps = {
   pendingLateFeeAmount: number;
   currentWaiverAmount: number;
   sessionLabel: string;
+  /** Installments still carrying a late fee, so the waiver can be targeted. */
+  waivableInstallments?: WaivableInstallment[];
   className?: string;
   size?: "sm" | "default";
   variant?: "outline" | "default" | "ghost";
@@ -34,6 +39,7 @@ export function WaiveLateFeeTrigger({
   pendingLateFeeAmount,
   currentWaiverAmount,
   sessionLabel,
+  waivableInstallments,
   className,
   size = "sm",
   variant = "outline",
@@ -67,6 +73,7 @@ export function WaiveLateFeeTrigger({
         pendingLateFeeAmount={pendingLateFeeAmount}
         currentWaiverAmount={currentWaiverAmount}
         sessionLabel={sessionLabel}
+        waivableInstallments={waivableInstallments}
       />
     </>
   );

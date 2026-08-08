@@ -7,6 +7,7 @@ import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { calculateInstallmentBasePending } from "@/lib/fees/due-amounts";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 
 import type {
   AdjustmentType,
@@ -278,12 +279,13 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
-function buildRouteLabel(value: { route_name: string; route_code: string | null } | null) {
-  if (!value) {
-    return "No route";
-  }
-
-  return value.route_code ? `${value.route_name} (${value.route_code})` : value.route_name;
+function buildRouteLabel(
+  value: { route_name: string; route_code: string | null } | null,
+  transportFeeAmount?: number | null,
+) {
+  // Reports used to say "No route" where every other surface said
+  // "No Transport" — same fact, two labels. Now one.
+  return buildTransportRouteLabel({ route: value, transportFeeAmount });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

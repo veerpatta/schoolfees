@@ -131,7 +131,14 @@ function BySessionView({
   return (
     <div className="space-y-3">
       {receiptsBySession.map((group, groupIndex) => {
-        const totalAmount = group.receipts.reduce((sum, r) => sum + r.totalAmount, 0);
+        // Reversed receipts are struck through in the rows below, so counting
+        // them in the subtotal made the header contradict its own list — and
+        // overstated what the family had actually paid that year.
+        const totalAmount = group.receipts.reduce(
+          (sum, r) => (r.isReversed ? sum : sum + r.totalAmount),
+          0,
+        );
+        const reversedCount = group.receipts.filter((r) => r.isReversed).length;
         const isActive = group.sessionLabel === activeSessionLabel;
         const defaultOpen = isActive || groupIndex === 0;
         return (
@@ -150,8 +157,11 @@ function BySessionView({
                 ) : null}
               </span>
               <span className="text-xs font-medium text-muted-foreground">
-                {group.receipts.length} receipt{group.receipts.length === 1 ? "" : "s"} ·{" "}
-                <Money value={totalAmount} size="xs" />
+                {group.receipts.length} receipt{group.receipts.length === 1 ? "" : "s"}
+                {reversedCount > 0 ? (
+                  <span className="text-destructive"> ({reversedCount} reversed)</span>
+                ) : null}{" "}
+                · <Money value={totalAmount} size="xs" />
               </span>
             </summary>
 

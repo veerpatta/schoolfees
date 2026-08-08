@@ -11,7 +11,6 @@ const baseStudent: DuesSyncStudentSnapshot = {
   tuitionOverride: null,
   transportOverride: null,
   discountAmount: 0,
-  lateFeeWaiverAmount: 0,
   otherAdjustmentHead: null,
   otherAdjustmentAmount: null,
 };
