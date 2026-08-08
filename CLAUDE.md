@@ -46,7 +46,27 @@ node scripts/bootstrap-staff.mjs          # One-time staff setup (uses service r
 node scripts/verify-live-fee-health.mjs   # Production fee-health verification
 node scripts/verify-live-sync-health.mjs  # System sync verification
 node scripts/check-quality-budgets.mjs    # Quality budget checks
+
+# Students whose ledger disagrees with their resolved fee policy. Read-only by
+# default; `--apply` re-runs the real fee engine via
+# /api/admin/repair-discount-drift (needs CRON_SECRET).
+node scripts/repair-discount-drift.mjs --session 2026-27
+node scripts/repair-discount-drift.mjs --session 2026-27 --apply --only-decreases
 ```
+
+`--only-decreases` exists because the two drift directions are different
+decisions. A negative drift is a discount that never landed — safe to repair.
+A positive drift RAISES what a family owes, so it is never applied in bulk.
+
+### Headless callers must pass `useAdmin`
+
+Anything that runs the fee engine outside a staff request — a cron, a script,
+an admin route — has no session, so the cookie-based Supabase client returns
+NOTHING under RLS. `getFeeSetupPageData({ useAdmin: true })` threads that flag
+down to fee settings, master data, conventional discount policies and student
+assignments. Miss it and the generator silently skips every student with
+`CLASS_FEE_MISSING`, or resolves every RTE / Staff Child / 3rd Child student to
+no discount at all. It fails quiet, not loud.
 
 ## Architecture
 
