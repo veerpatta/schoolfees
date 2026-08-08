@@ -5,6 +5,7 @@ import { normalizeOfficeWorkbookView } from "@/lib/transactions/workbook";
 import { serializeCsv } from "@/lib/reports/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
 import { formatExportName } from "@/lib/helpers/export";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 
 import { withDownloadToken } from "@/lib/helpers/download-token";
 const UUID_PATTERN =
@@ -163,7 +164,10 @@ export async function GET(request: NextRequest) {
             row.classLabel,
             row.fatherName ?? "",
             row.fatherPhone ?? "",
-            row.transportRouteName ?? "No Transport",
+            buildTransportRouteLabel({
+              routeName: row.transportRouteName,
+              transportFeeAmount: row.transportFee,
+            }),
             row.baseChargeTotal,
             row.totalPaid,
             row.outstandingAmount,

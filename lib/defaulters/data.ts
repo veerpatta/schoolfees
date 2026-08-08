@@ -16,6 +16,7 @@ import {
 } from "@/lib/defaulters/contacts";
 import { resolvePromiseStatus } from "@/lib/defaulters/promise-lifecycle";
 import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 
 import type {
   DefaulterFilters,
@@ -79,12 +80,11 @@ function buildClassLabel(value: {
     .join(" - ");
 }
 
-function buildRouteLabel(value: { route_name: string; route_code: string | null } | null) {
-  if (!value) {
-    return "No Transport";
-  }
-
-  return value.route_code ? `${value.route_name} (${value.route_code})` : value.route_name;
+function buildRouteLabel(
+  value: { route_name: string; route_code: string | null } | null,
+  customTransportFeeAmount?: number | null,
+) {
+  return buildTransportRouteLabel({ route: value, customTransportFeeAmount });
 }
 
 function parseMinimumPendingAmount(value: string) {
@@ -395,7 +395,10 @@ export async function getDefaultersPageData(
         classLabel: row.classLabel,
         studentStatusLabel: row.studentStatusLabel,
         transportRouteId: row.transportRouteId,
-        transportRouteLabel: row.transportRouteName ?? "No Transport",
+        transportRouteLabel: buildTransportRouteLabel({
+          routeName: row.transportRouteName,
+          transportFeeAmount: row.transportFee,
+        }),
         totalDue: row.baseChargeTotal,
         totalPaid: row.totalPaid,
         totalPending: row.outstandingAmount,
@@ -639,7 +642,10 @@ export async function getDefaulterExportRows(
       fatherName: row.fatherName,
       fatherPhone: row.fatherPhone,
       motherPhone: row.motherPhone,
-      transportRouteLabel: row.transportRouteName ?? "No Transport",
+      transportRouteLabel: buildTransportRouteLabel({
+        routeName: row.transportRouteName,
+        transportFeeAmount: row.transportFee,
+      }),
       totalPending: row.outstandingAmount,
       overdueAmount: calculateOverdueBaseAmount(overdueByStudent.get(row.studentId) ?? []),
       lateFeeTotal: row.lateFeeTotal,

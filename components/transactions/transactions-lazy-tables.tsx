@@ -29,6 +29,7 @@ import { BulkRowCheckbox } from "@/components/defaulters/bulk-whatsapp-provider"
 import { CloseDueAsDiscountSheet } from "@/components/students/close-due-as-discount-sheet";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import type { OfficeWorkbookStudentRow } from "@/lib/transactions/dues";
 import { cn } from "@/lib/utils";
@@ -1044,7 +1045,10 @@ export function ClassRegisterTable({
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {row.transportRouteName ?? "No transport"}
+                        {buildTransportRouteLabel({
+                          routeName: row.transportRouteName,
+                          transportFeeAmount: row.transportFee,
+                        })}
                       </td>
                       <td className="px-4 py-3">
                         <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
@@ -1227,7 +1231,13 @@ export function DefaultersTable({
                       <DetailItem label="Late fee" value={formatInr(row.lateFeeTotal)} />
                       <DetailItem label="Waiver" value={formatInr(row.lateFeeWaiverAmount)} />
                       <DetailItem label="Discount" value={formatInr(row.discountAmount)} />
-                      <DetailItem label="Route" value={row.transportRouteName ?? "No transport"} />
+                      <DetailItem
+                        label="Route"
+                        value={buildTransportRouteLabel({
+                          routeName: row.transportRouteName,
+                          transportFeeAmount: row.transportFee,
+                        })}
+                      />
                       <DetailItem
                         label="Next due"
                         value={
@@ -1372,7 +1382,13 @@ export function DefaultersTable({
                           <DetailItem label="Late fee" value={formatInr(row.lateFeeTotal)} />
                           <DetailItem label="Waiver" value={formatInr(row.lateFeeWaiverAmount)} />
                           <DetailItem label="Discount" value={formatInr(row.discountAmount)} />
-                          <DetailItem label="Route" value={row.transportRouteName ?? "No transport"} />
+                          <DetailItem
+                        label="Route"
+                        value={buildTransportRouteLabel({
+                          routeName: row.transportRouteName,
+                          transportFeeAmount: row.transportFee,
+                        })}
+                      />
                           <DetailItem
                             label="Next due"
                             value={

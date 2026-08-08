@@ -14,6 +14,7 @@ import {
 import { logError, logWarn } from "@/lib/observability/log";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { getWorkbookStudentFinancials } from "@/lib/workbook/data";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 import {
   getDisplayInstallmentLabel,
   isCarryForwardInstallment,
@@ -672,7 +673,10 @@ function summarizeStudent(
     fatherPhone: financial.fatherPhone,
     motherPhone: financial.motherPhone,
     studentStatusLabel: financial.studentStatusLabel,
-    transportRouteLabel: financial.transportRouteName ?? "No Transport",
+    transportRouteLabel: buildTransportRouteLabel({
+      routeName: financial.transportRouteName,
+      transportFeeAmount: financial.transportFee,
+    }),
     breakdown,
     totalDue,
     totalPaid,

@@ -11,6 +11,7 @@ import { StudentPhotoUpload } from "@/components/students/student-photo-upload";
 import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
+import { NO_TRANSPORT_LABEL } from "@/lib/transport/label";
 import { useActionFeedback } from "@/hooks/use-action-feedback";
 import {
   INITIAL_STUDENT_FORM_ACTION_STATE,
@@ -323,7 +324,7 @@ export function StudentForm({
               className={`${selectClassName} mt-2`}
               {...getFieldAccessibility(state, "transportRouteId")}
             >
-              <option value="">No Transport</option>
+              <option value="">{NO_TRANSPORT_LABEL}</option>
               {routeOptions.map((routeOption) => (
                 <option key={routeOption.id} value={routeOption.id}>
                   {routeOption.routeCode

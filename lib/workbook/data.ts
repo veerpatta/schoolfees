@@ -6,6 +6,7 @@ import { fetchAllPages, fetchInChunks } from "@/lib/helpers/chunk";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
+import { buildTransportRouteLabel } from "@/lib/transport/label";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentFormOptions } from "@/lib/students/data";
 
@@ -300,12 +301,8 @@ function buildClassLabel(value: {
   return parts.join(" - ");
 }
 
-function buildRouteLabel(value: ReceiptRouteRow | null) {
-  if (!value) {
-    return "No Transport";
-  }
-
-  return value.route_code ? `${value.route_name} (${value.route_code})` : value.route_name;
+function buildRouteLabel(value: ReceiptRouteRow | null, transportFeeAmount?: number | null) {
+  return buildTransportRouteLabel({ route: value, transportFeeAmount });
 }
 
 function sortWorkbookClassOptions(options: WorkbookClassOption[]) {
