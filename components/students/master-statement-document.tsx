@@ -1,3 +1,4 @@
+import { Stamp } from "@/components/ui/stamp";
 import { schoolProfile } from "@/lib/config/school";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
 import { formatInr } from "@/lib/helpers/currency";
@@ -11,13 +12,19 @@ export function MasterStatementDocument({
   student,
   financialSnapshot,
   installmentBalances,
-}: Pick<StudentWorkspace, "student" | "financialSnapshot" | "installmentBalances">) {
+  receipts = [],
+}: Pick<StudentWorkspace, "student" | "financialSnapshot" | "installmentBalances"> &
+  Partial<Pick<StudentWorkspace, "receipts">>) {
   if (!student || !financialSnapshot) {
     return null;
   }
 
   const feeHeads = buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown);
   const totalDue = installmentBalances.reduce((sum, item) => sum + item.baseCharge, 0);
+  const totalDueWithLateFees = installmentBalances.reduce(
+    (sum, item) => sum + item.baseCharge + item.finalLateFee,
+    0,
+  );
   const totalPaid = installmentBalances.reduce((sum, item) => sum + item.paidAmount, 0);
   const discountClosedAmount = installmentBalances.reduce(
     (sum, item) => sum + (item.discountCloseoutAmount ?? 0),
@@ -28,6 +35,28 @@ export function MasterStatementDocument({
     totalPaid,
     discountClosedAmount,
     hasPreparedDues: installmentBalances.length > 0,
+  });
+
+  // Oldest-first with a running balance, so the reader can follow how the
+  // outstanding figure at the bottom was arrived at. Reversed receipts are shown
+  // but contribute nothing.
+  const orderedReceipts = [...receipts].sort((left, right) =>
+    left.paymentDate.localeCompare(right.paymentDate),
+  );
+  const timelineReceivedTotal = orderedReceipts.reduce(
+    (sum, entry) => (entry.isReversed ? sum : sum + entry.totalAmount),
+    0,
+  );
+  let runningPaid = 0;
+  const paymentTimeline = orderedReceipts.map((entry) => {
+    if (!entry.isReversed) {
+      runningPaid += entry.totalAmount;
+    }
+    return {
+      ...entry,
+      isDiscount: entry.paymentModeLabel.toLowerCase().includes("discount"),
+      balanceAfter: Math.max(totalDueWithLateFees - runningPaid, 0),
+    };
   });
 
   return (
@@ -50,12 +79,9 @@ export function MasterStatementDocument({
                 sees the same mark. A statement is often what gets asked for at
                 admission time in the next school. */}
             {isYearClear ? (
-              <span
-                className="shrink-0 -rotate-[7deg] rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-95 print:block"
-                aria-hidden="true"
-              >
+              <Stamp variant="year-cleared" className="shrink-0">
                 Year Cleared
-              </span>
+              </Stamp>
             ) : null}
           </div>
         </div>
@@ -186,6 +212,98 @@ export function MasterStatementDocument({
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/*
+        Payments actually made. The document called "statement" listed the fee
+        breakup and installment dues and stopped there — a parent asking "what
+        have I paid?" got an installment table that answers a different
+        question. The only surface that ever listed receipts was the PDF, and it
+        silently dropped discount-mode ones.
+
+        Ordered oldest-first with a running balance so the page reads like a
+        passbook: each line says what was received and what was still owed after
+        it. Reversed receipts stay on the page — the register is append-only, and
+        a receipt that vanished would be more alarming than one marked void.
+      */}
+      <section className="mt-6 border-t border-border-strong pt-4">
+        <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+          Payments received
+        </p>
+        {paymentTimeline.length === 0 ? (
+          <p className="rounded-md border border-dashed border-border-strong px-3 py-4 text-center text-sm text-muted-foreground">
+            No payments have been received for this session yet.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-md border border-border-strong">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2">Date</th>
+                  <th className="px-3 py-2">Receipt</th>
+                  <th className="px-3 py-2">Mode</th>
+                  <th className="px-3 py-2 text-right">Received</th>
+                  <th className="px-3 py-2 text-right">Balance after</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {paymentTimeline.map((entry) => (
+                  <tr key={entry.id} className="border-t border-border">
+                    <td className="px-3 py-2 tabular-nums">{formatShortDate(entry.paymentDate)}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{entry.receiptNumber}</td>
+                    <td className="px-3 py-2">
+                      {entry.isDiscount ? "Closed as discount" : entry.paymentModeLabel}
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right tabular-nums ${
+                        entry.isReversed ? "line-through opacity-60" : "font-medium"
+                      }`}
+                    >
+                      {formatInr(entry.totalAmount)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                      {entry.isReversed ? "—" : formatInr(entry.balanceAfter)}
+                    </td>
+                    <td className="px-3 py-2">
+                      {entry.isReversed ? (
+                        <Stamp variant="void" size="sm" rotate={-4}>
+                          Reversed
+                        </Stamp>
+                      ) : entry.isDiscount ? (
+                        <Stamp variant="closed-as-discount" size="sm" rotate={-4}>
+                          Written off
+                        </Stamp>
+                      ) : (
+                        <Stamp variant="paid" size="sm" rotate={-4}>
+                          Paid
+                        </Stamp>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-t-2 border-border-strong bg-surface-2 font-semibold">
+                  <td className="px-3 py-2" colSpan={3}>
+                    Total received
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatInr(timelineReceivedTotal)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatInr(financialSnapshot.currentOutstanding)}
+                  </td>
+                  <td className="px-3 py-2">
+                    {isYearClear ? (
+                      <Stamp variant="year-cleared" size="sm" rotate={-4}>
+                        Year Cleared
+                      </Stamp>
+                    ) : null}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="border-t border-border-strong pt-4 text-sm space-y-3">

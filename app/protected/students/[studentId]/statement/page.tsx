@@ -28,7 +28,7 @@ export default async function StudentStatementPage({
       <PageHeader
         eyebrow="Students"
         title={`Statement: ${workspace.student.fullName}`}
-        description="Printable master fee statement with workbook fee breakup and installment-wise dues."
+        description="Printable master fee statement: fee breakup, installment-wise dues, and every payment received."
         actions={<MasterStatementPrintActions backHref={`/protected/students/${workspace.student.id}`} />}
         className="no-print"
       />
@@ -37,6 +37,7 @@ export default async function StudentStatementPage({
         student={workspace.student}
         financialSnapshot={workspace.financialSnapshot}
         installmentBalances={workspace.installmentBalances}
+        receipts={workspace.receipts}
       />
     </div>
   );

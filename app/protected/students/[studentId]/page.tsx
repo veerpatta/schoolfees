@@ -681,6 +681,7 @@ export default async function StudentDetailPage({
         paymentModeLabel: r.paymentModeLabel,
         referenceNumber: r.referenceNumber,
         receivedBy: r.receivedBy,
+        isReversed: r.isReversed,
       }))}
       receiptsBySession={receiptsBySession.map(([sessionLabel, list]) => ({
         sessionLabel,
@@ -692,6 +693,7 @@ export default async function StudentDetailPage({
           paymentModeLabel: r.paymentModeLabel,
           referenceNumber: r.referenceNumber,
           receivedBy: r.receivedBy,
+          isReversed: r.isReversed,
         })),
       }))}
       activeSessionLabel={activeSessionLabel}

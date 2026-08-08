@@ -4,6 +4,8 @@ import { CountUp } from "@/components/ui/count-up";
 import { amountInWordsHindi } from "@/lib/helpers/amount-in-words-hi";
 import { formatInr } from "@/lib/helpers/currency";
 import { schoolProfile } from "@/lib/config/school";
+import { Stamp } from "@/components/ui/stamp";
+import { isYearCleared } from "@/lib/fees/year-clear";
 import { cn } from "@/lib/utils";
 
 /**
@@ -78,6 +80,7 @@ export function MobilePrintedReceipt({
   referenceNumber,
   receivedBy,
   remainingBalance,
+  isYearClear,
   isVoided = false,
   countUpTotal = false,
   className,
@@ -96,6 +99,13 @@ export function MobilePrintedReceipt({
   receivedBy: string;
   remainingBalance: number;
   /**
+   * Whether the whole year is settled. Supplied by callers that hold the full
+   * picture (cash paid to date plus any discount close-out); when omitted it is
+   * derived from this receipt alone, which is correct for the common case of a
+   * final payment clearing the balance.
+   */
+  isYearClear?: boolean;
+  /**
    * Reversed in full. The A4 document has carried a REVERSED · VOID watermark
    * since v2, but it is `hidden md:block` — so a phone reprint of a reversed
    * receipt showed nothing at all and read as valid. A clerk could hand that
@@ -113,6 +123,10 @@ export function MobilePrintedReceipt({
   countUpTotal?: boolean;
   className?: string;
 }) {
+  const yearClear =
+    isYearClear ??
+    isYearCleared({ outstandingAmount: remainingBalance, totalPaid: amountReceived });
+
   const particulars: PrintedReceiptLine[] =
     lines && lines.length > 0 ? lines : [{ label: "Fee received", amount: amountReceived }];
 
@@ -226,9 +240,27 @@ export function MobilePrintedReceipt({
               {/* No PAID stamp on a reversed receipt — the slip would be
                   contradicting its own watermark in the parent's hand. */}
               {isVoided ? null : (
-                <span className="anim-stamp-in inline-block rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-3 py-1 text-[13px] font-extrabold tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-90 [animation-delay:750ms]">
-                  PAID
-                </span>
+                <div className="flex flex-col items-center gap-1">
+                  <Stamp
+                    variant="paid"
+                    className="anim-stamp-in text-[13px] [animation-delay:750ms]"
+                  >
+                    PAID
+                  </Stamp>
+                  {/* The phone slip is what most parents actually get handed, and
+                      it was the one receipt surface with no YEAR CLEARED mark —
+                      so the proof that the year is settled was missing from the
+                      copy most likely to be kept. */}
+                  {yearClear ? (
+                    <Stamp
+                      variant="year-cleared"
+                      size="sm"
+                      className="anim-stamp-in [animation-delay:900ms]"
+                    >
+                      YEAR CLEARED
+                    </Stamp>
+                  ) : null}
+                </div>
               )}
             </div>
             <div className="text-right text-[8.5px] text-[hsl(222_9%_46%)]">

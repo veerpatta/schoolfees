@@ -1,3 +1,4 @@
+import { Stamp } from "@/components/ui/stamp";
 import Image from "next/image";
 
 import { schoolProfile } from "@/lib/config/school";
@@ -668,23 +669,17 @@ export function ReceiptDocumentV3({
               parent's hand. */}
           {!receipt.isVoided ? (
             <div className="hidden shrink-0 flex-col items-center gap-1 sm:flex print:flex">
-              <div
-                className="-rotate-[7deg] rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-90"
-                aria-hidden="true"
-              >
+              <Stamp variant="paid" size="md" className="text-[13px]">
                 {t.en("paidStamp")}
-              </div>
+              </Stamp>
               {/* YEAR CLEARED — the parent asked what this receipt proves, and
                   "PAID" only ever meant "this instalment". Stamped on EVERY
                   receipt for a settled student, reprints included, so a copy
                   pulled out months later still proves the year was closed. */}
               {isYearClear ? (
-                <div
-                  className="-rotate-[7deg] rounded-md border-[2.5px] border-[hsl(151_45%_32%)] bg-[hsl(151_45%_96%)] px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-95"
-                  aria-hidden="true"
-                >
+                <Stamp variant="year-cleared" size="md">
                   {t.en("yearClearedStamp")}
-                </div>
+                </Stamp>
               ) : null}
             </div>
           ) : null}

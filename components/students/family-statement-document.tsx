@@ -1,3 +1,4 @@
+import { Stamp } from "@/components/ui/stamp";
 import { schoolProfile } from "@/lib/config/school";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
 import { isYearCleared } from "@/lib/fees/year-clear";
@@ -221,12 +222,9 @@ export function FamilyStatementDocument({
                     ),
                     hasPreparedDues: installmentBalances.length > 0,
                   }) ? (
-                    <span
-                      className="inline-block -rotate-[7deg] rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[hsl(151_45%_30%)]"
-                      aria-hidden="true"
-                    >
+                    <Stamp variant="year-cleared" size="sm">
                       Year Cleared
-                    </span>
+                    </Stamp>
                   ) : (
                     <>
                       <span className="text-xs uppercase text-muted-foreground">Outstanding</span>
