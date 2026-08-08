@@ -10,7 +10,6 @@ import {
   MoreHorizontal,
   Phone,
   Printer,
-  Scissors,
   User,
 } from "lucide-react";
 
@@ -26,7 +25,6 @@ import {
 import { Money } from "@/components/ui/money";
 import { ValueStatePill } from "@/components/office/office-ui";
 import { BulkRowCheckbox } from "@/components/defaulters/bulk-whatsapp-provider";
-import { CloseDueAsDiscountSheet } from "@/components/students/close-due-as-discount-sheet";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { buildTransportRouteLabel } from "@/lib/transport/label";
@@ -649,18 +647,12 @@ export function InstallmentTrackerTable({
 export function StudentDuesTable({
   rows,
   sessionLabel,
-  canCloseBalance,
 }: {
   rows: OfficeWorkbookStudentRow[];
   sessionLabel: string;
-  canCloseBalance?: boolean;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
   const { isExpanded, toggle } = useExpandedRows();
-  // Lifted so the Sheet doesn't unmount when the dropdown menu closes after
-  // clicking "Close balance" — otherwise the user loses the sheet the moment
-  // they focus the reason textarea.
-  const [closeTarget, setCloseTarget] = useState<OfficeWorkbookStudentRow | null>(null);
   const colSpan = 6;
   return (
     <>
@@ -712,16 +704,6 @@ export function StudentDuesTable({
                       label: "Statement",
                       icon: <Printer className="size-3.5" aria-hidden="true" />,
                     },
-                    ...(canCloseBalance && row.outstandingAmount > 0
-                      ? ([
-                          {
-                            type: "button",
-                            onClick: () => setCloseTarget(row),
-                            label: "Close balance",
-                            icon: <Scissors className="size-3.5" aria-hidden="true" />,
-                          },
-                        ] as RowAction[])
-                      : []),
                   ]}
                   detail={
                     <>
@@ -836,16 +818,6 @@ export function StudentDuesTable({
                               label: "Open student",
                               icon: <User className="size-3.5" aria-hidden="true" />,
                             },
-                            ...(canCloseBalance && row.outstandingAmount > 0
-                              ? ([
-                                  {
-                                    type: "button",
-                                    onClick: () => setCloseTarget(row),
-                                    label: "Close balance as discount",
-                                    icon: <Scissors className="size-3.5" aria-hidden="true" />,
-                                  },
-                                ] as RowAction[])
-                              : []),
                           ]}
                         />
                       </td>
@@ -879,20 +851,6 @@ export function StudentDuesTable({
           </tbody>
         </table>
       </div>
-      {closeTarget ? (
-        <CloseDueAsDiscountSheet
-          key={closeTarget.studentId}
-          open
-          onClose={() => setCloseTarget(null)}
-          studentId={closeTarget.studentId}
-          studentLabel={closeTarget.studentName}
-          studentAdmissionNo={closeTarget.admissionNo}
-          classLabel={closeTarget.classLabel}
-          pendingAmount={closeTarget.outstandingAmount}
-          currentDiscount={closeTarget.discountAmount}
-          sessionLabel={sessionLabel}
-        />
-      ) : null}
     </>
   );
 }

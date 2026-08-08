@@ -107,7 +107,6 @@ export type TransactionsClientShellProps = {
   paymentModeOptions: PaymentModeOption[];
   resolvedSessionLabel: string;
   todaySnapshot: TodaySnapshot;
-  canCloseBalance: boolean;
   whatsappTemplates: readonly WhatsappTemplate[];
 };
 
@@ -501,7 +500,6 @@ function TransactionsTable({
 type StudentTableProps = {
   rows: OfficeWorkbookStudentRow[];
   sessionLabel: string;
-  canCloseBalance?: boolean;
   /**
    * DefaultersTable-only: when true, renders the bulk-WhatsApp checkbox
    * column on the desktop view. Other student tables ignore this flag.
@@ -675,7 +673,6 @@ export function TransactionsClientShell({
   paymentModeOptions,
   resolvedSessionLabel,
   todaySnapshot,
-  canCloseBalance,
   whatsappTemplates,
 }: TransactionsClientShellProps) {
   const t = useTranslations("Transactions");
@@ -1319,7 +1316,7 @@ export function TransactionsClientShell({
         )}
         {workbook.view === "student_dues" && (
           <SectionCard title={t("studentDuesTitle")} description={t("studentDuesDescription")}>
-            <StudentDuesTable rows={workbook.rows} sessionLabel={effectiveSession} canCloseBalance={canCloseBalance} />
+            <StudentDuesTable rows={workbook.rows} sessionLabel={effectiveSession} />
           </SectionCard>
         )}
         {workbook.view === "class_register" && (

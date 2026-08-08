@@ -10,7 +10,6 @@ import {
   MobileStatStrip,
 } from "@/components/mobile-app/mobile-kit";
 import { OfficeRecentTracker, ValueStatePill } from "@/components/office/office-ui";
-import { CloseDueTrigger } from "@/components/students/close-due-trigger";
 import { MobileStudentFamilyTab } from "@/components/students/mobile-student-family-tab";
 import { MobileStudentProfile } from "@/components/students/mobile-student-profile";
 import { StudentAboutPanel } from "@/components/students/student-about-panel";
@@ -177,6 +176,21 @@ export default async function StudentDetailPage({
   // because it is fully waived, while still being balance_status = 'overdue' —
   // exactly what the old candidate check keyed on.
   const effectivePendingLateFeeAmount = pendingLateFeeAmount;
+
+  // Writing a balance off is admin-only and money-moving, so it lives in the
+  // Danger Zone next to withdraw and delete — not in the middle of the
+  // Transactions table, and not on a phone-only card the desktop never showed.
+  const closeBalanceProps =
+    student.status === "active"
+      ? {
+          studentLabel: student.fullName,
+          studentAdmissionNo: student.admissionNo,
+          classLabel: student.classLabel,
+          sessionLabel: financialSnapshot?.policy.academicSessionLabel ?? "",
+          pendingAmount: outstandingAmount,
+          oldBalanceAmount: prevYearDuesAmount,
+        }
+      : undefined;
 
   // Installments that still carry a late fee, so the waive sheet can aim at one
   // rather than handing the server a bare rupee amount. Capped at what is still
@@ -990,30 +1004,6 @@ export default async function StudentDetailPage({
         </dl>
       </MobileCard>
 
-      {canEditStudent && student.status === "active" ? (
-        <div className="rounded-xl border border-warning/50 bg-warning-soft p-4">
-          <p className="text-[12.5px] font-extrabold text-warning-soft-foreground">
-            {tm("closeDueTitle")}
-          </p>
-          <p className="mt-1 text-[11px] leading-relaxed text-warning-soft-foreground/90">
-            {tm("closeDueBody")}
-          </p>
-          <div className="mt-3">
-            <CloseDueTrigger
-              studentId={student.id}
-              studentLabel={student.fullName}
-              studentAdmissionNo={student.admissionNo}
-              classLabel={student.classLabel}
-              pendingAmount={outstandingAmount}
-              currentDiscount={student.discountAmount}
-              sessionLabel={financialSnapshot?.policy.academicSessionLabel ?? ""}
-              size="default"
-              className="h-11 w-full justify-center rounded-xl text-[12.5px] font-extrabold"
-            />
-          </div>
-        </div>
-      ) : null}
-
       {canShowDangerZone ? (
         <div className="rounded-xl border border-destructive/30 bg-destructive-soft/40 p-4">
           <p className="text-[12.5px] font-extrabold text-destructive">{tm("dangerTitle")}</p>
@@ -1021,7 +1011,11 @@ export default async function StudentDetailPage({
             {tm("dangerBody")}
           </p>
           <div className="mt-3">
-            <StudentDangerZone studentId={student.id} deletionSafety={deletionSafety} />
+            <StudentDangerZone
+              studentId={student.id}
+              deletionSafety={deletionSafety}
+              closeBalance={closeBalanceProps}
+            />
           </div>
         </div>
       ) : null}
@@ -1221,7 +1215,11 @@ export default async function StudentDetailPage({
       </div>
 
       {canShowDangerZone ? (
-        <StudentDangerZone studentId={student.id} deletionSafety={deletionSafety} />
+        <StudentDangerZone
+              studentId={student.id}
+              deletionSafety={deletionSafety}
+              closeBalance={closeBalanceProps}
+            />
       ) : null}
       </div>
     </div>

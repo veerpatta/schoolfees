@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { CloseDueAsDiscountSheet } from "@/components/students/close-due-as-discount-sheet";
+import { formatInr } from "@/lib/helpers/currency";
 import { useActionFeedback } from "@/hooks/use-action-feedback";
 import type { StudentDeletionSafety } from "@/lib/students/types";
 
@@ -18,11 +20,31 @@ import { INITIAL_STUDENT_DANGER_ACTION_STATE } from "@/app/protected/students/da
 type StudentDangerZoneProps = {
   studentId: string;
   deletionSafety: StudentDeletionSafety;
+  /**
+   * Writing a balance off is an admin-only, money-moving act, so it belongs
+   * behind the same gate as withdrawing and deleting rather than in the middle
+   * of the Transactions table where it used to sit.
+   */
+  closeBalance?: {
+    studentLabel: string;
+    studentAdmissionNo: string;
+    classLabel: string;
+    sessionLabel: string;
+    /** This session's outstanding, late fee included. */
+    pendingAmount: number;
+    /** Unpaid carry-forward balance from a previous session, if any. */
+    oldBalanceAmount: number;
+  };
 };
 
-export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZoneProps) {
+export function StudentDangerZone({
+  studentId,
+  deletionSafety,
+  closeBalance,
+}: StudentDangerZoneProps) {
   const t = useTranslations("MobileApp");
   const router = useRouter();
+  const [closeSheet, setCloseSheet] = useState<"current" | "oldBalance" | null>(null);
   // The student page renders this block twice (phone branch + desktop branch,
   // one hidden by CSS but still in the DOM). A hardcoded id made both inputs
   // share it, so the desktop <label> focused the hidden phone input.
@@ -136,6 +158,38 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
             </p>
           ) : null}
         </div>
+        {closeBalance &&
+        (closeBalance.pendingAmount > 0 || closeBalance.oldBalanceAmount > 0) ? (
+          <div className="lg:col-span-2 rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
+            <p className="font-semibold text-foreground">Close a balance as discount</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Writes the amount off with an auditable discount receipt. No cash is recorded
+              and it never counts towards collection.
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {closeBalance.pendingAmount > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => setCloseSheet("current")}
+                >
+                  Close this year&rsquo;s balance ({formatInr(closeBalance.pendingAmount)})
+                </Button>
+              ) : null}
+              {closeBalance.oldBalanceAmount > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => setCloseSheet("oldBalance")}
+                >
+                  Close old balance ({formatInr(closeBalance.oldBalanceAmount)})
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <form action={archiveFormAction}>
             <input type="hidden" name="studentId" value={studentId} />
@@ -177,6 +231,23 @@ export function StudentDangerZone({ studentId, deletionSafety }: StudentDangerZo
           ) : null}
         </div>
       </div>
+      {closeBalance ? (
+        <CloseDueAsDiscountSheet
+          open={closeSheet !== null}
+          onClose={() => setCloseSheet(null)}
+          studentId={studentId}
+          studentLabel={closeBalance.studentLabel}
+          studentAdmissionNo={closeBalance.studentAdmissionNo}
+          classLabel={closeBalance.classLabel}
+          sessionLabel={closeBalance.sessionLabel}
+          variant={closeSheet === "oldBalance" ? "oldBalance" : "current"}
+          pendingAmount={
+            closeSheet === "oldBalance"
+              ? closeBalance.oldBalanceAmount
+              : closeBalance.pendingAmount
+          }
+        />
+      ) : null}
     </details>
   );
 }

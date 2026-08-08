@@ -13,7 +13,7 @@ import { getSetupWizardDataLight } from "@/lib/setup/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
-import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
+import { requireAnyStaffPermission } from "@/lib/supabase/session";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import { getTodayReceiptSnapshot } from "@/lib/workbook/data";
 
@@ -172,7 +172,6 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         paymentModeOptions={policy.acceptedPaymentModes.map((m) => ({ value: m.value, label: m.label }))}
         resolvedSessionLabel={sessionLabel}
         todaySnapshot={todaySnapshot}
-        canCloseBalance={hasStaffPermission(staff, "finance:write")}
         whatsappTemplates={whatsappTemplates}
       />
     </div>
