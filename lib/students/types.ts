@@ -48,6 +48,8 @@ export type StudentListItem = {
   installment3Base: number;
   installment4Base: number;
   totalPaid: number;
+  /** Balance cleared by a discount-mode write-off. Not cash — see lib/money/glossary.ts. */
+  discountClosedAmount: number;
   lateFeeTotal: number;
   totalDue: number;
   overdueAmount: number;
@@ -241,7 +243,13 @@ export type StudentValidatedInput = {
 export type StudentFormFieldErrors = Partial<Record<keyof StudentFormInput, string>>;
 
 export type StudentFormActionState = {
-  status: "idle" | "error" | "success";
+  /**
+   * "warning" means the record saved but part of the work was skipped — a
+   * discount that could not be applied to an already-paid installment, say.
+   * Reporting that as plain "success" is how a Rs 2,000 discount sat unapplied
+   * for two months (SR 2261).
+   */
+  status: "idle" | "error" | "success" | "warning";
   message: string | null;
   fieldErrors: StudentFormFieldErrors;
   studentId: string | null;

@@ -13,6 +13,7 @@ import {
   isCarryForwardInstallment,
 } from "@/lib/prev-year-dues/display";
 import { cn } from "@/lib/utils";
+import { isYearCleared } from "@/lib/fees/year-clear";
 
 type FeeHeadRow = { label: string; amount: number };
 
@@ -72,7 +73,12 @@ export function StudentFinanceGlance({
   nextDueLabel,
   nextDueAmount,
 }: StudentFinanceGlanceProps) {
-  const isYearClear = totalPending <= 0 && (totalPaid + discountClosedAmount) > 0;
+  // Shared with the student list so the two can never disagree.
+  const isYearClear = isYearCleared({
+    outstandingAmount: totalPending,
+    totalPaid,
+    discountClosedAmount,
+  });
   const discountSuffix = discountLabels.length > 0 ? ` (${discountLabels.join(" + ")})` : "";
 
   return (

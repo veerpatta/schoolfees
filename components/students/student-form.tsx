@@ -181,12 +181,19 @@ export function StudentForm({
           className={
             state.status === "error"
               ? "rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
-              : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
+              : state.status === "warning"
+                ? "rounded-md border bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground"
+                : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
           }
           role={state.status === "error" ? "alert" : "status"}
         >
           {state.message}
-          {state.status === "success" && state.studentId ? (
+          {/*
+            The follow-up buttons appear on a warning too: the student WAS
+            saved, and the most likely next step after "some fee rows were left
+            for review" is to open the student and look at them.
+          */}
+          {state.status !== "error" && state.studentId ? (
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild size="sm">
                 <Link href={withSession(`/protected/payments?studentId=${state.studentId}`)}>Open Payment Desk</Link>

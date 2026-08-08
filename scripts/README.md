@@ -18,6 +18,13 @@ Operational / verification scripts run by hand or via `package.json`:
 - `verify-phase1-migrations.mjs` — migration/readiness verification.
 - `verify-required-sessions.mjs` — confirms required academic sessions exist.
 - `verify-workbook-parity.mjs` — workbook financial-parity diagnostic.
+- `repair-discount-drift.mjs` — reports students whose ledger disagrees with
+  their resolved fee policy, and (with `--apply`) re-runs the fee engine for
+  them via `/api/admin/repair-discount-drift`. Read-only by default; splits the
+  report into dues-going-down and dues-going-up, because the second kind must
+  never be applied without review. Run migration `20260807120000` first —
+  before it, the drift is the view's fault, not the ledger's.
+  `node scripts/repair-discount-drift.mjs --session 2026-27 [--apply]`
 - `translate-placeholders.mjs` — i18n placeholder/translation tooling
   (see `docs/i18n/dictionary-status.md`).
 - `migrate-test-data-to-test-schema.ts` — one-time-per-environment TEST-data

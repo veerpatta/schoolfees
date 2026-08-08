@@ -1095,6 +1095,7 @@
     "duesNotPrepared": "बकाया तैयार नहीं",
     "feePositionLoading": "फीस लोड हो रही है",
     "yearClear": "साल का बकाया साफ ✓",
+    "nothingDueYet": "अभी कुछ बकाया नहीं",
     "overdueBadge": "{amount} ओवरड्यू",
     "lateFeeSuffix": "+ {amount} लेट फीस",
     "lateFeeWaived": "लेट फीस माफ",
@@ -1404,7 +1405,9 @@
     "previewValidBadge": "मान्य · सत्यापित",
     "previewReversedBadge": "निरस्त · अब मान्य नहीं",
     "printA4Action": "A4 प्रिंट करें",
-    "paidStamp": "भुगतान"
+    "paidStamp": "भुगतान",
+    "yearClearedStamp": "वर्ष पूर्ण",
+    "yearClearedNote": "इस सत्र के लिए कोई शुल्क शेष नहीं है।"
   },
   "AdminTools": {
     "eyebrow": "Admin Tools",

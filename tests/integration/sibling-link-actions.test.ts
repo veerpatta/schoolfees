@@ -4,6 +4,16 @@ import { createFakeSupabase, type FakeSupabase } from "@/tests/helpers/fake-supa
 
 vi.mock("server-only", () => ({}));
 
+// These actions now drain the workbook matview refresh queue after the
+// response. `after` throws outside a request scope, so run the callback
+// inline — the assertions care that the action succeeded, not when the
+// drain ran.
+vi.mock("next/server", () => ({
+  after: (callback: () => unknown) => {
+    void callback();
+  },
+}));
+
 let supabase: FakeSupabase;
 
 const applyThirdChildPolicyForFamilyGroup = vi.fn();

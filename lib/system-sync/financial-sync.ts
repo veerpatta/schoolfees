@@ -6,6 +6,7 @@ import {
   generateSessionLedgersAction,
   type LedgerGenerationResult,
   type LedgerSkippedStudent,
+  type ResidualCreditStudent,
 } from "@/lib/fees/generator";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-revalidation";
@@ -47,6 +48,15 @@ export type AutomaticDuesPreparationResult = {
   updated: number;
   cancelled: number;
   protected: number;
+  /**
+   * Rows left untouched because they already carry money. First-class rather
+   * than buried in `officeSummary`, because the student save path never read
+   * that string and so reported a clean success for a change it had skipped.
+   */
+  protectedRowCount: number;
+  /** Rupees that became refundable because a discount exceeded the balance. */
+  residualCreditTotal: number;
+  residualCreditStudents: ResidualCreditStudent[];
   readyForPaymentCount: number;
   duesNeedAttentionCount: number;
   officeSummary: string;
@@ -223,15 +233,34 @@ export function toAutomaticDuesPreparationResult(
 ): AutomaticDuesPreparationResult {
   const requestedIds = [...new Set(requestedStudentIds.filter(Boolean))];
   const skippedIds = new Set(result.skippedStudents.map((student) => student.studentId));
-  const reasonSummary = summarizeDuesPreparationIssues(result.skippedStudents) || null;
-  const preparedStudentIds = hasPreparedDues(result)
-    ? requestedIds.filter((studentId) => !skippedIds.has(studentId))
-    : [];
-  const attentionStudentIds = requestedIds.filter((studentId) => !preparedStudentIds.includes(studentId));
   const changedRows =
     result.installmentsToInsert +
     result.installmentsToUpdate +
     result.installmentsToCancel;
+
+  // A student whose every row was kept for review had NOTHING written. Counting
+  // them as "prepared" is what let a discount on an already-paid student return
+  // the green "Student updated and fee records updated." while
+  // installments.updated_at stayed two months old (SR 2261, 2026-08-07).
+  const blockedStudentIds = new Set(
+    result.blockedInstallmentsForReview.map((row) => row.studentId),
+  );
+  const fullyBlockedStudentIds =
+    changedRows === 0
+      ? new Set(requestedIds.filter((studentId) => blockedStudentIds.has(studentId)))
+      : new Set<string>();
+
+  const reasonSummary =
+    summarizeDuesPreparationIssues(result.skippedStudents) ||
+    (fullyBlockedStudentIds.size > 0
+      ? "Some fee rows already carry payments and were kept for review."
+      : null);
+  const preparedStudentIds = hasPreparedDues(result)
+    ? requestedIds.filter(
+        (studentId) => !skippedIds.has(studentId) && !fullyBlockedStudentIds.has(studentId),
+      )
+    : [];
+  const attentionStudentIds = requestedIds.filter((studentId) => !preparedStudentIds.includes(studentId));
   const protectedLabel =
     result.lockedInstallments > 0
       ? ` ${result.lockedInstallments} row${result.lockedInstallments === 1 ? "" : "s"} kept for review.`
@@ -249,6 +278,9 @@ export function toAutomaticDuesPreparationResult(
     updated: result.installmentsToUpdate,
     cancelled: result.installmentsToCancel,
     protected: result.lockedInstallments,
+    protectedRowCount: result.lockedInstallments,
+    residualCreditTotal: result.residualCreditTotal,
+    residualCreditStudents: result.residualCreditStudents,
     readyForPaymentCount: preparedStudentIds.length,
     duesNeedAttentionCount: attentionStudentIds.length,
     officeSummary,
@@ -270,9 +302,11 @@ function buildEmptySyncResult(reason: string, warnings: string[] = []): Financia
     installmentsToUpdate: 0,
     installmentsToCancel: 0,
     lockedInstallments: 0,
+    residualCreditTotal: 0,
     expectedScheduledInstallments: 0,
     affectedStudents: 0,
     blockedInstallmentsForReview: [],
+    residualCreditStudents: [],
     skippedStudents: [],
     errors: [],
     reason,
@@ -547,9 +581,11 @@ function mergeLedgerResults(results: LedgerGenerationResult[]): LedgerGeneration
       installmentsToUpdate: 0,
       installmentsToCancel: 0,
       lockedInstallments: 0,
+      residualCreditTotal: 0,
       expectedScheduledInstallments: 0,
       affectedStudents: 0,
       blockedInstallmentsForReview: [],
+      residualCreditStudents: [],
       skippedStudents: [],
       warnings: [],
       errors: [],
@@ -572,9 +608,11 @@ function mergeLedgerResults(results: LedgerGenerationResult[]): LedgerGeneration
     installmentsToUpdate: results.reduce((sum, r) => sum + r.installmentsToUpdate, 0),
     installmentsToCancel: results.reduce((sum, r) => sum + r.installmentsToCancel, 0),
     lockedInstallments: results.reduce((sum, r) => sum + r.lockedInstallments, 0),
+    residualCreditTotal: results.reduce((sum, r) => sum + r.residualCreditTotal, 0),
     expectedScheduledInstallments: results.reduce((sum, r) => sum + r.expectedScheduledInstallments, 0),
     affectedStudents: results.reduce((sum, r) => sum + r.affectedStudents, 0),
     blockedInstallmentsForReview: results.flatMap((r) => r.blockedInstallmentsForReview),
+    residualCreditStudents: results.flatMap((r) => r.residualCreditStudents),
     skippedStudents: results.flatMap((r) => r.skippedStudents),
     warnings: [...new Set(results.flatMap((r) => r.warnings))],
     errors: [...new Set(results.flatMap((r) => r.errors))],

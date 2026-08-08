@@ -103,6 +103,7 @@ type StudentWorkbookFinancialRow = {
   installment3_base?: number | null;
   installment4_base?: number | null;
   total_paid?: number | null;
+  total_discount_closeouts?: number | null;
   late_fee_total?: number | null;
   total_due?: number | null;
   outstanding_amount: number;
@@ -893,7 +894,7 @@ async function getStudentsPageUncached(
       supabase
         .from("v_workbook_student_financials")
         .select(
-          "student_id, workbook_student_key, student_status_label, tuition_fee, transport_fee, academic_fee, gross_base_before_discount, discount_amount, base_total_due, base_charge_total, installment1_base, installment2_base, installment3_base, installment4_base, total_paid, late_fee_total, total_due, outstanding_amount, next_due_label, next_due_date, next_due_amount, status_label, last_payment_date, last_payment_amount, duplicate_sr_flag, missing_dob_flag, missing_class_flag, missing_status_flag",
+          "student_id, workbook_student_key, student_status_label, tuition_fee, transport_fee, academic_fee, gross_base_before_discount, discount_amount, base_total_due, base_charge_total, installment1_base, installment2_base, installment3_base, installment4_base, total_paid, total_discount_closeouts, late_fee_total, total_due, outstanding_amount, next_due_label, next_due_date, next_due_amount, status_label, last_payment_date, last_payment_amount, duplicate_sr_flag, missing_dob_flag, missing_class_flag, missing_status_flag",
         )
         .in("student_id", studentIds),
       supabase
@@ -1108,6 +1109,7 @@ async function getStudentsPageUncached(
       installment3Base: financial?.installment3_base ?? 0,
       installment4Base: financial?.installment4_base ?? 0,
       totalPaid: financial?.total_paid ?? 0,
+      discountClosedAmount: financial?.total_discount_closeouts ?? 0,
       lateFeeTotal: financial?.late_fee_total ?? 0,
       totalDue: financial?.total_due ?? 0,
       overdueAmount: overdueAmountMap.get(row.id) ?? 0,
@@ -1201,6 +1203,7 @@ export async function getStudentsIdentityPage(
       installment3Base: 0,
       installment4Base: 0,
       totalPaid: 0,
+      discountClosedAmount: 0,
       lateFeeTotal: 0,
       totalDue: 0,
       overdueAmount: 0,

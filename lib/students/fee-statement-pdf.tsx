@@ -14,6 +14,7 @@ import {
 
 import { schoolProfile } from "@/lib/config/school";
 import { localizedFeeLabel } from "@/lib/fees/fee-label";
+import { isYearCleared } from "@/lib/fees/year-clear";
 import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 import {
   buildFeeBreakdownSummary,
@@ -203,6 +204,21 @@ const styles = StyleSheet.create({
   studentHead: { marginTop: 6 },
   studentName: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#111827" },
   studentMeta: { fontSize: 8.5, color: "#374151", marginTop: 2 },
+  // Matches the receipt's rotated stamp as closely as react-pdf allows: no
+  // transform support, so it reads as a bordered badge rather than a stamp.
+  yearClearedStamp: {
+    marginTop: 4,
+    alignSelf: "flex-start",
+    borderWidth: 1.5,
+    borderColor: "#2f7f56",
+    borderStyle: "solid",
+    borderRadius: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: "#2f7f56",
+  },
   sectionTitle: {
     fontSize: 9.5,
     fontFamily: "Helvetica-Bold",
@@ -333,6 +349,16 @@ function StudentFeeSection({
         {student.fatherName ? ` | Father: ${student.fatherName}` : ""}
         {student.phones.length ? ` | ${student.phones.join(", ")}` : ""}
       </Text>
+      {/* Same claim as the receipt and the printed statement, so whichever
+          document a parent is handed says the same thing. */}
+      {isYearCleared({
+        outstandingAmount: s.pending,
+        totalPaid: s.paid,
+        discountClosedAmount: s.discountCloseouts,
+        hasPreparedDues: student.installments.length > 0,
+      }) ? (
+        <Text style={styles.yearClearedStamp}>YEAR CLEARED — no further fees due</Text>
+      ) : null}
 
       <SectionTitle label={PL.feeHeads} />
       {student.summary.rows.map((row, idx) => (

@@ -247,13 +247,16 @@ function toAssignment(row: DiscountAssignmentRow) {
   } satisfies StudentConventionalDiscountAssignment;
 }
 
-export async function getConventionalDiscountPolicies(sessionLabel: string) {
+export async function getConventionalDiscountPolicies(sessionLabel: string, useAdmin = false) {
   const normalizedSession = sessionLabel.trim();
   if (!normalizedSession) {
     return [];
   }
 
-  const supabase = await createClient();
+  // See loadFeeCollectionsUncached. Without the admin client a headless caller
+  // reads NOTHING here, and a student on RTE / Staff Child / 3rd Child silently
+  // resolves to no conventional discount at all.
+  const supabase = useAdmin ? createAdminClient() : await createClient();
   const { data, error } = await supabase
     .from("conventional_discount_policies")
     .select(
@@ -276,6 +279,7 @@ export async function getConventionalDiscountPolicies(sessionLabel: string) {
 export async function getStudentConventionalDiscountAssignments(payload: {
   academicSessionLabel: string;
   studentIds?: string[];
+  useAdmin?: boolean;
 }) {
   const normalizedSession = payload.academicSessionLabel.trim();
   if (!normalizedSession) {
@@ -287,7 +291,7 @@ export async function getStudentConventionalDiscountAssignments(payload: {
     return [];
   }
 
-  const supabase = await createClient();
+  const supabase = payload.useAdmin ? createAdminClient() : await createClient();
   const fetchRows = async (studentIdChunk?: string[]) => {
     let query = supabase
       .from("student_conventional_discount_assignments")

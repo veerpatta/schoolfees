@@ -14,6 +14,8 @@ export type DuesSyncResultLike = {
   readyForPaymentCount: number;
   duesNeedAttentionCount: number;
   reasonSummary: string | null;
+  /** Rows left untouched because they already carry money. Optional so older callers still compile. */
+  protectedRowCount?: number;
 };
 
 function uniqueStudentIds(studentIds: readonly string[]) {
@@ -56,14 +58,23 @@ export function buildOfficeSyncOutcomeFromDuesResult(
 ): OfficeSyncOutcome {
   const affectedStudentIds = uniqueStudentIds(result.affectedStudentIds);
 
-  if (result.duesNeedAttentionCount === 0) {
+  const protectedRowCount = result.protectedRowCount ?? 0;
+
+  if (result.duesNeedAttentionCount === 0 && protectedRowCount === 0) {
     return buildSyncedOfficeSyncOutcome({
       sessionLabel: result.sessionLabel,
       affectedStudentIds,
     });
   }
 
-  const reason = result.reasonSummary ?? "Open Session Health before collecting fees.";
+  // "Synced" has to mean everything landed. Rows held back because they already
+  // carry a payment are precisely the case that used to be reported as a clean
+  // sync while the money never moved.
+  const reason =
+    result.reasonSummary ??
+    (protectedRowCount > 0
+      ? `${protectedRowCount} fee row${protectedRowCount === 1 ? "" : "s"} already carrying payments ${protectedRowCount === 1 ? "was" : "were"} left unchanged.`
+      : "Open Session Health before collecting fees.");
 
   return {
     status: "needs_review",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { CheckCircle2, X, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, X, XCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  * design system already uses tone for Notice/StatusBadge/.tone-*, while variant
  * means emphasis on Button.
  */
-export type ToastTone = "neutral" | "success" | "danger";
+export type ToastTone = "neutral" | "success" | "warning" | "danger";
 
 type ToastPayload = {
   title: string;
@@ -20,7 +20,7 @@ type ToastPayload = {
   icon?: ReactNode;
   /** Defaults to "neutral" so every pre-existing caller is unchanged. */
   tone?: ToastTone;
-  /** Defaults to 5s, or 8s for danger — an error needs reading time. */
+  /** Defaults to 5s, or 8s for warning/danger — those need reading time. */
   durationMs?: number;
 };
 
@@ -48,6 +48,10 @@ export function toast(payload: ToastPayload) {
 function toneIcon(tone: ToastTone) {
   if (tone === "success") {
     return <CheckCircle2 className="size-4" />;
+  }
+
+  if (tone === "warning") {
+    return <AlertTriangle className="size-4" />;
   }
 
   if (tone === "danger") {
@@ -136,7 +140,8 @@ export function ToastViewport() {
       const tone = detail.tone ?? "neutral";
       scheduleDismiss(
         id,
-        detail.durationMs ?? (tone === "danger" ? DANGER_DURATION_MS : DEFAULT_DURATION_MS),
+        detail.durationMs ??
+          (tone === "danger" || tone === "warning" ? DANGER_DURATION_MS : DEFAULT_DURATION_MS),
       );
     }
 
@@ -190,6 +195,7 @@ export function ToastViewport() {
               // A 3px rail, not a flood fill: the design system reserves solid
               // colour for actions and soft tones for state.
               tone === "success" && "border-l-[3px] border-l-success md:border-l-[3px]",
+              tone === "warning" && "border-l-[3px] border-l-warning md:border-l-[3px]",
               tone === "danger" && "border-l-[3px] border-l-destructive md:border-l-[3px]",
             )}
           >

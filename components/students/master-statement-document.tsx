@@ -3,6 +3,7 @@ import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import type { getStudentWorkspaceData } from "@/lib/students/workspace";
+import { isYearCleared } from "@/lib/fees/year-clear";
 
 type StudentWorkspace = Awaited<ReturnType<typeof getStudentWorkspaceData>>;
 
@@ -18,6 +19,16 @@ export function MasterStatementDocument({
   const feeHeads = buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown);
   const totalDue = installmentBalances.reduce((sum, item) => sum + item.baseCharge, 0);
   const totalPaid = installmentBalances.reduce((sum, item) => sum + item.paidAmount, 0);
+  const discountClosedAmount = installmentBalances.reduce(
+    (sum, item) => sum + (item.discountCloseoutAmount ?? 0),
+    0,
+  );
+  const isYearClear = isYearCleared({
+    outstandingAmount: financialSnapshot.currentOutstanding,
+    totalPaid,
+    discountClosedAmount,
+    hasPreparedDues: installmentBalances.length > 0,
+  });
 
   return (
     <article className="mx-auto w-full max-w-4xl rounded-xl border border-border-strong bg-card p-6 text-foreground shadow-sm print:max-w-none print:rounded-none print:border-border-strong print:p-0 print:shadow-none">
@@ -30,11 +41,29 @@ export function MasterStatementDocument({
               Academic session {financialSnapshot.policy.academicSessionLabel}
             </p>
           </div>
-          <div className="text-right text-sm">
-            <p className="font-semibold text-foreground">{student.fullName}</p>
-            <p className="text-muted-foreground">SR no {student.admissionNo}</p>
+          <div className="flex items-start gap-3 text-right text-sm">
+            <div>
+              <p className="font-semibold text-foreground">{student.fullName}</p>
+              <p className="text-muted-foreground">SR no {student.admissionNo}</p>
+            </div>
+            {/* Same stamp as the receipt, so a parent holding both documents
+                sees the same mark. A statement is often what gets asked for at
+                admission time in the next school. */}
+            {isYearClear ? (
+              <span
+                className="shrink-0 -rotate-[7deg] rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.1em] text-[hsl(151_45%_30%)] opacity-95 print:block"
+                aria-hidden="true"
+              >
+                Year Cleared
+              </span>
+            ) : null}
           </div>
         </div>
+        {isYearClear ? (
+          <p className="mt-3 rounded-md bg-success-soft px-3 py-2 text-xs font-semibold text-success-soft-foreground">
+            All dues for this session are settled. No further fees are payable.
+          </p>
+        ) : null}
       </header>
 
       <section className="grid gap-3 border-b border-border-strong py-4 text-sm md:grid-cols-3">

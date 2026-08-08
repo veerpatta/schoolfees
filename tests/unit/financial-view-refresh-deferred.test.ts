@@ -67,6 +67,39 @@ describe("financial view refresh stays off the posting path", () => {
     }
   });
 
+  it("drains on EVERY server action that regenerates installments", () => {
+    // Derived, not hand-listed. The hand-list above missed the student create
+    // and update paths for months: adding a student wrote four installment
+    // rows, enqueued a refresh and never drained it, so the new student read
+    // as "Dues not prepared" — and a discount edit kept showing the
+    // pre-discount total — until the */2 cron fired. Anything that calls the
+    // dues generator has to drain, so let the test find them rather than
+    // trusting the next author to remember.
+    const GENERATOR_ENTRY_POINTS = [
+      "prepareDuesForStudentsAutomatically",
+      "generateSessionLedgersAction",
+      "syncStudentFinancials",
+    ];
+
+    const actionFiles: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(join(repo, dir), { withFileTypes: true })) {
+        const child = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) walk(child);
+        else if (entry.name.endsWith("actions.ts")) actionFiles.push(child);
+      }
+    };
+    walk("app");
+
+    const missing = actionFiles.filter((path) => {
+      const source = read(path);
+      const regenerates = GENERATOR_ENTRY_POINTS.some((name) => source.includes(name));
+      return regenerates && !source.includes("drainFinancialViewRefresh");
+    });
+
+    expect(missing, "server actions that regenerate dues but never drain the refresh queue").toEqual([]);
+  });
+
   it("never blocks a post on a failed refresh", () => {
     // The cron backstop still runs; a drain failure must degrade to "stale for
     // up to two minutes", never to "the payment errored".

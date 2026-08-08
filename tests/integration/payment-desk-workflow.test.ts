@@ -1128,7 +1128,20 @@ describe("payment desk cashier workflow", () => {
     expect(mobileSheet).toContain('type="text"');
     expect(mobileSheet).toContain("onAmountChange(sanitizeDecimalInput(e.target.value))");
     expect(mobileSheet).not.toContain("<MobileNumPad");
-    expect(mobileSheet).toContain("disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess || studentSummaryLoading}");
+    // Asserted as individual gates rather than one formatted string: the
+    // expression gained `isPosting` (a post in flight must disable the button —
+    // the fast-post path left it live and unchanged for the whole round trip)
+    // and no longer fits on one line.
+    for (const gate of [
+      "confirmDisabled",
+      "!draftValidationOk",
+      "isLockedAfterSuccess",
+      "studentSummaryLoading",
+      "isPosting",
+    ]) {
+      expect(mobileSheet, `Collect button must stay gated on ${gate}`).toContain(gate);
+    }
+    expect(mobileSheet).toContain('loadingText="Saving payment…"');
   });
 
   it("desktop desk shows a selected-student loading state immediately", () => {

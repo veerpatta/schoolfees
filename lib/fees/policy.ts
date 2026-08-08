@@ -503,8 +503,13 @@ async function loadGlobalPolicy(useAdmin = false): Promise<FeePolicySummary> {
   return loadPolicyForSession(await getActiveSessionLabel(), useAdmin);
 }
 
-async function loadFeeCollectionsUncached() {
-  const supabase = await createClient();
+async function loadFeeCollectionsUncached(useAdmin = false) {
+  // `useAdmin` matters for headless callers. Every in-app caller runs inside a
+  // request with a staff session, so the cookie client passes RLS and this was
+  // never noticed — but a cron, a script or an admin route has no session, so
+  // fee_settings came back EMPTY and the generator skipped every student with
+  // CLASS_FEE_MISSING. Silent, and it looked like a Fee Setup problem.
+  const supabase = useAdmin ? createAdminClient() : await createClient();
   const studentOverridesSelectWithNotes =
     "id, student_id, fee_setting_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_other_fee_head_labels, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, late_fee_waiver_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at";
   const studentOverridesSelectWithoutNotes =
@@ -787,8 +792,8 @@ export async function getFeePolicyForSession(
   return getFeePolicyForSessionForRequest(label, Boolean(options.useAdmin));
 }
 
-async function loadFeeCollections() {
-  return loadFeeCollectionsUncached();
+async function loadFeeCollections(useAdmin = false) {
+  return loadFeeCollectionsUncached(useAdmin);
 }
 
 export async function getFeeSetupPageData(
@@ -801,14 +806,15 @@ export async function getFeeSetupPageData(
     : await loadGlobalPolicy(useAdmin);
   const [policySnapshotsRaw, collections, masterOptions] = await Promise.all([
     loadFeePolicySnapshots(useAdmin),
-    loadFeeCollections(),
-    getMasterDataOptions(),
+    loadFeeCollections(useAdmin),
+    getMasterDataOptions(useAdmin),
   ]);
   const [conventionalDiscountPolicies, conventionalDiscountAssignments] = await Promise.all([
-    getConventionalDiscountPolicies(globalPolicy.academicSessionLabel),
+    getConventionalDiscountPolicies(globalPolicy.academicSessionLabel, useAdmin),
     getStudentConventionalDiscountAssignments({
       academicSessionLabel: globalPolicy.academicSessionLabel,
       studentIds: collections.studentRows.map((row) => row.id),
+      useAdmin,
     }),
   ]);
 

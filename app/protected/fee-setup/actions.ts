@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
+import { after } from "next/server";
 
 import {
   applyWorkbookFeeSetupBatch,
@@ -29,6 +30,7 @@ import {
   type OfficeSyncOutcome,
 } from "@/lib/system-sync/office-sync";
 import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
+import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
   const normalized = (value ?? "").toString().trim();
@@ -364,6 +366,11 @@ async function saveConventionalDiscountPoliciesAndSync(payload: {
       sessionLabel: payload.academicSessionLabel,
       reason: "Conventional discount policy updated",
     });
+    // Editing an RTE / Staff Child / 3rd Child policy rewrites every assigned
+    // student's installments. That write only enqueues a matview refresh
+    // (20260726154843), so without this drain the new discount is invisible on
+    // every fee snapshot for up to two minutes.
+    after(drainFinancialViewRefresh);
   }
 }
 

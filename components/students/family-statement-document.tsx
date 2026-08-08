@@ -1,5 +1,6 @@
 import { schoolProfile } from "@/lib/config/school";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
+import { isYearCleared } from "@/lib/fees/year-clear";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import type { getFamilyWorkspaceData } from "@/lib/students/workspace";
@@ -209,8 +210,29 @@ export function FamilyStatementDocument({
                   <p className="text-xs text-muted-foreground">SR no {student.admissionNo} • Class {student.classLabel}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs uppercase text-muted-foreground">Outstanding</span>
-                  <p className="text-sm font-bold text-review">{formatInr(financialSnapshot.currentOutstanding)}</p>
+                  {/* Per child, because siblings clear at different times — one
+                      may be settled while another still owes. */}
+                  {isYearCleared({
+                    outstandingAmount: financialSnapshot.currentOutstanding,
+                    totalPaid: installmentBalances.reduce((sum, item) => sum + item.paidAmount, 0),
+                    discountClosedAmount: installmentBalances.reduce(
+                      (sum, item) => sum + item.discountCloseoutAmount,
+                      0,
+                    ),
+                    hasPreparedDues: installmentBalances.length > 0,
+                  }) ? (
+                    <span
+                      className="inline-block -rotate-[7deg] rounded-md border-[2.5px] border-[hsl(151_45%_32%)] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[hsl(151_45%_30%)]"
+                      aria-hidden="true"
+                    >
+                      Year Cleared
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-xs uppercase text-muted-foreground">Outstanding</span>
+                      <p className="text-sm font-bold text-review">{formatInr(financialSnapshot.currentOutstanding)}</p>
+                    </>
+                  )}
                 </div>
               </div>
 

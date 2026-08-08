@@ -16,6 +16,7 @@ import {
 } from "@/lib/fees/fee-heads";
 import type { FeeHeadDefinition } from "@/lib/fees/types";
 import { getActiveSessionLabel } from "@/lib/session/active";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 type SessionRow = {
@@ -279,8 +280,11 @@ async function ensureFeeHeadNotReferenced(headId: string) {
   }
 }
 
-async function loadMasterDataOptions(): Promise<MasterDataOptions> {
-  const supabase = await createClient();
+async function loadMasterDataOptions(useAdmin = false): Promise<MasterDataOptions> {
+  // See loadFeeCollectionsUncached: headless callers (cron, scripts, admin
+  // routes) have no staff session, so the cookie client returns nothing under
+  // RLS and the caller silently sees an empty school.
+  const supabase = useAdmin ? createAdminClient() : await createClient();
   const currentSessionLabel = await getCurrentSessionLabel();
 
   const classQuery = supabase
@@ -354,8 +358,10 @@ async function loadMasterDataOptions(): Promise<MasterDataOptions> {
 
 const getMasterDataOptionsForRequest = cache(loadMasterDataOptions);
 
-export async function getMasterDataOptions(): Promise<MasterDataOptions> {
-  return getMasterDataOptionsForRequest();
+export async function getMasterDataOptions(useAdmin = false): Promise<MasterDataOptions> {
+  // The request-scoped cache is keyed on the argument, so the admin and cookie
+  // variants never share a cached result.
+  return getMasterDataOptionsForRequest(useAdmin);
 }
 
 export async function getMasterDataPageData() {

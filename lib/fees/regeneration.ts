@@ -6,6 +6,7 @@ import { generateSessionLedgersAction } from "@/lib/fees/generator";
 import { getFeeSetupPageData } from "@/lib/fees/policy";
 import { resolveStudentPolicyBreakdown } from "@/lib/fees/policy";
 import { buildWorkbookInstallmentCharges } from "@/lib/fees/workbook";
+import { allocateChargesRespectingPaidFloors } from "@/lib/fees/paid-floor-allocation";
 import type { LedgerRegenerationPreview, LedgerRegenerationReviewRow } from "@/lib/fees/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -96,7 +97,8 @@ type RegenerationRowPlan = PlannedInstallment & {
     | "existing_waived"
     | "existing_cancelled"
     | "extra_installment"
-    | "missing_settings";
+    | "missing_settings"
+    | "discount_reduces_unpaid";
   reason_label: string;
 };
 
@@ -495,7 +497,34 @@ async function loadPlan(): Promise<RegenerationPlan> {
           setupData.globalPolicy.installmentCount,
         );
 
+    // Same re-split the generator does, so the Fee Setup preview does not refuse
+    // a reduction the student form now performs. See
+    // lib/fees/paid-floor-allocation.ts.
+    const plannedNetCharges = baseAmounts.map(
+      (base, index) => (base ?? 0) + (transportAmounts[index] ?? 0) - (discountAmounts[index] ?? 0),
+    );
+    const allocation = allocateChargesRespectingPaidFloors({
+      plannedCharges: plannedNetCharges,
+      plannedTotal: plannedNetCharges.reduce((total, value) => total + value, 0),
+      rows: Array.from({ length: setupData.globalPolicy.installmentCount }, (_, index) => {
+        const existingRow = existingInstallmentMap.get(`${student.id}::${index + 1}`);
+
+        return {
+          index,
+          existingAmountDue: existingRow?.amount_due ?? 0,
+          appliedAmount: existingRow
+            ? Math.max(
+                (paymentTotalsByInstallment.get(existingRow.id) ?? 0) +
+                  (adjustmentTotalsByInstallment.get(existingRow.id) ?? 0),
+                0,
+              )
+            : 0,
+        };
+      }),
+    });
+
     setupData.globalPolicy.installmentSchedule.forEach((schedule, index) => {
+      const allocationDelta = (allocation.charges[index] ?? 0) - (plannedNetCharges[index] ?? 0);
       const plannedInstallment = {
         student_id: student.id,
         class_id: student.class_id,
@@ -504,7 +533,7 @@ async function loadPlan(): Promise<RegenerationPlan> {
         installment_no: index + 1,
         installment_label: `${schedule.label} (${schedule.dueDateLabel})`,
         due_date: schedule.dueDate,
-        base_amount: baseAmounts[index] ?? 0,
+        base_amount: Math.max((baseAmounts[index] ?? 0) + allocationDelta, 0),
         transport_amount: transportAmounts[index] ?? 0,
         discount_amount: discountAmounts[index] ?? 0,
         late_fee_flat_amount: resolved.lateFeeFlatAmount,
@@ -580,21 +609,55 @@ async function loadPlan(): Promise<RegenerationPlan> {
       }
 
       if (paidAmount > 0 || adjustmentAmount !== 0) {
-        const reason = toReviewReason(balanceStatus as Exclude<RegenerationBalanceStatus, "waived" | "cancelled">);
+        // A REDUCTION down to (never below) what has already been applied is
+        // safe: no receipt changes, the row just stops asking for money the
+        // school has forgone. Everything else on a row carrying money — a moved
+        // due date, a new label, a higher charge — is still held for review.
+        const plannedNet =
+          plannedInstallment.base_amount +
+          plannedInstallment.transport_amount -
+          plannedInstallment.discount_amount;
+        const structurallyDiffers =
+          existingInstallment.installment_label !== plannedInstallment.installment_label ||
+          existingInstallment.due_date !== plannedInstallment.due_date ||
+          existingInstallment.late_fee_flat_amount !== plannedInstallment.late_fee_flat_amount ||
+          existingInstallment.status !== "scheduled";
+        const isSafeReduction = !structurallyDiffers && plannedNet <= amountDue;
+
+        if (!isSafeReduction) {
+          const reason = toReviewReason(balanceStatus as Exclude<RegenerationBalanceStatus, "waived" | "cancelled">);
+
+          rows.push({
+            ...plannedInstallment,
+            installment_id: existingInstallment.id,
+            student_label: studentLabel,
+            class_label: classLabel,
+            amount_due: amountDue,
+            paid_amount: paidAmount,
+            adjustment_amount: adjustmentAmount,
+            outstanding_amount: outstandingAmount,
+            balance_status: balanceStatus,
+            action_needed: "review",
+            reason_code: reason.code,
+            reason_label: reason.label,
+          });
+          affectedStudentIds.add(student.id);
+          return;
+        }
 
         rows.push({
           ...plannedInstallment,
           installment_id: existingInstallment.id,
           student_label: studentLabel,
           class_label: classLabel,
-          amount_due: amountDue,
+          amount_due: plannedNet,
           paid_amount: paidAmount,
           adjustment_amount: adjustmentAmount,
-          outstanding_amount: outstandingAmount,
+          outstanding_amount: Math.max(plannedNet - appliedAmount, 0),
           balance_status: balanceStatus,
-          action_needed: "review",
-          reason_code: reason.code,
-          reason_label: reason.label,
+          action_needed: "update",
+          reason_code: "discount_reduces_unpaid",
+          reason_label: "Discount applied to the unpaid balance",
         });
         affectedStudentIds.add(student.id);
         return;

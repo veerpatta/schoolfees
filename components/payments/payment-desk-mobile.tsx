@@ -2,6 +2,8 @@
 
 import { useActionState, useCallback, useDeferredValue, useEffect, useId, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+
+import { PostingReceiptSheet } from "@/components/payments/posting-receipt-sheet";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -102,6 +104,9 @@ const SuccessReceiptSheet = dynamic(
   { ssr: false },
 );
 
+// NOT dynamic, deliberately. The whole point of this sheet is that it is on
+// screen within a frame of the button press; a chunk fetched on demand would
+// reintroduce the dead interval it exists to remove.
 const DuplicateReceiptSheet = dynamic(
   () => import("@/components/payments/duplicate-receipt-sheet").then((mod) => mod.DuplicateReceiptSheet),
   { ssr: false },
@@ -281,6 +286,7 @@ export function PaymentDeskClient({
     isSuccessOpen,
     isDuplicateOpen,
     isLockedAfterSuccess,
+    isPosting,
   } = derivePaymentDeskControllerView(controllerState);
   // Audit 1.4 — set when the staffer clicks "Continue anyway" on a daily-amount
   // duplicate prompt. Persists for one resubmit, then resets on the next
@@ -291,6 +297,8 @@ export function PaymentDeskClient({
   const [acknowledgeNearDuplicate, setAcknowledgeNearDuplicate] = useState(false);
   const [lastPrintMode, setLastPrintMode] = useState<"yes" | "no">("no");
   const [mounted, setMounted] = useState(false);
+  const [showPostingSheet, setShowPostingSheet] = useState(false);
+  const [isSlowPost, setIsSlowPost] = useState(false);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const [dismissedActionStateKey, setDismissedActionStateKey] = useState<string | null>(null);
   const [dismissedTodayReceiptId, setDismissedTodayReceiptId] = useState<string | null>(null);
@@ -668,8 +676,33 @@ export function PaymentDeskClient({
     setMounted(true);
   }, []);
 
+  // A post is in flight when the action is pending OR the controller has moved
+  // to its "posting" phase — the fast-post path dispatches the latter before the
+  // form even submits, so it covers the gap the pending flag misses.
+  const isPostInFlight = (pending || isPosting) && !isSuccessOpen && !isDuplicateOpen;
+
+  useEffect(() => {
+    if (!isPostInFlight) {
+      setShowPostingSheet(false);
+      setIsSlowPost(false);
+      return;
+    }
+
+    // 120ms before showing, matching RouteProgress: a post that resolves almost
+    // instantly must not strobe a full-screen sheet at the clerk.
+    const showTimer = setTimeout(() => setShowPostingSheet(true), 120);
+    // At 8s, stop implying this is nearly done — same threshold the confirm
+    // sheet already uses for its slow-save copy.
+    const slowTimer = setTimeout(() => setIsSlowPost(true), 8000);
+
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(slowTimer);
+    };
+  }, [isPostInFlight]);
+
   // Locks `.mobile-app-main` on phones, not just body — see the hook.
-  useOverlayScrollLock(isConfirmOpen || isSuccessOpen || isDuplicateOpen);
+  useOverlayScrollLock(isConfirmOpen || isSuccessOpen || isDuplicateOpen || showPostingSheet);
 
   useEffect(() => {
     let shouldFetch = studentIndex.length === 0;
@@ -1587,6 +1620,12 @@ export function PaymentDeskClient({
 
   function selectStudent(studentId: string) {
     markPaymentDeskStudentTiming("student_click");
+    // Pull the receipt screen's chunk down as soon as a student is picked, not
+    // when the confirm sheet opens. The cash fast-post path skips that sheet
+    // entirely, so the prefetch used to RACE the post rather than precede it —
+    // on a slow counter connection the chunk was still arriving when the
+    // receipt was ready to show.
+    void import("@/components/payments/success-receipt-sheet");
     recordOfficeMetric({
       area: "payment-desk",
       name: "student_selected",
@@ -1876,6 +1915,7 @@ export function PaymentDeskClient({
         remainingAfterPayment={remainingAfterPayment}
         formError={formError}
         isLockedAfterSuccess={isLockedAfterSuccess}
+        isPosting={isPostInFlight}
         canPost={canPost}
         draftValidationOk={draftValidation.ok}
         confirmDisabled={confirmDisabled}
@@ -3193,14 +3233,11 @@ export function PaymentDeskClient({
                 </div>
               </fieldset>
 
-              {pending ? (
-                <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl bg-card/80 backdrop-blur-sm md:hidden">
-                  <div className="rounded-xl border border-border bg-card px-4 py-3 text-center shadow-sm">
-                    <div className="mx-auto size-6 rounded-full border-2 border-border border-t-accent animate-spin" />
-                    <p className="mt-2 text-sm font-medium text-foreground">Processing payment...</p>
-                  </div>
-                </div>
-              ) : null}
+              {/* The "Processing payment…" overlay that used to live here was
+                  `md:hidden` inside a `hidden md:block` SectionCard, so it
+                  rendered on NO viewport at all. Feedback now comes from
+                  PostingReceiptSheet, portalled below, which escapes this
+                  subtree and is the same screen the receipt arrives on. */}
 
               {mounted && isConfirmOpen && confirmationSummary
                 ? createPortal(
@@ -3216,6 +3253,21 @@ export function PaymentDeskClient({
                       }}
                       receiptPreviewAllocation={receiptPreviewAllocation}
                       sessionLabel={paymentSessionLabel}
+                    />,
+                    document.body,
+                  )
+                : null}
+
+              {/* Slides up the instant the button is pressed and holds the
+                  slot until the receipt lands, so the fast-post path is never
+                  a blank wait. Suppressed once the success sheet can render,
+                  which is what makes the two read as one screen. */}
+              {mounted && showPostingSheet && selectedStudent
+                ? createPortal(
+                    <PostingReceiptSheet
+                      studentFullName={selectedStudent.fullName}
+                      amount={paymentAmount}
+                      slow={isSlowPost}
                     />,
                     document.body,
                   )

@@ -31,6 +31,12 @@ const SEARCH_RESULT_PAGE_SIZE = 20;
 type MobilePaymentFlowSheetProps = {
   view: "class-picker" | "student-picker" | "payment-entry" | null;
   onClose: () => void;
+  /**
+   * A post is in flight. Without this the Collect button stayed enabled and
+   * unchanged through the whole fast-post round trip, which is what made a cash
+   * collection feel like nothing had happened.
+   */
+  isPosting?: boolean;
   onOpenClassPicker: () => void;
   classOptions: Array<{ id: string; label: string }>;
   selectedClassId: string;
@@ -210,6 +216,7 @@ export function MobilePaymentFlowSheet({
   remainingAfterPayment,
   formError,
   isLockedAfterSuccess,
+  isPosting = false,
   canPost,
   draftValidationOk,
   confirmDisabled,
@@ -1440,8 +1447,16 @@ export function MobilePaymentFlowSheet({
               variant="accent"
               size="lg"
               fullWidth
+              loading={isPosting}
+              loadingText="Saving payment…"
               className="h-14 rounded-xl text-base font-semibold"
-              disabled={confirmDisabled || !draftValidationOk || isLockedAfterSuccess || studentSummaryLoading}
+              disabled={
+                confirmDisabled ||
+                !draftValidationOk ||
+                isLockedAfterSuccess ||
+                studentSummaryLoading ||
+                isPosting
+              }
               onClick={onOpenConfirm}
             >
               {paymentAmountInput
