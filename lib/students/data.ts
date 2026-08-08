@@ -3,7 +3,6 @@ import "server-only";
 import { cache } from "react";
 
 import {
-  getFeePolicyForSession,
   getFeePolicySummary,
   getFeeSetupPageData,
   upsertStudentFeeOverride,
@@ -15,11 +14,10 @@ import {
 } from "@/lib/fees/conventional-discounts";
 import { getMasterDataOptions } from "@/lib/master-data/data";
 import {
-  calculateCandidateLateFeeAmount,
   calculateOverdueBaseAmount,
   calculatePendingLateFeeAmount,
 } from "@/lib/fees/due-amounts";
-import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
+import { buildTransportRouteLabel, isSentinelNoTransportRoute } from "@/lib/transport/label";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
@@ -798,6 +796,16 @@ export async function getStudentFormOptions(payload?: {
 
   const routeOptions: StudentRouteOption[] = options.routeOptions
     .filter((row) => row.isActive)
+    // A transport_routes row literally named "No Transport" is a placeholder,
+    // not a route (seeded with annual_fee_amount = 0). Offering it alongside the
+    // blank "No transport" option gave staff two identical-looking choices, and
+    // picking the row made the student read "No Transport" on every screen even
+    // when a custom transport amount was charging them. Master Data still lists
+    // it so it can be managed; only the student picker hides it.
+    //
+    // Students already on it are unaffected: the row charges 0, so a null route
+    // is financially identical, and their form simply shows the blank option.
+    .filter((row) => !isSentinelNoTransportRoute(row.label))
     .map((row) => ({
       id: row.id,
       label: row.label,
@@ -877,7 +885,6 @@ async function getStudentsPageUncached(
   let overrideMap = new Map<string, StudentFeeOverrideRow>();
   let overdueAmountMap = new Map<string, number>();
   let pendingLateFeeMap = new Map<string, number>();
-  let candidateLateFeeMap = new Map<string, number>();
   let conventionalDiscountMap = new Map<string, string[]>();
   let siblingPillMap = new Map<string, StudentSiblingPill>();
 
@@ -889,7 +896,6 @@ async function getStudentsPageUncached(
       { data: installmentBalancesRaw, error: installmentBalancesError },
       conventionalAssignments,
       loadedSiblingPills,
-      lateFeeFlatAmount,
     ] = await Promise.all([
       supabase
         .from("v_workbook_student_financials")
@@ -911,8 +917,6 @@ async function getStudentsPageUncached(
         )
         .in("student_id", studentIds)
         .gt("pending_amount", 0)
-        // Installment order so the candidate late-fee waiver pool is consumed in
-        // the same order as the DB snapshot (see calculateCandidateLateFees).
         .order("installment_no", { ascending: true }),
       getStudentConventionalDiscountAssignments({
         academicSessionLabel: listSessionLabel,
@@ -925,15 +929,6 @@ async function getStudentsPageUncached(
 
         throw error;
       }),
-      // Active session late-fee flat amount, resolved once for the whole page —
-      // feeds the candidate ("accruing") late fee for never-paid overdue rows,
-      // which the candidate-blind workbook matview stores as 0.
-      (listSessionLabel
-        ? getFeePolicyForSession(listSessionLabel)
-        : getFeePolicySummary()
-      )
-        .then((policy) => policy.lateFeeFlatAmount)
-        .catch(() => 0),
     ]);
 
     if (financialsError) {
@@ -1015,28 +1010,6 @@ async function getStudentsPageUncached(
         row,
       ]),
     );
-    // Candidate ("accruing") late fee for never-paid overdue installments, which
-    // the candidate-blind matview stores as final_late_fee=0. Mirrors the student
-    // profile page so the list badge, the profile, and the waive cap all agree.
-    // Rows are already in installment order; the student's waiver is consumed as a
-    // single pool across them, and carry-forward rows are excluded.
-    candidateLateFeeMap = new Map(
-      [...installmentRowsByStudent.entries()].map(([studentId, rows]) => [
-        studentId,
-        calculateCandidateLateFeeAmount(
-          rows.map((row) => ({
-            balanceStatus: row.balance_status,
-            finalLateFee: row.final_late_fee,
-            isCarryForward: isCarryForwardInstallment({
-              installmentNo: row.installment_no,
-              installmentLabel: row.installment_label,
-            }),
-          })),
-          lateFeeFlatAmount,
-          overrideMap.get(studentId)?.late_fee_waiver_amount ?? 0,
-        ),
-      ]),
-    );
     conventionalDiscountMap = new Map();
     conventionalAssignments.forEach((assignment) => {
       const labels = conventionalDiscountMap.get(assignment.studentId) ?? [];
@@ -1087,11 +1060,11 @@ async function getStudentsPageUncached(
       status: row.status,
       studentStatusLabel: financial?.student_status_label ?? "Old",
       classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
-      transportRouteLabel: routeRef
-        ? routeRef.route_code
-          ? `${routeRef.route_name} (${routeRef.route_code})`
-          : routeRef.route_name
-        : "No Transport",
+      transportRouteLabel: buildTransportRouteLabel({
+        route: routeRef,
+        customTransportFeeAmount: override?.custom_transport_fee_amount ?? null,
+        transportFeeAmount: financial?.transport_fee ?? null,
+      }),
       hasFeeProfile: Boolean(override),
       feeProfileStatusLabel: hasFeeException
         ? "Special case"
@@ -1113,10 +1086,10 @@ async function getStudentsPageUncached(
       lateFeeTotal: financial?.late_fee_total ?? 0,
       totalDue: financial?.total_due ?? 0,
       overdueAmount: overdueAmountMap.get(row.id) ?? 0,
-      // Materialized pending late fee plus the accruing (candidate) amount so the
-      // list badge matches the profile page and the waive cap.
-      pendingLateFeeAmount:
-        (pendingLateFeeMap.get(row.id) ?? 0) + (candidateLateFeeMap.get(row.id) ?? 0),
+      // Straight off the matview. Both engines now charge an overdue installment
+      // its flat late fee, so final_late_fee is the whole figure — adding a
+      // "candidate" amount on top would double-count a waived charge.
+      pendingLateFeeAmount: pendingLateFeeMap.get(row.id) ?? 0,
       hasLateFeeWaiver: Boolean(override?.late_fee_waiver_amount && override.late_fee_waiver_amount > 0),
       fatherPhone: row.primary_phone,
       motherPhone: row.secondary_phone,
@@ -1187,11 +1160,10 @@ export async function getStudentsIdentityPage(
       status: row.status,
       studentStatusLabel: "Old",
       classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
-      transportRouteLabel: routeRef
-        ? routeRef.route_code
-          ? `${routeRef.route_name} (${routeRef.route_code})`
-          : routeRef.route_name
-        : "No Transport",
+      // Degraded fallback path: no financial projection is loaded here, so a
+      // custom transport amount cannot be detected. The sentinel-route handling
+      // still applies.
+      transportRouteLabel: buildTransportRouteLabel({ route: routeRef }),
       tuitionFee: 0,
       transportFee: 0,
       academicFee: 0,
@@ -1336,11 +1308,11 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
     classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
     classSessionLabel: classRef?.session_label ?? "",
     transportRouteId: row.transport_route_id,
-    transportRouteLabel: routeRef
-      ? routeRef.route_code
-        ? `${routeRef.route_name} (${routeRef.route_code})`
-        : routeRef.route_name
-      : "No Transport",
+    transportRouteLabel: buildTransportRouteLabel({
+      route: routeRef,
+      customTransportFeeAmount: overrideRow?.custom_transport_fee_amount ?? null,
+      transportFeeAmount: financial?.transport_fee ?? null,
+    }),
     status: row.status,
     studentTypeOverride: overrideRow?.student_type_override ?? "existing",
     studentStatusLabel: getStudentStatusLabel(overrideRow, financial),

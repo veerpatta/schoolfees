@@ -1749,7 +1749,7 @@
     "instStatusUpcoming": "Aane wali",
     "lateFeeIncluded": "{amount} late fee shamil hai",
     "lateFeeWaivedSuffix": "({amount} maaf)",
-    "lateFeePending": "+ {amount} late fee baaki",
+    "lateFeeFullyWaived": "{amount} late fee maaf",
     "studentAnnualPlanTitle": "Salana fees ka hisaab",
     "studentAnnualTotal": "Kul salana fees",
     "aboutSrNumber": "SR number",

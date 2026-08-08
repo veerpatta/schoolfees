@@ -106,14 +106,69 @@ const FILTERS: StudentListFilters = {
   status: "",
 };
 
-describe("getStudents — candidate (accruing) late fee on the list", () => {
+describe("getStudents — pending late fee on the list", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getFeePolicyForSession.mockResolvedValue({ lateFeeFlatAmount: 1000 });
     getFeePolicySummary.mockResolvedValue({ lateFeeFlatAmount: 1000 });
   });
 
-  it("surfaces the flat late fee for a never-paid overdue installment the matview stores as 0", async () => {
+  // Rewritten for the unified late-fee rule (migration 20260808140000). The list
+  // used to add a TypeScript-computed "candidate" late fee on top of the matview
+  // because the matview only materialized a fee once a payment landed late. Both
+  // engines now charge an overdue installment its flat fee, so the matview is the
+  // whole truth — and adding anything on top would double-count a waived charge.
+  it("takes the pending late fee straight from the matview", async () => {
+    createClient.mockResolvedValue(
+      makeClient({
+        students: { data: [baseStudentRow()], error: null, count: 1 },
+        v_workbook_student_financials: {
+          data: [
+            {
+              student_id: "student-aridaman",
+              student_status_label: "Old",
+              outstanding_amount: 5000,
+              late_fee_total: 0,
+              status_label: "OVERDUE",
+              next_due_date: "2026-04-20",
+            },
+          ],
+          error: null,
+        },
+        student_fee_overrides: { data: [], error: null },
+        v_workbook_installment_balances: {
+          data: [
+            {
+              student_id: "student-aridaman",
+              installment_no: 1,
+              installment_label: "Installment 1",
+              base_charge: 5000,
+              paid_amount: 0,
+              adjustment_amount: 0,
+              final_late_fee: 1000,
+              pending_amount: 6000,
+              balance_status: "overdue",
+            },
+          ],
+          error: null,
+        },
+        mv_student_sibling_groups: { data: [], error: null },
+        student_family_members: { data: [], error: null },
+      }),
+    );
+
+    const { getStudents } = await import("@/lib/students/data");
+    const students = await getStudents(FILTERS);
+
+    expect(students).toHaveLength(1);
+    expect(students[0].pendingLateFeeAmount).toBe(1000);
+  });
+
+  // The grandfathering guard. An overdue installment whose late fee has been
+  // fully waived reads final_late_fee = 0 while still being balance_status =
+  // "overdue" — exactly the pair the deleted candidate helper keyed on. If it
+  // ever comes back, this fails.
+  it("shows no late fee for an overdue installment whose fee is fully waived", async () => {
     createClient.mockResolvedValue(
       makeClient({
         students: { data: [baseStudentRow()], error: null, count: 1 },
@@ -155,11 +210,9 @@ describe("getStudents — candidate (accruing) late fee on the list", () => {
     const { getStudents } = await import("@/lib/students/data");
     const students = await getStudents(FILTERS);
 
-    expect(students).toHaveLength(1);
-    // The matview stores final_late_fee = 0, but the row must still show the
-    // ₹1,000 accruing late fee so the list badge matches the profile + waive cap.
-    expect(students[0].pendingLateFeeAmount).toBe(1000);
-    expect(getFeePolicyForSession).toHaveBeenCalledWith(SESSION);
+    expect(students[0].pendingLateFeeAmount).toBe(0);
+    // The per-render fee-policy fetch existed only to feed the candidate calc.
+    expect(getFeePolicyForSession).not.toHaveBeenCalled();
   });
 
   it("excludes carry-forward (previous-year) installments from the accruing late fee", async () => {

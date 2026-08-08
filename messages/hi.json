@@ -1749,7 +1749,7 @@
     "instStatusUpcoming": "आने वाली",
     "lateFeeIncluded": "{amount} लेट फीस शामिल है",
     "lateFeeWaivedSuffix": "({amount} माफ)",
-    "lateFeePending": "+ {amount} लेट फीस बाकी",
+    "lateFeeFullyWaived": "{amount} लेट फीस माफ",
     "studentAnnualPlanTitle": "सालाना फीस का हिसाब",
     "studentAnnualTotal": "कुल सालाना फीस",
     "aboutSrNumber": "SR नंबर",

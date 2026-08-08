@@ -37,7 +37,6 @@ import {
 import { cn } from "@/lib/utils";
 import {
   calculateInstallmentBasePending,
-  calculateCandidateLateFees,
   calculateOverdueBaseAmount,
   calculatePendingLateFeeAmount,
 } from "@/lib/fees/due-amounts";
@@ -171,26 +170,17 @@ export default async function StudentDetailPage({
   const overdueAmount = calculateOverdueBaseAmount(installmentBalances);
   const pendingLateFeeAmount = calculatePendingLateFeeAmount(installmentBalances);
 
-  // Candidate late fee: for overdue installments where finalLateFee hasn't materialized yet
-  // (only materializes in the view when a payment is made after the due date). If the installment
-  // is overdue but has never received any payment, the view shows finalLateFee=0. The waiver is a
-  // single pool consumed across installments (matching the DB snapshot that waive_late_fee reads),
-  // so compute the per-installment candidate amounts and derive the totals from them.
+  // No "candidate" late fee any more. Both engines now charge an overdue
+  // installment its flat late fee (migration 20260808140000), so finalLateFee off
+  // the workbook view IS the pending late fee. Adding a candidate amount on top
+  // would double-count: a grandfathered installment reads finalLateFee = 0
+  // because it is fully waived, while still being balance_status = 'overdue' —
+  // exactly what the old candidate check keyed on.
+  const effectivePendingLateFeeAmount = pendingLateFeeAmount;
+
+  // The policy RATE, used only by the mobile overdue warning ("a ₹1,000 late fee
+  // applies"). Not a figure this student owes — that is pendingLateFeeAmount.
   const lateFeeFlatAmount = financialSnapshot?.policy.lateFeeFlatAmount ?? 0;
-  const candidateLateFees = calculateCandidateLateFees(
-    installmentBalances.map((item) => ({
-      balanceStatus: item.balanceStatus,
-      finalLateFee: item.finalLateFee,
-      isCarryForward: isCarryForwardInstallment(item),
-    })),
-    lateFeeFlatAmount,
-    student.lateFeeWaiverAmount ?? 0,
-  );
-  const candidateLateFeeByInstallment = new Map(
-    installmentBalances.map((item, index) => [item.installmentId, candidateLateFees[index] ?? 0]),
-  );
-  const candidateLateFeeAmount = candidateLateFees.reduce((sum, value) => sum + value, 0);
-  const effectivePendingLateFeeAmount = pendingLateFeeAmount + candidateLateFeeAmount;
 
   const todayIso = getSchoolDateStamp();
   const feeBreakupRows = financialSnapshot
@@ -507,7 +497,6 @@ export default async function StudentDetailPage({
             </thead>
             <tbody className="divide-y divide-border/60">
               {installmentBalances.map((item) => {
-                const candidateLateFee = candidateLateFeeByInstallment.get(item.installmentId) ?? 0;
                 return (
                 <tr key={item.installmentId} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{getDisplayInstallmentLabel(item)}</td>
@@ -523,9 +512,12 @@ export default async function StudentDetailPage({
                           </div>
                         ) : null}
                       </>
-                    ) : item.balanceStatus === "overdue" && candidateLateFee > 0 ? (
-                      <span className="text-[11px] font-semibold text-destructive/80">
-                        {formatInr(candidateLateFee)} pending
+                    ) : item.waiverApplied > 0 ? (
+                      // Fully waived. This used to fall through to a bare ₹0, which
+                      // hid the fact that a late fee had been charged at all and
+                      // then forgiven — the single most confusing cell on the page.
+                      <span className="text-[11px] font-semibold text-success-soft-foreground">
+                        {formatInr(item.waiverApplied)} waived
                       </span>
                     ) : (
                       <Money value={0} size="sm" />
@@ -771,7 +763,6 @@ export default async function StudentDetailPage({
           <ul className="flex flex-col gap-1.5">
             {installmentBalances.map((item) => {
               const headRows = buildPerInstallmentHeads(item);
-              const candidateLateFee = candidateLateFeeByInstallment.get(item.installmentId) ?? 0;
               return (
                 <li key={item.installmentId}>
                   <details className="group rounded-xl border border-border bg-card">
@@ -818,9 +809,10 @@ export default async function StudentDetailPage({
                           ? ` ${tm("lateFeeWaivedSuffix", { amount: formatInr(item.waiverApplied) })}`
                           : ""}
                       </p>
-                    ) : item.balanceStatus === "overdue" && candidateLateFee > 0 ? (
-                      <p className="px-2.5 pb-2 text-[10.5px] font-semibold text-destructive/80">
-                        {tm("lateFeePending", { amount: formatInr(candidateLateFee) })}
+                    ) : item.waiverApplied > 0 ? (
+                      // Fully waived — say so, rather than showing nothing at all.
+                      <p className="px-2.5 pb-2 text-[10.5px] font-semibold text-success-soft-foreground">
+                        {tm("lateFeeFullyWaived", { amount: formatInr(item.waiverApplied) })}
                       </p>
                     ) : null}
                     {headRows.length > 0 ? (

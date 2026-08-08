@@ -1749,7 +1749,7 @@
     "instStatusUpcoming": "Upcoming",
     "lateFeeIncluded": "Includes {amount} late fee",
     "lateFeeWaivedSuffix": "({amount} waived)",
-    "lateFeePending": "+ {amount} late fee pending",
+    "lateFeeFullyWaived": "{amount} late fee waived",
     "studentAnnualPlanTitle": "Annual fee plan",
     "studentAnnualTotal": "Resolved annual total",
     "aboutSrNumber": "SR number",
