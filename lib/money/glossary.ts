@@ -10,6 +10,7 @@
 
 export type MoneyTermKey =
   | "totalDue"
+  | "expectedFees"
   | "totalPaid"
   | "outstanding"
   | "pending"
@@ -60,10 +61,18 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
   totalDue: {
     key: "totalDue",
     label: "Total Due",
-    summary: "What the student owes for the academic year.",
+    summary: "What the student owes right now — fees, plus any unwaived late fee.",
     detail:
-      "Sum of tuition + transport + academic fee + other heads, after any annual discount, plus any late fees the system has charged this year. Recomputed every time you load the page — no stale snapshots.",
+      "Sum of tuition + transport + academic fee + other heads, after any annual discount, plus any late fee still owed. Recomputed every time you load the page — no stale snapshots. Note this is what a student OWES, which is not the same as Expected Fees: the school's fee book excludes late fee entirely. If a student owes ₹6,000 of fees and a ₹1,000 late fee, Total Due is ₹7,000 but only ₹6,000 of it is expected fee.",
     source: "v_workbook_student_financials.total_due",
+  },
+  expectedFees: {
+    key: "expectedFees",
+    label: "Expected Fees",
+    summary: "The fees the school set out to collect. Never includes late fee.",
+    detail:
+      "Sum of every installment's base charge, after discounts. A late fee is deliberately excluded: it exists to get the fee in on time, it is issued expecting to be waived, and it is not money the school planned to collect. Counting it here would also make the figure grow on its own — every due date that passed would inflate what the school appears to be owed without anyone deciding to charge anything. Late fee is tracked on its own lines instead: Late Fee (charged), Late Fee Waived and Late Fee Pending.",
+    source: "v_workbook_student_financials.base_charge_total",
   },
   totalPaid: {
     key: "totalPaid",
@@ -325,6 +334,7 @@ export function getMoneyTerm(key: MoneyTermKey): MoneyTerm {
 }
 
 export const MONEY_GLOSSARY_ORDER: readonly MoneyTermKey[] = [
+  "expectedFees",
   "totalDue",
   "totalPaid",
   "outstanding",
