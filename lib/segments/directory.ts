@@ -95,7 +95,11 @@ export async function getStudentDirectoryIds(
   options?: { page?: number; pageSize?: number },
 ): Promise<{ studentIds: string[]; totalCount: number }> {
   const supabase = await getCacheSafeClient();
-  const pageSize = Math.min(500, Math.max(1, options?.pageSize ?? 40));
+  // 5000 is headroom, not a page size: callers that want a SCOPE (a list of ids
+  // to hand to a second query) pass a large value, and at ~540 students per
+  // session that returns the whole set. If a school ever grows past it the cap
+  // would silently truncate a filter, so it is logged below.
+  const pageSize = Math.min(5000, Math.max(1, options?.pageSize ?? 40));
   const page = Math.max(1, options?.page ?? 1);
   const from = (page - 1) * pageSize;
 
@@ -118,10 +122,15 @@ export async function getStudentDirectoryIds(
     throw new Error(`Unable to load student directory: ${error.message}`);
   }
 
-  return {
-    studentIds: (data ?? []).map((row) => row.student_id),
-    totalCount: count ?? 0,
-  };
+  const studentIds = (data ?? []).map((row) => row.student_id);
+  if (count !== null && count > studentIds.length + from) {
+    console.warn(
+      `[student-directory] scope truncated: ${studentIds.length} of ${count} ids returned. ` +
+        "Filters downstream of this list are incomplete.",
+    );
+  }
+
+  return { studentIds, totalCount: count ?? 0 };
 }
 
 /**

@@ -8,6 +8,8 @@ import { formatExportName } from "@/lib/helpers/export";
 import { buildTransportRouteLabel } from "@/lib/transport/label";
 
 import { withDownloadToken } from "@/lib/helpers/download-token";
+import { normalizePaymentModeFilter } from "@/lib/transactions/payment-modes";
+import { parseSegments } from "@/lib/segments/student-segments";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -19,13 +21,6 @@ function normalizeUuid(value: string | null) {
 function normalizeDate(value: string | null) {
   const normalized = (value ?? "").trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
-}
-
-function normalizePaymentMode(value: string | null) {
-  const normalized = (value ?? "").trim();
-  return ["cash", "upi", "bank_transfer", "cheque"].includes(normalized)
-    ? normalized
-    : "";
 }
 
 function formatOptionalDate(value: string | null | undefined) {
@@ -71,9 +66,10 @@ export async function GET(request: NextRequest) {
     view,
     classId: normalizeUuid(request.nextUrl.searchParams.get("classId")),
     fromDate: normalizeDate(request.nextUrl.searchParams.get("fromDate")),
-    paymentMode: normalizePaymentMode(request.nextUrl.searchParams.get("paymentMode")),
+    paymentMode: normalizePaymentModeFilter(request.nextUrl.searchParams.get("paymentMode")),
     routeId: normalizeUuid(request.nextUrl.searchParams.get("routeId")),
     searchQuery: (request.nextUrl.searchParams.get("query") ?? "").trim(),
+    segments: parseSegments(request.nextUrl.searchParams.get("seg")),
     sessionLabel: (
       request.nextUrl.searchParams.get("session") ??
       request.nextUrl.searchParams.get("sessionLabel") ??

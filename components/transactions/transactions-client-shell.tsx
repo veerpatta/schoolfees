@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Lock, Printer, SlidersHorizontal, User, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Download, Lock, Printer, SlidersHorizontal, User, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
+import { SegmentFilterGroups } from "@/components/shared/segment-filter-groups";
 import { MobileDaySummary } from "@/components/transactions/mobile-day-summary";
 import { ReversedBadge } from "@/components/receipts/reversed-badge";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
@@ -18,7 +19,13 @@ import { MoneyWithDefinition } from "@/components/ui/money-with-definition";
 import type { MoneyTermKey } from "@/lib/money/glossary";
 import { formatInr } from "@/lib/helpers/currency";
 import { MobileDatePicker } from "@/components/mobile-app/mobile-date-picker";
+import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Sheet } from "@/components/ui/sheet";
+import {
+  parseSegments,
+  serializeSegments,
+  type SegmentId,
+} from "@/lib/segments/student-segments";
 import {
   addDays,
   daysInMonth,
@@ -30,6 +37,7 @@ import {
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { cn } from "@/lib/utils";
 import {
+  buildOfficeWorkbookExportHref,
   officeWorkbookViewI18nPrefix,
   resolveOfficeWorkbookView,
   type OfficeWorkbookView,
@@ -71,6 +79,9 @@ type TxnSavedState = {
   fromDate: string;
   toDate: string;
   routeId: string;
+  /** Was absent, so saving a view silently dropped the search term. */
+  query?: string;
+  segments?: SegmentId[];
 };
 
 type FilterState = {
@@ -82,6 +93,7 @@ type FilterState = {
   page: number;
   routeId: string;
   sessionLabel: string;
+  segments: SegmentId[];
 };
 
 type PaymentModeOption = { value: string; label: string };
@@ -174,6 +186,7 @@ function buildApiUrl(view: OfficeWorkbookView, f: FilterState) {
   if (f.page > 1) p.set("page", String(f.page));
   if (f.routeId) p.set("routeId", f.routeId);
   if (f.sessionLabel) p.set("session", f.sessionLabel);
+  if (f.segments.length > 0) p.set("seg", serializeSegments(f.segments));
   return `/protected/transactions/data?${p}`;
 }
 
@@ -187,6 +200,7 @@ function buildPageUrl(view: OfficeWorkbookView, f: FilterState) {
   if (f.page > 1) p.set("page", String(f.page));
   if (f.routeId) p.set("routeId", f.routeId);
   if (f.sessionLabel) p.set("session", f.sessionLabel);
+  if (f.segments.length > 0) p.set("seg", serializeSegments(f.segments));
   return `/protected/transactions?${p}`;
 }
 
@@ -203,6 +217,7 @@ function filtersFromUrl(): { view: OfficeWorkbookView; filters: FilterState } {
       page: Math.max(1, Number(p.get("page") ?? 1) || 1),
       routeId: p.get("routeId") ?? "",
       sessionLabel: p.get("session") ?? p.get("sessionLabel") ?? "",
+      segments: parseSegments(p.get("seg")),
     },
   };
 }
@@ -766,6 +781,16 @@ export function TransactionsClientShell({
     handleFilterChange("paymentMode", filters.paymentMode === mode ? "" : mode);
   }
 
+  function handleSegmentToggle(id: SegmentId) {
+    const nextSegments = filters.segments.includes(id)
+      ? filters.segments.filter((value) => value !== id)
+      : [...filters.segments, id];
+    const nextFilters = { ...filters, segments: nextSegments, page: 1 };
+    setFilters(nextFilters);
+    setActiveSavedViewId(null);
+    scheduleOrFetch(activeView, nextFilters, false);
+  }
+
   function handleViewChange(view: OfficeWorkbookView) {
     const nextFilters = { ...filters, page: 1 };
     setActiveView(view);
@@ -779,7 +804,7 @@ export function TransactionsClientShell({
   }
 
   function handleReset() {
-    const empty: FilterState = { classId: "", query: "", fromDate: "", toDate: "", paymentMode: "", page: 1, routeId: "", sessionLabel: "" };
+    const empty: FilterState = { classId: "", query: "", fromDate: "", toDate: "", paymentMode: "", page: 1, routeId: "", sessionLabel: "", segments: [] };
     setFilters(empty);
     setShowMoreFilters(false);
     setActiveSavedViewId(null);
@@ -801,6 +826,10 @@ export function TransactionsClientShell({
       fromDate: view.state.fromDate,
       toDate: view.state.toDate,
       routeId: view.state.routeId,
+      // `?? filters.query` / `?? []` — states saved before these fields
+      // existed must still apply rather than blanking the search box.
+      query: view.state.query ?? filters.query,
+      segments: view.state.segments ?? [],
       page: 1,
     };
     setFilters(nextFilters);
@@ -817,10 +846,14 @@ export function TransactionsClientShell({
     fromDate: filters.fromDate,
     toDate: filters.toDate,
     routeId: filters.routeId,
+    query: filters.query,
+    segments: filters.segments,
   };
 
   // Badge counts only secondary-panel filters — primary-row filters (search, class, mode chips) are always visible
-  const extraActiveCount = [filters.fromDate, filters.toDate, filters.routeId, filters.sessionLabel].filter(Boolean).length;
+  const extraActiveCount =
+    [filters.fromDate, filters.toDate, filters.routeId, filters.sessionLabel].filter(Boolean)
+      .length + filters.segments.length;
   const effectiveSession = filters.sessionLabel || resolvedSessionLabel;
   const activeViewPrefix = officeWorkbookViewI18nPrefix[activeView];
   const activeMeta = {
@@ -832,11 +865,33 @@ export function TransactionsClientShell({
   // Return-to URL for action links
   const returnTo = buildPageUrl(activeView, filters);
 
+  // Exports exactly what is on screen, filters and segments included.
+  const exportHref = buildOfficeWorkbookExportHref({
+    view: activeView,
+    classId: filters.classId || undefined,
+    fromDate: filters.fromDate || undefined,
+    paymentMode: filters.paymentMode || undefined,
+    query: filters.query || undefined,
+    routeId: filters.routeId || undefined,
+    segments: filters.segments,
+    sessionLabel: effectiveSession || undefined,
+    toDate: filters.toDate || undefined,
+  });
+
   // ── Day chips, shared by the phone header and the desk filter bar ────────
   // Every date here is IST calendar arithmetic; see the note on the desktop
   // row below for why `toISOString().slice(0,10)` is wrong after midnight.
   const todayIso = partsToIso(todayPartsIst());
   const yesterdayIso = partsToIso(addDays(todayPartsIst(), -1));
+  const weekStartIso = partsToIso(
+    addDays(
+      todayPartsIst(),
+      -new Date(
+        Date.UTC(todayPartsIst().year, todayPartsIst().month - 1, todayPartsIst().day),
+      ).getUTCDay(),
+    ),
+  );
+  const monthStartIso = partsToIso({ ...todayPartsIst(), day: 1 });
 
   function applyDayRange(key: "Today" | "Yesterday" | "This week" | "This month") {
     const today = todayPartsIst();
@@ -863,19 +918,18 @@ export function TransactionsClientShell({
   const dayChips = [
     { key: "Today" as const, label: t("chipToday"), active: filters.fromDate === todayIso && filters.toDate === todayIso },
     { key: "Yesterday" as const, label: t("chipYesterday"), active: filters.fromDate === yesterdayIso && filters.toDate === yesterdayIso },
-    { key: "This week" as const, label: t("chipThisWeek"), active: false },
-    { key: "This month" as const, label: t("chipThisMonth"), active: false },
+    // These two were hardcoded `active: false`, so the chip you had just
+    // pressed stayed grey and the range looked like it had not applied.
+    { key: "This week" as const, label: t("chipThisWeek"), active: filters.fromDate === weekStartIso && filters.toDate === todayIso },
+    { key: "This month" as const, label: t("chipThisMonth"), active: filters.fromDate === monthStartIso && filters.toDate === todayIso },
   ];
   const singleDaySelected = Boolean(
     filters.fromDate && filters.toDate && filters.fromDate === filters.toDate,
   );
 
-  const phoneFilterCount = [
-    filters.query,
-    filters.classId,
-    filters.routeId,
-    filters.sessionLabel,
-  ].filter(Boolean).length;
+  const phoneFilterCount =
+    [filters.query, filters.classId, filters.routeId, filters.sessionLabel].filter(Boolean)
+      .length + filters.segments.length;
 
   const phoneChipClass = (active: boolean) =>
     cn(
@@ -1018,6 +1072,16 @@ export function TransactionsClientShell({
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge label={t("readOnlyBadge")} tone="accent" />
+            {/* buildOfficeWorkbookExportHref has existed, and been tested, since
+                the workbook shipped -- nothing in the app ever linked to it, so
+                the only way to export what you were looking at was to rebuild
+                the same filters by hand under Exports. */}
+            <Button asChild size="sm" variant="outline">
+              <DownloadAnchor href={exportHref} download>
+                <Download className="size-4" aria-hidden="true" />
+                {t("exportCurrentViewAction")}
+              </DownloadAnchor>
+            </Button>
             <Button asChild size="sm" variant="outline">
               <Link href={appendSessionParam("/protected/payments", effectiveSession)}>{t("paymentDeskAction")}</Link>
             </Button>
@@ -1175,6 +1239,16 @@ export function TransactionsClientShell({
                 </button>
               ) : null}
             </div>
+
+            {/* Student segments. On the receipt views these scope by WHO
+                paid, not by a property of the receipt. */}
+            <SegmentFilterGroups
+              selected={filters.segments}
+              counts={null}
+              onToggle={handleSegmentToggle}
+              layout="wrap"
+              className="rounded-lg border border-border bg-surface-2/50 p-3"
+            />
 
             {/* Secondary row: date range, route, academic year */}
             {showMoreFilters && (
@@ -1470,6 +1544,15 @@ export function TransactionsClientShell({
         size="md"
       >
         <div className="flex flex-col gap-4 pt-2">
+          {/* Same four families as the desk card and the Students sheet -- one
+              component, so the two modules cannot drift apart again. */}
+          <SegmentFilterGroups
+            selected={filters.segments}
+            counts={null}
+            onToggle={handleSegmentToggle}
+            layout="wrap"
+          />
+
           <div>
             <label
               className="mobile-eyebrow text-muted-foreground"

@@ -518,10 +518,14 @@ async function loadTransactionStudentIds(filters: {
   }
 
   const supabase = await createClient();
+  // No status filter. This resolves WHICH STUDENTS a class/route/name
+  // filter refers to, and a payment made by a student who has since left
+  // is still a payment that happened. Filtering to active students meant
+  // picking a class made every leaver's receipt disappear from a finance
+  // record that is supposed to be append-only.
   let query = supabase
     .from("students")
-    .select("id, class_ref:classes!inner(id, session_label)")
-    .eq("status", "active");
+    .select("id, class_ref:classes!inner(id, session_label)");
 
   if (filters.classId) {
     query = query.eq("class_id", filters.classId);
@@ -571,7 +575,7 @@ export async function getWorkbookClassOptions(sessionLabel?: string) {
 export async function getWorkbookStudentFinancials(filters?: {
   classId?: string;
   studentId?: string;
-  studentIds?: readonly string[];
+  studentIds?: readonly string[] | null;
   onlyOverdue?: boolean;
   sessionLabel?: string;
   activeOnly?: boolean;
@@ -865,6 +869,8 @@ export async function getWorkbookTransactions(filters?: {
   skipFinancials?: boolean;
   todayOnly?: boolean;
   studentId?: string;
+  /** Extra student scope, ANDed with the class/route scope. Segment filters use this. */
+  studentIds?: readonly string[] | null;
   sessionLabel?: string;
   toDate?: string;
 }) {
@@ -896,7 +902,16 @@ export async function getWorkbookTransactions(filters?: {
       : Promise.resolve(null),
   ]);
 
-  if (scopedStudentIds && scopedStudentIds.length === 0) {
+  // Two independent scopes: the class/route lookup above, and an explicit id
+  // list from the caller (segment filters). Intersect rather than override --
+  // "Class 5" AND "old balance due" has to mean both.
+  const explicitStudentIds = filters?.studentIds ? [...new Set(filters.studentIds)] : null;
+  const effectiveStudentIds =
+    scopedStudentIds && explicitStudentIds
+      ? scopedStudentIds.filter((id) => explicitStudentIds.includes(id))
+      : (scopedStudentIds ?? explicitStudentIds);
+
+  if (effectiveStudentIds && effectiveStudentIds.length === 0) {
     return [];
   }
 
@@ -917,10 +932,10 @@ export async function getWorkbookTransactions(filters?: {
 
     if (filters?.studentId) {
       query = query.eq("student_id", filters.studentId);
-    } else if (scopedStudentIds) {
-      // Bounded by a class/route filter (one class or one route), so this list
-      // stays roster-sized and does not need batching.
-      query = query.in("student_id", scopedStudentIds);
+    } else if (effectiveStudentIds) {
+      // Bounded by a class/route/segment filter, so this list stays
+      // roster-sized and does not need batching.
+      query = query.in("student_id", effectiveStudentIds);
     }
 
     if (receiptIdChunk) {

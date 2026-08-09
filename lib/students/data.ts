@@ -1173,7 +1173,8 @@ async function resolveDirectoryStudentIds(
     },
     // One page wide enough for the whole roll: this is an id projection over a
     // few hundred rows, and paging it would defeat the point of an exact count.
-    { page: 1, pageSize: 500 },
+    // A scope, not a page: the caller pages the students query itself.
+    { page: 1, pageSize: 5000 },
   );
 
   return studentIds;

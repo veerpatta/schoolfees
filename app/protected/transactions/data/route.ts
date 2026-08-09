@@ -7,6 +7,8 @@ import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/sessio
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { ServerTimer } from "@/lib/observability/timing";
+import { normalizePaymentModeFilter } from "@/lib/transactions/payment-modes";
+import { parseSegments } from "@/lib/segments/student-segments";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -19,13 +21,6 @@ function normalizeUuid(value: string | null) {
 function normalizeDate(value: string | null) {
   const normalized = (value ?? "").trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
-}
-
-function normalizePaymentMode(value: string | null) {
-  const normalized = (value ?? "").trim();
-  return ["cash", "upi", "bank_transfer", "cheque"].includes(normalized)
-    ? normalized
-    : "";
 }
 
 function normalizePage(value: string | null) {
@@ -59,9 +54,10 @@ export async function GET(request: NextRequest) {
   const routeId = normalizeUuid(params.get("routeId"));
   const fromDate = normalizeDate(params.get("fromDate"));
   const toDate = normalizeDate(params.get("toDate"));
-  const paymentMode = normalizePaymentMode(params.get("paymentMode"));
+  const paymentMode = normalizePaymentModeFilter(params.get("paymentMode"));
   const page = normalizePage(params.get("page"));
   const searchQuery = (params.get("query") ?? "").trim();
+  const segments = parseSegments(params.get("seg"));
   const sessionParam = (
     params.get("session") ??
     params.get("sessionLabel") ??
@@ -84,6 +80,7 @@ export async function GET(request: NextRequest) {
       paymentMode,
       page,
       routeId,
+      segments,
       searchQuery,
       sessionLabel: viewSession.sessionLabel,
       toDate,

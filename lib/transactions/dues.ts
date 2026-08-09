@@ -1,6 +1,8 @@
 import "server-only";
 
 import { getFeePolicySummary } from "@/lib/fees/data";
+import { getStudentDirectoryIds } from "@/lib/segments/directory";
+import type { SegmentId } from "@/lib/segments/student-segments";
 import { getReportsPageData, normalizeReportFilters } from "@/lib/reports/data";
 import type { ImportVerificationDetailRow } from "@/lib/reports/types";
 import type { OfficeWorkbookView } from "@/lib/transactions/workbook";
@@ -33,6 +35,8 @@ export type OfficeWorkbookFilters = {
   paymentMode?: string;
   routeId?: string;
   searchQuery?: string;
+  /** Segment chips, shared with the Students workspace. See lib/segments. */
+  segments?: SegmentId[];
   sessionLabel: string;
   toDate?: string;
   exportAll?: boolean;
@@ -193,7 +197,10 @@ function toStudentRows(
   }));
 }
 
-async function getBaseOfficeStudents(filters: OfficeWorkbookFilters) {
+async function getBaseOfficeStudents(
+  filters: OfficeWorkbookFilters,
+  segmentStudentIds: readonly string[] | null,
+) {
   const policy = await getFeePolicySummary();
   const sessionLabel = filters.sessionLabel || policy.academicSessionLabel;
   const supabase = await createClient();
@@ -213,6 +220,13 @@ async function getBaseOfficeStudents(filters: OfficeWorkbookFilters) {
 
   if (filters.routeId) {
     query = query.eq("transport_route_id", filters.routeId);
+  }
+
+  // Students with no generated dues are merged into class_register and
+  // student_dues alongside the financials rows. Without this they would slip
+  // past a segment filter that every other row had to satisfy.
+  if (segmentStudentIds) {
+    query = query.in("id", segmentStudentIds);
   }
 
   const { data, error } = await query;
@@ -451,6 +465,25 @@ export async function getOfficeWorkbookData(
 ): Promise<OfficeWorkbookData> {
   const classOptions = await getWorkbookClassOptions(filters.sessionLabel || undefined);
   const paginationInput = normalizePagination(filters);
+
+  // Segments resolve to a student-id scope once, then apply to every view --
+  // including the receipt views, where they mean "receipts belonging to these
+  // students" rather than a property of the receipt itself.
+  const segmentStudentIds =
+    filters.segments && filters.segments.length > 0
+      ? (
+          await getStudentDirectoryIds(
+            {
+              sessionLabel: filters.sessionLabel,
+              classId: filters.classId || undefined,
+              transportRouteId: filters.routeId || undefined,
+              segments: filters.segments,
+            },
+            { page: 1, pageSize: 5000 },
+          )
+        ).studentIds
+      : null;
+
   const sharedFilters = {
     classId: filters.classId || undefined,
     fromDate: filters.fromDate || undefined,
@@ -460,6 +493,7 @@ export async function getOfficeWorkbookData(
     query: filters.searchQuery || undefined,
     routeId: filters.routeId || undefined,
     sessionLabel: filters.sessionLabel || undefined,
+    studentIds: segmentStudentIds,
     toDate: filters.toDate || undefined,
     skipFinancials: filters.skipFinancials,
   };
@@ -494,16 +528,24 @@ export async function getOfficeWorkbookData(
     case "student_dues":
     case "class_register":
     case "defaulters": {
+      // No limit/offset on the student fetch. These four views filter and
+      // count in memory below (dues > 0, overdue, the route and search pass),
+      // so a DB window here was windowing the WRONG set and then being
+      // windowed again: on page 2 the database returned rows 100-200 and the
+      // slice below took elements 100-200 OF THOSE, yielding a single row,
+      // while totalRows reported 101. At roughly 540 students a session the
+      // full fetch is the cheaper correctness.
+      const unpagedFilters = { ...sharedFilters, limit: null, offset: undefined };
       const [students, transactions] = await Promise.all([
         getWorkbookStudentFinancials({
-          ...sharedFilters,
+          ...unpagedFilters,
           onlyOverdue: filters.view === "defaulters",
         }),
         getWorkbookTransactions(sharedFilters),
       ]);
       const baseStudents =
         filters.view === "class_register" || filters.view === "student_dues"
-          ? await getBaseOfficeStudents(filters)
+          ? await getBaseOfficeStudents(filters, segmentStudentIds)
           : [];
       const generatedStudentIds = new Set(students.map((row) => row.studentId));
       const sourceAwareStudents = [

@@ -1248,7 +1248,8 @@
     "datePickerNextMonth": "Next month",
     "rowActionOpen": "Open",
     "readOnlyShort": "Read-only",
-    "filterApply": "Apply filters"
+    "filterApply": "Apply filters",
+    "exportCurrentViewAction": "Export this view"
   },
   "Receipts": {
     "indexEyebrow": "Receipts",

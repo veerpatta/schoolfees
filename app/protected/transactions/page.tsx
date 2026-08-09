@@ -16,6 +16,8 @@ import { resolveViewSession } from "@/lib/session/resolver";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import { getTodayReceiptSnapshot } from "@/lib/workbook/data";
+import { normalizePaymentModeFilter } from "@/lib/transactions/payment-modes";
+import { parseSegments } from "@/lib/segments/student-segments";
 
 type TransactionsPageProps = {
   searchParams?: Promise<{
@@ -26,6 +28,7 @@ type TransactionsPageProps = {
     page?: string;
     query?: string;
     routeId?: string;
+    seg?: string;
     session?: string;
     sessionLabel?: string;
     toDate?: string;
@@ -43,13 +46,6 @@ function normalizeClassId(value: string | undefined) {
 function normalizeDate(value: string | undefined) {
   const normalized = (value ?? "").trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
-}
-
-function normalizePaymentMode(value: string | undefined) {
-  const normalized = (value ?? "").trim();
-  return ["cash", "upi", "bank_transfer", "cheque"].includes(normalized)
-    ? normalized
-    : "";
 }
 
 function normalizePage(value: string | undefined) {
@@ -77,8 +73,9 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const searchQuery = (resolvedSearchParams?.query ?? "").trim();
   const fromDate = normalizeDate(resolvedSearchParams?.fromDate);
   const toDate = normalizeDate(resolvedSearchParams?.toDate);
-  const paymentMode = normalizePaymentMode(resolvedSearchParams?.paymentMode);
+  const paymentMode = normalizePaymentModeFilter(resolvedSearchParams?.paymentMode);
   const page = normalizePage(resolvedSearchParams?.page);
+  const segments = parseSegments(resolvedSearchParams?.seg);
 
   const [
     workbook,
@@ -96,6 +93,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       page,
       routeId,
       searchQuery,
+      segments,
       sessionLabel,
       toDate,
       // Skip financial enrichment for the initial display render — exports still use the full route
@@ -164,6 +162,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
           page,
           routeId,
           sessionLabel,
+          segments,
         }}
         initialWorkbook={workbook}
         classOptions={workbook.classOptions}

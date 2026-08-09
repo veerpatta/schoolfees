@@ -105,6 +105,7 @@ export function buildOfficeWorkbookExportHref(payload: {
   paymentMode?: string;
   query?: string;
   routeId?: string;
+  segments?: readonly string[];
   sessionLabel?: string;
   toDate?: string;
 }) {
@@ -138,6 +139,10 @@ export function buildOfficeWorkbookExportHref(payload: {
 
   if (payload.toDate) {
     params.set("toDate", payload.toDate);
+  }
+
+  if (payload.segments && payload.segments.length > 0) {
+    params.set("seg", payload.segments.join(","));
   }
 
   return `/protected/transactions/export?${params.toString()}`;

@@ -1248,7 +1248,8 @@
     "datePickerNextMonth": "Agla mahina",
     "rowActionOpen": "Dekhein",
     "readOnlyShort": "Sirf dekhne ke liye",
-    "filterApply": "Filter lagayein"
+    "filterApply": "Filter lagayein",
+    "exportCurrentViewAction": "Yeh view export karein"
   },
   "Receipts": {
     "indexEyebrow": "Receipts",

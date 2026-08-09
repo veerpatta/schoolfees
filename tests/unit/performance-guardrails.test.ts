@@ -122,7 +122,10 @@ describe("office performance guardrails", () => {
     expect(workbookData).toContain("query = query.in(\"student_id\", studentIds)");
     expect(workbookData).toContain("const receiptStudentIds =");
     expect(workbookData).toContain("loadTransactionStudentIds");
-    expect(workbookData).toContain("query = query.in(\"student_id\", scopedStudentIds)");
+    // scopedStudentIds (class/route) is now intersected with an explicit id
+    // list (segment filters) before it reaches the query.
+    expect(workbookData).toContain("query = query.in(\"student_id\", effectiveStudentIds)");
+    expect(workbookData).toContain("const effectiveStudentIds =");
     expect(workbookData).toContain("query = query.or(receiptSearchParts.join(\",\"))");
   });
 

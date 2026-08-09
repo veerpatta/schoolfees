@@ -1248,7 +1248,8 @@
     "datePickerNextMonth": "अगला महीना",
     "rowActionOpen": "देखें",
     "readOnlyShort": "सिर्फ देखने के लिए",
-    "filterApply": "फ़िल्टर लगाएँ"
+    "filterApply": "फ़िल्टर लगाएँ",
+    "exportCurrentViewAction": "यह व्यू निर्यात करें"
   },
   "Receipts": {
     "indexEyebrow": "रसीदें",
