@@ -27,11 +27,16 @@ const schemaSql = readFileSync(
  * definitions supersede earlier ones — the file replays migration history).
  */
 function selectedColumnsOf(relation: string): string {
-  const marker = `create materialized view public.${relation} as`;
-  const start = schemaSql.lastIndexOf(marker);
+  // `if not exists` since schema.sql became a generated, replayable snapshot.
+  const marker = new RegExp(
+    `create materialized view (?:if not exists )?public\\.${relation} as`,
+    "g",
+  );
+  const matches = [...schemaSql.matchAll(marker)];
+  const start = matches.length > 0 ? (matches[matches.length - 1].index ?? -1) : -1;
   expect(start, `${relation} must be defined in supabase/schema.sql`).toBeGreaterThan(-1);
 
-  const next = schemaSql.indexOf("\ncreate ", start + marker.length);
+  const next = schemaSql.indexOf("\ncreate ", start + 1);
   return schemaSql.slice(start, next === -1 ? undefined : next);
 }
 

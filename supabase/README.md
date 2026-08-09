@@ -21,7 +21,7 @@ produce — it never edits the database structure directly.
 | Path | What it is | Edit it? |
 |---|---|---|
 | `config.toml` | Supabase CLI project config (ports, auth, storage). | Only when changing local CLI behavior. |
-| `schema.sql` | Snapshot of the schema. **Currently stale** -- missing 18 tables and 7 views that exist in production; see the header inside the file. | **Generated artifact.** Do not hand-edit. Regenerate with `supabase db dump` (needs Docker). |
+| `schema.sql` | Full snapshot of the current schema, regenerated 2026-08-09 from the live catalog at migration `20260809110000`. | **Generated artifact.** Do not hand-edit. Regenerate with `supabase db dump` (needs Docker), or by re-running the pg_catalog introspection described in the file header. |
 | `migrations/` | Ordered, append-only schema history. Each file is one migration applied to production. | **Add new files only.** Never rename or rewrite an applied migration — see `migrations/README.md`. |
 | `migrations/README.md` | Index of every migration grouped by feature, with one-line summaries. Start here when locating where a feature landed. | Update when adding a new migration so the index stays accurate. |
 | `schema/` | Reserved for future modular schema reference docs. Currently just a README. | Add notes when something complex needs explaining outside a migration. |

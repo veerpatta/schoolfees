@@ -189,7 +189,9 @@ describe("source of truth audit fixes", () => {
     const migration = readRepoFile(
       "supabase/migrations/20260517075735_session_scoped_workbook_financials.sql",
     );
-    let balancesViewIdx = schema.lastIndexOf("create materialized view public.v_workbook_installment_balances");
+    let balancesViewIdx = schema.lastIndexOf(
+      "create materialized view if not exists public.v_workbook_installment_balances",
+    );
     if (balancesViewIdx === -1) {
       balancesViewIdx = schema.lastIndexOf("create or replace view public.v_workbook_installment_balances");
     }
@@ -198,11 +200,15 @@ describe("source of truth audit fixes", () => {
       balancesViewIdx,
     );
 
-    let financialsViewIdx = schema.lastIndexOf("create materialized view public.v_workbook_student_financials");
+    let financialsViewIdx = schema.lastIndexOf(
+      "create materialized view if not exists public.v_workbook_student_financials",
+    );
     if (financialsViewIdx === -1) {
       financialsViewIdx = schema.lastIndexOf("create or replace view public.v_workbook_student_financials");
     }
-    let stateViewIdx = schema.lastIndexOf("create materialized view public.v_student_financial_state");
+    let stateViewIdx = schema.lastIndexOf(
+      "create materialized view if not exists public.v_student_financial_state",
+    );
     if (stateViewIdx === -1) {
       stateViewIdx = schema.lastIndexOf("create or replace view public.v_student_financial_state");
     }
@@ -210,8 +216,10 @@ describe("source of truth audit fixes", () => {
       financialsViewIdx,
       stateViewIdx,
     );
+    // The trailing paren pins the plain overload: without it lastIndexOf lands
+    // on post_student_payment_with_adjustments, which sorts after it.
     const paymentFunction = schema.slice(
-      schema.lastIndexOf("create or replace function public.post_student_payment"),
+      schema.lastIndexOf("create or replace function public.post_student_payment("),
     );
 
     expect(snapshotFunction).toContain("select distinct on (academic_session_label)");
@@ -219,10 +227,16 @@ describe("source of truth audit fixes", () => {
     expect(snapshotFunction).not.toContain(
       "where is_active = true\n      and calculation_model = 'workbook_v1'",
     );
-    expect(studentFinancialView).toContain("with session_policy as");
-    expect(studentFinancialView).toContain("order by academic_session_label, updated_at desc");
-    expect(studentFinancialView).not.toContain(
-      "where is_active = true\n    and calculation_model = 'workbook_v1'",
+    expect(studentFinancialView).toMatch(/with session_policy as/i);
+    // pg_get_viewdef qualifies every column, so the session_policy CTE reads
+    // "order by fee_policy_configs.academic_session_label, ...updated_at desc".
+    // The guard is that it orders by session then recency -- one policy per
+    // session, newest wins -- not that it is spelled unqualified.
+    expect(studentFinancialView).toMatch(
+      /order by (\w+\.)?academic_session_label, (\w+\.)?updated_at desc/i,
+    );
+    expect(studentFinancialView).not.toMatch(
+      /where is_active = true\s+and calculation_model = 'workbook_v1'/i,
     );
     expect(paymentFunction).toContain("where fpc.academic_session_label = student_session_label");
     expect(paymentFunction).toContain("use_workbook_mode := active_policy_model = 'workbook_v1'");

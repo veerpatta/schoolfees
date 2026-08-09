@@ -79,7 +79,11 @@ describe("office performance guardrails", () => {
     // synchronous refresh with the queue + 2-min cron kept as a self-healing
     // backstop when a contended refresh is skipped.
     expect(migration).toContain("queue_workbook_materialized_view_refresh");
-    expect(schema).toContain("deferred to 2-min backstop");
+    // Lives in the migration, not the catalog: it is a comment outside the
+    // function body, and schema.sql is now generated from pg_catalog.
+    expect(readRepoFile("supabase/migrations/20260530073353_refresh_backstop_on_skip.sql")).toContain(
+      "deferred to 2-min backstop",
+    );
   });
 
   it("keeps Defaulters bounded: session-scoped fetch, single pass, short call queue render", () => {
