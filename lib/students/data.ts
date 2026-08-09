@@ -859,10 +859,6 @@ async function getStudentsPageUncached(
     .order("full_name", { ascending: true })
     .range(from, to);
 
-  if (filters.query) {
-    query = query.ilike("full_name", `%${filters.query}%`);
-  }
-
   if (filters.sessionLabel) {
     query = query.eq("class_ref.session_label", filters.sessionLabel);
   }
@@ -878,6 +874,16 @@ async function getStudentsPageUncached(
   if (filters.status) {
     query = query.eq("status", filters.status);
   }
+
+  // Search and segments resolve through the directory, exactly as they do in
+  // getStudentsIdentityPage. This pass used to skip both: it kept the old
+  // ilike("full_name") and applied no segment scope at all. Since the client
+  // runs identity-then-financial and the financial result overwrites the list
+  // AND the header count, every segment filter appeared to work for about 60ms
+  // and then snapped back to the full roll -- which is exactly what it looked
+  // like from the office: pick "Never paid", still see 509.
+  const directoryIds = await resolveDirectoryStudentIds(filters);
+  if (directoryIds !== null) query = query.in("id", directoryIds);
 
   const { data, error, count } = await query;
 

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -33,13 +33,18 @@ function readRepoFile(path: string) {
   return readFileSync(join(repoRoot, path), "utf8");
 }
 
-// The two migrations that define the directory: the original, and the amendment
-// that narrowed `seg_late_fee_waived` to manually granted waivers.
-const MIGRATION_SQL = [
-  "supabase/migrations/20260809100000_student_segment_facets.sql",
-  "supabase/migrations/20260809110000_late_fee_waived_means_manually_waived.sql",
-]
-  .map(readRepoFile)
+// Every migration that touches the directory, discovered rather than listed.
+// A hardcoded list goes stale the moment a segment is redefined, and then the
+// guard fails for the wrong reason -- which is exactly what happened when
+// seg_fully_paid became seg_year_clear.
+const MIGRATION_SQL = readdirSync(join(repoRoot, "supabase/migrations"))
+  .filter((file) => file.endsWith(".sql"))
+  .sort()
+  .map((file) => readRepoFile(`supabase/migrations/${file}`))
+  .filter(
+    (sql) =>
+      sql.includes("v_student_directory") || sql.includes("get_student_segment_counts"),
+  )
   .join("\n");
 
 const LOCALES = ["en", "hi", "hi-en"] as const;

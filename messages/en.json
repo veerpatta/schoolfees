@@ -1869,7 +1869,6 @@
     "overdue": "Overdue",
     "lateFeePending": "Late fee pending",
     "partlyPaid": "Partly paid",
-    "fullyPaid": "Fully paid",
     "neverPaid": "Never paid",
     "hasDues": "Has dues",
     "active": "Active",
@@ -1891,6 +1890,7 @@
     "lateFeeWaived": "Late fee waived",
     "filtersTitle": "Filter by segment",
     "clearAll": "Clear all",
-    "showingCount": "Showing {count}"
+    "showingCount": "Showing {count}",
+    "yearClear": "Year clear"
   }
 }

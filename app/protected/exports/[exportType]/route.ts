@@ -37,6 +37,8 @@ import { formatDateTimeIst } from "@/lib/helpers/date";
 import { recordActivity } from "@/lib/activity/events";
 
 import { withDownloadToken } from "@/lib/helpers/download-token";
+import { parseSegments } from "@/lib/segments/student-segments";
+import type { StudentListFilters } from "@/lib/students/types";
 // Heavy exports (ai-context-bundle builds a 16-sheet workbook from ~14 reads)
 // overrun Vercel's default function timeout on real data volumes.
 export const maxDuration = 60;
@@ -913,6 +915,12 @@ async function handleExport(request: NextRequest, context: RouteContext) {
 
   const { exportType } = await context.params;
   const requestedSessionLabel = (request.nextUrl.searchParams.get("session") ?? "").trim();
+  // The export follows the filter. Downloading "all students" while the
+  // Students page is filtered to "Never paid" and getting all 509 back is the
+  // same class of surprise as the filter not applying at all.
+  const exportSegments = parseSegments(request.nextUrl.searchParams.get("seg"));
+  const exportClassId = (request.nextUrl.searchParams.get("classId") ?? "").trim();
+  const exportStatus = (request.nextUrl.searchParams.get("status") ?? "active").trim();
   const requestedFormat = (request.nextUrl.searchParams.get("format") ?? "").trim().toLowerCase();
   const format: "xlsx" | "pdf" = requestedFormat === "pdf" ? "pdf" : "xlsx";
   const { resolvedSessionLabel } = await getStudentFormOptions({
@@ -938,12 +946,12 @@ async function handleExport(request: NextRequest, context: RouteContext) {
 
   if (exportType === "all-students") {
     const rows = await getAllStudents({
-      query: "",
+      query: (request.nextUrl.searchParams.get("query") ?? "").trim(),
       sessionLabel: resolvedSessionLabel,
-      classId: "",
+      classId: exportClassId,
       transportRouteId: "",
-      status: "active",
-        segments: [],
+      status: exportStatus as StudentListFilters["status"],
+      segments: exportSegments,
     });
 
     return rowsResponse(
@@ -1014,10 +1022,10 @@ async function handleExport(request: NextRequest, context: RouteContext) {
     const students = await getAllStudents({
       query: "",
       sessionLabel: resolvedSessionLabel,
-      classId: "",
+      classId: exportClassId,
       transportRouteId: "",
-      status: "active",
-        segments: [],
+      status: exportStatus as StudentListFilters["status"],
+      segments: exportSegments,
     });
     const assignments = await getStudentConventionalDiscountAssignments({
       academicSessionLabel: resolvedSessionLabel,

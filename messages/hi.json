@@ -1869,7 +1869,6 @@
     "overdue": "अतिदेय",
     "lateFeePending": "लेट फीस बाकी",
     "partlyPaid": "आंशिक भुगतान",
-    "fullyPaid": "पूर्ण भुगतान",
     "neverPaid": "कोई भुगतान नहीं",
     "hasDues": "बकाया है",
     "active": "सक्रिय",
@@ -1891,6 +1890,7 @@
     "lateFeeWaived": "लेट फीस माफ",
     "filtersTitle": "सेगमेंट से छाँटें",
     "clearAll": "सब हटाएँ",
-    "showingCount": "{count} दिख रहे हैं"
+    "showingCount": "{count} दिख रहे हैं",
+    "yearClear": "वर्ष पूर्ण"
   }
 }

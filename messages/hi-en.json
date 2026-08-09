@@ -1869,7 +1869,6 @@
     "overdue": "Overdue",
     "lateFeePending": "Late fee baaki",
     "partlyPaid": "Aanshik bhugtan",
-    "fullyPaid": "Poora bhugtan",
     "neverPaid": "Koi bhugtan nahi",
     "hasDues": "Baaki hai",
     "active": "Active",
@@ -1891,6 +1890,7 @@
     "lateFeeWaived": "Late fee maaf",
     "filtersTitle": "Segment se chhaanein",
     "clearAll": "Sab hataayein",
-    "showingCount": "{count} dikh rahe hain"
+    "showingCount": "{count} dikh rahe hain",
+    "yearClear": "Year clear"
   }
 }

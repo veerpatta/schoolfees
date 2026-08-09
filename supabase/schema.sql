@@ -3,8 +3,8 @@
 -- GENERATED ARTIFACT. Do not hand-edit. `supabase/migrations/` is the source of
 -- truth; this is a readable snapshot of what those migrations add up to.
 --
--- Generated 2026-08-09 from the live Mumbai project (vgqyilgstjvgohrsiwkb) at
--- migration 20260809110000, by introspecting pg_catalog — pg_get_viewdef,
+-- Generated 2026-08-10 from the live Mumbai project (vgqyilgstjvgohrsiwkb) at
+-- migration 20260810090000, by introspecting pg_catalog — pg_get_viewdef,
 -- pg_get_functiondef, pg_get_constraintdef, pg_get_indexdef, pg_get_triggerdef
 -- and pg_policies. Not a pg_dump: `supabase db dump` needs Docker, which the
 -- machine that generated this does not have. The object definitions are the
@@ -2820,7 +2820,7 @@ AS $function$
         'overdue',             count(*) filter (where seg_overdue),
         'lateFeePending',      count(*) filter (where seg_late_fee_pending),
         'partlyPaid',          count(*) filter (where seg_partly_paid),
-        'fullyPaid',           count(*) filter (where seg_fully_paid),
+        'yearClear',           count(*) filter (where seg_year_clear),
         'neverPaid',           count(*) filter (where seg_never_paid),
         'hasDues',             count(*) filter (where seg_has_dues),
         'missingPhone',        count(*) filter (where seg_missing_phone),
@@ -5762,9 +5762,9 @@ with (security_invoker = true) as
     COALESCE(i.carry_forward_pending_amount, 0) > 0 AS seg_old_balance_due,
     COALESCE(f.status_label, ''::text) = 'OVERDUE'::text AS seg_overdue,
     COALESCE(f.late_fee_outstanding_amount, 0) > 0 AS seg_late_fee_pending,
-    COALESCE(f.status_label, ''::text) = 'PARTLY PAID'::text AS seg_partly_paid,
-    COALESCE(f.status_label, ''::text) = 'PAID'::text AS seg_fully_paid,
-    COALESCE(f.status_label, ''::text) = 'NOT STARTED'::text AS seg_never_paid,
+    COALESCE(f.total_paid, 0) = 0 AND COALESCE(f.base_charge_total, 0::bigint) > 0 AS seg_never_paid,
+    COALESCE(f.total_paid, 0) > 0 AND COALESCE(f.outstanding_amount, 0::bigint) > 0 AS seg_partly_paid,
+    COALESCE(f.outstanding_amount, 0::bigint) <= 0 AND (COALESCE(f.total_paid, 0) + COALESCE(f.total_discount_closeouts, 0)) > 0 AND COALESCE(f.base_charge_total, 0::bigint) > 0 AS seg_year_clear,
     COALESCE(f.outstanding_amount, 0::bigint) > 0 AS seg_has_dues,
     s.status = 'active'::student_status AS seg_active,
     s.status = 'left'::student_status AS seg_left,
@@ -7098,7 +7098,7 @@ comment on table public.workbook_materialized_view_refresh_queue is 'Service-onl
 comment on view public.v_effective_late_fee_waivers is 'Non-voided waiver total per installment. The single thing the late-fee engines join.';
 comment on view public.v_receipt_effective_allocation_totals is 'Authenticated audit projection reconciling receipt totals to append-only payment allocations and corrections.';
 comment on view public.v_student_conventional_discounts is 'Active conventional discount assignments per student as an array of policy codes (rte / staff_child / third_child), so each policy is individually filterable rather than only as a joined label string.';
-comment on view public.v_student_directory is 'One row per student with every filterable segment exposed as a seg_* boolean, plus a lowercased search_text. The single source both Students and Transactions filter against, so a predicate and its COUNT come from the same query. security_invoker: fee-profile columns read false for staff without fees:view, matching existing behaviour -- gate those chips on the permission rather than showing zeros.';
+comment on view public.v_student_directory is 'One filterable row per student per session. seg_* booleans back the Students and Transactions segment chips. The three payment buckets (seg_never_paid, seg_partly_paid, seg_year_clear) partition the roll; seg_overdue is a timing flag and overlaps all three.';
 comment on view public.v_student_installment_facets is 'Per-student installment rollups that v_workbook_student_financials does not expose -- notably the previous-year carry-forward balance. Mirrors the TypeScript helpers in lib/fees/due-amounts.ts, including their existing rounding quirks, so filters agree with the figures already rendered.';
 comment on view public.v_student_manual_late_fee_waivers is 'Late-fee waivers a person actually granted, excluding the automatic grandfather and migration rows written when the late-fee rule was unified. This is what a "Late fee waived" filter means to the office.';
 

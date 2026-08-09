@@ -25,9 +25,9 @@ export type SegmentId =
   | "oldBalanceDue"
   | "overdue"
   | "lateFeePending"
-  | "partlyPaid"
-  | "fullyPaid"
   | "neverPaid"
+  | "partlyPaid"
+  | "yearClear"
   | "hasDues"
   // enrolment
   | "active"
@@ -79,9 +79,11 @@ export const STUDENT_SEGMENTS: readonly SegmentDef[] = [
   { id: "oldBalanceDue", family: "money", i18nKey: "oldBalanceDue", column: "seg_old_balance_due", countKey: "oldBalanceDue" },
   { id: "overdue", family: "money", i18nKey: "overdue", column: "seg_overdue", countKey: "overdue" },
   { id: "lateFeePending", family: "money", i18nKey: "lateFeePending", column: "seg_late_fee_pending", countKey: "lateFeePending" },
-  { id: "partlyPaid", family: "money", i18nKey: "partlyPaid", column: "seg_partly_paid", countKey: "partlyPaid" },
-  { id: "fullyPaid", family: "money", i18nKey: "fullyPaid", column: "seg_fully_paid", countKey: "fullyPaid" },
+  // These three partition the roll: never started, started, finished. Overdue
+  // above is the timing axis and overlaps all three.
   { id: "neverPaid", family: "money", i18nKey: "neverPaid", column: "seg_never_paid", countKey: "neverPaid" },
+  { id: "partlyPaid", family: "money", i18nKey: "partlyPaid", column: "seg_partly_paid", countKey: "partlyPaid" },
+  { id: "yearClear", family: "money", i18nKey: "yearClear", column: "seg_year_clear", countKey: "yearClear" },
   { id: "hasDues", family: "money", i18nKey: "hasDues", column: "seg_has_dues", countKey: "hasDues" },
 
   // ── enrolment ────────────────────────────────────────────────────────────
@@ -118,13 +120,24 @@ export function isSegmentId(value: string): value is SegmentId {
   return SEGMENT_IDS.has(value);
 }
 
+/**
+ * Ids retired by a rename, kept so a bookmarked URL or a saved view from before
+ * the rename still resolves instead of silently dropping the filter.
+ */
+const SEGMENT_ALIASES: Record<string, SegmentId> = {
+  // "Fully paid" became "Year clear" when the money buckets were redefined to
+  // read money instead of status_label (20260810090000).
+  fullyPaid: "yearClear",
+};
+
 /** `?seg=overdue,onTransport` → `["overdue", "onTransport"]`. Unknown ids drop. */
 export function parseSegments(raw: string | null | undefined): SegmentId[] {
   if (!raw) return [];
   const seen = new Set<SegmentId>();
   for (const part of raw.split(",")) {
     const id = part.trim();
-    if (isSegmentId(id)) seen.add(id);
+    const resolved = SEGMENT_ALIASES[id] ?? id;
+    if (isSegmentId(resolved)) seen.add(resolved);
   }
   // Emit in definition order so the URL is stable regardless of click order —
   // otherwise two identical filter sets produce two different URLs and the

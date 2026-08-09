@@ -9,9 +9,9 @@ vi.mock("server-only", () => ({}));
  * OR within a family, AND across families.
  *
  * This is the rule that decides whether the filter bar feels usable or broken.
- * The money segments are mutually exclusive buckets — a student is overdue or
- * fully paid, never both — so ANDing two of them returns an empty list, and the
- * user reasonably concludes the feature does not work. Two segments from
+ * The money segments are mutually exclusive buckets — a student has never paid
+ * or is year clear, never both — so ANDing two of them returns an empty list,
+ * and the user reasonably concludes the feature does not work. Two segments from
  * different families are two different questions, and must both hold.
  */
 
@@ -51,12 +51,12 @@ describe("applySegmentFilters", () => {
   });
 
   it("ORs two segments from the same family into one group", () => {
-    const calls = predicatesFor(["overdue", "fullyPaid"]);
+    const calls = predicatesFor(["overdue", "yearClear"]);
 
     expect(calls).toHaveLength(1);
     expect(calls[0].method).toBe("or");
     expect(calls[0].args[0]).toBe(
-      `${SEGMENT_BY_ID.overdue.column}.is.true,${SEGMENT_BY_ID.fullyPaid.column}.is.true`,
+      `${SEGMENT_BY_ID.overdue.column}.is.true,${SEGMENT_BY_ID.yearClear.column}.is.true`,
     );
   });
 
@@ -73,7 +73,7 @@ describe("applySegmentFilters", () => {
   });
 
   it("mixes both rules: OR inside money, AND against fee profile", () => {
-    const calls = predicatesFor(["overdue", "fullyPaid", "discountRte"]);
+    const calls = predicatesFor(["overdue", "yearClear", "discountRte"]);
 
     expect(calls).toHaveLength(2);
     expect(calls[0].method).toBe("or");
@@ -87,19 +87,19 @@ describe("applySegmentFilters", () => {
   });
 
   it("never emits a raw segment id — only view columns", () => {
-    const calls = predicatesFor(["overdue", "fullyPaid", "onTransport", "missingPhone"]);
+    const calls = predicatesFor(["overdue", "yearClear", "onTransport", "missingPhone"]);
     const emitted = calls.map((call) => String(call.args[0])).join(" ");
 
-    for (const segment of ["overdue", "fullyPaid", "onTransport", "missingPhone"] as const) {
+    for (const segment of ["overdue", "yearClear", "onTransport", "missingPhone"] as const) {
       expect(emitted).toContain(SEGMENT_BY_ID[segment].column);
     }
-    expect(emitted).not.toMatch(/\bfullyPaid\b/);
+    expect(emitted).not.toMatch(/\byearClear\b/);
   });
 });
 
 describe("familiesInSelection", () => {
   it("lists each represented family once, in definition order", () => {
-    expect(familiesInSelection(["discountRte", "overdue", "fullyPaid"])).toEqual([
+    expect(familiesInSelection(["discountRte", "overdue", "yearClear"])).toEqual([
       "money",
       "feeProfile",
     ]);
