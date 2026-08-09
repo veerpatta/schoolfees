@@ -1126,7 +1126,9 @@
     "tabReceipts": "Rasidein",
     "tabPaymentLines": "Payment lines",
     "tabFeePlan": "Fee plan",
-    "tabAbout": "Jaankari"
+    "tabAbout": "Jaankari",
+    "statusGraduated": "Graduated",
+    "filterRemoveAria": "{label} filter hataayein"
   },
   "Transactions": {
     "loadingBadge": "Transactions",
@@ -1854,5 +1856,40 @@
     "dangerActionFailed": "Poora nahi ho saka",
     "dangerWithdrawDone": "Chhatra hata diya gaya",
     "dangerDeleteDone": "Chhatra mita diya gaya"
+  },
+  "Segments": {
+    "family": {
+      "money": "Paisa aur baaki",
+      "enrolment": "Naamankan",
+      "quality": "Data quality",
+      "feeProfile": "Fees profile"
+    },
+    "oldBalanceDue": "Purana baaki",
+    "overdue": "Overdue",
+    "lateFeePending": "Late fee baaki",
+    "partlyPaid": "Aanshik bhugtan",
+    "fullyPaid": "Poora bhugtan",
+    "neverPaid": "Koi bhugtan nahi",
+    "hasDues": "Baaki hai",
+    "active": "Active",
+    "left": "Chhod chuke",
+    "leftOwing": "Chhoda par baaki",
+    "graduated": "Graduated",
+    "newThisYear": "Is saal naye",
+    "missingPhone": "Phone nahi",
+    "duesNotPrepared": "Dues taiyaar nahi",
+    "missingDob": "DOB nahi",
+    "duplicateSr": "Duplicate SR",
+    "pendingSr": "SR pending",
+    "onTransport": "Transport par",
+    "hasDiscount": "Discount hai",
+    "discountRte": "RTE",
+    "discountStaffChild": "Staff child",
+    "discountThirdChild": "Teesra bachcha",
+    "feeException": "Fees exception",
+    "lateFeeWaived": "Late fee maaf",
+    "filtersTitle": "Segment se chhaanein",
+    "clearAll": "Sab hataayein",
+    "showingCount": "{count} dikh rahe hain"
   }
 }

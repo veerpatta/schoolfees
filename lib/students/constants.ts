@@ -1,5 +1,8 @@
 import type { StudentStatus } from "@/lib/db/types";
 
+/** Rows per page in the Students workspace. Was hardcoded in three places. */
+export const STUDENT_PAGE_SIZE = 40;
+
 export const STUDENT_STATUSES: ReadonlyArray<{
   value: StudentStatus;
   label: string;

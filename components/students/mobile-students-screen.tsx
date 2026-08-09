@@ -49,6 +49,8 @@ export function MobileStudentsScreen({
   onPrevPage,
   onNextPage,
   recentAccess,
+  segmentRow,
+  activeFilterSummary,
 }: {
   searchRef: RefObject<HTMLInputElement | null>;
   query: string;
@@ -75,6 +77,12 @@ export function MobileStudentsScreen({
   onNextPage: () => void;
   /** Recently-viewed strip. Hidden while a search is in flight so it never competes with results. */
   recentAccess?: ReactNode;
+  /** Money-segment chips. Below the sticky header, not inside it — the header
+      is already title + search + class chips and a fourth row would take a
+      fifth of the screen before a single student appeared. */
+  segmentRow?: ReactNode;
+  /** Removable pills for everything currently applied, incl. sheet-only filters. */
+  activeFilterSummary?: ReactNode;
 }) {
   const t = useTranslations("Students");
   const tm = useTranslations("MobileApp");
@@ -181,6 +189,9 @@ export function MobileStudentsScreen({
           ))}
         </div>
       </div>
+
+      {segmentRow ? <div className="mb-2.5">{segmentRow}</div> : null}
+      {activeFilterSummary ? <div className="mb-2.5">{activeFilterSummary}</div> : null}
 
       {loadError ? (
         <div className="mb-2.5 rounded-xl border border-warning/40 bg-warning-soft px-3 py-2 text-[11.5px] text-warning-soft-foreground">

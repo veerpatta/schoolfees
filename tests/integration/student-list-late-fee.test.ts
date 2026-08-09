@@ -61,9 +61,16 @@ function makeQuery(result: TableResult) {
 }
 
 function makeClient(resultsByTable: Record<string, TableResult>) {
+  const withDefaults: Record<string, TableResult> = {
+    // Every student-list load reads this to decide the "Late fee waived" badge.
+    // Not what these tests are about; a test that cares overrides it.
+    v_student_manual_late_fee_waivers: { data: [], error: null },
+    ...resultsByTable,
+  };
+
   return {
     from: (table: string) => {
-      const result = resultsByTable[table];
+      const result = withDefaults[table];
       if (!result) {
         throw new Error(`Unexpected table in student-list mock: ${table}`);
       }
@@ -104,6 +111,7 @@ const FILTERS: StudentListFilters = {
   classId: "",
   transportRouteId: "",
   status: "",
+  segments: [],
 };
 
 describe("getStudents — pending late fee on the list", () => {

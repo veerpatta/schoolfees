@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
+import { ActiveFilterSummary } from "@/components/shared/active-filter-summary";
+import { SegmentFilterGroups } from "@/components/shared/segment-filter-groups";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { BulkStudentEditBar } from "@/components/students/bulk-student-edit-bar";
 import { MobileStudentsScreen } from "@/components/students/mobile-students-screen";
@@ -17,7 +19,15 @@ import { Label } from "@/components/ui/label";
 import { Sheet } from "@/components/ui/sheet";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { isPendingAdmissionNo } from "@/lib/students/constants";
+import {
+  EMPTY_SEGMENT_COUNTS,
+  SEGMENT_BY_ID,
+  segmentsEqual,
+  serializeSegments,
+  type SegmentCounts,
+  type SegmentId,
+} from "@/lib/segments/student-segments";
+import { isPendingAdmissionNo, STUDENT_PAGE_SIZE } from "@/lib/students/constants";
 import { filterStudentWorkspaceRows } from "@/lib/students/list-view-model";
 import { cn } from "@/lib/utils";
 import { getOfficeMetricSessionKind, recordOfficeMetric } from "@/lib/quality/office-telemetry";
@@ -29,21 +39,33 @@ import type {
   StudentRouteOption,
 } from "@/lib/students/types";
 
-import { Search, GraduationCap, Bus, UserCheck, X, Plus, ChevronDown } from "lucide-react";
+import { Search, GraduationCap, Bus, UserCheck, Plus, ChevronDown } from "lucide-react";
 
 const selectClassName =
   "appearance-none flex w-full rounded-md border border-input bg-card px-3 py-1 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:ring-ring focus:border-ring cursor-pointer hover:border-border-strong";
 
-const PAGE_SIZE = 40;
-
 // Saved-view labels are translated at render time inside StudentQuickLoad so
 // the SavedViewsTabs control shows them in the user's chosen locale.
 const STUDENT_BUILTIN_VIEWS: readonly SavedView<StudentQuickLoadFilters>[] = [
-  { id: "active", label: "All active", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "active" } },
-  { id: "all", label: "All students", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "" } },
+  { id: "active", label: "All active", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "active", segments: [] } },
+  { id: "all", label: "All students", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "", segments: [] } },
+  // The three questions the office asks by name. Both balance views clear
+  // `status`: the point of an old balance or a leaver who still owes is that
+  // the default "active" roll does not show them.
+  { id: "old-balance", label: "Old fees due", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "", segments: ["oldBalanceDue"] } },
+  { id: "overdue", label: "Overdue", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "active", segments: ["overdue"] } },
+  { id: "left-owing", label: "Left but owing", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "", segments: ["leftOwing"] } },
 ];
 
 type StudentQuickLoadFilters = Omit<StudentListFilters, "sessionLabel">;
+
+/** Status pills read as words, not enum values. */
+const STATUS_LABEL_KEY: Record<string, string> = {
+  active: "statusActive",
+  inactive: "statusInactive",
+  left: "statusLeft",
+  graduated: "statusGraduated",
+};
 
 type StudentQuickLoadProps = {
   initialFilters: StudentListFilters;
@@ -55,6 +77,9 @@ type StudentQuickLoadProps = {
   canWrite: boolean;
   canCollectPayments: boolean;
   lastViewedByUser?: Record<string, string>;
+  initialSegmentCounts?: SegmentCounts;
+  /** Fee-profile chips read student_fee_overrides, which RLS gates on fees:view. */
+  canViewFees?: boolean;
 };
 
 export function StudentQuickLoad({
@@ -67,17 +92,27 @@ export function StudentQuickLoad({
   canWrite,
   canCollectPayments,
   lastViewedByUser,
+  initialSegmentCounts,
+  canViewFees = true,
 }: StudentQuickLoadProps) {
   const t = useTranslations("Students");
+  const tSegments = useTranslations("Segments");
   const [filters, setFilters] = useState<StudentQuickLoadFilters>({
     query: initialFilters.query,
     classId: initialFilters.classId,
     transportRouteId: initialFilters.transportRouteId,
     status: initialFilters.status,
+    segments: initialFilters.segments,
   });
   const [students, setStudents] = useState(initialStudents);
-  /** Design's "Only with dues ✕" chip — a real, removable filter. */
-  const [onlyWithDues, setOnlyWithDues] = useState(false);
+  const [segmentCounts, setSegmentCounts] = useState<SegmentCounts>(
+    initialSegmentCounts ?? EMPTY_SEGMENT_COUNTS,
+  );
+  // The "Only with dues ✕" chip is now the `hasDues` segment rather than a
+  // second, client-only filter. It used to be exactly that, which is why
+  // switching it on hid rows while the header kept reporting the unfiltered
+  // total. The local pass below survives only as an optimistic mirror.
+  const onlyWithDues = filters.segments.includes("hasDues");
   const [page, setPage] = useState(initialPage);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [isLoading, setIsLoading] = useState(false);
@@ -119,8 +154,19 @@ export function StudentQuickLoad({
     filters.query ||
       filters.classId ||
       filters.transportRouteId ||
+      filters.segments.length > 0 ||
       (filters.status && !defaultStatusIsActive),
   );
+
+  const toggleSegment = useCallback((id: SegmentId) => {
+    setPage(1);
+    setFilters((previous) => ({
+      ...previous,
+      segments: previous.segments.includes(id)
+        ? previous.segments.filter((value) => value !== id)
+        : [...previous.segments, id],
+    }));
+  }, []);
 
   function resetFilters() {
     setPage(1);
@@ -129,6 +175,7 @@ export function StudentQuickLoad({
       classId: "",
       transportRouteId: "",
       status: "active",
+      segments: [],
     });
   }
 
@@ -137,7 +184,8 @@ export function StudentQuickLoad({
       (filters.query ? 1 : 0) +
       (filters.classId ? 1 : 0) +
       (filters.transportRouteId ? 1 : 0) +
-      (filters.status && filters.status !== "active" ? 1 : 0)
+      (filters.status && filters.status !== "active" ? 1 : 0) +
+      filters.segments.length
     );
   }, [filters]);
 
@@ -147,7 +195,9 @@ export function StudentQuickLoad({
         filters.query === view.state.query &&
         filters.classId === view.state.classId &&
         filters.transportRouteId === view.state.transportRouteId &&
-        filters.status === view.state.status
+        filters.status === view.state.status &&
+        // `?? []` — states saved before segments existed must still apply.
+        segmentsEqual(filters.segments, view.state.segments ?? [])
       ) {
         return view.id;
       }
@@ -157,7 +207,7 @@ export function StudentQuickLoad({
 
   function applyStudentView(view: SavedView<StudentQuickLoadFilters>) {
     setPage(1);
-    setFilters(view.state);
+    setFilters({ ...view.state, segments: view.state.segments ?? [] });
   }
 
   const withSession = (href: string) => {
@@ -171,6 +221,7 @@ export function StudentQuickLoad({
     if (filters.classId) searchParams.set("classId", filters.classId);
     if (filters.transportRouteId) searchParams.set("transportRouteId", filters.transportRouteId);
     if (filters.status) searchParams.set("status", filters.status);
+    if (filters.segments.length > 0) searchParams.set("seg", serializeSegments(filters.segments));
     if (page > 1) searchParams.set("page", String(page));
     return searchParams;
   }, [filters, initialFilters.sessionLabel, page]);
@@ -220,6 +271,7 @@ export function StudentQuickLoad({
             students: StudentListItem[];
             totalCount: number;
             page: number;
+            segmentCounts?: SegmentCounts;
           };
           recordOfficeMetric({
             area: "students",
@@ -236,6 +288,7 @@ export function StudentQuickLoad({
         if (!isInitialHydration) {
           const identityPayload = await loadMode("identity");
           identitiesLoaded = true;
+          if (identityPayload.segmentCounts) setSegmentCounts(identityPayload.segmentCounts);
           setStudents(identityPayload.students);
           setTotalCount(identityPayload.totalCount);
           setPage(identityPayload.page);
@@ -297,8 +350,74 @@ export function StudentQuickLoad({
     () => students.filter((student) => isPendingAdmissionNo(student.admissionNo)).length,
     [students],
   );
-  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(totalCount / STUDENT_PAGE_SIZE));
   const returnTo = `/protected/students${params.toString() ? `?${params.toString()}` : ""}`;
+
+  // One pill per applied filter, restated in one line. Class and route
+  // resolve to their labels rather than their ids — a uuid in a pill is not
+  // a filter anyone can read.
+  const filterPills = useMemo(() => {
+    const pills: Array<{ key: string; label: string; onRemove: () => void }> = [];
+
+    if (filters.query) {
+      pills.push({
+        key: "query",
+        label: filters.query,
+        onRemove: () => setFilters((previous) => ({ ...previous, query: "" })),
+      });
+    }
+    if (filters.classId) {
+      pills.push({
+        key: "class",
+        label: classOptions.find((option) => option.id === filters.classId)?.label ?? filters.classId,
+        onRemove: () => setFilters((previous) => ({ ...previous, classId: "" })),
+      });
+    }
+    if (filters.transportRouteId) {
+      pills.push({
+        key: "route",
+        label: routeOptions.find((option) => option.id === filters.transportRouteId)?.label ?? filters.transportRouteId,
+        onRemove: () => setFilters((previous) => ({ ...previous, transportRouteId: "" })),
+      });
+    }
+    if (filters.status && filters.status !== "active") {
+      pills.push({
+        key: "status",
+        label: STATUS_LABEL_KEY[filters.status]
+          ? t(STATUS_LABEL_KEY[filters.status])
+          : filters.status,
+        onRemove: () => setFilters((previous) => ({ ...previous, status: "active" })),
+      });
+    }
+    for (const id of filters.segments) {
+      pills.push({
+        key: `seg:${id}`,
+        label: tSegments(SEGMENT_BY_ID[id].i18nKey),
+        onRemove: () => toggleSegment(id),
+      });
+    }
+
+    return pills;
+  }, [classOptions, filters, routeOptions, t, tSegments, toggleSegment]);
+
+  const activeFilterSummary = (
+    <ActiveFilterSummary
+      pills={filterPills}
+      onClearAll={resetFilters}
+      clearAllLabel={t("filterClearFilters")}
+      removeAriaLabel={(label) => t("filterRemoveAria", { label })}
+    />
+  );
+
+  const segmentGroups = (layout: "scroll" | "wrap") => (
+    <SegmentFilterGroups
+      selected={filters.segments}
+      counts={segmentCounts}
+      onToggle={toggleSegment}
+      canViewFees={canViewFees}
+      layout={layout}
+    />
+  );
 
   const recentAccess = (
     <RecentStudentAccess
@@ -331,10 +450,7 @@ export function StudentQuickLoad({
             setFilters((previous) => ({ ...previous, classId: nextClassId }));
           }}
           onlyWithDues={onlyWithDues}
-          onToggleDues={() => {
-            setPage(1);
-            setOnlyWithDues((previous) => !previous);
-          }}
+          onToggleDues={() => toggleSegment("hasDues")}
           activeFilterCount={activeFilterCount}
           onOpenFilters={() => setFilterSheetOpen(true)}
           totalCount={totalCount}
@@ -351,6 +467,18 @@ export function StudentQuickLoad({
           onPrevPage={() => setPage((value) => Math.max(1, value - 1))}
           onNextPage={() => setPage((value) => Math.min(pageCount, value + 1))}
           recentAccess={recentAccess}
+          segmentRow={
+            <SegmentFilterGroups
+              selected={filters.segments}
+              counts={segmentCounts}
+              onToggle={toggleSegment}
+              families={["money"]}
+              canViewFees={canViewFees}
+              layout="scroll"
+              hideFamilyLabels
+            />
+          }
+          activeFilterSummary={activeFilterSummary}
         />
       </div>
 
@@ -455,23 +583,20 @@ export function StudentQuickLoad({
             </div>
           </div>
 
-          {hasVisibleFilters && (
-            <div className="flex items-end gap-2 xl:col-span-5 mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 flex items-center gap-1.5 hover:bg-surface-2 border-dashed border-accent/40 text-accent hover:border-accent hover:bg-accent-soft/20 transition-all font-medium"
-                onClick={() => {
-                  resetFilters();
-                }}
-              >
-                <X className="h-3.5 w-3.5" />
-                {t("filterClearFilters")}
-              </Button>
-            </div>
-          )}
         </div>
+
+        {/* Segments, on desktop too. The chip row was mobile-only, so every
+            question that is not class/route/status was unreachable from the
+            surface the office actually works on. */}
+        <div className="mt-4 border-t border-border pt-4">
+          {segmentGroups("wrap")}
+        </div>
+
+        {hasVisibleFilters && (
+          <div className="mt-4 animate-in fade-in slide-in-from-top-1 duration-200">
+            {activeFilterSummary}
+          </div>
+        )}
       </SectionCard>
 
       {recentAccess}
@@ -576,6 +701,10 @@ export function StudentQuickLoad({
             size="md"
           >
             <div className="space-y-4 pt-2">
+              {/* Segments first: they answer the questions that brought the
+                  user to the sheet. Route and status stay below, unchanged. */}
+              {segmentGroups("wrap")}
+
               {/* Route browsing as chips, matching the class row above (mobile
                   v2). A native picker hides the other routes behind a tap and
                   gives no sense of how many there are; a scrolling pill row

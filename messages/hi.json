@@ -1126,7 +1126,9 @@
     "tabReceipts": "रसीदें",
     "tabPaymentLines": "भुगतान लाइनें",
     "tabFeePlan": "फीस योजना",
-    "tabAbout": "जानकारी"
+    "tabAbout": "जानकारी",
+    "statusGraduated": "उत्तीर्ण",
+    "filterRemoveAria": "{label} फ़िल्टर हटाएँ"
   },
   "Transactions": {
     "loadingBadge": "लेन-देन",
@@ -1854,5 +1856,40 @@
     "dangerActionFailed": "पूरा नहीं हो सका",
     "dangerWithdrawDone": "छात्र हटा दिया गया",
     "dangerDeleteDone": "छात्र मिटा दिया गया"
+  },
+  "Segments": {
+    "family": {
+      "money": "पैसा और बकाया",
+      "enrolment": "नामांकन",
+      "quality": "डेटा गुणवत्ता",
+      "feeProfile": "फीस प्रोफ़ाइल"
+    },
+    "oldBalanceDue": "पुराना बकाया",
+    "overdue": "अतिदेय",
+    "lateFeePending": "लेट फीस बाकी",
+    "partlyPaid": "आंशिक भुगतान",
+    "fullyPaid": "पूर्ण भुगतान",
+    "neverPaid": "कोई भुगतान नहीं",
+    "hasDues": "बकाया है",
+    "active": "सक्रिय",
+    "left": "छोड़ चुके",
+    "leftOwing": "छोड़ा पर बकाया",
+    "graduated": "उत्तीर्ण",
+    "newThisYear": "इस साल नए",
+    "missingPhone": "फोन नहीं",
+    "duesNotPrepared": "बकाया तैयार नहीं",
+    "missingDob": "जन्मतिथि नहीं",
+    "duplicateSr": "डुप्लिकेट SR",
+    "pendingSr": "SR लंबित",
+    "onTransport": "परिवहन पर",
+    "hasDiscount": "छूट है",
+    "discountRte": "RTE",
+    "discountStaffChild": "स्टाफ बच्चा",
+    "discountThirdChild": "तीसरा बच्चा",
+    "feeException": "फीस अपवाद",
+    "lateFeeWaived": "लेट फीस माफ",
+    "filtersTitle": "सेगमेंट से छाँटें",
+    "clearAll": "सब हटाएँ",
+    "showingCount": "{count} दिख रहे हैं"
   }
 }

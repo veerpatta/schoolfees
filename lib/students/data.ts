@@ -1,3 +1,4 @@
+import { getStudentDirectoryIds } from "@/lib/segments/directory";
 import "server-only";
 
 import { cache } from "react";
@@ -892,6 +893,7 @@ async function getStudentsPageUncached(
   let pendingLateFeeMap = new Map<string, number>();
   let conventionalDiscountMap = new Map<string, string[]>();
   let siblingPillMap = new Map<string, StudentSiblingPill>();
+  let manualWaiverStudentIds = new Set<string>();
 
   if (studentRows.length > 0) {
     const studentIds = studentRows.map((row) => row.id);
@@ -901,6 +903,7 @@ async function getStudentsPageUncached(
       { data: installmentBalancesRaw, error: installmentBalancesError },
       conventionalAssignments,
       loadedSiblingPills,
+      { data: manualWaiversRaw },
     ] = await Promise.all([
       supabase
         .from("v_workbook_student_financials")
@@ -934,7 +937,22 @@ async function getStudentsPageUncached(
 
         throw error;
       }),
+      // "Late fee waived" on a row has to mean a person forgave it. The old
+      // read was student_fee_overrides.late_fee_waiver_amount -- the pool column
+      // 20260808140000 retired -- and the obvious replacement, the effective
+      // waiver total, is true for the 433 students who carry an automatic
+      // grandfather row. That badge would tell the office 433 families had been
+      // forgiven when nobody forgave anything.
+      supabase
+        .from("v_student_manual_late_fee_waivers")
+        .select("student_id")
+        .eq("session_label", listSessionLabel)
+        .in("student_id", studentIds),
     ]);
+
+    manualWaiverStudentIds = new Set(
+      ((manualWaiversRaw ?? []) as Array<{ student_id: string }>).map((row) => row.student_id),
+    );
 
     if (financialsError) {
       if (isRecoverableWorkbookLoadError(financialsError)) {
@@ -1095,7 +1113,7 @@ async function getStudentsPageUncached(
       // its flat late fee, so final_late_fee is the whole figure — adding a
       // "candidate" amount on top would double-count a waived charge.
       pendingLateFeeAmount: pendingLateFeeMap.get(row.id) ?? 0,
-      hasLateFeeWaiver: Boolean(override?.late_fee_waiver_amount && override.late_fee_waiver_amount > 0),
+      hasLateFeeWaiver: manualWaiverStudentIds.has(row.id),
       fatherPhone: row.primary_phone,
       motherPhone: row.secondary_phone,
       nextDueLabel: financial?.next_due_label ?? null,
@@ -1126,6 +1144,41 @@ async function getStudentsPageUncached(
   };
 }
 
+/**
+ * Resolve the student ids matching the segment chips and the wide search.
+ *
+ * Both live on `v_student_directory`, not on `students`, so they cannot be
+ * expressed as predicates on the base query. Resolving them to an id set and
+ * intersecting with `.in("id", …)` keeps `count: "exact"` honest — the count and
+ * the page then describe the same set, which is the whole reason these filters
+ * were impossible before.
+ *
+ * Returning `null` means "no directory-side filter applied"; an empty array
+ * means "matched nothing" and must still narrow the query to nothing.
+ */
+async function resolveDirectoryStudentIds(
+  filters: StudentListFilters,
+): Promise<string[] | null> {
+  const hasSegments = filters.segments.length > 0;
+  const hasQuery = Boolean(filters.query.trim());
+  if (!hasSegments && !hasQuery) return null;
+
+  const { studentIds } = await getStudentDirectoryIds(
+    {
+      sessionLabel: filters.sessionLabel,
+      classId: filters.classId || undefined,
+      transportRouteId: filters.transportRouteId || undefined,
+      query: filters.query || undefined,
+      segments: filters.segments,
+    },
+    // One page wide enough for the whole roll: this is an id projection over a
+    // few hundred rows, and paging it would defeat the point of an exact count.
+    { page: 1, pageSize: 500 },
+  );
+
+  return studentIds;
+}
+
 export async function getStudentsIdentityPage(
   filters: StudentListFilters,
   pagination: { page: number; pageSize: number },
@@ -1144,11 +1197,17 @@ export async function getStudentsIdentityPage(
     .order("full_name", { ascending: true })
     .range(from, from + pageSize - 1);
 
-  if (filters.query) query = query.ilike("full_name", `%${filters.query}%`);
   if (filters.sessionLabel) query = query.eq("class_ref.session_label", filters.sessionLabel);
   if (filters.classId) query = query.eq("class_id", filters.classId);
   if (filters.transportRouteId) query = query.eq("transport_route_id", filters.transportRouteId);
   if (filters.status) query = query.eq("status", filters.status);
+
+  // Search and segments both resolve through the directory. The old
+  // ilike("full_name") was narrower than the placeholder promised and narrower
+  // than the client-side pass, so an SR number matched optimistically and then
+  // vanished when the server answered.
+  const directoryIds = await resolveDirectoryStudentIds(filters);
+  if (directoryIds !== null) query = query.in("id", directoryIds);
 
   const { data, error, count } = await query;
   if (error) throw new Error(`Unable to load student identities: ${error.message}`);

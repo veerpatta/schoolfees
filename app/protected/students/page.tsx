@@ -1,3 +1,7 @@
+import {
+  normalizeStudentFilters,
+  readerFromRecord,
+} from "@/lib/students/filter-params";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -15,7 +19,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { STUDENT_STATUSES } from "@/lib/students/constants";
+import { getStudentSegmentCounts } from "@/lib/segments/directory";
+import { STUDENT_PAGE_SIZE } from "@/lib/students/constants";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import {
   getClassOptionsForSession,
@@ -58,28 +63,9 @@ type StudentsPageProps = {
 function normalizeFilters(
   params: Awaited<StudentsPageProps["searchParams"]>,
 ): StudentListFilters {
-  const validStatuses = new Set<string>(
-    STUDENT_STATUSES.map((statusOption) => statusOption.value),
+  return normalizeStudentFilters(
+    readerFromRecord(params as Record<string, string | string[] | undefined> | undefined),
   );
-  const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-  const rawClassId = params?.classId?.trim() ?? "";
-  const rawRouteId = params?.transportRouteId?.trim() ?? "";
-  const rawStatus = params?.status?.trim() ?? "";
-  const rawSessionLabel = (params?.session ?? params?.sessionLabel)?.trim() ?? "";
-
-  return {
-    query: params?.query?.trim() ?? EMPTY_STUDENT_FILTERS.query,
-    sessionLabel: rawSessionLabel || EMPTY_STUDENT_FILTERS.sessionLabel,
-    classId: uuidPattern.test(rawClassId) ? rawClassId : EMPTY_STUDENT_FILTERS.classId,
-    transportRouteId: uuidPattern.test(rawRouteId)
-      ? rawRouteId
-      : EMPTY_STUDENT_FILTERS.transportRouteId,
-    status: validStatuses.has(rawStatus)
-      ? (rawStatus as StudentListFilters["status"])
-      : ("active" as StudentListFilters["status"]),
-  };
 }
 
 export default async function StudentsPage({ searchParams }: StudentsPageProps) {
@@ -145,13 +131,23 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
 
   // Run the page load + the (conditional) recent-import count in parallel;
   // both are independent and were previously sequential.
-  const [pageDataResult, recentImportStudentCount] = await Promise.all([
-    getStudentsIdentityPage(filters, { page, pageSize: 40 })
+  const [pageDataResult, recentImportStudentCount, segmentCounts] = await Promise.all([
+    getStudentsIdentityPage(filters, { page, pageSize: STUDENT_PAGE_SIZE })
       .then((pageData) => ({ ok: true as const, pageData }))
       .catch((error: unknown) => ({ ok: false as const, error })),
     formOptions?.sessionMismatch && canRealignRecentImports
       ? countRecentImportStudentsOutsideSession(activePolicySessionLabel).catch(() => 0)
       : Promise.resolve(0),
+    // Chips carry their numbers on first paint. getStudentSegmentCounts already
+    // degrades to EMPTY_SEGMENT_COUNTS rather than throwing, so a counts failure
+    // costs the labels, not the page.
+    getStudentSegmentCounts({
+      sessionLabel: filters.sessionLabel,
+      classId: filters.classId,
+      transportRouteId: filters.transportRouteId,
+      query: filters.query,
+      segments: filters.segments,
+    }),
   ]);
 
   let students: StudentListItem[] = [];
@@ -311,6 +307,8 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         canWrite={canWriteStudents}
         canCollectPayments={canCollectPayments}
         lastViewedByUser={lastViewedByUser}
+        initialSegmentCounts={segmentCounts}
+        canViewFees={hasStaffPermission(staff, "fees:view")}
       />
 
     </div>

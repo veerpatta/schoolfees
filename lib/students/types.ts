@@ -1,3 +1,4 @@
+import type { SegmentId } from "@/lib/segments/student-segments";
 import type { StudentStatus } from "@/lib/db/types";
 import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
@@ -20,6 +21,8 @@ export type StudentListFilters = {
   classId: string;
   transportRouteId: string;
   status: "" | StudentStatus;
+  /** Segment chips: money / enrolment / data-quality / fee-profile facets. */
+  segments: SegmentId[];
 };
 
 export type StudentSessionOption = {
@@ -270,4 +273,5 @@ export const EMPTY_STUDENT_FILTERS: StudentListFilters = {
   classId: "",
   transportRouteId: "",
   status: "",
+  segments: [],
 };

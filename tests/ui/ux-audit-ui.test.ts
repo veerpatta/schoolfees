@@ -10,18 +10,24 @@ function readRepoFile(path: string) {
 }
 
 describe("read-only UX audit implementation", () => {
-  it("students filters auto-submit and default to active status", () => {
+  it("students filters default to active status from one shared normalizer", () => {
     const page = readRepoFile("app/protected/students/page.tsx");
-    const filters = readRepoFile("components/students/student-filters.tsx");
+    const indexRoute = readRepoFile("app/protected/students/index/route.ts");
+    const normalizer = readRepoFile("lib/students/filter-params.ts");
     const bulkDialog = readRepoFile("components/students/student-bulk-import-dialog.tsx");
     // Students chrome copy now lives in the next-intl Students namespace.
     const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
       Students: Record<string, string>;
     };
 
-    expect(filters).toContain("AutoSubmitForm");
-    expect(filters).not.toContain("Apply filters");
-    expect(page).toContain('("active" as StudentListFilters["status"])');
+    // The default lives in exactly one place. It used to live in two, and they
+    // disagreed: the page rendered the active roll and the route's first
+    // refetch silently widened to every student who ever attended.
+    expect(normalizer).toContain('("active" as StudentListFilters["status"])');
+    for (const entryPoint of [page, indexRoute]) {
+      expect(entryPoint).toContain("normalizeStudentFilters");
+      expect(entryPoint).not.toContain('("active" as StudentListFilters["status"])');
+    }
     expect(englishMessages.Students.addStudent).toBe("Add Student");
     expect(englishMessages.Students.templatesMenuAria).toContain("More");
     expect(bulkDialog).toContain("Bulk Add Students");

@@ -1126,7 +1126,9 @@
     "tabReceipts": "Receipts",
     "tabPaymentLines": "Payment Lines",
     "tabFeePlan": "Fee Plan",
-    "tabAbout": "About"
+    "tabAbout": "About",
+    "statusGraduated": "Graduated",
+    "filterRemoveAria": "Remove filter {label}"
   },
   "Transactions": {
     "loadingBadge": "Transactions",
@@ -1854,5 +1856,40 @@
     "dangerActionFailed": "Could not finish",
     "dangerWithdrawDone": "Student withdrawn",
     "dangerDeleteDone": "Student deleted"
+  },
+  "Segments": {
+    "family": {
+      "money": "Money & dues",
+      "enrolment": "Enrolment",
+      "quality": "Data quality",
+      "feeProfile": "Fee profile"
+    },
+    "oldBalanceDue": "Old balance due",
+    "overdue": "Overdue",
+    "lateFeePending": "Late fee pending",
+    "partlyPaid": "Partly paid",
+    "fullyPaid": "Fully paid",
+    "neverPaid": "Never paid",
+    "hasDues": "Has dues",
+    "active": "Active",
+    "left": "Left",
+    "leftOwing": "Left but owing",
+    "graduated": "Graduated",
+    "newThisYear": "New this year",
+    "missingPhone": "Missing phone",
+    "duesNotPrepared": "Dues not prepared",
+    "missingDob": "Missing DOB",
+    "duplicateSr": "Duplicate SR no",
+    "pendingSr": "Pending SR no",
+    "onTransport": "On transport",
+    "hasDiscount": "Has discount",
+    "discountRte": "RTE",
+    "discountStaffChild": "Staff child",
+    "discountThirdChild": "3rd child",
+    "feeException": "Fee exception",
+    "lateFeeWaived": "Late fee waived",
+    "filtersTitle": "Filter by segment",
+    "clearAll": "Clear all",
+    "showingCount": "Showing {count}"
   }
 }

@@ -27,6 +27,18 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
+// The page asks for segment-chip counts on every render. Real counts need a
+// request-scoped Supabase client; this test is about the page surviving a data
+// failure, not about the counts.
+vi.mock("@/lib/segments/directory", () => ({
+  getStudentSegmentCounts: vi.fn(async () => ({
+    scopeTotal: 0,
+    populationTotal: 0,
+    enrolment: {},
+    counts: {},
+  })),
+}));
+
 vi.mock("@/lib/students/data", async () => {
   const actual = await vi.importActual<typeof import("@/lib/students/data")>(
     "@/lib/students/data",
@@ -59,10 +71,6 @@ vi.mock("@/lib/session/resolver", () => ({
 
 vi.mock("@/components/students/student-bulk-import-dialog", () => ({
   StudentBulkImportDialogTrigger: () => React.createElement("button", null, "Bulk Add Students"),
-}));
-
-vi.mock("@/components/students/student-filters", () => ({
-  StudentFilters: () => React.createElement("div", null, "filters"),
 }));
 
 vi.mock("@/components/students/student-list-table", () => ({

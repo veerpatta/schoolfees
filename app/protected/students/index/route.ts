@@ -1,35 +1,18 @@
+import {
+  normalizeStudentFilters,
+  readerFromSearchParams,
+} from "@/lib/students/filter-params";
 import { NextResponse } from "next/server";
 
 import { getPaymentDeskStudentIndex } from "@/lib/payments/data";
-import { STUDENT_STATUSES } from "@/lib/students/constants";
+import { getStudentSegmentCounts } from "@/lib/segments/directory";
+import { STUDENT_PAGE_SIZE } from "@/lib/students/constants";
 import { getStudentsIdentityPage, getStudentsPage } from "@/lib/students/data";
-import { EMPTY_STUDENT_FILTERS, type StudentListFilters } from "@/lib/students/types";
+import type { StudentListFilters } from "@/lib/students/types";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 function normalizeFilters(params: URLSearchParams): StudentListFilters {
-  const validStatuses = new Set<string>(
-    STUDENT_STATUSES.map((statusOption) => statusOption.value),
-  );
-  const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-  const rawClassId = params.get("classId")?.trim() ?? "";
-  const rawRouteId = params.get("transportRouteId")?.trim() ?? "";
-  const rawStatus = params.get("status")?.trim() ?? "";
-  const rawSessionLabel =
-    (params.get("session") ?? params.get("sessionLabel"))?.trim() ?? "";
-
-  return {
-    query: params.get("query")?.trim() ?? EMPTY_STUDENT_FILTERS.query,
-    sessionLabel: rawSessionLabel || EMPTY_STUDENT_FILTERS.sessionLabel,
-    classId: uuidPattern.test(rawClassId) ? rawClassId : EMPTY_STUDENT_FILTERS.classId,
-    transportRouteId: uuidPattern.test(rawRouteId)
-      ? rawRouteId
-      : EMPTY_STUDENT_FILTERS.transportRouteId,
-    status: validStatuses.has(rawStatus)
-      ? (rawStatus as StudentListFilters["status"])
-      : EMPTY_STUDENT_FILTERS.status,
-  };
+  return normalizeStudentFilters(readerFromSearchParams(params));
 }
 
 function normalizePage(value: string | null) {
@@ -75,13 +58,28 @@ export async function GET(request: Request) {
   const page = normalizePage(searchParams.get("page"));
   const mode = searchParams.get("mode")?.trim();
   const dataStartedAt = performance.now();
-  const payload = mode === "identity"
-    ? await getStudentsIdentityPage(filters, { page, pageSize: 40 })
-    : await getStudentsPage(filters, { page, pageSize: 40 });
+  // Counts ride along with the identity pass — the same round of filter changes
+  // that re-pages the list is the one that moves every chip's number, and the
+  // identity pass is the one the user is already waiting on.
+  const [payload, segmentCounts] = await Promise.all([
+    mode === "identity"
+      ? getStudentsIdentityPage(filters, { page, pageSize: STUDENT_PAGE_SIZE })
+      : getStudentsPage(filters, { page, pageSize: STUDENT_PAGE_SIZE }),
+    mode === "financial"
+      ? Promise.resolve(null)
+      : getStudentSegmentCounts({
+          sessionLabel: filters.sessionLabel,
+          classId: filters.classId,
+          transportRouteId: filters.transportRouteId,
+          query: filters.query,
+          segments: filters.segments,
+        }),
+  ]);
   const dataMs = performance.now() - dataStartedAt;
 
   return NextResponse.json({
     ...payload,
+    ...(segmentCounts ? { segmentCounts } : {}),
     mode: mode === "identity" ? "identity" : mode === "financial" ? "financial" : "full",
   }, {
     headers: {

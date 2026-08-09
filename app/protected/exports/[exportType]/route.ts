@@ -943,6 +943,7 @@ async function handleExport(request: NextRequest, context: RouteContext) {
       classId: "",
       transportRouteId: "",
       status: "active",
+        segments: [],
     });
 
     return rowsResponse(
@@ -1016,6 +1017,7 @@ async function handleExport(request: NextRequest, context: RouteContext) {
       classId: "",
       transportRouteId: "",
       status: "active",
+        segments: [],
     });
     const assignments = await getStudentConventionalDiscountAssignments({
       academicSessionLabel: resolvedSessionLabel,
