@@ -1,64 +1,64 @@
 {
   "generatedAt": "2026-07-18",
-  "currentGeneratedAt": "2026-08-07T00:00:00.000Z",
-  "generatedFrom": "Re-based after the app-wide feedback work (toast tone/dismiss/pause, useActionFeedback across every mutation surface, PendingSubmitButton on 21 submit controls, DownloadAnchor on 12 download links, NavLink + useLinkStatus navigation progress). Total initial JS across the eight measured routes grew 2.0% gzip (+29310 bytes). The weight is client components where there were none: exports (+3.3%) and admin-tools (+3.8%) moved most because their download tiles were previously plain server-rendered anchors, and the toast and nav-link changes sit in the root layout so they touch every route. Checked for waste first: splitting the server-side download-token helpers out of the client bundle saved ~10 bytes, so Turbopack was already tree-shaking them. The remaining increase is the intended cost of the features, not accidental bloat. Ceilings retain the usual ~1.5% runner variance.",
+  "currentGeneratedAt": "2026-08-09T00:00:00.000Z",
+  "generatedFrom": "Re-based after the student/transaction segment filters (24 segments across four families, live counts, shared chip components, saved views carrying segments). Growth is concentrated exactly where the feature landed: students +2.0% and transactions +2.3% gzip. Every route that gained NO new client code grew a uniform +270 gzip bytes -- that is the new Segments message namespace, which next-intl ships to every client, and it is the price of 30 strings of UI copy. Dashboard (+826) and defaulters (+2766) gained nothing of their own; defaulters went from 22 to 23 chunks, so Turbopack regrouped shared code and this measure counts whole shared chunks. Checked for waste before re-basing: grepped the built students and transactions chunks for markers from the server-only modules (v_student_directory, get_student_segment_counts, applySegmentFilters) and both came back clean, so no server query layer leaked into the browser. Ceilings retain the usual ~1.5% runner variance.",
   "metric": "initial entry JS, unique chunks",
   "measurements": [
     {
       "route": "/protected/dashboard",
       "chunks": 20,
-      "rawBytes": 583808,
-      "gzipBytes": 185227,
-      "currentGzipBytes": 182489
+      "rawBytes": 586243,
+      "gzipBytes": 186065,
+      "currentGzipBytes": 183315
     },
     {
       "route": "/protected/students",
       "chunks": 21,
-      "rawBytes": 644130,
-      "gzipBytes": 200270,
-      "currentGzipBytes": 197310
+      "rawBytes": 657695,
+      "gzipBytes": 204187,
+      "currentGzipBytes": 201169
     },
     {
       "route": "/protected/fee-setup",
       "chunks": 21,
-      "rawBytes": 623833,
-      "gzipBytes": 190765,
-      "currentGzipBytes": 187945
+      "rawBytes": 624645,
+      "gzipBytes": 191039,
+      "currentGzipBytes": 188215
     },
     {
       "route": "/protected/payments",
       "chunks": 18,
-      "rawBytes": 561836,
-      "gzipBytes": 176649,
-      "currentGzipBytes": 174038
+      "rawBytes": 562647,
+      "gzipBytes": 176919,
+      "currentGzipBytes": 174304
     },
     {
       "route": "/protected/transactions",
       "chunks": 24,
-      "rawBytes": 725844,
-      "gzipBytes": 220401,
-      "currentGzipBytes": 217143
+      "rawBytes": 742347,
+      "gzipBytes": 225452,
+      "currentGzipBytes": 222120
     },
     {
       "route": "/protected/defaulters",
-      "chunks": 22,
-      "rawBytes": 691267,
-      "gzipBytes": 213888,
-      "currentGzipBytes": 210727
+      "chunks": 23,
+      "rawBytes": 697985,
+      "gzipBytes": 216696,
+      "currentGzipBytes": 213493
     },
     {
       "route": "/protected/exports",
       "chunks": 19,
-      "rawBytes": 564321,
-      "gzipBytes": 177815,
-      "currentGzipBytes": 175187
+      "rawBytes": 565271,
+      "gzipBytes": 178120,
+      "currentGzipBytes": 175487
     },
     {
       "route": "/protected/admin-tools",
       "chunks": 19,
-      "rawBytes": 567528,
-      "gzipBytes": 179378,
-      "currentGzipBytes": 176727
+      "rawBytes": 568340,
+      "gzipBytes": 179652,
+      "currentGzipBytes": 176997
     }
   ]
 }
