@@ -95,7 +95,9 @@ const DOWNLOAD_ROUTES = [
 const ALLOWED: Record<string, string> = {
   "app/protected/dashboard/page.tsx":
     "template quick action uses DownloadAnchor; the other quick actions are pages",
-  "components/students/student-bulk-import-dialog.tsx":
+  // The dialog body moved out of student-bulk-import-dialog.tsx when the
+  // trigger was made lazy; the trigger itself now has no download href at all.
+  "components/students/student-bulk-import-dialog-body.tsx":
     "template button uses DownloadAnchor; remaining Links are pages",
   // Builds its own href and hands it to DownloadAnchor; the string literal
   // lives here rather than at the anchor.

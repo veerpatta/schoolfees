@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -9,7 +10,6 @@ import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
 import { ActiveFilterSummary } from "@/components/shared/active-filter-summary";
 import { SegmentFilterGroups } from "@/components/shared/segment-filter-groups";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
-import { BulkStudentEditBar } from "@/components/students/bulk-student-edit-bar";
 import { MobileStudentsScreen } from "@/components/students/mobile-students-screen";
 import { RecentStudentAccess } from "@/components/students/recent-student-access";
 import { StudentListTable } from "@/components/students/student-list-table";
@@ -60,6 +60,14 @@ const STUDENT_BUILTIN_VIEWS: readonly SavedView<StudentQuickLoadFilters>[] = [
 type StudentQuickLoadFilters = Omit<StudentListFilters, "sessionLabel">;
 
 /** Status pills read as words, not enum values. */
+// Desktop-only, and only once a row is selected -- which most visits to
+// Students never do. It was a static import, so every phone load paid for a
+// bar it can never show.
+const BulkStudentEditBar = dynamic(
+  () => import("@/components/students/bulk-student-edit-bar").then((mod) => mod.BulkStudentEditBar),
+  { ssr: false },
+);
+
 const STATUS_LABEL_KEY: Record<string, string> = {
   active: "statusActive",
   inactive: "statusInactive",
@@ -834,7 +842,7 @@ export function StudentQuickLoad({
         </Link>
       )}
 
-      {canWrite && isDesktop ? (
+      {canWrite && isDesktop && selectedIds.length > 0 ? (
         <BulkStudentEditBar
           selectedIds={selectedIds}
           classOptions={classOptions}

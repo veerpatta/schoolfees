@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -21,8 +22,6 @@ import { NoCallToggle } from "@/components/defaulters/no-call-toggle";
 import { PromiseChip } from "@/components/defaulters/promise-chip";
 import { QuickLogButtons, type QuickLogKind } from "@/components/defaulters/quick-log-buttons";
 import { OldBalanceChip } from "@/components/shared/old-balance-chip";
-import { WhatsAppDraftModal } from "@/components/defaulters/whatsapp-draft-modal";
-import { WorklistDrawer } from "@/components/defaulters/worklist-drawer";
 import { buildStudentPhoneEntries, type PhoneEntry } from "@/components/students/phone-chooser";
 import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
@@ -41,6 +40,19 @@ import {
   getSelectedRecoveryEntry,
 } from "@/lib/defaulters/workspace";
 import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
+
+// Two overlays -- a 16 KB drawer and a 6 KB modal -- that every load of the
+// call list paid for whether or not anyone opened a student. The drawer keeps
+// a mount latch so its slide-out animation still runs on close; the modal was
+// already conditionally rendered and only needed the lazy boundary.
+const WorklistDrawer = dynamic(
+  () => import("@/components/defaulters/worklist-drawer").then((mod) => mod.WorklistDrawer),
+  { ssr: false },
+);
+const WhatsAppDraftModal = dynamic(
+  () => import("@/components/defaulters/whatsapp-draft-modal").then((mod) => mod.WhatsAppDraftModal),
+  { ssr: false },
+);
 
 type Props = {
   rows: DefaulterSummaryRow[];
@@ -177,6 +189,8 @@ export function DefaultersWorkspace({
   const isDesktop = useIsDesktop();
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Latches on first open so the lazy chunk is fetched once.
+  const [drawerUsed, setDrawerUsed] = useState(false);
   const [fullFormFor, setFullFormFor] = useState<DefaulterSummaryRow | null>(null);
   const [whatsAppFor, setWhatsAppFor] = useState<DefaulterSummaryRow | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
@@ -483,7 +497,10 @@ export function DefaultersWorkspace({
               canPostPayments={canPostPayments}
               canManageNoCall={canManageNoCall}
               noCall={selectedRow ? effectiveNoCall(selectedRow) : false}
-              onOpenDrawer={() => setDrawerOpen(true)}
+              onOpenDrawer={() => {
+                setDrawerUsed(true);
+                setDrawerOpen(true);
+              }}
               onOpenWhatsapp={() => {
                 if (selectedRow) setWhatsAppFor(selectedRow);
               }}
@@ -526,6 +543,7 @@ export function DefaultersWorkspace({
         </>
       )}
 
+      {drawerUsed ? (
       <WorklistDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -550,6 +568,7 @@ export function DefaultersWorkspace({
           if (selectedRow) setNoCallOverlay((prev) => ({ ...prev, [selectedRow.studentId]: previous }));
         }}
       />
+      ) : null}
 
       {fullFormFor ? (
         <ContactPopover

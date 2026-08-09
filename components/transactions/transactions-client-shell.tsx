@@ -18,7 +18,6 @@ import type { SavedView } from "@/lib/data-table/saved-views";
 import { MoneyWithDefinition } from "@/components/ui/money-with-definition";
 import type { MoneyTermKey } from "@/lib/money/glossary";
 import { formatInr } from "@/lib/helpers/currency";
-import { MobileDatePicker } from "@/components/mobile-app/mobile-date-picker";
 import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Sheet } from "@/components/ui/sheet";
 import {
@@ -60,7 +59,6 @@ import type {
   OfficeWorkbookSummary,
 } from "@/lib/transactions/dues";
 import type { WorkbookClassOption, WorkbookTransaction } from "@/lib/workbook/data";
-import { ReceiptPreviewSheet } from "@/components/receipts/receipt-preview-sheet";
 import {
   BulkWhatsappProvider,
   type BulkWhatsappRow,
@@ -532,6 +530,20 @@ function LazyTableSkeleton() {
   );
 }
 
+// The date picker and the receipt preview are overlays: both were static
+// imports mounted with `open={false}` on every single page load, so their
+// code sat in the initial bundle for a surface most visits never open. They
+// now load on first open and stay mounted after that, so the close animation
+// still runs. Same treatment the workbook tables already had.
+const MobileDatePicker = dynamic(
+  () => import("@/components/mobile-app/mobile-date-picker").then((mod) => mod.MobileDatePicker),
+  { ssr: false },
+);
+const ReceiptPreviewSheet = dynamic(
+  () => import("@/components/receipts/receipt-preview-sheet").then((mod) => mod.ReceiptPreviewSheet),
+  { ssr: false },
+);
+
 const InstallmentTrackerTable = dynamic<StudentTableProps>(
   () => import("./transactions-lazy-tables").then((mod) => mod.InstallmentTrackerTable),
   { loading: () => <LazyTableSkeleton />, ssr: false },
@@ -710,6 +722,9 @@ export function TransactionsClientShell({
     )
   );
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  // Latches on first open so the lazy chunk is fetched once and the overlay
+  // keeps its exit animation instead of vanishing on unmount.
+  const [datePickerUsed, setDatePickerUsed] = useState(false);
   /** Phone-only: the desk filter bar's contents, behind a sheet. */
   const [phoneFiltersOpen, setPhoneFiltersOpen] = useState(false);
 
@@ -989,7 +1004,10 @@ export function TransactionsClientShell({
           ))}
           <button
             type="button"
-            onClick={() => setDatePickerOpen(true)}
+            onClick={() => {
+              setDatePickerUsed(true);
+              setDatePickerOpen(true);
+            }}
             className={phoneChipClass(singleDaySelected && !dayChips.some((c) => c.active))}
           >
             <CalendarDays className="size-3.5" aria-hidden="true" />
@@ -1675,6 +1693,7 @@ export function TransactionsClientShell({
           and gating that card behind `hidden md:block` put the picker in a
           display:none subtree — the phone's calendar chip set state and
           nothing appeared. */}
+      {datePickerUsed ? (
       <MobileDatePicker
         open={datePickerOpen}
         onClose={() => setDatePickerOpen(false)}
@@ -1703,13 +1722,16 @@ export function TransactionsClientShell({
           nextMonth: t("datePickerNextMonth"),
         }}
       />
+      ) : null}
 
-      <ReceiptPreviewSheet
-        open={previewReceiptId !== null}
-        onClose={() => setPreviewReceiptId(null)}
-        receiptId={previewReceiptId}
-        sessionLabel={effectiveSession}
-      />
+      {previewReceiptId !== null ? (
+        <ReceiptPreviewSheet
+          open
+          onClose={() => setPreviewReceiptId(null)}
+          receiptId={previewReceiptId}
+          sessionLabel={effectiveSession}
+        />
+      ) : null}
 
       {(workbook.view === "transactions" || workbook.view === "receipts") &&
       selectedReceiptIds.size > 0 ? (

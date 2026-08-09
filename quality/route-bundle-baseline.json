@@ -1,22 +1,22 @@
 {
   "generatedAt": "2026-07-18",
   "currentGeneratedAt": "2026-08-09T00:00:00.000Z",
-  "generatedFrom": "Re-based after the student/transaction segment filters (24 segments across four families, live counts, shared chip components, saved views carrying segments). Growth is concentrated exactly where the feature landed: students +2.0% and transactions +2.3% gzip. Every route that gained NO new client code grew a uniform +270 gzip bytes -- that is the new Segments message namespace, which next-intl ships to every client, and it is the price of 30 strings of UI copy. Dashboard (+826) and defaulters (+2766) gained nothing of their own; defaulters went from 22 to 23 chunks, so Turbopack regrouped shared code and this measure counts whole shared chunks. Checked for waste before re-basing: grepped the built students and transactions chunks for markers from the server-only modules (v_student_directory, get_student_segment_counts, applySegmentFilters) and both came back clean, so no server query layer leaked into the browser. Ceilings retain the usual ~1.5% runner variance.",
+  "generatedFrom": "Ratcheted DOWN after the student/transaction segment filters. The filters first pushed students and transactions over their ceilings by 0.4% and 0.8%, so four overlays that were static imports mounted closed on every page load got the treatment the workbook tables already had: the Transactions receipt preview and mobile date picker, the Defaulters worklist drawer and WhatsApp draft modal, and the 21 KB Students bulk-import dialog body, which was split out of its trigger. Measured against the parent commit 9674ac7, not against the previous stale baseline: transactions -14391, defaulters -12090, dashboard -160, students -108, every other route +2 to +4. Defaulters had picked up +1035 from Turbopack regrouping shared chunks when the transactions shell started importing DownloadAnchor -- it never referenced a line of the new code -- and is now 12 KB lighter than before the feature. Verified no server-only query module leaked into a client chunk (grepped the built students and transactions chunks for v_student_directory, get_student_segment_counts and applySegmentFilters: clean). Ceilings retain the usual ~1.5% runner variance.",
   "metric": "initial entry JS, unique chunks",
   "measurements": [
     {
       "route": "/protected/dashboard",
       "chunks": 20,
-      "rawBytes": 586243,
-      "gzipBytes": 186065,
-      "currentGzipBytes": 183315
+      "rawBytes": 586256,
+      "gzipBytes": 185901,
+      "currentGzipBytes": 183153
     },
     {
       "route": "/protected/students",
       "chunks": 21,
-      "rawBytes": 657695,
-      "gzipBytes": 204187,
-      "currentGzipBytes": 201169
+      "rawBytes": 646004,
+      "gzipBytes": 201782,
+      "currentGzipBytes": 198800
     },
     {
       "route": "/protected/fee-setup",
@@ -29,22 +29,22 @@
       "route": "/protected/payments",
       "chunks": 18,
       "rawBytes": 562647,
-      "gzipBytes": 176919,
-      "currentGzipBytes": 174304
+      "gzipBytes": 176921,
+      "currentGzipBytes": 174306
     },
     {
       "route": "/protected/transactions",
-      "chunks": 24,
-      "rawBytes": 742347,
-      "gzipBytes": 225452,
-      "currentGzipBytes": 222120
+      "chunks": 23,
+      "rawBytes": 665109,
+      "gzipBytes": 208200,
+      "currentGzipBytes": 205123
     },
     {
       "route": "/protected/defaulters",
-      "chunks": 23,
-      "rawBytes": 697985,
-      "gzipBytes": 216696,
-      "currentGzipBytes": 213493
+      "chunks": 22,
+      "rawBytes": 651645,
+      "gzipBytes": 204423,
+      "currentGzipBytes": 201401
     },
     {
       "route": "/protected/exports",
