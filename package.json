@@ -16,6 +16,7 @@
     "smoke:readiness:visual": "playwright test -c tests/smoke-readiness/readiness.config.ts visual-a11y.spec.ts",
     "bootstrap:staff": "node scripts/bootstrap-staff.mjs",
     "verify:fee-health": "node scripts/verify-live-fee-health.mjs",
+    "verify:late-fee-health": "node scripts/verify-late-fee-health.mjs",
     "mcp:schoolfees": "node scripts/schoolfees-mcp-server.mjs",
     "mcp:schoolfees:worker:deploy": "wrangler deploy --config workers/schoolfees-mcp/wrangler.toml",
     "test": "vitest run",

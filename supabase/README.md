@@ -6,8 +6,8 @@
 |---|---|
 | **Active project** | `vgqyilgstjvgohrsiwkb` — Supabase ap-south-1 (Mumbai) |
 | **Project URL** | `https://vgqyilgstjvgohrsiwkb.supabase.co` |
-| **Migrations applied** | 65/65 |
-| **Schema objects** | 35 tables, 4 views, 3 materialized views |
+| **Migrations applied** | 151 |
+| **Schema objects** | 53 tables, 17 views, 4 materialized views |
 | **Backend status** | Mumbai-only; legacy regional project deleted after migration |
 
 The MCP server `supabase` in `.mcp.json` points to the Mumbai project.
@@ -21,7 +21,7 @@ produce — it never edits the database structure directly.
 | Path | What it is | Edit it? |
 |---|---|---|
 | `config.toml` | Supabase CLI project config (ports, auth, storage). | Only when changing local CLI behavior. |
-| `schema.sql` | Full snapshot of the current schema. Useful for first-time bootstrap and quick visual review. | **Generated artifact.** Do not hand-edit. Regenerate from migrations. |
+| `schema.sql` | Snapshot of the schema. **Currently stale** -- missing 18 tables and 7 views that exist in production; see the header inside the file. | **Generated artifact.** Do not hand-edit. Regenerate with `supabase db dump` (needs Docker). |
 | `migrations/` | Ordered, append-only schema history. Each file is one migration applied to production. | **Add new files only.** Never rename or rewrite an applied migration — see `migrations/README.md`. |
 | `migrations/README.md` | Index of every migration grouped by feature, with one-line summaries. Start here when locating where a feature landed. | Update when adding a new migration so the index stays accurate. |
 | `schema/` | Reserved for future modular schema reference docs. Currently just a README. | Add notes when something complex needs explaining outside a migration. |

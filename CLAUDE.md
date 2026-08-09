@@ -44,6 +44,7 @@ Validation sequence (from AGENTS.md): `typecheck` → `lint` → `test` → `bui
 ```bash
 node scripts/bootstrap-staff.mjs          # One-time staff setup (uses service role key)
 node scripts/verify-live-fee-health.mjs   # Production fee-health verification
+node scripts/verify-late-fee-health.mjs   # Late-fee invariants (both engines, waivers, grandfathering)
 node scripts/verify-live-sync-health.mjs  # System sync verification
 node scripts/check-quality-budgets.mjs    # Quality budget checks
 

@@ -2,6 +2,43 @@
 -- Initial fee management schema for an internal Supabase admin app.
 -- This schema keeps payment history append-only and models corrections
 -- through separate adjustment rows instead of rewriting old receipts.
+--
+-- ============================================================================
+-- STALE AS OF 2026-08-09 -- DO NOT TREAT THIS FILE AS COMPLETE.
+--
+-- Live production (project vgqyilgstjvgohrsiwkb) holds 151 applied migrations,
+-- 53 tables, 17 views and 4 materialized views. This snapshot is missing 18 of
+-- those tables and 7 of those views outright:
+--
+--   tables  defaulter_contacts, defaulter_recovery_state, family_payments,
+--           late_fee_rule_change_snapshot, late_fee_waiver_pool_snapshot,
+--           notion_sync_log, payment_import_batches, payment_import_rows,
+--           prev_year_import_batches, prev_year_import_rows,
+--           promotion_run_entries, promotion_runs,
+--           student_carry_forward_balances, student_collection_flags,
+--           student_late_fee_waivers, student_share_links,
+--           user_activity_events, whatsapp_templates
+--
+--   views   v_effective_late_fee_waivers, v_receipt_reversal_totals,
+--           v_student_carry_forward_balances, v_student_conventional_discounts,
+--           v_student_directory, v_student_installment_facets,
+--           v_student_manual_late_fee_waivers
+--
+-- Several objects that DO appear here have also been redefined since, notably
+-- v_workbook_student_financials and v_workbook_installment_balances (late-fee
+-- rule unification, 20260808140000 onward).
+--
+-- `supabase/migrations/` is the source of truth. Read it, not this file, when
+-- the answer has to be right.
+--
+-- Regenerating needs Docker (for `supabase db dump`) or a local pg_dump;
+-- neither is installed on the machine that wrote this note, and hand-splicing
+-- 25 objects into a 6,300-line "canonical" reference is a good way to produce
+-- something confidently wrong. To do it properly:
+--
+--   supabase db dump --schema public,private -f supabase/schema.sql
+--
+-- ============================================================================
 
 create extension if not exists pgcrypto;
 create schema if not exists extensions;
