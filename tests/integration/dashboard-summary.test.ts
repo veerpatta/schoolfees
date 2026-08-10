@@ -56,6 +56,7 @@ function student(
     lateFeeWaiverAmount: 0,
     baseChargeTotal: 1500,
     lateFeeTotal: 0,
+    discountClosedAmount: 0,
     totalDue: 1500,
     totalPaid: 0,
     outstandingAmount: 1500,

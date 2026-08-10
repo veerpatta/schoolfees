@@ -44,6 +44,7 @@ type WorkbookStudentFinancialRow = {
   conventional_discount_labels?: string | null;
   late_fee_waiver_amount: number;
   base_charge_total: number;
+  total_discount_closeouts: number | null;
   late_fee_total: number;
   total_due: number;
   total_paid: number;
@@ -183,6 +184,8 @@ export type WorkbookStudentFinancial = {
   lateFeeWaiverAmount: number;
   baseChargeTotal: number;
   lateFeeTotal: number;
+  /** Balance cleared by a `payment_mode = 'discount'` write-off. Not cash. */
+  discountClosedAmount: number;
   totalDue: number;
   totalPaid: number;
   outstandingAmount: number;
@@ -369,6 +372,7 @@ function mapFinancialRow(row: WorkbookStudentFinancialRow): WorkbookStudentFinan
     lateFeeWaiverAmount: row.late_fee_waiver_amount,
     baseChargeTotal: row.base_charge_total,
     lateFeeTotal: row.late_fee_total,
+    discountClosedAmount: row.total_discount_closeouts ?? 0,
     totalDue: row.total_due,
     totalPaid: row.total_paid,
     outstandingAmount: row.outstanding_amount,

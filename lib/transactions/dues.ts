@@ -271,6 +271,8 @@ async function getBaseOfficeStudents(
       lateFeeWaiverAmount: 0,
       baseChargeTotal: 0,
       lateFeeTotal: 0,
+      // No ledger, so nothing has been written off either.
+      discountClosedAmount: 0,
       totalDue: 0,
       totalPaid: 0,
       outstandingAmount: 0,

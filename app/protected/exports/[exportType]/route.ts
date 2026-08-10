@@ -22,7 +22,10 @@ import {
   getStudentConventionalDiscountAssignments,
 } from "@/lib/fees/data";
 import { getMasterDataOptions } from "@/lib/master-data/data";
-import { buildTransportRouteLabel } from "@/lib/transport/label";
+import {
+  buildTransportRouteLabel,
+  isSentinelNoTransportRoute,
+} from "@/lib/transport/label";
 import {
   getWorkbookInstallmentRows,
   getWorkbookStudentFinancials,
@@ -37,7 +40,7 @@ import { formatDateTimeIst } from "@/lib/helpers/date";
 import { recordActivity } from "@/lib/activity/events";
 
 import { withDownloadToken } from "@/lib/helpers/download-token";
-import { parseSegments } from "@/lib/segments/student-segments";
+import { parseSegments, STUDENT_SEGMENTS } from "@/lib/segments/student-segments";
 import type { StudentListFilters } from "@/lib/students/types";
 // Heavy exports (ai-context-bundle builds a 16-sheet workbook from ~14 reads)
 // overrun Vercel's default function timeout on real data volumes.
@@ -287,6 +290,102 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     }>).map((row) => [row.id, row]),
   );
 
+  // Everything the app knows that the financials projection does not carry.
+  //
+  // Fee overrides are the important one. The projection resolves them into a
+  // single tuition/transport number, so the workbook could show a student
+  // charged Rs 14,000 for transport with the Route column blank and no way to
+  // tell whether that was a route, an override, or a mistake. Three active
+  // students are in exactly that state, for Rs 29,500 a year between them.
+  const [
+    feeOverrideResult,
+    lateFeeWaiverResult,
+    allocationResult,
+    feeSettingResult,
+    directoryResult,
+    siblingGroupResult,
+  ] = await Promise.all([
+    fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
+      supabase
+        .from("student_fee_overrides")
+        .select(
+          "student_id, custom_tuition_fee_amount, custom_transport_fee_amount, custom_books_fee_amount, custom_admission_activity_misc_fee_amount, custom_other_fee_heads, custom_other_fee_head_labels, custom_late_fee_flat_amount, other_adjustment_head, other_adjustment_amount, discount_amount, student_type_override, transport_applies_override, reason, notes, updated_at",
+        )
+        .eq("is_active", true)
+        .in("student_id", chunk),
+    ),
+    fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
+      supabase
+        .from("student_late_fee_waivers")
+        .select(
+          "student_id, installment_id, amount, reason, source, waived_by_label, waived_at, voided_at, void_reason, installment_ref:installments(installment_no, installment_label, due_date)",
+        )
+        .eq("session_label", sessionLabel)
+        .in("student_id", chunk)
+        .order("waived_at", { ascending: true }),
+    ),
+    // Receipt -> installment -> rupees. The Payments sheet is receipt-level, so
+    // "this family paid Rs 8,000" could not be traced to which installments it
+    // cleared.
+    fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
+      supabase
+        .from("payments")
+        .select(
+          "student_id, amount, notes, created_at, discount_applied_at_posting, waiver_applied_at_posting, pending_before_posting, pending_after_posting, receipt_ref:receipts(receipt_number, payment_date, payment_mode, received_by), installment_ref:installments(installment_no, installment_label, due_date)",
+        )
+        .in("student_id", chunk)
+        .order("created_at", { ascending: true }),
+    ),
+    supabase
+      .from("fee_settings")
+      .select(
+        "class_id, annual_base_amount, tuition_fee_amount, transport_fee_amount, books_fee_amount, admission_activity_misc_fee_amount, other_fee_heads, late_fee_flat_amount, installment_count, student_type_default, transport_applies_default, is_active, notes, class_ref:classes!inner(class_name, section, stream_name, session_label)",
+      )
+      .eq("is_active", true)
+      .eq("class_ref.session_label", sessionLabel),
+    fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
+      supabase
+        .from("v_student_directory")
+        .select("*")
+        .eq("session_label", sessionLabel)
+        .in("student_id", chunk),
+    ),
+    supabase
+      .from("mv_student_sibling_groups")
+      .select("group_key, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id")
+      .eq("session_label", sessionLabel),
+  ]);
+
+  type FeeOverrideRow = {
+    student_id: string;
+    custom_tuition_fee_amount: number | null;
+    custom_transport_fee_amount: number | null;
+    custom_books_fee_amount: number | null;
+    custom_admission_activity_misc_fee_amount: number | null;
+    custom_other_fee_heads: Record<string, number> | null;
+    custom_other_fee_head_labels: Record<string, string> | null;
+    custom_late_fee_flat_amount: number | null;
+    other_adjustment_head: string | null;
+    other_adjustment_amount: number | null;
+    discount_amount: number | null;
+    student_type_override: string | null;
+    transport_applies_override: boolean | null;
+    reason: string | null;
+    notes: string | null;
+    updated_at: string | null;
+  };
+
+  const feeOverrideByStudent = new Map(
+    ((feeOverrideResult.data ?? []) as FeeOverrideRow[]).map((row) => [row.student_id, row]),
+  );
+
+  const directoryByStudent = new Map(
+    ((directoryResult.data ?? []) as Array<Record<string, unknown>>).map((row) => [
+      String(row.student_id),
+      row,
+    ]),
+  );
+
   const familyByStudentId = new Map(
     ((familyMemberResult.data ?? []) as Array<{
       student_id: string;
@@ -406,6 +505,24 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `A "processed" refund posts a negative reversal in the Adjustments sheet,`,
     `which reduces that student's applied/paid amount.`,
     ``,
+    `TRANSPORT (read before summing transport revenue)`,
+    `A student can be charged for transport in two ways, and only one of them`,
+    `involves a route:`,
+    `  1. Assigned to a real transport_routes row. "Transport" reads the route`,
+    `     name and code.`,
+    `  2. No route, but student_fee_overrides.custom_transport_fee_amount is set.`,
+    `     "Transport" reads "Custom transport (₹N)" and "Transport is custom`,
+    `     amount" is yes. These students WERE being charged while every screen`,
+    `     said "No transport" — 3 of them in the live 2026-27 session, ₹29,500 a`,
+    `     year between them.`,
+    `There is also a real route literally NAMED "No Transport", seeded at ₹0 and`,
+    `still selectable. It is a placeholder, not a route: the Routes sheet flags it`,
+    `in "Is 'no transport' placeholder", and an override can still charge a`,
+    `student who is sitting on it.`,
+    `ALWAYS sum "Transport charged", never infer transport from the route name.`,
+    `"Transport route (raw)" is the unprocessed stored value, kept so the two can`,
+    `be compared.`,
+    ``,
     `SHEET GLOSSARY`,
     `* Students          — EVERY student in the session (active, inactive, left`,
     `                      AND graduated — see the Status column) and the WHOLE`,
@@ -429,6 +546,37 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `                      and best-call hints used by the Defaulters workspace.`,
     `* Previous Year Dues — carry-forward balance collection and recovery state.`,
     `* Left Student Recovery — collectable dues from left/graduated/inactive students.`,
+    `* Fee Overrides     — every per-student departure from the class fee plan:`,
+    `                      custom tuition / transport / books / misc / late fee,`,
+    `                      other adjustment head and amount, student-type and`,
+    `                      transport-applies overrides, with the reason and notes.`,
+    `                      This is the baseline-vs-exception pair with Class Fee`,
+    `                      Settings.`,
+    `* Class Fee Settings — what each class is charged per head before any`,
+    `                      override: tuition, transport, books, admission/activity`,
+    `                      /misc, other heads, late fee, installment count.`,
+    `* Payment Allocations — receipt → installment → rupees. The Payments sheet is`,
+    `                      receipt-level; this is where a single ₹8,000 receipt`,
+    `                      splits across the installments it actually cleared,`,
+    `                      with pending-before and pending-after on each line.`,
+    `* Late Fee Waivers  — one row per waived installment, with source. READ THE`,
+    `                      SOURCE COLUMN: most rows are automatic ('grandfather'`,
+    `                      or 'migration', written when the late-fee rule was`,
+    `                      unified) and represent nobody's decision. Only`,
+    `                      'manual' and 'payment_desk' were granted by a person —`,
+    `                      "Granted by a person" says so directly. Counting all`,
+    `                      of them as forgiveness overstates it by hundreds.`,
+    `* Siblings          — both senses of the word, tagged in "Source":`,
+    `                      "Confirmed family group" is what the office recorded`,
+    `                      (this drives the 3rd Child policy), "Detected group" is`,
+    `                      what the app infers from a shared phone or father name`,
+    `                      and has NOT been confirmed by anyone.`,
+    `* Student Segments  — one yes/no column per filter chip in the app (never`,
+    `                      paid, year clear, old balance due, overdue, on`,
+    `                      transport, RTE, …), generated from the same definition`,
+    `                      list the UI uses. The three payment buckets — Never`,
+    `                      paid, Partly paid, Year clear — partition the roll;`,
+    `                      Overdue is a TIMING flag and overlaps all three.`,
     `* Sessions          — session metadata (current, fee plan summary).`,
     ``,
     `HOW TO INTERPRET THIS WORKBOOK`,
@@ -453,6 +601,15 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `  Recovery contact rows:   ${contactSummaries.size}`,
     `  Previous-year dues rows: ${previousYearDues.length}`,
     `  Left-student recovery:   ${leftStudentRecovery.rows.length}`,
+    `  Fee overrides:           ${(feeOverrideResult.data ?? []).length}`,
+    `  Payment allocations:     ${(allocationResult.data ?? []).length}`,
+    `  Late-fee waivers:        ${(lateFeeWaiverResult.data ?? []).length}`,
+    `  Class fee settings:      ${(feeSettingResult.data ?? []).length}`,
+    `  Custom-transport students: ${
+      financials.filter(
+        (row) => feeOverrideByStudent.get(row.studentId)?.custom_transport_fee_amount != null,
+      ).length
+    }`,
   ];
 
   const workbook = XLSX.utils.book_new();
@@ -470,6 +627,17 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         const detail = studentDetailById.get(row.studentId);
         const family = familyByStudentId.get(row.studentId);
         const familyGroup = firstOf(family?.family_ref);
+        const override = feeOverrideByStudent.get(row.studentId);
+        const facets = directoryByStudent.get(row.studentId);
+        // The same helper every screen uses, so a student on a custom amount
+        // reads "Custom transport (Rs 14,000)" here too instead of a blank cell
+        // or the "No Transport" placeholder route.
+        const transportLabel = buildTransportRouteLabel({
+          routeName: row.transportRouteName,
+          routeCode: row.transportRouteCode,
+          customTransportFeeAmount: override?.custom_transport_fee_amount ?? null,
+          transportFeeAmount: row.transportFee,
+        });
         return {
         "Student ID": row.studentId,
         "SR no": row.admissionNo,
@@ -477,7 +645,10 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         "Class": row.classLabel,
         "Status": row.recordStatus,
         "Student type": row.studentStatusLabel,
-        "Route": row.transportRouteName ?? "",
+        "Transport": transportLabel,
+        "Transport charged": row.transportFee,
+        "Transport route (raw)": row.transportRouteName ?? "",
+        "Transport is custom amount": override?.custom_transport_fee_amount != null ? "yes" : "no",
         "Father name": row.fatherName ?? "",
         "Mother name": row.motherName ?? "",
         "Father phone": row.fatherPhone ?? "",
@@ -496,6 +667,8 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         "Tuition fee": row.tuitionFee,
         "Transport fee": row.transportFee,
         "Academic fee": row.academicFee,
+        "Other adjustment head": row.otherAdjustmentHead ?? "",
+        "Other adjustment amount": row.otherAdjustmentAmount,
         // Split, because "Discount (tuition)" used to read 0 for every student
         // on an RTE / Staff Child / 3rd Child policy — the view could not see
         // conventional discounts at all. The total is what reconciles:
@@ -508,13 +681,38 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         "Late fee charged (total)": row.lateFeeTotal,
         "Total due": row.baseChargeTotal,
         "Total paid": row.totalPaid,
+        "Discount close-out (not cash)": row.discountClosedAmount,
         "Outstanding": row.outstandingAmount,
+        "Outstanding (base only)": row.baseOutstandingAmount,
+        "Outstanding (late fee only)": row.lateFeeOutstandingAmount,
+        "Old balance (carry forward)": Number(facets?.old_balance_amount ?? 0),
+        "Overdue amount": Number(facets?.overdue_base_amount ?? 0),
+        "Late fee pending": Number(facets?.pending_late_fee_amount ?? 0),
+        "Installment 1 pending": row.inst1Pending,
+        "Installment 2 pending": row.inst2Pending,
+        "Installment 3 pending": row.inst3Pending,
+        "Installment 4 pending": row.inst4Pending,
+        "Installments paid": row.paidInstallmentCount,
+        "Installments partly paid": row.partlyPaidInstallmentCount,
+        "Installments overdue": row.overdueInstallmentCount,
         "Conventional discounts": (discountLabelsByStudent.get(row.studentId) ?? []).join(", "),
         "Next due label": row.nextDueLabel ?? "",
         "Next due date": row.nextDueDate ?? "",
         "Next due amount": row.nextDueAmount ?? 0,
         "Last payment date": row.lastPaymentDate ?? "",
         "Status label": row.statusLabel,
+        // Fee-profile exceptions, flattened onto the student row so a reader
+        // does not have to cross-reference the Fee Overrides sheet to see that
+        // this student is not on the class default.
+        "Has fee override": override ? "yes" : "no",
+        "Custom tuition amount": override?.custom_tuition_fee_amount ?? "",
+        "Custom transport amount": override?.custom_transport_fee_amount ?? "",
+        "Custom books amount": override?.custom_books_fee_amount ?? "",
+        "Custom admission/activity/misc amount":
+          override?.custom_admission_activity_misc_fee_amount ?? "",
+        "Custom late fee amount": override?.custom_late_fee_flat_amount ?? "",
+        "Fee override reason": override?.reason ?? row.overrideReason ?? "",
+        "Fee override notes": override?.notes ?? "",
         "Student notes": detail?.notes ?? "",
         "Sibling notes": family?.notes ?? "",
         "Has photo": detail?.photo_path ? "yes" : "no",
@@ -676,12 +874,320 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       masterData.routeOptions.map((row) => ({
         "Route name": row.label,
         "Route code": row.routeCode ?? "",
+        "Is 'no transport' placeholder": isSentinelNoTransportRoute(row.label) ? "yes" : "no",
         "Active": row.isActive ? "yes" : "no",
         "Route id": row.id,
       })),
     ),
     "Routes",
   );
+
+  // ── Fee Overrides ────────────────────────────────────────────────────────
+  // Every per-student departure from the class fee plan, with the reason. This
+  // is where a custom transport amount stops being invisible.
+  const feeOverrideRows = ((feeOverrideResult.data ?? []) as FeeOverrideRow[])
+    .map((override) => {
+      const student = studentIndex.get(override.student_id);
+      const otherHeads = override.custom_other_fee_heads ?? {};
+      const otherLabels = override.custom_other_fee_head_labels ?? {};
+      return {
+        "SR no": student?.admissionNo ?? "",
+        "Student": student?.studentName ?? "",
+        "Class": student?.classLabel ?? "",
+        "Custom tuition": override.custom_tuition_fee_amount ?? "",
+        "Custom transport": override.custom_transport_fee_amount ?? "",
+        "Custom books": override.custom_books_fee_amount ?? "",
+        "Custom admission/activity/misc": override.custom_admission_activity_misc_fee_amount ?? "",
+        "Custom late fee": override.custom_late_fee_flat_amount ?? "",
+        "Custom other heads": Object.entries(otherHeads)
+          .map(([key, amount]) => `${otherLabels[key] ?? key}: ${amount}`)
+          .join("; "),
+        "Student discount": override.discount_amount ?? 0,
+        "Other adjustment head": override.other_adjustment_head ?? "",
+        "Other adjustment amount": override.other_adjustment_amount ?? "",
+        "Student type override": override.student_type_override ?? "",
+        "Transport applies override":
+          override.transport_applies_override === null ||
+          override.transport_applies_override === undefined
+            ? ""
+            : override.transport_applies_override
+              ? "yes"
+              : "no",
+        "Reason": override.reason ?? "",
+        "Notes": override.notes ?? "",
+        "Updated at": override.updated_at ?? "",
+      };
+    })
+    .sort((left, right) => String(left["SR no"]).localeCompare(String(right["SR no"])));
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      feeOverrideRows.length > 0
+        ? feeOverrideRows
+        : [{ "SR no": "", Reason: "No active fee overrides in this session." }],
+    ),
+    "Fee Overrides",
+  );
+
+  // ── Payment Allocations ──────────────────────────────────────────────────
+  // Receipt -> installment -> rupees, which is what "how much was paid" means
+  // once a single receipt clears parts of three installments.
+  type AllocationRow = {
+    student_id: string;
+    amount: number;
+    notes: string | null;
+    created_at: string;
+    discount_applied_at_posting: number | null;
+    waiver_applied_at_posting: number | null;
+    pending_before_posting: number | null;
+    pending_after_posting: number | null;
+    receipt_ref:
+      | { receipt_number: string; payment_date: string; payment_mode: string; received_by: string | null }
+      | { receipt_number: string; payment_date: string; payment_mode: string; received_by: string | null }[]
+      | null;
+    installment_ref:
+      | { installment_no: number; installment_label: string; due_date: string }
+      | { installment_no: number; installment_label: string; due_date: string }[]
+      | null;
+  };
+
+  const allocationRows = ((allocationResult.data ?? []) as AllocationRow[]).map((row) => {
+    const student = studentIndex.get(row.student_id);
+    const receipt = firstOf(row.receipt_ref);
+    const installment = firstOf(row.installment_ref);
+    return {
+      "Date": receipt?.payment_date ?? row.created_at.slice(0, 10),
+      "Receipt number": receipt?.receipt_number ?? "",
+      "Mode": receipt?.payment_mode ?? "",
+      "SR no": student?.admissionNo ?? "",
+      "Student": student?.studentName ?? "",
+      "Class": student?.classLabel ?? "",
+      "Installment no": installment?.installment_no ?? "",
+      "Installment": installment
+        ? getDisplayInstallmentLabel({ installmentLabel: installment.installment_label })
+        : "",
+      "Installment due date": installment?.due_date ?? "",
+      "Amount applied": row.amount,
+      "Discount at posting": row.discount_applied_at_posting ?? 0,
+      "Late-fee waiver at posting": row.waiver_applied_at_posting ?? 0,
+      "Pending before": row.pending_before_posting ?? "",
+      "Pending after": row.pending_after_posting ?? "",
+      "Received by": receipt?.received_by ?? "",
+      "Notes": row.notes ?? "",
+    };
+  });
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      allocationRows.length > 0
+        ? allocationRows
+        : [{ "Date": "", Notes: "No payment allocations in this session." }],
+    ),
+    "Payment Allocations",
+  );
+
+  // ── Late Fee Waivers ─────────────────────────────────────────────────────
+  // `source` matters: most rows here are automatic (grandfather / migration)
+  // rather than a decision anyone made. Only 'manual' and 'payment_desk' are.
+  type WaiverRow = {
+    student_id: string;
+    installment_id: string;
+    amount: number;
+    reason: string;
+    source: string;
+    waived_by_label: string | null;
+    waived_at: string;
+    voided_at: string | null;
+    void_reason: string | null;
+    installment_ref:
+      | { installment_no: number; installment_label: string; due_date: string }
+      | { installment_no: number; installment_label: string; due_date: string }[]
+      | null;
+  };
+
+  const waiverRows = ((lateFeeWaiverResult.data ?? []) as WaiverRow[]).map((row) => {
+    const student = studentIndex.get(row.student_id);
+    const installment = firstOf(row.installment_ref);
+    return {
+      "SR no": student?.admissionNo ?? "",
+      "Student": student?.studentName ?? "",
+      "Class": student?.classLabel ?? "",
+      "Installment no": installment?.installment_no ?? "",
+      "Installment": installment
+        ? getDisplayInstallmentLabel({ installmentLabel: installment.installment_label })
+        : "",
+      "Due date": installment?.due_date ?? "",
+      "Waived amount": row.amount,
+      "Source": row.source,
+      "Granted by a person": row.source === "manual" || row.source === "payment_desk" ? "yes" : "no",
+      "Reason": row.reason,
+      "Waived by": row.waived_by_label ?? "",
+      "Waived at": row.waived_at,
+      "Voided at": row.voided_at ?? "",
+      "Void reason": row.void_reason ?? "",
+    };
+  });
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      waiverRows.length > 0
+        ? waiverRows
+        : [{ "SR no": "", Reason: "No late-fee waivers in this session." }],
+    ),
+    "Late Fee Waivers",
+  );
+
+  // ── Class Fee Settings ───────────────────────────────────────────────────
+  // What each class is charged by head, which is the baseline every Fee
+  // Overrides row is a departure from.
+  type FeeSettingRow = {
+    class_id: string;
+    annual_base_amount: number;
+    tuition_fee_amount: number;
+    transport_fee_amount: number;
+    books_fee_amount: number;
+    admission_activity_misc_fee_amount: number;
+    other_fee_heads: Record<string, number> | null;
+    late_fee_flat_amount: number;
+    installment_count: number;
+    student_type_default: string;
+    transport_applies_default: boolean;
+    notes: string | null;
+    class_ref:
+      | { class_name: string; section: string | null; stream_name: string | null }
+      | { class_name: string; section: string | null; stream_name: string | null }[]
+      | null;
+  };
+
+  const feeSettingRows = ((feeSettingResult.data ?? []) as FeeSettingRow[]).map((row) => {
+    const classRef = firstOf(row.class_ref);
+    return {
+      "Class": [classRef?.class_name, classRef?.section, classRef?.stream_name]
+        .filter(Boolean)
+        .join(" - "),
+      "Tuition": row.tuition_fee_amount,
+      "Transport (default)": row.transport_fee_amount,
+      "Books": row.books_fee_amount,
+      "Admission/activity/misc": row.admission_activity_misc_fee_amount,
+      "Other heads": Object.entries(row.other_fee_heads ?? {})
+        .map(([key, amount]) => `${key}: ${amount}`)
+        .join("; "),
+      "Annual base": row.annual_base_amount,
+      "Late fee (flat)": row.late_fee_flat_amount,
+      "Installments": row.installment_count,
+      "Student type default": row.student_type_default,
+      "Transport applies by default": row.transport_applies_default ? "yes" : "no",
+      "Notes": row.notes ?? "",
+      "Class id": row.class_id,
+    };
+  });
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      feeSettingRows.length > 0
+        ? feeSettingRows
+        : [{ Class: "", Notes: "No active fee settings for this session." }],
+    ),
+    "Class Fee Settings",
+  );
+
+  // ── Siblings ─────────────────────────────────────────────────────────────
+  // Two different things, both called "siblings" in the app: the family groups
+  // the office has confirmed (which drive the 3rd Child policy), and the groups
+  // the app DETECTS from a shared phone or father name. Both are here, tagged.
+  type SiblingGroupRow = {
+    group_key: string;
+    student_ids: string[] | null;
+    student_count: number | null;
+    phone_match: string[] | null;
+    father_name_match: boolean | null;
+    confidence: string | null;
+    existing_family_group_id: string | null;
+  };
+
+  const siblingRows: Array<Record<string, string | number>> = [];
+  for (const [studentId, family] of familyByStudentId) {
+    const student = studentIndex.get(studentId);
+    const group = firstOf(family.family_ref);
+    siblingRows.push({
+      "Source": "Confirmed family group",
+      "Group": group?.family_label ?? "",
+      "SR no": student?.admissionNo ?? "",
+      "Student": student?.studentName ?? "",
+      "Class": student?.classLabel ?? "",
+      "Guardian name": group?.guardian_name ?? "",
+      "Guardian phone": group?.guardian_phone ?? "",
+      "Sibling order": family.sibling_order ?? "",
+      "Policy candidate": family.is_policy_candidate ? "yes" : "no",
+      "Order overridden": family.manual_order_override ? "yes" : "no",
+      "Confidence": "confirmed",
+      "Notes": family.notes ?? "",
+    });
+  }
+  for (const group of (siblingGroupResult.data ?? []) as SiblingGroupRow[]) {
+    for (const studentId of group.student_ids ?? []) {
+      const student = studentIndex.get(studentId);
+      if (!student) continue;
+      siblingRows.push({
+        "Source": "Detected group",
+        "Group": group.group_key,
+        "SR no": student.admissionNo,
+        "Student": student.studentName,
+        "Class": student.classLabel,
+        "Guardian name": "",
+        "Guardian phone": (group.phone_match ?? []).join(", "),
+        "Sibling order": "",
+        "Policy candidate": "",
+        "Order overridden": "",
+        "Confidence": group.confidence ?? "suspected",
+        "Notes": [
+          group.father_name_match ? "father name matches" : "",
+          group.existing_family_group_id ? "already grouped by the office" : "",
+        ]
+          .filter(Boolean)
+          .join("; "),
+      });
+    }
+  }
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      siblingRows.length > 0
+        ? siblingRows
+        : [{ Source: "", Notes: "No sibling groups recorded or detected for this session." }],
+    ),
+    "Siblings",
+  );
+
+  // ── Student Segments ─────────────────────────────────────────────────────
+  // The same booleans the Students and Transactions filter chips run on, one
+  // column per segment, generated from the shared definition list so this sheet
+  // cannot drift from what the UI offers.
+  const segmentHeader = (id: string) => {
+    const spaced = id.replace(/([A-Z])/g, " $1").toLowerCase().trim();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  };
+
+  const segmentRows = financials.map((row) => {
+    const facets = directoryByStudent.get(row.studentId);
+    const record: Record<string, string | number> = {
+      "SR no": row.admissionNo,
+      "Student": row.studentName,
+      "Class": row.classLabel,
+      "Status": row.recordStatus,
+    };
+    for (const segment of STUDENT_SEGMENTS) {
+      record[segmentHeader(segment.id)] = facets?.[segment.column] ? "yes" : "no";
+    }
+    return record;
+  });
+
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(segmentRows), "Student Segments");
 
   const discountRows: Array<Record<string, string | number>> = [];
   discountPolicies.forEach((policyRow) => {
