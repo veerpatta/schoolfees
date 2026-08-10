@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 
 import { ValueStatePill } from "@/components/office/office-ui";
@@ -11,7 +11,11 @@ import { StudentPhotoUpload } from "@/components/students/student-photo-upload";
 import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
-import { NO_TRANSPORT_LABEL } from "@/lib/transport/label";
+import {
+  buildTransportRouteLabel,
+  isSentinelNoTransportRoute,
+  NO_TRANSPORT_LABEL,
+} from "@/lib/transport/label";
 import { useActionFeedback } from "@/hooks/use-action-feedback";
 import {
   INITIAL_STUDENT_FORM_ACTION_STATE,
@@ -19,6 +23,11 @@ import {
   type StudentFormActionState,
   type StudentRouteOption,
 } from "@/lib/students/types";
+
+/** The "No Transport" row is a placeholder, not a route — see lib/transport/label.ts. */
+function selectedRouteIsReal(route: StudentRouteOption | null): boolean {
+  return Boolean(route) && !isSentinelNoTransportRoute(route!.label);
+}
 
 type StudentFormValues = {
   fullName: string;
@@ -156,6 +165,36 @@ export function StudentForm({
     state.status === "error" && state.submittedValues
       ? state.submittedValues
       : initialValues;
+  // Transport is the one pair of fields that has to be read together: the route
+  // picker up top and the override down in Fee exceptions. Kept in state so the
+  // effective-charge line under the picker responds as the override is typed,
+  // instead of only being right after a save.
+  const [transportRouteId, setTransportRouteId] = useState(values.transportRouteId);
+  const [transportOverride, setTransportOverride] = useState(values.transportOverride);
+
+  const selectedRoute = routeOptions.find((option) => option.id === transportRouteId) ?? null;
+  const overrideAmount = Number.parseInt(transportOverride, 10);
+  const effectiveTransportLabel = buildTransportRouteLabel({
+    routeName: selectedRoute?.label ?? null,
+    routeCode: selectedRoute?.routeCode ?? null,
+    customTransportFeeAmount: Number.isFinite(overrideAmount) ? overrideAmount : null,
+  });
+  // True when the money is coming from the override rather than a route — the
+  // case that used to render as a flat "No transport".
+  const transportIsCustom =
+    effectiveTransportLabel !== NO_TRANSPORT_LABEL && !selectedRouteIsReal(selectedRoute);
+
+  const feeExceptionCount = [
+    values.tuitionOverride,
+    transportOverride,
+    values.discountAmount && values.discountAmount !== "0" ? values.discountAmount : "",
+    values.otherAdjustmentHead,
+    values.otherAdjustmentAmount && values.otherAdjustmentAmount !== "0"
+      ? values.otherAdjustmentAmount
+      : "",
+  ].filter((value) => value.trim().length > 0).length;
+  const hasFeeExceptions = feeExceptionCount > 0;
+
   const recordAlreadySaved = state.status === "error" && Boolean(state.studentId);
   const disableSubmit = classOptions.length === 0 || recordAlreadySaved;
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
@@ -318,19 +357,38 @@ export function StudentForm({
             <select
               id="transportRouteId"
               name="transportRouteId"
-              defaultValue={values.transportRouteId}
+              value={transportRouteId}
+              onChange={(event) => setTransportRouteId(event.target.value)}
               className={`${selectClassName} mt-2`}
               {...getFieldAccessibility(state, "transportRouteId")}
             >
               <option value="">{NO_TRANSPORT_LABEL}</option>
               {routeOptions.map((routeOption) => (
                 <option key={routeOption.id} value={routeOption.id}>
-                  {routeOption.routeCode
-                    ? `${routeOption.label} (${routeOption.routeCode})`
-                    : routeOption.label}
+                  {isSentinelNoTransportRoute(routeOption.label)
+                    ? `${routeOption.label} — placeholder, same as "${NO_TRANSPORT_LABEL}"`
+                    : routeOption.routeCode
+                      ? `${routeOption.label} (${routeOption.routeCode})`
+                      : routeOption.label}
                 </option>
               ))}
             </select>
+            {/* The route picker cannot tell the whole truth on its own. A
+                student with no route and a transport override IS charged, and
+                this control said "No transport" while it happened -- three
+                live students, Rs 29,500 a year. The effective label is the same
+                helper every other surface uses, and it updates as the override
+                below is typed. */}
+            <p
+              className={`mt-2 text-xs ${
+                transportIsCustom ? "font-semibold text-warning-soft-foreground" : "text-muted-foreground"
+              }`}
+              data-transport-effective
+            >
+              {transportIsCustom
+                ? `Charged as ${effectiveTransportLabel} — set under Fee exceptions, not by the route.`
+                : `Charged as ${effectiveTransportLabel}.`}
+            </p>
             <FieldError fieldName="transportRouteId" message={getFieldError(state, "transportRouteId")} />
           </div>
 
@@ -521,9 +579,17 @@ export function StudentForm({
       ) : null}
 
       {canEditFinance ? (
-      <details className="rounded-xl border border-border bg-card">
+      <details className="rounded-xl border border-border bg-card" open={hasFeeExceptions}>
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
           Fee exceptions
+          {/* Collapsed by default, this panel hid the amount that was charging
+              a student for transport the route picker said they did not have.
+              A count on the closed summary means nobody has to guess. */}
+          {feeExceptionCount > 0 ? (
+            <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent-soft-foreground">
+              {feeExceptionCount} set
+            </span>
+          ) : null}
         </summary>
         <div className="border-t border-border p-4">
           <p className="mb-4 text-sm text-muted-foreground">
@@ -553,11 +619,18 @@ export function StudentForm({
                 type="number"
                 inputMode="decimal"
                 min={0}
-                defaultValue={values.transportOverride}
+                value={transportOverride}
+                onChange={(event) => setTransportOverride(event.target.value)}
                 className="mt-2"
                 placeholder="Leave blank for route default"
                 {...getFieldAccessibility(state, "transportOverride")}
               />
+              {transportIsCustom ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Overrides the route. This student has no route selected, so
+                  this amount is the only thing charging them for transport.
+                </p>
+              ) : null}
               <FieldError fieldName="transportOverride" message={getFieldError(state, "transportOverride")} />
             </div>
             <div>
