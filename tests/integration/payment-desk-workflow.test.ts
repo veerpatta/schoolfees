@@ -2,6 +2,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import {
+  getQuickAmountChipClassName,
+  getQuickAmountChipLabel,
+  getQuickAmountChipVariant,
+} from "@/components/payments/payment-desk-emi-banner";
+import { formatInr } from "@/lib/helpers/currency";
 
 import {
   buildPaymentDeskSearchIndex,
@@ -422,18 +428,26 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("onClick={() => setDismissedTodayReceiptId(latestReceiptToday.id)}");
   });
 
+  // Asserted through the helpers rather than by grepping the desk source: they
+  // moved into payment-desk-emi-banner.tsx when the desk hit its line budget,
+  // and a source-text assertion would have failed on a pure relocation.
   it("quick amount chips have priority visual ranking with full due as accent", () => {
-    const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
-      "utf8",
+    expect(getQuickAmountChipVariant({ key: "full", label: "", amount: 100, disabled: false })).toBe(
+      "accent",
     );
-    const chipHelpers = component.match(
-      /function getQuickAmountChipVariant[\s\S]*?function getQuickAmountChipClassName/,
-    )?.[0] ?? "";
-
-    expect(chipHelpers).toContain('quickAmount.key === "full") return "accent"');
-    expect(chipHelpers).toContain('quickAmount.key === "clear") return "ghost"');
-    expect(chipHelpers).toContain("Full Due ${formatInr(quickAmount.amount)}");
+    expect(getQuickAmountChipVariant({ key: "clear", label: "", amount: null, disabled: false })).toBe(
+      "ghost",
+    );
+    expect(getQuickAmountChipVariant({ key: "next", label: "", amount: 100, disabled: false })).toBe(
+      "soft",
+    );
+    expect(
+      getQuickAmountChipLabel({ key: "full", label: "", amount: 4000, disabled: false }),
+    ).toContain(formatInr(4000));
+    // Overdue money reads as at-risk.
+    expect(
+      getQuickAmountChipClassName({ key: "overdue", label: "", amount: 500, disabled: false }),
+    ).toContain("text-destructive");
   });
 
   it("mode kept reminder appears only before the next student is selected", () => {

@@ -106,7 +106,22 @@ export function buildPaymentQuickAmounts(payload: {
   overdueAmount: number;
   lateFeeAmount?: number;
   lastPaidAmount?: number | null;
+  /**
+   * When the student is on an active EMI plan the ordinary chips are the wrong
+   * question — "Overdue" and "Late Fee" describe a calendar the plan replaced.
+   * The plan set takes over entirely.
+   */
+  plan?: { monthlyAmount: number; catchUpAmount: number; remainingBalance: number } | null;
 }) {
+  if (payload.plan) {
+    return buildRepaymentPlanQuickAmounts({
+      monthlyAmount: payload.plan.monthlyAmount,
+      catchUpAmount: payload.plan.catchUpAmount,
+      remainingBalance: payload.plan.remainingBalance,
+      totalPending: payload.totalPending,
+    });
+  }
+
   return [
     {
       key: "full",

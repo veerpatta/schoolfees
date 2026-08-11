@@ -37,8 +37,13 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
 import { useStoredPreference } from "@/hooks/use-stored-preference";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
-import { buildRepaymentPlanQuickAmounts, buildPaymentQuickAmounts } from "@/lib/payments/workflow";
-import { splitPaymentAcrossPlan } from "@/lib/repayment-plans/defaulter-view";
+import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
+import {
+  PaymentDeskEmiBanner,
+  getQuickAmountChipClassName,
+  getQuickAmountChipLabel,
+  getQuickAmountChipVariant,
+} from "@/components/payments/payment-desk-emi-banner";
 import {
   calculateInstallmentBasePending,
   calculateOverdueBaseAmount,
@@ -950,21 +955,13 @@ export function PaymentDeskClient({
       return [];
     }
 
-    if (activeRepaymentPlan) {
-      return buildRepaymentPlanQuickAmounts({
-        monthlyAmount: activeRepaymentPlan.monthlyAmount,
-        catchUpAmount: activeRepaymentPlan.catchUpAmount,
-        remainingBalance: activeRepaymentPlan.remainingBalance,
-        totalPending: previewTotalPending,
-      });
-    }
-
     return buildPaymentQuickAmounts({
       totalPending: previewTotalPending,
       nextDueAmount: previewNextDue?.outstandingAmount ?? null,
       overdueAmount: previewOverdueAmount,
       lateFeeAmount: pendingLateFeeAmount,
       lastPaidAmount: latestStudentPaymentAmount,
+      plan: activeRepaymentPlan,
     });
   }, [
     activeRepaymentPlan,
@@ -982,53 +979,7 @@ export function PaymentDeskClient({
   const secondaryQuickAmounts = quickAmounts.filter(
     (quickAmount) => !primaryQuickAmountKeys.includes(quickAmount.key),
   );
-  function getQuickAmountChipVariant(quickAmount: (typeof quickAmounts)[number]) {
-    if (quickAmount.key === "full") return "accent";
-    if (quickAmount.key === "next") return "soft";
-    if (quickAmount.key === "clear") return "ghost";
-    return "outline";
-  }
 
-  function getQuickAmountChipLabel(quickAmount: (typeof quickAmounts)[number]) {
-    if (quickAmount.key === "full") {
-      return quickAmount.disabled || quickAmount.amount === null
-        ? "Full Due"
-        : `Full Due ${formatInr(quickAmount.amount)}`;
-    }
-
-    if (quickAmount.key === "next") {
-      return quickAmount.disabled || quickAmount.amount === null
-        ? "Next"
-        : `Next ${formatInr(quickAmount.amount)}`;
-    }
-
-    if (quickAmount.key === "emiCatchUp") {
-      return quickAmount.disabled || !quickAmount.amount
-        ? "Catch up"
-        : `Catch up ${formatInr(quickAmount.amount)}`;
-    }
-    if (quickAmount.key === "emiMonthly") {
-      return quickAmount.disabled || !quickAmount.amount
-        ? "Monthly EMI"
-        : `Monthly EMI ${formatInr(quickAmount.amount)}`;
-    }
-    if (quickAmount.key === "emiFullPlan") {
-      return quickAmount.disabled || !quickAmount.amount
-        ? "Full plan"
-        : `Full plan ${formatInr(quickAmount.amount)}`;
-    }
-    if (quickAmount.key === "overdue") return "Overdue";
-    if (quickAmount.key === "lateFee") return "Late Fee";
-    if (quickAmount.key === "lastAmount") return "Last";
-    return "Clear x";
-  }
-
-  function getQuickAmountChipClassName(quickAmount: (typeof quickAmounts)[number]) {
-    return cn(
-      "shrink-0 disabled:cursor-not-allowed disabled:opacity-40",
-      quickAmount.key === "overdue" && (quickAmount.amount ?? 0) > 0 ? "text-destructive" : "",
-    );
-  }
 
   function getDesktopModeActiveClass(mode: string) {
     if (mode === "cash") return "bg-success-soft text-success-soft-foreground border-success-soft-foreground/20";
@@ -2548,50 +2499,10 @@ export function PaymentDeskClient({
                 ) : null}
 
                 {activeRepaymentPlan ? (
-                  <div className="border-b border-border bg-info-soft/40 px-3 py-2.5 text-info-soft-foreground">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wide">
-                      On a monthly EMI plan
-                    </p>
-                    <p className="mt-0.5 text-[12px] leading-relaxed">
-                      {formatInr(activeRepaymentPlan.monthlyAmount)} a month ·{" "}
-                      {formatInr(activeRepaymentPlan.remainingBalance)} left
-                      {activeRepaymentPlan.nextDueDate
-                        ? ` · next ${formatInr(activeRepaymentPlan.nextDueAmount ?? 0)} on ${activeRepaymentPlan.nextDueDate}`
-                        : ""}
-                      {activeRepaymentPlan.catchUpAmount > 0
-                        ? ` · behind by ${formatInr(activeRepaymentPlan.catchUpAmount)}`
-                        : ""}
-                    </p>
-                    <p className="mt-1 text-[11px] opacity-90">
-                      This payment clears the EMI installments first; anything extra spills into
-                      the rest automatically. Discounts and late-fee waivers are disabled while the
-                      plan is active.
-                    </p>
-                    {activeRepaymentPlan.currentYearRemainsUnpaid ? (
-                      <p className="mt-1 text-[11px] font-semibold">
-                        Old balance only — current-year fees stay unpaid until this plan clears.
-                      </p>
-                    ) : null}
-                    {activeRepaymentPlan.planReviewNeeded ? (
-                      <p className="mt-1 text-[11px] font-semibold">
-                        Plan review needed — a covered fee changed since the plan was agreed.
-                      </p>
-                    ) : null}
-                    {paymentAmount > 0 ? (
-                      <p className="mt-1.5 border-t border-current/20 pt-1.5 text-[11px] font-semibold">
-                        {(() => {
-                          const split = splitPaymentAcrossPlan({
-                            amount: paymentAmount,
-                            planRemainingBalance: activeRepaymentPlan.remainingBalance,
-                          });
-
-                          return split.toOtherDues > 0
-                            ? `This ${formatInr(paymentAmount)}: ${formatInr(split.toPlan)} to the EMI plan, ${formatInr(split.toOtherDues)} to other dues.`
-                            : `All ${formatInr(paymentAmount)} goes to the EMI plan.`;
-                        })()}
-                      </p>
-                    ) : null}
-                  </div>
+                  <PaymentDeskEmiBanner
+                    plan={activeRepaymentPlan}
+                    paymentAmount={paymentAmount}
+                  />
                 ) : null}
 
                 <div className="flex flex-wrap gap-1.5 border-b border-border px-3 py-2">
