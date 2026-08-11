@@ -6,6 +6,7 @@ import { recordActivity } from "@/lib/activity/events";
 import { snoozeIso } from "@/lib/defaulters/cadence";
 import {
   insertDefaulterContact,
+  refreshDefaulterRecoveryState,
   setNoCallFlag,
   type ContactChannel,
   type ContactOutcome,
@@ -38,7 +39,23 @@ const VALID_OUTCOMES: ContactOutcome[] = [
  * the cache backend hiccups — the user has already been told their log
  * was saved.
  */
-function safeRevalidate(sessionLabel: string | null | undefined) {
+async function safeRevalidate(sessionLabel: string | null | undefined) {
+  // Roll up promise-kept / promise-broken counts BEFORE invalidating the page,
+  // so the render the user is about to see reflects the call they just logged.
+  //
+  // This refresh used to live in getDefaultersPageData, awaited on every page
+  // render between two Promise.all batches — a write RPC on the read path,
+  // forcing them to run in series. It belongs here instead: the rollup reads
+  // defaulter_contacts, and this is the only place defaulter_contacts changes.
+  // Paying for it once per logged call rather than once per page view is both
+  // cheaper and more timely. Wrapped, like everything else here, because the
+  // contact is already saved and a rollup hiccup must not surface as failure.
+  try {
+    if (sessionLabel) await refreshDefaulterRecoveryState(sessionLabel);
+  } catch (caught) {
+    console.warn("[defaulter-actions] recovery state refresh failed", caught);
+  }
+
   // Belt-and-braces: invalidate the cached financial query (which tags by
   // session) and the defaulters route. updateTag is preferred from server
   // actions (read-your-own-writes), revalidatePath catches any uncached
@@ -137,7 +154,7 @@ export async function logContactAction(
     console.warn("[defaulter-actions] activity record failed", caught);
   }
 
-  safeRevalidate(sessionLabel);
+  await safeRevalidate(sessionLabel);
   return { status: "success", message: "Contact logged." };
 }
 
@@ -221,7 +238,7 @@ export async function quickLogContact(args: QuickLogArgs): Promise<QuickLogResul
     console.warn("[defaulter-actions] activity record failed", caught);
   }
 
-  safeRevalidate(args.sessionLabel);
+  await safeRevalidate(args.sessionLabel);
   return { ok: true };
 }
 
@@ -287,7 +304,7 @@ export async function logWhatsAppSendAttempts(
     console.warn("[defaulter-actions] activity record failed", caught);
   }
 
-  safeRevalidate(args.sessionLabel);
+  await safeRevalidate(args.sessionLabel);
   return {
     ok: failures === 0,
     message: failures === 0 ? undefined : `${failures} of ${args.studentIds.length} could not be logged.`,
@@ -350,6 +367,6 @@ export async function setNoCallFlagAction(args: SetNoCallArgs): Promise<QuickLog
     console.warn("[defaulter-actions] activity record failed", caught);
   }
 
-  safeRevalidate(args.sessionLabel);
+  await safeRevalidate(args.sessionLabel);
   return { ok: true };
 }

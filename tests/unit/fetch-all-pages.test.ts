@@ -31,7 +31,9 @@ describe("fetchAllPages", () => {
 
     expect(result.error).toBeNull();
     expect(result.data).toHaveLength(2000);
-    // 1000, 1000, then an empty page to learn the data ended.
+    // 1000, 1000, then an empty page to learn the data ended. Same three
+    // requests as the sequential version, but the last two are issued together,
+    // so this costs two round trips rather than three.
     expect(fetchPage).toHaveBeenCalledTimes(3);
     expect(fetchPage.mock.calls.map(([from, to]) => [from, to])).toEqual([
       [0, 999],
@@ -40,12 +42,45 @@ describe("fetchAllPages", () => {
     ]);
   });
 
+  it("returns rows in page order even though pages are fetched together", async () => {
+    // The window must not reorder anything: a later page that resolves first
+    // still has to land after the earlier one.
+    const rows = Array.from({ length: 2000 }, (_, i) => ({ i }));
+    const fetchPage = vi.fn(async (from: number, to: number) => {
+      // Page 1 deliberately resolves slower than page 2.
+      await new Promise((resolve) => setTimeout(resolve, from === 1000 ? 20 : 0));
+      return { data: rows.slice(from, to + 1), error: null };
+    });
+
+    const result = await fetchAllPages(fetchPage, 1000);
+
+    expect(result.data.map((row) => row.i)).toEqual(rows.map((row) => row.i));
+  });
+
   it("stops after one request when the first page is short", async () => {
+    // The common case by far — the live session's financial view is 535 rows.
+    // Page 0 is deliberately fetched alone so this never pays for speculation.
     const fetchPage = vi.fn(async () => ({ data: [{ i: 1 }], error: null }));
     const result = await fetchAllPages(fetchPage, 1000);
 
     expect(result.data).toHaveLength(1);
     expect(fetchPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("never reads a page fetched after the short one", async () => {
+    // 1000 rows exactly: page 0 is full, so a window opens; page 1 is empty and
+    // ends the data. Whatever page 2 returns must be ignored, not appended.
+    const rows = Array.from({ length: 1000 }, (_, i) => ({ i }));
+    const fetchPage = vi.fn(async (from: number, to: number) =>
+      from >= 2000
+        ? { data: [{ i: -1 }], error: null } // a lie; must never be trusted
+        : { data: rows.slice(from, to + 1), error: null },
+    );
+
+    const result = await fetchAllPages(fetchPage, 1000);
+
+    expect(result.data).toHaveLength(1000);
+    expect(result.data.some((row) => row.i === -1)).toBe(false);
   });
 
   it("does not depend on the server cap being any particular number", async () => {
@@ -61,7 +96,10 @@ describe("fetchAllPages", () => {
     const result = await fetchAllPages(fetchPage, 250);
 
     expect(result.data).toHaveLength(750);
-    expect(fetchPage).toHaveBeenCalledTimes(4);
+    // 1 alone, then windows of 2: [250,499]+[500,749], then [750,999] ends it
+    // alongside one speculative [1000,1249] that is never read. Five requests
+    // in three round trips, where the sequential version took four of each.
+    expect(fetchPage).toHaveBeenCalledTimes(5);
   });
 
   it("returns what it read alongside the first error", async () => {
@@ -75,7 +113,11 @@ describe("fetchAllPages", () => {
 
     expect(result.error).toBeInstanceOf(Error);
     expect(result.data).toHaveLength(10);
-    expect(fetchPage).toHaveBeenCalledTimes(2);
+    // Page 0 alone, then a window of 2 that both fail. The window means one
+    // more request than the sequential version issued, but the contract is
+    // unchanged: the FIRST error in page order is the one returned, with
+    // everything read before it.
+    expect(fetchPage).toHaveBeenCalledTimes(3);
   });
 
   it("rejects a nonsense page size rather than looping forever", async () => {

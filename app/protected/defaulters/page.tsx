@@ -192,17 +192,16 @@ export default async function DefaultersPage({
       </details>
 
       <div className="max-md:order-2">
+      {/* The same array reference both components receive, deliberately.
+          This used to `.map()` an eight-field projection for the provider while
+          the workspace below got the full rows — two different objects per
+          student, so every defaulter was serialized into the RSC payload twice
+          (485 of them on the live session). BulkWhatsappRow is a structural
+          subset of DefaulterSummaryRow, so passing the rows straight through
+          reads the same eight fields and React's flight encoder emits the array
+          once, with a back-reference for the second use. */}
       <BulkWhatsappProvider
-        rows={data.rows.map((row) => ({
-          studentId: row.studentId,
-          admissionNo: row.admissionNo,
-          fullName: row.fullName,
-          fatherName: row.fatherName,
-          fatherPhone: row.fatherPhone,
-          classLabel: row.classLabel,
-          totalPending: row.totalPending,
-          oldestDueDate: row.oldestDueDate,
-        }))}
+        rows={data.rows}
         templates={whatsappTemplates}
         sessionLabel={viewSession.sessionLabel}
       >

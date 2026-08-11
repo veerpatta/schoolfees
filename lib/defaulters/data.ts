@@ -1,5 +1,7 @@
 import "server-only";
 
+import { after } from "next/server";
+
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { calculateDaysOverdue, calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
 import { createClient } from "@/lib/supabase/server";
@@ -239,8 +241,13 @@ export async function getDefaultersPageData(
 ): Promise<DefaultersPageData> {
   const _t0 = Date.now();
   const redactPaymentHistory = options?.redactPaymentHistory === true;
-  const policy = await getFeePolicySummary();
-  const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
+  // Only pay for the policy read when the caller has not already told us which
+  // session it wants. This used to be an unconditional `await` in front of
+  // everything else — a full blocking round trip whose only output was a
+  // fallback the Defaulters page never uses, because it always passes the
+  // session it resolved from the URL or the cookie.
+  const resolvedSessionLabel =
+    sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
   void pagination; // pagination is now handled client-side; kept for signature stability.
   const [{ routeOptions }, classOptions, financialRows, overdueInstallmentRows, allInstallmentRows, activeStudents] =
     await Promise.all([
@@ -337,9 +344,24 @@ export async function getDefaultersPageData(
   //    just the visible page). Summaries are fetched here when not supplied so
   //    the page needs a single pass.
   const candidateIds = baseRows.map((row) => row.studentId);
+
+  // The recovery-state refresh used to be awaited right here, between the two
+  // Promise.all batches — a WRITE RPC sitting on the critical path of a read,
+  // forcing the batches to run one after the other instead of overlapping.
+  //
+  // It is a rollup of `defaulter_contacts`, so the moment it can change is when
+  // a call is logged, not when someone looks at the page. `logContactAction`
+  // now refreshes it after each write (see app/protected/defaulters/actions.ts),
+  // which is both cheaper and more timely. This deferred call stays as a
+  // self-healing backstop: it keeps a session that has never been refreshed —
+  // or one whose refresh failed — from being stuck with empty promise counts,
+  // without any render waiting on it.
   if (candidateIds.length > 0) {
-    await refreshDefaulterRecoveryState(resolvedSessionLabel);
+    after(() => {
+      void refreshDefaulterRecoveryState(resolvedSessionLabel);
+    });
   }
+
   const [contactSummaries, familyMembership, noCallFlags, promiseReliability] =
     await Promise.all([
     options?.contactSummaries
@@ -569,8 +591,10 @@ export async function getDefaulterExportRows(
   filters: DefaulterFilters,
   sessionLabel?: string,
 ): Promise<DefaulterExportRow[]> {
-  const policy = await getFeePolicySummary();
-  const resolvedSessionLabel = sessionLabel ?? policy.academicSessionLabel;
+  // Same as the page loader above: the fallback is only worth a round trip when
+  // the caller has not named a session. The export route always has one.
+  const resolvedSessionLabel =
+    sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel;
 
   const [financialRows, overdueInstallmentRows, prevYearDuesRows] = await Promise.all([
     getWorkbookStudentFinancials({

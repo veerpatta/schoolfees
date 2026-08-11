@@ -42,6 +42,21 @@ export async function fetchInChunks<T>(
 export const DEFAULT_PAGE_SIZE = 1000;
 
 /**
+ * How many pages to request at once *after* the first one.
+ *
+ * Two, not more, and deliberately not applied to page 0. Most queries here fit
+ * in a single page (the live session has 535 financial rows), and those must
+ * still cost exactly one request — a window that speculatively fired three
+ * requests would triple the traffic of the common case to speed up the rare
+ * one. Starting the window only once page 0 comes back full means we have
+ * already been told there is more data before we guess at how much.
+ *
+ * At two, the 2,108-row installment view costs the same three requests it
+ * always did, but in two round trips instead of three.
+ */
+export const DEFAULT_PAGE_CONCURRENCY = 2;
+
+/**
  * Reads every row of a query by paging with `.range(...)`.
  *
  * PostgREST silently truncates a response at its `max-rows` ceiling — no error,
@@ -68,30 +83,62 @@ export async function fetchAllPages<T>(
     to: number,
   ) => PromiseLike<{ data: T[] | null; error: unknown }>,
   pageSize: number = DEFAULT_PAGE_SIZE,
+  concurrency: number = DEFAULT_PAGE_CONCURRENCY,
 ): Promise<{ data: T[]; error: unknown }> {
   if (!Number.isInteger(pageSize) || pageSize <= 0) {
     throw new Error(`fetchAllPages pageSize must be a positive integer, got ${pageSize}`);
   }
+  if (!Number.isInteger(concurrency) || concurrency <= 0) {
+    throw new Error(
+      `fetchAllPages concurrency must be a positive integer, got ${concurrency}`,
+    );
+  }
 
   const data: T[] = [];
-  let from = 0;
+
+  // Page 0 on its own. Until it comes back full there is no evidence a second
+  // page exists, and speculating would make every single-page query pay for
+  // requests it does not need.
+  const firstResult = await fetchPage(0, pageSize - 1);
+  if (firstResult.error) {
+    return { data, error: firstResult.error };
+  }
+  const firstPage = firstResult.data ?? [];
+  data.push(...firstPage);
+  if (firstPage.length < pageSize) {
+    return { data, error: null };
+  }
+
+  let from = pageSize;
 
   for (;;) {
-    const result = await fetchPage(from, from + pageSize - 1);
-    if (result.error) {
-      return { data, error: result.error };
+    // The pages are independent `.range(...)` reads over a stably-ordered query,
+    // so issuing a window of them at once only changes WHEN they are asked for,
+    // never what comes back. They are still consumed strictly in page order
+    // below, so both the short-page stop and "first error wins" are unchanged.
+    const starts = Array.from({ length: concurrency }, (_, index) => from + index * pageSize);
+    const results = await Promise.all(
+      starts.map((start) => fetchPage(start, start + pageSize - 1)),
+    );
+
+    for (const result of results) {
+      if (result.error) {
+        return { data, error: result.error };
+      }
+
+      const page = result.data ?? [];
+      data.push(...page);
+
+      // Short page — including an empty one — means the server had nothing more
+      // to give. A full page might be the end too, but we cannot tell, so we ask
+      // again and accept one extra round trip over losing rows. Any page fetched
+      // after this one in the same window is discarded unread, which is safe:
+      // beyond the end of the data they can only be empty.
+      if (page.length < pageSize) {
+        return { data, error: null };
+      }
     }
 
-    const page = result.data ?? [];
-    data.push(...page);
-
-    // Short page — including an empty one — means the server had nothing more
-    // to give. A full page might be the end too, but we cannot tell, so we ask
-    // again and accept one extra round trip over losing rows.
-    if (page.length < pageSize) {
-      return { data, error: null };
-    }
-
-    from += pageSize;
+    from += concurrency * pageSize;
   }
 }

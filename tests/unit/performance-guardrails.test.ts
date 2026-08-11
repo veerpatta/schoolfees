@@ -109,6 +109,44 @@ describe("office performance guardrails", () => {
     expect(defaultersWorkspace).toContain("recoveryDesk.nextBestRows");
   });
 
+  it("keeps Defaulters reads free of blocking writes and duplicated payload", () => {
+    const defaultersData = readRepoFile("lib/defaulters/data.ts");
+    const defaultersActions = readRepoFile("app/protected/defaulters/actions.ts");
+    const defaultersPage = readRepoFile("app/protected/defaulters/page.tsx");
+
+    // refresh_defaulter_recovery_state is a WRITE. It used to be awaited in the
+    // middle of the page loader, between two Promise.all batches, which forced
+    // them to run in series on every render. It belongs on the write path.
+    expect(defaultersData).not.toContain("await refreshDefaulterRecoveryState(");
+    expect(defaultersData).toContain("after(() => {");
+    expect(defaultersActions).toContain("await refreshDefaulterRecoveryState(");
+
+    // The session-label fallback is not worth a blocking round trip when the
+    // caller already named a session — which every real caller does.
+    expect(defaultersData).not.toContain("const policy = await getFeePolicySummary();");
+    expect(defaultersData).toContain(
+      "sessionLabel ?? (await getFeePolicySummary()).academicSessionLabel",
+    );
+
+    // One array reference to both client components, so the row set is
+    // serialized into the flight payload once rather than twice.
+    expect(defaultersPage).not.toContain("rows={data.rows.map(");
+    expect(defaultersPage).toContain("rows={data.rows}");
+  });
+
+  it("fetches workbook pages in a window without weakening the short-page stop", () => {
+    const chunk = readRepoFile("lib/helpers/chunk.ts");
+
+    // Page 0 stays a lone request: most queries fit in one page, and
+    // speculating there would triple the traffic of the common case.
+    expect(chunk).toContain("const firstResult = await fetchPage(0, pageSize - 1);");
+    expect(chunk).toContain("await Promise.all(");
+    // The end-of-data signal must remain a short page, never an assumed row
+    // count — a cap-keyed loop is what silently truncated the dashboard before.
+    expect(chunk).toContain("if (page.length < pageSize)");
+    expect(chunk).not.toMatch(/page\.length\s*<\s*\d+/);
+  });
+
   it("scopes workbook reads to the active office session and visible receipts", () => {
     const dashboardData = readRepoFile("lib/dashboard/data.ts");
     const officeData = readRepoFile("lib/office/data.ts");
