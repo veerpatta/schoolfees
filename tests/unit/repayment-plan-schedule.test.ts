@@ -351,3 +351,54 @@ describe("migration guards", () => {
     expect(current).toContain("drop table if exists _waivable");
   });
 });
+
+describe("EMI late-fee release", () => {
+  /**
+   * Policy reversal from the original spec, which said "interest-free, with no
+   * new EMI penalty". A plan now DEFERS late fees rather than forgiving them:
+   * each missed monthly EMI releases one previously-waived late fee.
+   *
+   * Two defects the first cut had, both pinned here because neither is visible
+   * without real fixtures:
+   *  - it released waivers on installments not yet past their own due date,
+   *    arming a charge months ahead for a month the family may have caught up
+   *  - it "used up" a release on an installment a grandfather waiver already
+   *    covered, charging nobody
+   */
+  function currentSyncDefinition() {
+    const dir = join(process.cwd(), "supabase/migrations");
+    const defining = readdirSync(dir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
+      .filter((file) =>
+        readFileSync(join(dir, file), "utf8").includes(
+          "function public.sync_repayment_plan_late_fees",
+        ),
+      );
+
+    expect(defining.length).toBeGreaterThan(0);
+    return readFileSync(join(dir, defining[defining.length - 1]), "utf8");
+  }
+
+  it("only releases on installments already past their due date", () => {
+    expect(currentSyncDefinition()).toContain(
+      "inst.due_date < (now() at time zone 'Asia/Kolkata')::date",
+    );
+  });
+
+  it("skips installments another waiver already covers", () => {
+    const sql = currentSyncDefinition();
+    expect(sql).toContain("other.source <> 'repayment_plan'");
+    expect(sql).toContain("coalesce(inst.late_fee_flat_amount, 0) > 0");
+  });
+
+  it("charges only the shortfall, so re-running releases nothing more", () => {
+    expect(currentSyncDefinition()).toContain("greatest(v_missed - v_already, 0)");
+  });
+
+  it("requires the plan permission unless it is the nightly job", () => {
+    const sql = currentSyncDefinition();
+    expect(sql).toContain("fees:repayment_plan");
+    expect(sql).toContain("service_role");
+  });
+});
