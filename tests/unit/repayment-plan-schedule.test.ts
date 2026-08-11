@@ -319,4 +319,35 @@ describe("migration guards", () => {
     expect(executable).not.toMatch(/v_errors\s*:=\s*v_errors\s*\|\|/);
     expect(executable).toContain("array_append(v_errors");
   });
+
+  /**
+   * The Payment Desk waives late fees through waive_late_fee BEFORE posting,
+   * with p_quick_late_fee_waiver_amount = 0 -- so the guard inside
+   * post_student_payment_with_adjustments never sees it. Smoke testing found
+   * only the hidden UI control standing between a cashier and forgiving a fee
+   * on a family with an agreed plan. Pin the server-side guard.
+   */
+  it("guards waive_late_fee against waiving on an active EMI plan", () => {
+    const dir = join(process.cwd(), "supabase/migrations");
+    const defining = readdirSync(dir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
+      .filter((file) =>
+        readFileSync(join(dir, file), "utf8").includes(
+          "create or replace function public.waive_late_fee",
+        ),
+      );
+
+    expect(defining.length).toBeGreaterThan(0);
+
+    const current = readFileSync(join(dir, defining[defining.length - 1]), "utf8");
+
+    expect(current).toContain("is on an EMI plan");
+    // Admins must keep the escape hatch: an old-balance-only plan leaves
+    // current-year installments uncovered and those can still need a waiver.
+    expect(current).toContain("fees:repayment_plan");
+    // ON COMMIT DROP only fires at commit, so a second call in the same
+    // transaction collides without this.
+    expect(current).toContain("drop table if exists _waivable");
+  });
 });
