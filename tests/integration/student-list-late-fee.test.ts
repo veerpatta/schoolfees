@@ -65,6 +65,8 @@ function makeClient(resultsByTable: Record<string, TableResult>) {
     // Every student-list load reads this to decide the "Late fee waived" badge.
     // Not what these tests are about; a test that cares overrides it.
     v_student_manual_late_fee_waivers: { data: [], error: null },
+    // Same for the EMI badge: no plans in these fixtures.
+    v_student_repayment_plan_status: { data: [], error: null },
     ...resultsByTable,
   };
 

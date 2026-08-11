@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { EmiPlanBadge } from "@/components/students/emi-plan-badge";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -1101,7 +1102,11 @@ function SelectedStudentPanel({
             ranking input; "41 days" is the number a clerk can say out loud on
             the call. Heat still orders the queue, it just stopped being the
             thing on screen. */}
-        <DaysOverdueChip days={row.daysOverdue} />
+        <div className="flex flex-col items-end gap-1">
+          <DaysOverdueChip days={row.daysOverdue} />
+          {/* Says why an installment months past its date is not a default. */}
+          {row.emiPlan ? <EmiPlanBadge plan={row.emiPlan} showAmount /> : null}
+        </div>
       </div>
 
       <div className="mt-4 rounded-lg border border-warning-soft-foreground/20 bg-warning-soft/70 p-3">

@@ -1,3 +1,4 @@
+import type { StudentEmiPlanBadge } from "@/lib/students/types";
 import type {
   StudentClassOption,
   StudentRouteOption,
@@ -56,6 +57,12 @@ export type DefaulterSummaryRow = {
   lastPaymentDate: string | null;
   followUpStatus: "overdue" | "pending";
   daysOverdue: number;
+  /**
+   * Active EMI plan, when the student has one. Days-overdue above is already
+   * scored against the EMI calendar for the dues the plan covers; this is what
+   * lets the row SAY so, instead of looking like an unexplained soft number.
+   */
+  emiPlan?: StudentEmiPlanBadge | null;
   defaulterScore: number;
   /** 0–100 heat score (money + age + promise + responsiveness + freshness). */
   heat: number;

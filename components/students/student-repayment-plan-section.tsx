@@ -172,6 +172,9 @@ function ActivationForm({
   const [firstDueDate, setFirstDueDate] = useState("");
   const [reason, setReason] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
+  // Sparse by design: index -> overridden date. Untouched rows keep the
+  // generated monthly date, so moving one EMI does not restate the others.
+  const [customDates, setCustomDates] = useState<Record<number, string>>({});
 
   const selected = useMemo(
     () => scopeOptions.find((option) => option.scope === scope) ?? null,
@@ -188,7 +191,12 @@ function ActivationForm({
 
     const termMonths = calculateRepaymentTermMonths(openingBalance, monthlyAmount);
     const schedule = firstDueDate
-      ? buildRepaymentSchedule({ openingBalance, monthlyAmount, firstDueDate })
+      ? buildRepaymentSchedule({
+          openingBalance,
+          monthlyAmount,
+          firstDueDate,
+          customDueDates: Array.from({ length: termMonths }, (_u, i) => customDates[i]),
+        })
       : [];
 
     return {
@@ -198,7 +206,7 @@ function ActivationForm({
       finalAmount: schedule.length ? schedule[schedule.length - 1].amount : null,
       exceedsCap: termMonths > REPAYMENT_PLAN_MAX_TERM_MONTHS,
     };
-  }, [firstDueDate, monthlyAmount, openingBalance]);
+  }, [customDates, firstDueDate, monthlyAmount, openingBalance]);
 
   const validation = validateRepaymentPlanDraft({
     openingBalance,
@@ -206,6 +214,7 @@ function ActivationForm({
     firstDueDate,
     reason,
     acknowledged,
+    customDueDates: derived?.schedule.map((row) => row.dueDate),
   });
 
   const nothingToConvert = scopeOptions.every((option) => option.openingBalance <= 0);
@@ -328,7 +337,7 @@ function ActivationForm({
               {derived.termMonths} monthly instalment{derived.termMonths === 1 ? "" : "s"}, ending{" "}
               {formatDate(derived.endDate)}. The last EMI is {formatInr(derived.finalAmount)}.
             </p>
-            <div className="max-h-56 overflow-y-auto rounded-lg border">
+            <div className="max-h-64 overflow-y-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-surface-2 text-left">
                   <tr>
@@ -338,10 +347,27 @@ function ActivationForm({
                   </tr>
                 </thead>
                 <tbody>
-                  {derived.schedule.map((row) => (
+                  {derived.schedule.map((row, index) => (
                     <tr key={row.sequenceNo} className="border-t">
                       <td className="px-3 py-1.5 tabular-nums">{row.sequenceNo}</td>
-                      <td className="px-3 py-1.5">{formatDate(row.dueDate)}</td>
+                      <td className="px-2 py-1">
+                        {/* Each date is editable: real arrangements bend around
+                            a harvest or a salary date, and the schedule on file
+                            has to be the one the office actually agreed. */}
+                        <Input
+                          type="date"
+                          aria-label={`Due date for EMI ${row.sequenceNo}`}
+                          className="h-8"
+                          name="dueDate"
+                          value={row.dueDate}
+                          onChange={(event) =>
+                            setCustomDates((current) => ({
+                              ...current,
+                              [index]: event.target.value,
+                            }))
+                          }
+                        />
+                      </td>
                       <td className="px-3 py-1.5 text-right tabular-nums">
                         {formatInr(row.amount)}
                       </td>
@@ -350,6 +376,15 @@ function ActivationForm({
                 </tbody>
               </table>
             </div>
+            {Object.keys(customDates).length > 0 ? (
+              <button
+                type="button"
+                className="text-[12px] font-semibold underline underline-offset-4"
+                onClick={() => setCustomDates({})}
+              >
+                Reset to monthly dates
+              </button>
+            ) : null}
           </div>
         ) : null}
 

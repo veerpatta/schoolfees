@@ -13,6 +13,7 @@ import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import type { StudentListItem } from "@/lib/students/types";
 import { isYearCleared } from "@/lib/fees/year-clear";
+import { EmiPlanBadge } from "@/components/students/emi-plan-badge";
 import { cn } from "@/lib/utils";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
@@ -122,6 +123,25 @@ function OutstandingCell({ student, t }: { student: StudentListItem; t: Students
   // overdue installment always carries its fee, that state is common enough to
   // name.
   const isLateFeeOnly = !isOverdue && effectiveLateFee > 0;
+
+  // An EMI plan replaces the due-date calendar for the dues it covers, so the
+  // ordinary Overdue / Pending chip would be actively misleading here: the
+  // installments ARE months old, and that is the agreement, not a default.
+  if (student.emiPlan) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <span
+          className={cn(
+            "font-mono text-sm font-bold",
+            student.emiPlan.paymentStatus === "behind" ? "text-destructive" : "text-warning",
+          )}
+        >
+          {formatInr(student.outstandingAmount)}
+        </span>
+        <EmiPlanBadge plan={student.emiPlan} showAmount />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-end gap-1">

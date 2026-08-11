@@ -32,6 +32,7 @@ import type {
   StudentSessionOption,
   StudentSiblingPill,
   StudentDeletionSafety,
+  StudentEmiPlanBadge,
   StudentValidatedInput,
 } from "@/lib/students/types";
 
@@ -641,6 +642,7 @@ async function getStudentsPageUncached(
   let conventionalDiscountMap = new Map<string, string[]>();
   let siblingPillMap = new Map<string, StudentSiblingPill>();
   let manualWaiverStudentIds = new Set<string>();
+  let emiPlanByStudent = new Map<string, StudentEmiPlanBadge>();
 
   if (studentRows.length > 0) {
     const studentIds = studentRows.map((row) => row.id);
@@ -651,6 +653,7 @@ async function getStudentsPageUncached(
       conventionalAssignments,
       loadedSiblingPills,
       { data: manualWaiversRaw },
+      { data: emiPlansRaw },
     ] = await Promise.all([
       supabase
         .from("v_workbook_student_financials")
@@ -695,10 +698,34 @@ async function getStudentsPageUncached(
         .select("student_id")
         .eq("session_label", listSessionLabel)
         .in("student_id", studentIds),
+      // Active EMI plans, so a row can say why a months-old due date is not
+      // being chased.
+      supabase
+        .from("v_student_repayment_plan_status")
+        .select(
+          "student_id, payment_status, monthly_amount, remaining_balance, catch_up_amount, next_due_date, missed_installment_count, plan_review_needed",
+        )
+        .eq("lifecycle", "active")
+        .in("student_id", studentIds),
     ]);
 
     manualWaiverStudentIds = new Set(
       ((manualWaiversRaw ?? []) as Array<{ student_id: string }>).map((row) => row.student_id),
+    );
+
+    emiPlanByStudent = new Map(
+      ((emiPlansRaw ?? []) as Array<Record<string, unknown>>).map((row) => [
+        String(row.student_id),
+        {
+          paymentStatus: (row.payment_status ?? "on_track") as StudentEmiPlanBadge["paymentStatus"],
+          monthlyAmount: Number(row.monthly_amount ?? 0),
+          remainingBalance: Number(row.remaining_balance ?? 0),
+          catchUpAmount: Number(row.catch_up_amount ?? 0),
+          nextDueDate: (row.next_due_date as string | null) ?? null,
+          missedInstallmentCount: Number(row.missed_installment_count ?? 0),
+          planReviewNeeded: row.plan_review_needed === true,
+        } satisfies StudentEmiPlanBadge,
+      ]),
     );
 
     if (financialsError) {
@@ -861,6 +888,7 @@ async function getStudentsPageUncached(
       // "candidate" amount on top would double-count a waived charge.
       pendingLateFeeAmount: pendingLateFeeMap.get(row.id) ?? 0,
       hasLateFeeWaiver: manualWaiverStudentIds.has(row.id),
+      emiPlan: emiPlanByStudent.get(row.id) ?? null,
       fatherPhone: row.primary_phone,
       motherPhone: row.secondary_phone,
       nextDueLabel: financial?.next_due_label ?? null,

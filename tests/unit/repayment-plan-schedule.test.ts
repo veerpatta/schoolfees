@@ -211,3 +211,71 @@ describe("buildScheduleRows", () => {
     expect(rows[0].status).toBe("paid_on_time");
   });
 });
+
+describe("custom per-instalment due dates", () => {
+  const base = { openingBalance: 10000, monthlyAmount: 3000, firstDueDate: "2026-01-31" };
+
+  it("overrides only the rows given and generates the rest", () => {
+    const rows = buildRepaymentSchedule({
+      ...base,
+      // Move EMI 2 to a harvest date; leave 1, 3 and 4 alone.
+      customDueDates: [undefined, "2026-03-05", undefined, undefined],
+    });
+
+    expect(rows.map((row) => row.dueDate)).toEqual([
+      "2026-01-31",
+      "2026-03-05",
+      "2026-03-31",
+      "2026-04-30",
+    ]);
+  });
+
+  it("leaves the amounts alone — only dates are overridable", () => {
+    const rows = buildRepaymentSchedule({
+      ...base,
+      customDueDates: ["2026-02-01", "2026-05-01", "2026-09-01", "2027-01-01"],
+    });
+
+    expect(rows.map((row) => row.amount)).toEqual([3000, 3000, 3000, 1000]);
+    expect(rows.reduce((sum, row) => sum + row.amount, 0)).toBe(base.openingBalance);
+  });
+
+  it("refuses a date that does not move forward", () => {
+    // Mirrors student_repayment_schedule_dates_ascend in the migration.
+    const result = validateRepaymentPlanDraft({
+      ...base,
+      reason: "Custom dates around the harvest",
+      acknowledged: true,
+      customDueDates: ["2026-01-31", "2026-01-15", "2026-03-31", "2026-04-30"],
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toContain("EMI 2 is dated on or before EMI 1");
+  });
+
+  it("refuses two instalments on the same day", () => {
+    const result = validateRepaymentPlanDraft({
+      ...base,
+      reason: "Same day twice",
+      acknowledged: true,
+      customDueDates: ["2026-01-31", "2026-01-31", "2026-03-31", "2026-04-30"],
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("accepts a genuinely irregular but forward-moving calendar", () => {
+    const result = validateRepaymentPlanDraft({
+      ...base,
+      reason: "Harvest in November, wedding in February",
+      acknowledged: true,
+      customDueDates: ["2026-02-10", "2026-06-01", "2026-11-05", "2027-02-28"],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.endDate).toBe("2027-02-28");
+    expect(result.finalInstallmentAmount).toBe(1000);
+  });
+});

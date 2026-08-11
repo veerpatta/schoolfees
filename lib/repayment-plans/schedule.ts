@@ -67,6 +67,12 @@ export function buildRepaymentSchedule(payload: {
   openingBalance: number;
   monthlyAmount: number;
   firstDueDate: string;
+  /**
+   * One date per instalment, overriding the generated monthly calendar. Short
+   * or sparse arrays fall back per row, so the admin can move one date without
+   * restating the rest.
+   */
+  customDueDates?: ReadonlyArray<string | null | undefined>;
 }): RepaymentScheduleItem[] {
   const termMonths = calculateRepaymentTermMonths(
     payload.openingBalance,
@@ -79,7 +85,8 @@ export function buildRepaymentSchedule(payload: {
 
   return Array.from({ length: termMonths }, (_unused, index) => ({
     sequenceNo: index + 1,
-    dueDate: addMonthsClamped(payload.firstDueDate, index),
+    dueDate:
+      payload.customDueDates?.[index] || addMonthsClamped(payload.firstDueDate, index),
     amount:
       index < termMonths - 1
         ? payload.monthlyAmount
@@ -122,6 +129,7 @@ export function validateRepaymentPlanDraft(payload: {
   firstDueDate: string;
   reason: string;
   acknowledged: boolean;
+  customDueDates?: ReadonlyArray<string | null | undefined>;
 }): RepaymentPlanDraftValidation {
   if (!Number.isInteger(payload.openingBalance) || payload.openingBalance <= 0) {
     return { ok: false, message: "This student has no unpaid dues in the selected scope." };
@@ -159,6 +167,18 @@ export function validateRepaymentPlanDraft(payload: {
   }
 
   const schedule = buildRepaymentSchedule(payload);
+
+  // Mirrors the student_repayment_schedule_dates_ascend trigger. Caught here so
+  // the admin is told before submitting, not after.
+  for (let index = 1; index < schedule.length; index += 1) {
+    if (schedule[index].dueDate <= schedule[index - 1].dueDate) {
+      return {
+        ok: false,
+        message: `EMI ${index + 1} is dated on or before EMI ${index}. Each due date must be later than the one before it.`,
+      };
+    }
+  }
+
   const finalRow = schedule[schedule.length - 1];
 
   return {

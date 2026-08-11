@@ -1,3 +1,4 @@
+import type { RepaymentPlanPaymentStatus } from "@/lib/repayment-plans/types";
 import type { SegmentId } from "@/lib/segments/student-segments";
 import type { StudentStatus } from "@/lib/db/types";
 import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
@@ -58,6 +59,12 @@ export type StudentListItem = {
   overdueAmount: number;
   pendingLateFeeAmount: number;
   hasLateFeeWaiver: boolean;
+  /**
+   * Set when the student is on an ACTIVE monthly EMI plan. Present so the list
+   * can label them: without it the office sees a family months past their
+   * installment dates and no reason why nobody is chasing them.
+   */
+  emiPlan?: StudentEmiPlanBadge | null;
   hasFeeProfile: boolean;
   feeProfileStatusLabel: string;
   fatherPhone: string | null;
@@ -81,6 +88,17 @@ export type StudentListItem = {
   photoPath?: string | null;
   /** True during the identity-first response before fee enrichment arrives. */
   financialLoading?: boolean;
+};
+
+/** Just enough of an EMI plan to label a row without loading the whole plan. */
+export type StudentEmiPlanBadge = {
+  paymentStatus: RepaymentPlanPaymentStatus;
+  monthlyAmount: number;
+  remainingBalance: number;
+  catchUpAmount: number;
+  nextDueDate: string | null;
+  missedInstallmentCount: number;
+  planReviewNeeded: boolean;
 };
 
 /** Always a confirmed family — there is no detected/suspected variety any more. */

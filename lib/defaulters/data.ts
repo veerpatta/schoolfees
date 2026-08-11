@@ -424,6 +424,17 @@ export async function getDefaultersPageData(
       });
       const daysOverdue = planAware.daysOverdue;
       const overdueAmount = planAware.overdueAmount;
+      const emiPlan = coverage
+        ? {
+            paymentStatus: coverage.summary.paymentStatus,
+            monthlyAmount: coverage.summary.monthlyAmount,
+            remainingBalance: coverage.summary.remainingBalance,
+            catchUpAmount: coverage.summary.catchUpAmount,
+            nextDueDate: coverage.summary.nextDueDate,
+            missedInstallmentCount: coverage.summary.missedInstallmentCount,
+            planReviewNeeded: coverage.summary.planReviewNeeded,
+          }
+        : null;
       const defaulterScore = row.outstandingAmount + overdueAmount + daysOverdue * 100;
       const summary = contactSummaries.get(row.studentId) ?? null;
       const heat = heatScore({
@@ -474,6 +485,7 @@ export async function getDefaultersPageData(
         lastPaymentDate,
         followUpStatus: overdueAmount > 0 ? "overdue" : "pending",
         daysOverdue,
+        emiPlan,
         defaulterScore,
         heat,
         rank: 0,

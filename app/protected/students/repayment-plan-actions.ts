@@ -26,6 +26,21 @@ function readText(formData: FormData, key: string) {
   return (formData.get(key) ?? "").toString().trim();
 }
 
+/**
+ * One `dueDate` field per instalment, in row order. Empty entries mean "use the
+ * generated date", and an all-empty list means the admin never touched them —
+ * send null so the database generates the whole calendar.
+ */
+function readDueDates(formData: FormData) {
+  const raw = formData.getAll("dueDate").map((value) => value.toString().trim());
+
+  if (raw.length === 0 || raw.every((value) => !value)) {
+    return null;
+  }
+
+  return raw;
+}
+
 function readInteger(formData: FormData, key: string) {
   const raw = readText(formData, key);
 
@@ -141,6 +156,7 @@ export async function activateRepaymentPlanAction(
       p_expected_opening_balance: expectedOpeningBalance,
       p_client_request_id: clientRequestId || null,
       p_supersedes_plan_id: null,
+      p_due_dates: readDueDates(formData),
     });
 
     if (error) {
@@ -219,6 +235,7 @@ export async function rescheduleRepaymentPlanAction(
       p_reason: reason,
       p_expected_remaining_balance: expectedRemainingBalance,
       p_client_request_id: null,
+      p_due_dates: readDueDates(formData),
     });
 
     if (error) {
