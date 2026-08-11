@@ -13,6 +13,7 @@ It is designed for the internal VPPS office workflow:
 - daily recovery plan draft
 - daily recovery digest for the morning follow-up task
 - student due lookup
+- exact student receipt, allocation, adjustment, refund, and repayment-plan history
 - class-wise due summary
 - whole-app AI analysis context matching the Excel export bundle
 - recent receipts
@@ -80,7 +81,9 @@ student due amounts, defaulter lists, recent payments, class summaries, and
 follow-up drafts. Do not guess fee amounts from memory. Always fetch live data
 before answering fee collection questions. Use get_ai_analysis_context when
 asked for full-app analysis, operational summaries, or the AI Excel export
-context. For recovery work, prefer daily_recovery_digest for the morning run,
+context. Use get_student_financial_history for exact receipt amounts, allocation
+history, corrections, refunds, or repayment-plan standing. For recovery work,
+prefer daily_recovery_digest for the morning run,
 and use get_recovery_queue, get_promise_due_list, get_parent_followup_context,
 draft_recovery_plan, and prepare_followup_messages for follow-up questions.
 Notion is read-only reference only; do not treat Notion as the source for
@@ -111,6 +114,7 @@ All tools still accept an explicit `sessionLabel`, including `2026-27`,
 today_fee_collection_brief
 list_defaulters_for_followup
 get_student_due_status
+get_student_financial_history
 get_class_due_summary
 get_ai_analysis_context
 get_recent_payments
@@ -126,6 +130,13 @@ Every tool is read-only. The draft-message tools include UPI intent link text
 for office convenience, but they do not send WhatsApp messages and do not post
 payments. Payment posting remains only in the Schoolfees Payment Desk after
 office verification.
+
+The MCP mirrors the webapp's money buckets: `never_paid`, `partly_paid`, and
+`year_clear` are derived from prepared charges, cash paid, discount close-outs,
+and current outstanding money rather than the timing-oriented status label.
+Students charged a custom transport amount are labelled as custom transport
+even when no route is assigned. Repayment-plan standing is returned when the
+read model is deployed and degrades explicitly to unavailable before then.
 
 ## Optional Bearer Token
 

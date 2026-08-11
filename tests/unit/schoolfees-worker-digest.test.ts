@@ -55,14 +55,19 @@ function installSupabaseMock() {
     transport_route_code: null,
     student_status_label: "Old",
     tuition_fee: 10000,
-    transport_fee: 0,
+    transport_fee: 14000,
     academic_fee: 500,
+    gross_base_before_discount: 24500,
     discount_amount: 0,
     late_fee_total: 0,
     late_fee_waiver_amount: 0,
-    total_due: 10500,
+    total_due: 24500,
     total_paid: 2500,
-    outstanding_amount: 8000,
+    total_discount_closeouts: 0,
+    outstanding_amount: 22000,
+    base_charge_total: 24500,
+    base_outstanding_amount: 22000,
+    late_fee_outstanding_amount: 0,
     next_due_date: "2026-07-20",
     next_due_amount: 8000,
     next_due_label: "Installment 2",
@@ -108,7 +113,65 @@ function installSupabaseMock() {
       ]);
     }
     if (table === "receipts") {
+      return okJson([
+        {
+          id: "receipt-1",
+          receipt_number: "SVP-0001",
+          payment_date: "2026-04-20",
+          created_at: "2026-04-20T04:30:00.000Z",
+          payment_mode: "UPI",
+          total_amount: 2500,
+          reference_number: "UTR-1",
+          notes: null,
+          received_by: "Accounts",
+          student_id: "student-1",
+          student_ref: {
+            id: "student-1",
+            full_name: "Test Student",
+            admission_no: "ADM1234",
+            father_name: "Test Father",
+            primary_phone: "9000000001",
+          },
+        },
+      ]);
+    }
+    if (table === "payments") {
+      return okJson([
+        {
+          id: "payment-1",
+          receipt_id: "receipt-1",
+          installment_id: "installment-1",
+          amount: 2500,
+          notes: null,
+          created_at: "2026-04-20T04:30:00.000Z",
+          discount_applied_at_posting: 0,
+          waiver_applied_at_posting: 0,
+          pending_before_posting: 5000,
+          pending_after_posting: 2500,
+        },
+      ]);
+    }
+    if (table === "payment_adjustments" || table === "refund_requests") {
       return okJson([]);
+    }
+    if (table === "v_workbook_installment_balances") {
+      return okJson([
+        {
+          installment_id: "installment-1",
+          student_id: "student-1",
+          installment_no: 1,
+          installment_label: "Installment 1",
+          due_date: "2026-04-20",
+          base_charge: 5000,
+          paid_amount: 2500,
+          adjustment_amount: 0,
+          final_late_fee: 0,
+          total_charge: 5000,
+          pending_amount: 2500,
+          balance_status: "partial",
+          last_payment_date: "2026-04-20",
+        },
+      ]);
     }
 
     return okJson([]);
@@ -137,6 +200,9 @@ describe("schoolfees Worker MCP tools", () => {
     const aiContextTool = body.result.tools.find(
       (item: { name: string }) => item.name === "get_ai_analysis_context",
     );
+    const financialHistoryTool = body.result.tools.find(
+      (item: { name: string }) => item.name === "get_student_financial_history",
+    );
 
     expect(dailyDigestTool).toBeTruthy();
     expect(dailyDigestTool.annotations.readOnlyHint).toBe(true);
@@ -144,6 +210,9 @@ describe("schoolfees Worker MCP tools", () => {
     expect(aiContextTool).toBeTruthy();
     expect(aiContextTool.annotations.readOnlyHint).toBe(true);
     expect(aiContextTool.annotations.destructiveHint).toBe(false);
+    expect(financialHistoryTool).toBeTruthy();
+    expect(financialHistoryTool.annotations.readOnlyHint).toBe(true);
+    expect(financialHistoryTool.annotations.destructiveHint).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -234,19 +303,72 @@ describe("schoolfees Worker MCP tools", () => {
     });
     expect(context.aiWorkbookExport.sheetCoverage).toEqual(
       expect.arrayContaining([
+        "Payment Allocations",
+        "Fee Overrides",
+        "Late Fee Waivers",
+        "Class Fee Settings",
+        "Siblings",
+        "Student Segments",
         "Recovery Follow-Up",
         "Previous Year Dues",
         "Left Student Recovery",
       ]),
     );
+    expect(context.aiWorkbookExport.sheetCoverage).toHaveLength(20);
     expect(context.summary.studentCount).toBe(1);
+    expect(context.summary.moneySegments).toMatchObject({ partly_paid: 1 });
     expect(context.topOutstandingRows[0]).toMatchObject({
       studentName: "Test Student",
-      outstandingAmount: 8000,
+      outstandingAmount: 22000,
     });
     expect(context.studentRows[0]).toMatchObject({
       admissionNo: "ADM1234",
       studentName: "Test Student",
+      routeLabel: "Custom transport (₹14,000 annual)",
+      moneySegment: "partly_paid",
+    });
+  });
+
+  it("returns exact receipt totals and allocation history without writing", async () => {
+    installSupabaseMock();
+    const { default: worker } = await loadWorker();
+
+    const response = await worker.fetch(
+      mcpRequest({
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "get_student_financial_history",
+          arguments: {
+            sessionLabel: "2026-27",
+            query: "ADM1234",
+            limit: 1,
+            receiptLimit: 10,
+          },
+        },
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const history = body.result.structuredContent;
+
+    expect(history.safety).toMatchObject({
+      readOnly: true,
+      paymentsPosted: false,
+      recordsChanged: false,
+    });
+    expect(history.students[0].receiptHistory[0]).toMatchObject({
+      receiptNumber: "SVP-0001",
+      exactAmountPaid: 2500,
+      cashCollectionAmount: 2500,
+      discountCloseoutReceipt: false,
+    });
+    expect(history.students[0].receiptHistory[0].allocations[0]).toMatchObject({
+      installmentLabel: "Installment 1",
+      amount: 2500,
     });
   });
 });

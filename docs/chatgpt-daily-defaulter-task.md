@@ -34,6 +34,7 @@ list_defaulters_for_followup
 get_student_due_status
 get_class_due_summary
 get_ai_analysis_context
+get_student_financial_history
 get_recent_payments
 prepare_followup_messages
 get_recovery_queue

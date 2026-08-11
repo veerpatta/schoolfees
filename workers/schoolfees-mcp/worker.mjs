@@ -3,6 +3,30 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import * as z from "zod/v4";
 
 const MAX_ROWS = 5000;
+const SERVER_VERSION = "0.4.0";
+
+const AI_WORKBOOK_SHEETS = [
+  "_README",
+  "Students",
+  "Installments",
+  "Payments",
+  "Payment Allocations",
+  "Adjustments",
+  "Refunds",
+  "Classes",
+  "Routes",
+  "Fee Overrides",
+  "Late Fee Waivers",
+  "Class Fee Settings",
+  "Siblings",
+  "Student Segments",
+  "Discounts",
+  "Defaulters",
+  "Recovery Follow-Up",
+  "Previous Year Dues",
+  "Left Student Recovery",
+  "Sessions",
+];
 
 const financialFields = [
   "student_id",
@@ -25,12 +49,17 @@ const financialFields = [
   "tuition_fee",
   "transport_fee",
   "academic_fee",
+  "gross_base_before_discount",
   "discount_amount",
   "late_fee_total",
   "late_fee_waiver_amount",
   "total_due",
   "total_paid",
+  "total_discount_closeouts",
   "outstanding_amount",
+  "base_charge_total",
+  "base_outstanding_amount",
+  "late_fee_outstanding_amount",
   "next_due_date",
   "next_due_amount",
   "next_due_label",
@@ -299,6 +328,9 @@ function includesQuery(row, query) {
 
 function routeLabel(row) {
   if (!row.transport_route_name) {
+    if (number(row.transport_fee) > 0) {
+      return `Custom transport (${money(row.transport_fee)} annual)`;
+    }
     return "No Transport";
   }
 
@@ -307,7 +339,30 @@ function routeLabel(row) {
     : row.transport_route_name;
 }
 
+function moneySegment(row) {
+  const baseChargeTotal = number(row.base_charge_total ?? row.total_due);
+  const totalPaid = number(row.total_paid);
+  const discountCloseoutAmount = number(row.total_discount_closeouts);
+  const outstandingAmount = number(row.outstanding_amount);
+
+  if (totalPaid === 0 && baseChargeTotal > 0) return "never_paid";
+  if (totalPaid > 0 && outstandingAmount > 0) return "partly_paid";
+  if (
+    outstandingAmount <= 0 &&
+    totalPaid + discountCloseoutAmount > 0 &&
+    baseChargeTotal > 0
+  ) {
+    return "year_clear";
+  }
+  return "unclassified";
+}
+
 function mapFinancialRow(row) {
+  const baseChargeTotal = number(row.base_charge_total ?? row.total_due);
+  const totalPaid = number(row.total_paid);
+  const discountCloseoutAmount = number(row.total_discount_closeouts);
+  const outstandingAmount = number(row.outstanding_amount);
+
   return {
     studentId: row.student_id,
     admissionNo: row.admission_no,
@@ -321,9 +376,14 @@ function mapFinancialRow(row) {
     routeLabel: routeLabel(row),
     sessionLabel: row.session_label,
     studentStatus: row.student_status_label,
+    grossBaseBeforeDiscount: number(row.gross_base_before_discount),
+    baseChargeTotal,
     totalDue: number(row.total_due),
-    totalPaid: number(row.total_paid),
-    outstandingAmount: number(row.outstanding_amount),
+    totalPaid,
+    discountCloseoutAmount,
+    outstandingAmount,
+    baseOutstandingAmount: number(row.base_outstanding_amount ?? row.outstanding_amount),
+    lateFeeOutstandingAmount: number(row.late_fee_outstanding_amount),
     lateFeeTotal: number(row.late_fee_total),
     discountAmount: number(row.discount_amount),
     lateFeeWaived: number(row.late_fee_waiver_amount),
@@ -341,6 +401,7 @@ function mapFinancialRow(row) {
       inst4: number(row.inst4_pending),
     },
     statusLabel: row.status_label || "",
+    moneySegment: moneySegment(row),
   };
 }
 
@@ -361,6 +422,7 @@ function summarizeFinancialRows(rows) {
       acc.totalOutstanding += number(row.outstanding_amount);
       acc.totalLateFee += number(row.late_fee_total);
       acc.totalDiscount += number(row.discount_amount);
+      acc.moneySegments[moneySegment(row)] += 1;
       if (number(row.outstanding_amount) > 0) {
         acc.pendingStudentCount += 1;
       }
@@ -378,6 +440,12 @@ function summarizeFinancialRows(rows) {
       totalOutstanding: 0,
       totalLateFee: 0,
       totalDiscount: 0,
+      moneySegments: {
+        never_paid: 0,
+        partly_paid: 0,
+        year_clear: 0,
+        unclassified: 0,
+      },
     },
   );
 }
@@ -651,6 +719,178 @@ async function getRecentPayments(env, { sessionLabel, days = 7, limit = 20 }) {
     });
 }
 
+async function getRepaymentPlanStatus(env, { studentId, sessionLabel }) {
+  try {
+    const rows = await supabaseGet(env, "v_student_repayment_plan_status", {
+      select:
+        "plan_id,student_id,session_label,scope,lifecycle,opening_balance,monthly_amount,first_due_date,term_months,final_installment_amount,waived_late_fee_total,reason,activated_at,remaining_balance,paid_to_date,expected_to_date,catch_up_amount,missed_installment_count,paid_installment_count,next_due_sequence_no,next_due_date,next_due_amount,end_date,payment_status,plan_review_needed",
+      student_id: `eq.${studentId}`,
+      session_label: `eq.${sessionLabel}`,
+      lifecycle: "eq.active",
+      limit: 1,
+    });
+    const row = rows[0] || null;
+    return {
+      available: true,
+      plan: row
+        ? {
+            planId: row.plan_id,
+            scope: row.scope,
+            lifecycle: row.lifecycle,
+            openingBalance: number(row.opening_balance),
+            monthlyAmount: number(row.monthly_amount),
+            firstDueDate: row.first_due_date,
+            termMonths: number(row.term_months),
+            finalInstallmentAmount: number(row.final_installment_amount),
+            waivedLateFeeTotal: number(row.waived_late_fee_total),
+            reason: row.reason,
+            activatedAt: row.activated_at,
+            remainingBalance: number(row.remaining_balance),
+            paidToDate: number(row.paid_to_date),
+            expectedToDate: number(row.expected_to_date),
+            catchUpAmount: number(row.catch_up_amount),
+            missedInstallmentCount: number(row.missed_installment_count),
+            paidInstallmentCount: number(row.paid_installment_count),
+            nextDueSequenceNo:
+              row.next_due_sequence_no == null ? null : number(row.next_due_sequence_no),
+            nextDueDate: row.next_due_date,
+            nextDueAmount: row.next_due_amount == null ? null : number(row.next_due_amount),
+            endDate: row.end_date,
+            paymentStatus: row.payment_status,
+            planReviewNeeded: Boolean(row.plan_review_needed),
+          }
+        : null,
+    };
+  } catch (error) {
+    const message = String(error?.message || error);
+    if (/v_student_repayment_plan_status|PGRST205|42P01|404/i.test(message)) {
+      return {
+        available: false,
+        plan: null,
+        note: "Repayment-plan status will appear after its read model is deployed.",
+      };
+    }
+    throw error;
+  }
+}
+
+async function getStudentFinancialHistory(env, { studentId, sessionLabel, receiptLimit = 25 }) {
+  const [receipts, payments, adjustments, refunds, installments, repaymentPlan] = await Promise.all([
+    supabaseGet(env, "receipts", {
+      select:
+        "id,receipt_number,payment_date,created_at,payment_mode,total_amount,reference_number,notes,received_by",
+      student_id: `eq.${studentId}`,
+      order: "payment_date.desc,created_at.desc",
+      limit: receiptLimit,
+    }),
+    supabaseGet(env, "payments", {
+      select:
+        "id,receipt_id,installment_id,amount,notes,created_at,discount_applied_at_posting,waiver_applied_at_posting,pending_before_posting,pending_after_posting",
+      student_id: `eq.${studentId}`,
+      order: "created_at.asc",
+      limit: MAX_ROWS,
+    }),
+    supabaseGet(env, "payment_adjustments", {
+      select:
+        "id,payment_id,installment_id,adjustment_type,amount_delta,reason,notes,created_at",
+      student_id: `eq.${studentId}`,
+      order: "created_at.asc",
+      limit: MAX_ROWS,
+    }),
+    supabaseGet(env, "refund_requests", {
+      select:
+        "id,receipt_id,refund_date,requested_amount,refund_method,refund_reference,reason,notes,status,created_at,approved_at,processed_at",
+      student_id: `eq.${studentId}`,
+      order: "created_at.asc",
+      limit: MAX_ROWS,
+    }),
+    getInstallmentRows(env, studentId),
+    getRepaymentPlanStatus(env, { studentId, sessionLabel }),
+  ]);
+
+  const installmentById = new Map(installments.map((row) => [row.installmentId, row]));
+  const adjustmentsByPaymentId = new Map();
+  for (const row of adjustments) {
+    const bucket = adjustmentsByPaymentId.get(row.payment_id) || [];
+    bucket.push({
+      adjustmentId: row.id,
+      adjustmentType: row.adjustment_type,
+      amountDelta: number(row.amount_delta),
+      reason: row.reason,
+      notes: row.notes,
+      createdAt: row.created_at,
+    });
+    adjustmentsByPaymentId.set(row.payment_id, bucket);
+  }
+
+  const paymentsByReceiptId = new Map();
+  for (const row of payments) {
+    const bucket = paymentsByReceiptId.get(row.receipt_id) || [];
+    const installment = installmentById.get(row.installment_id) || null;
+    bucket.push({
+      paymentId: row.id,
+      installmentId: row.installment_id,
+      installmentLabel: installment?.installmentLabel || null,
+      dueDate: installment?.dueDate || null,
+      amount: number(row.amount),
+      discountAppliedAtPosting: number(row.discount_applied_at_posting),
+      lateFeeWaivedAtPosting: number(row.waiver_applied_at_posting),
+      pendingBeforePosting:
+        row.pending_before_posting == null ? null : number(row.pending_before_posting),
+      pendingAfterPosting:
+        row.pending_after_posting == null ? null : number(row.pending_after_posting),
+      notes: row.notes,
+      adjustments: adjustmentsByPaymentId.get(row.id) || [],
+    });
+    paymentsByReceiptId.set(row.receipt_id, bucket);
+  }
+
+  const refundsByReceiptId = new Map();
+  for (const row of refunds) {
+    const bucket = refundsByReceiptId.get(row.receipt_id) || [];
+    bucket.push({
+      refundId: row.id,
+      refundDate: row.refund_date,
+      requestedAmount: number(row.requested_amount),
+      refundMethod: row.refund_method,
+      refundReference: row.refund_reference,
+      reason: row.reason,
+      notes: row.notes,
+      status: row.status,
+      createdAt: row.created_at,
+      approvedAt: row.approved_at,
+      processedAt: row.processed_at,
+    });
+    refundsByReceiptId.set(row.receipt_id, bucket);
+  }
+
+  const receiptHistory = receipts.map((row) => ({
+    receiptId: row.id,
+    receiptNumber: row.receipt_number,
+    paymentDate: row.payment_date,
+    createdAt: row.created_at,
+    paymentMode: row.payment_mode,
+    exactAmountPaid: number(row.total_amount),
+    cashCollectionAmount: row.payment_mode === "discount" ? 0 : number(row.total_amount),
+    discountCloseoutReceipt: row.payment_mode === "discount",
+    referenceNumber: row.reference_number,
+    receivedBy: row.received_by,
+    notes: row.notes,
+    allocations: paymentsByReceiptId.get(row.id) || [],
+    refunds: refundsByReceiptId.get(row.id) || [],
+  }));
+
+  return {
+    receiptHistory,
+    repaymentPlan,
+    truncation: {
+      receiptLimit,
+      receiptsReturned: receiptHistory.length,
+      receiptHistoryMayBeTruncated: receiptHistory.length === receiptLimit,
+    },
+  };
+}
+
 async function buildCollectionBrief(env, { sessionLabel, topDefaultersLimit = 10, recentPaymentsLimit = 10 }) {
   const [financialRows, recentPayments] = await Promise.all([
     getFinancialRows(env, { sessionLabel }),
@@ -904,22 +1144,7 @@ async function buildAiAnalysisContext(
     },
     aiWorkbookExport: {
       webAppPath: `/protected/exports/ai-context-bundle?session=${encodeURIComponent(sessionLabel)}`,
-      sheetCoverage: [
-        "_README",
-        "Students",
-        "Installments",
-        "Payments",
-        "Adjustments",
-        "Refunds",
-        "Classes",
-        "Routes",
-        "Discounts",
-        "Defaulters",
-        "Recovery Follow-Up",
-        "Previous Year Dues",
-        "Left Student Recovery",
-        "Sessions",
-      ],
+      sheetCoverage: AI_WORKBOOK_SHEETS,
       note: "Use the web app AI context bundle when a file with every row is needed for offline analysis.",
     },
     summary,
@@ -960,7 +1185,7 @@ function toolResult(summary, structuredContent) {
 function createMcpServer(env) {
   const server = new McpServer({
     name: "schoolfees-collection-assistant",
-    version: "0.3.1",
+    version: SERVER_VERSION,
   });
 
   const readOnly = {
@@ -1064,9 +1289,14 @@ function createMcpServer(env) {
       const students = [];
 
       for (const row of matches) {
+        const [installments, repaymentPlan] = await Promise.all([
+          getInstallmentRows(env, row.student_id),
+          getRepaymentPlanStatus(env, { studentId: row.student_id, sessionLabel }),
+        ]);
         students.push({
           ...mapFinancialRow(row),
-          installments: await getInstallmentRows(env, row.student_id),
+          installments,
+          repaymentPlan,
         });
       }
 
@@ -1077,6 +1307,61 @@ function createMcpServer(env) {
         {
           sessionLabel,
           query,
+          students,
+        },
+      );
+    },
+  );
+
+  server.registerTool(
+    "get_student_financial_history",
+    {
+      title: "Get Student Financial History",
+      description:
+        "Use this when the user asks for a student's exact receipt amounts, payment allocation timeline, corrections, refunds, or repayment-plan standing. It is read-only and does not post or change anything.",
+      inputSchema: {
+        sessionLabel: sessionSchema(env),
+        query: z
+          .string()
+          .min(1)
+          .max(80)
+          .describe("Student name, admission number, class label, or parent phone."),
+        limit: limitSchema.default(3),
+        receiptLimit: limitSchema.default(25),
+      },
+      annotations: readOnly,
+    },
+    async ({ sessionLabel, query, limit, receiptLimit }) => {
+      const normalizedQuery = normalizeQuery(query);
+      const financialRows = await getFinancialRows(env, { sessionLabel, onlyActive: false });
+      const matches = financialRows.filter((row) => includesQuery(row, normalizedQuery)).slice(0, limit);
+      const students = [];
+
+      for (const row of matches) {
+        const history = await getStudentFinancialHistory(env, {
+          studentId: row.student_id,
+          sessionLabel,
+          receiptLimit,
+        });
+        students.push({
+          ...mapFinancialRow(row),
+          ...history,
+        });
+      }
+
+      return toolResult(
+        students.length === 0
+          ? `No matching student found for "${query}" in ${sessionLabel}.`
+          : `Loaded exact receipt and financial history for ${students.length} matching student record(s). Nothing was changed.`,
+        {
+          sessionLabel,
+          query,
+          safety: {
+            readOnly: true,
+            paymentsPosted: false,
+            recordsChanged: false,
+            note: "Receipt total is exact. Discount-mode receipts are non-cash close-outs and expose cashCollectionAmount as zero. Adjustments and refunds remain separate append-only history.",
+          },
           students,
         },
       );
@@ -1167,9 +1452,14 @@ function createMcpServer(env) {
 
       const students = [];
       for (const row of matches) {
+        const [installments, repaymentPlan] = await Promise.all([
+          getInstallmentRows(env, row.studentId),
+          getRepaymentPlanStatus(env, { studentId: row.studentId, sessionLabel }),
+        ]);
         students.push({
           ...row,
-          installments: await getInstallmentRows(env, row.studentId),
+          installments,
+          repaymentPlan,
         });
       }
 
@@ -1413,6 +1703,7 @@ const worker = {
       return json({
         ok: true,
         name: "schoolfees-collection-assistant",
+        version: SERVER_VERSION,
         defaultSession: getDefaultSession(env),
         schema: getSupabaseSchema(env),
       });
