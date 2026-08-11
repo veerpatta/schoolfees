@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { buildScheduleRows } from "@/lib/repayment-plans/data";
@@ -277,5 +280,43 @@ describe("custom per-instalment due dates", () => {
     if (!result.ok) return;
     expect(result.endDate).toBe("2027-02-28");
     expect(result.finalInstallmentAmount).toBe(1000);
+  });
+});
+
+describe("migration guards", () => {
+  /**
+   * `v_errors := v_errors || 'a literal'` reads as "append a string" but the
+   * literal is untyped, so Postgres picks array_cat and tries to parse the
+   * sentence as an array. It crashed preview_student_repayment_plan on every
+   * Student Edit load, and the UI reported the failure as "this student has no
+   * unpaid dues" — for every student in the school.
+   *
+   * The branches written with format() and case happened to carry a type, so
+   * lifecycle testing never hit it. This pins the CURRENT definition (the last
+   * migration that redefines the function); earlier migrations keep the history
+   * they actually applied, and replay converges on the fixed version.
+   */
+  it("defines preview_student_repayment_plan without the ambiguous || append", () => {
+    const dir = join(process.cwd(), "supabase/migrations");
+    const defining = readdirSync(dir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
+      .filter((file) =>
+        readFileSync(join(dir, file), "utf8").includes(
+          "create or replace function public.preview_student_repayment_plan",
+        ),
+      );
+
+    expect(defining.length).toBeGreaterThan(0);
+
+    const current = readFileSync(join(dir, defining[defining.length - 1]), "utf8");
+    // Comments quote the bad pattern on purpose, to explain it. Judge the SQL.
+    const executable = current
+      .split(/\r?\n/)
+      .filter((line) => !line.trimStart().startsWith("--"))
+      .join("\n");
+
+    expect(executable).not.toMatch(/v_errors\s*:=\s*v_errors\s*\|\|/);
+    expect(executable).toContain("array_append(v_errors");
   });
 });

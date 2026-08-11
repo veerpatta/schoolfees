@@ -46,6 +46,8 @@ type StudentRepaymentPlanSectionProps = {
   studentId: string;
   sessionLabel: string;
   scopeOptions: RepaymentScopeOption[];
+  /** Messages from previews that failed to load. Never silently empty scopes. */
+  loadErrors?: string[];
   activePlan: RepaymentPlanSummary | null;
   /** False in production until the rollout flag is turned on. */
   creationEnabled: boolean;
@@ -86,6 +88,7 @@ export function StudentRepaymentPlanSection({
   studentId,
   sessionLabel,
   scopeOptions,
+  loadErrors,
   activePlan,
   creationEnabled,
   clientRequestId,
@@ -135,6 +138,7 @@ export function StudentRepaymentPlanSection({
       studentId={studentId}
       sessionLabel={sessionLabel}
       scopeOptions={scopeOptions}
+      loadErrors={loadErrors}
       creationEnabled={creationEnabled}
       clientRequestId={clientRequestId}
       formAction={activateAction}
@@ -149,6 +153,7 @@ function ActivationForm({
   studentId,
   sessionLabel,
   scopeOptions,
+  loadErrors,
   creationEnabled,
   clientRequestId,
   formAction,
@@ -159,6 +164,7 @@ function ActivationForm({
   studentId: string;
   sessionLabel: string;
   scopeOptions: RepaymentScopeOption[];
+  loadErrors?: string[];
   creationEnabled: boolean;
   clientRequestId: string;
   formAction: (payload: FormData) => void;
@@ -216,6 +222,21 @@ function ActivationForm({
     acknowledged,
     customDueDates: derived?.schedule.map((row) => row.dueDate),
   });
+
+  // Order matters: a read that failed must never be reported as a fact about
+  // the student's dues.
+  if (loadErrors && loadErrors.length > 0) {
+    return (
+      <Notice tone="danger" title="Could not read this student's dues">
+        <p>The EMI options cannot be shown until this is resolved.</p>
+        <ul className="mt-2 list-disc space-y-1 pl-4">
+          {loadErrors.map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
+      </Notice>
+    );
+  }
 
   const nothingToConvert = scopeOptions.every((option) => option.openingBalance <= 0);
 

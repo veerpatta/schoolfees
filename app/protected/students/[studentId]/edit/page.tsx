@@ -45,6 +45,11 @@ async function loadRepaymentPlanSection(studentId: string, sessionLabel: string)
     ),
   ]);
 
+  // A failed preview is NOT "this student has nothing to convert" — that
+  // reading turned a broken read into a confident, wrong statement about every
+  // student in the school. Keep the failures and let the section say so.
+  const loadErrors = previews.flatMap((result) => (result.ok ? [] : [result.message]));
+
   const scopeOptions = previews.flatMap<RepaymentScopeOption>((result, index) => {
     if (!result.ok) {
       return [];
@@ -62,7 +67,7 @@ async function loadRepaymentPlanSection(studentId: string, sessionLabel: string)
     ];
   });
 
-  return { activePlan, scopeOptions };
+  return { activePlan, scopeOptions, loadErrors };
 }
 
 type EditStudentPageProps = {
@@ -184,6 +189,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
             studentId={student.id}
             sessionLabel={resolvedSessionLabel}
             scopeOptions={repaymentPlan.scopeOptions}
+            loadErrors={repaymentPlan.loadErrors}
             activePlan={repaymentPlan.activePlan}
             creationEnabled={isRepaymentPlanCreationEnabled()}
             clientRequestId={crypto.randomUUID()}
