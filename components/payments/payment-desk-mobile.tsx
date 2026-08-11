@@ -3264,6 +3264,7 @@ export function PaymentDeskClient({
                       amountReceived={visibleActionState.amountReceived ?? paymentAmount}
                       quickDiscountApplied={visibleActionState.quickDiscountApplied ?? quickDiscountAmount}
                       lateFeeWaivedApplied={visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount}
+                      emiSplit={visibleActionState.emiSplit ?? null}
                       paymentDate={visibleActionState.paymentDate ?? paymentDate}
                       paymentModeLabel={postedPaymentModeLabel}
                       referenceNumber={visibleActionState.referenceNumber ?? referenceNumber}

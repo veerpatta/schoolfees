@@ -27,15 +27,15 @@ function read(path: string) {
 const STATEMENT = read("components/students/master-statement-document.tsx");
 
 describe("master statement: phone cards, desktop and print tables", () => {
-  it("stacks both tables into cards below md, and hides those cards in print", () => {
+  it("stacks every wide table into cards below md, and hides those cards in print", () => {
     const cardShells = STATEMENT.match(/md:hidden print:hidden/g) ?? [];
-    // One for installment-wise dues, one for the payments timeline.
-    expect(cardShells).toHaveLength(2);
+    // Installment-wise dues, the payments timeline, and the EMI schedule.
+    expect(cardShells).toHaveLength(3);
   });
 
-  it("keeps both tables for desktop AND for paper", () => {
+  it("keeps every wide table for desktop AND for paper", () => {
     const tableShells = STATEMENT.match(/hidden md:block print:block/g) ?? [];
-    expect(tableShells).toHaveLength(2);
+    expect(tableShells).toHaveLength(3);
   });
 
   it("never leaves a multi-column table as the only rendering of a section", () => {

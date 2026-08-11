@@ -165,6 +165,12 @@ export default async function StudentDetailPage({
   // Admin-only, and narrower than `fees:write`: only admins may put a family on
   // a repayment calendar or take them off one.
   const canManageRepaymentPlans = hasStaffPermission(staff, "fees:repayment_plan");
+  // Installments an active plan covers. The dues table keeps showing their
+  // canonical figures — the marker only explains WHY a months-old due date is
+  // not being chased, it never hides what is actually owed.
+  const emiCoveredInstallmentIds = new Set(
+    (repaymentPlanDetail?.items ?? []).map((item) => item.installmentId),
+  );
   const canViewLedger = hasStaffPermission(staff, "ledger:view");
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
@@ -531,7 +537,14 @@ export default async function StudentDetailPage({
               {installmentBalances.map((item) => {
                 return (
                 <tr key={item.installmentId} className="even:bg-surface-2/30 hover:bg-surface-2/10 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{getDisplayInstallmentLabel(item)}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">
+                    {getDisplayInstallmentLabel(item)}
+                    {emiCoveredInstallmentIds.has(item.installmentId) ? (
+                      <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-info-soft-foreground">
+                        Covered by EMI plan
+                      </span>
+                    ) : null}
+                  </td>
                   <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(item.dueDate)}</td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums"><Money value={item.baseCharge} size="sm" /></td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums">

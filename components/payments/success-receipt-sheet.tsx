@@ -83,6 +83,8 @@ type SuccessReceiptSheetProps = {
   referenceNumber: string;
   receivedBy: string;
   remainingBalance: number;
+  /** What the database recorded against an active EMI plan, if any. */
+  emiSplit?: { toPlan: number; toOtherDues: number; planBalanceAfter: number } | null;
   creditBalance: number;
   refundableAmount: number;
   whatsappMessage: string;
@@ -113,6 +115,7 @@ export function SuccessReceiptSheet({
   referenceNumber,
   receivedBy,
   remainingBalance,
+  emiSplit,
   creditBalance,
   refundableAmount,
   whatsappMessage,
@@ -322,6 +325,13 @@ export function SuccessReceiptSheet({
               : []),
             ...(lateFeeWaivedApplied > 0
               ? [{ label: "Late fee waived", amount: lateFeeWaivedApplied }]
+              : []),
+            // The split the ledger actually recorded, not the desk's estimate.
+            ...(emiSplit && emiSplit.toPlan > 0
+              ? [{ label: "Towards EMI plan", amount: emiSplit.toPlan }]
+              : []),
+            ...(emiSplit && emiSplit.toOtherDues > 0
+              ? [{ label: "Towards other dues", amount: emiSplit.toOtherDues }]
               : []),
           ]}
           paymentDate={paymentDate}

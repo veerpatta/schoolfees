@@ -26,6 +26,13 @@ export type PaymentEntryActionState = {
   /** Details of the receipt a duplicate warning matched, so the sheet can show
    * "Receipt SVP-NNNN for ₹N (Cash) was saved at HH:MM". Optional so in-flight
    * clients from an older deploy degrade gracefully. */
+  /**
+   * What the receipt actually did to an EMI plan, read back from
+   * student_repayment_receipt_links after posting. Not a prediction — the
+   * database allocates plan installments first and records the result, so this
+   * is the split the ledger will forever agree with.
+   */
+  emiSplit?: { toPlan: number; toOtherDues: number; planBalanceAfter: number } | null;
   existingReceiptCreatedAt?: string | null;
   existingReceiptAmount?: number | null;
   existingReceiptMode?: string | null;

@@ -3,6 +3,11 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/admin/page-header";
 import { MasterStatementDocument } from "@/components/students/master-statement-document";
 import { MasterStatementPrintActions } from "@/components/students/master-statement-print-actions";
+import { partsToIso, todayPartsIst } from "@/lib/helpers/date";
+import {
+  getRepaymentPlanDetail,
+  getRepaymentPlanHistory,
+} from "@/lib/repayment-plans/data";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -17,7 +22,14 @@ export default async function StudentStatementPage({
 }: StudentStatementPageProps) {
   await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedParams = await params;
-  const workspace = await getStudentWorkspaceData(resolvedParams.studentId);
+  const [workspace, repaymentPlan, repaymentPlanHistory] = await Promise.all([
+    getStudentWorkspaceData(resolvedParams.studentId),
+    getRepaymentPlanDetail({
+      studentId: resolvedParams.studentId,
+      today: partsToIso(todayPartsIst()),
+    }).catch(() => null),
+    getRepaymentPlanHistory(resolvedParams.studentId).catch(() => []),
+  ]);
 
   if (!workspace.student || !workspace.financialSnapshot) {
     notFound();
@@ -38,6 +50,8 @@ export default async function StudentStatementPage({
         financialSnapshot={workspace.financialSnapshot}
         installmentBalances={workspace.installmentBalances}
         receipts={workspace.receipts}
+        repaymentPlan={repaymentPlan}
+        repaymentPlanHistory={repaymentPlanHistory}
       />
     </div>
   );

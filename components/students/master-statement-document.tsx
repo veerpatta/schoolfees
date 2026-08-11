@@ -5,6 +5,7 @@ import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import type { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { isYearCleared } from "@/lib/fees/year-clear";
+import type { RepaymentPlanDetail, RepaymentPlanSummary } from "@/lib/repayment-plans/types";
 
 type StudentWorkspace = Awaited<ReturnType<typeof getStudentWorkspaceData>>;
 
@@ -13,8 +14,15 @@ export function MasterStatementDocument({
   financialSnapshot,
   installmentBalances,
   receipts = [],
+  repaymentPlan = null,
+  repaymentPlanHistory = [],
 }: Pick<StudentWorkspace, "student" | "financialSnapshot" | "installmentBalances"> &
-  Partial<Pick<StudentWorkspace, "receipts">>) {
+  Partial<Pick<StudentWorkspace, "receipts">> & {
+    /** Active plan with its priced schedule, when the student is on one. */
+    repaymentPlan?: RepaymentPlanDetail | null;
+    /** Every plan ever agreed, newest first — the audit trail a parent can ask about. */
+    repaymentPlanHistory?: RepaymentPlanSummary[];
+  }) {
   if (!student || !financialSnapshot) {
     return null;
   }
@@ -271,6 +279,109 @@ export function MasterStatementDocument({
         it. Reversed receipts stay on the page — the register is append-only, and
         a receipt that vanished would be more alarming than one marked void.
       */}
+      {/*
+        EMI sits in its own block rather than as extra rows inside the receipt
+        register below. The register is append-only and its chronology is what
+        a parent reconciles against a receipt in their hand; interleaving
+        agreement events into it would make the amounts harder to check, not
+        easier. Same page, separate story.
+      */}
+      {repaymentPlan || repaymentPlanHistory.length > 0 ? (
+        <section className="mt-6 border-t border-border-strong pt-4">
+          <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+            Monthly EMI plan
+          </p>
+          {repaymentPlan ? (
+            <>
+              <p className="text-sm text-foreground">
+                {formatInr(repaymentPlan.summary.monthlyAmount)} a month over{" "}
+                {repaymentPlan.summary.termMonths} instalment
+                {repaymentPlan.summary.termMonths === 1 ? "" : "s"}, agreed on{" "}
+                {formatShortDate(repaymentPlan.summary.activatedAt.slice(0, 10))}
+                {repaymentPlan.summary.activatedByLabel
+                  ? ` by ${repaymentPlan.summary.activatedByLabel}`
+                  : ""}
+                . {formatInr(repaymentPlan.summary.paidToDate)} of{" "}
+                {formatInr(repaymentPlan.summary.openingBalance)} cleared.
+              </p>
+              {repaymentPlan.summary.waivedLateFeeTotal > 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatInr(repaymentPlan.summary.waivedLateFeeTotal)} of late fees was
+                  permanently waived when this plan started.
+                </p>
+              ) : null}
+              {/* Four columns cannot survive 375px, so the phone gets stacked
+                  cards and the table is kept for desktop and for paper. */}
+              <div className="mt-3 divide-y divide-border rounded-md border border-border-strong md:hidden print:hidden">
+                {repaymentPlan.schedule.map((row) => (
+                  <div key={row.sequenceNo} className="flex items-baseline justify-between gap-3 px-3 py-2">
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold text-foreground">
+                        EMI {row.sequenceNo}
+                      </span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {formatShortDate(row.dueDate)}
+                      </span>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <span className="text-sm font-semibold tabular-nums">
+                        {formatInr(row.amount)}
+                      </span>
+                      <span className="block text-[11px] capitalize text-muted-foreground">
+                        {row.status.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 hidden md:block print:block overflow-hidden rounded-md border border-border-strong">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2">EMI</th>
+                      <th className="px-3 py-2">Due date</th>
+                      <th className="px-3 py-2 text-right">Amount</th>
+                      <th className="px-3 py-2 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {repaymentPlan.schedule.map((row) => (
+                      <tr key={row.sequenceNo}>
+                        <td className="px-3 py-1.5 tabular-nums">{row.sequenceNo}</td>
+                        <td className="px-3 py-1.5">{formatShortDate(row.dueDate)}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">
+                          {formatInr(row.amount)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right capitalize">
+                          {row.status.replace(/_/g, " ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : null}
+          {repaymentPlanHistory.length > 0 ? (
+            <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+              {repaymentPlanHistory.map((plan) => (
+                <li key={plan.planId}>
+                  {formatShortDate(plan.activatedAt.slice(0, 10))} —{" "}
+                  {plan.lifecycle === "active"
+                    ? "plan activated"
+                    : plan.lifecycle === "superseded"
+                      ? "plan rescheduled (replaced)"
+                      : "plan cancelled"}
+                  : {formatInr(plan.openingBalance)} over {plan.termMonths} month
+                  {plan.termMonths === 1 ? "" : "s"} at {formatInr(plan.monthlyAmount)}.
+                  {plan.cancellationReason ? ` ${plan.cancellationReason}` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="mt-6 border-t border-border-strong pt-4">
         <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
           Payments received

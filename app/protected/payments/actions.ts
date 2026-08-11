@@ -155,6 +155,36 @@ function toActionStateError(error: unknown, clientRequestId?: string | null): Pa
   };
 }
 
+
+/**
+ * The split the database recorded for this receipt against an active EMI plan.
+ * Returns null when the student is not on a plan, and swallows read errors —
+ * a receipt that posted must never be reported as failed because a display
+ * detail could not be fetched.
+ */
+async function readEmiSplit(receiptId: string) {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("student_repayment_receipt_links")
+      .select("contribution_amount, spillover_amount, plan_balance_after")
+      .eq("receipt_id", receiptId)
+      .maybeSingle();
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      toPlan: Number(data.contribution_amount ?? 0),
+      toOtherDues: Number(data.spillover_amount ?? 0),
+      planBalanceAfter: Number(data.plan_balance_after ?? 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function submitPaymentEntryAction(
   _previous: PaymentEntryActionState,
   formData: FormData,
@@ -368,6 +398,7 @@ export async function submitPaymentEntryAction(
     return {
       status: "success",
       message: `Payment posted successfully. Receipt ${receipt.receiptNumber} generated.`,
+      emiSplit: await readEmiSplit(receipt.receiptId),
       receiptNumber: receipt.receiptNumber,
       receiptId: receipt.receiptId,
       studentId,
