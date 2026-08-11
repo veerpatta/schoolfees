@@ -17,6 +17,7 @@ import { StudentDangerZone } from "@/components/students/student-danger-zone";
 import { StudentFeePlanEditButton } from "@/components/students/student-fee-plan-edit-button";
 import { StudentIdentityStrip } from "@/components/students/student-identity-strip";
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
+import { StudentRepaymentPlanCard } from "@/components/students/student-repayment-plan-card";
 import { ShareFeeWhatsApp } from "@/components/students/share-fee-whatsapp";
 import { StudentReceiptsPanel } from "@/components/students/student-receipts-panel";
 import { StudentStatCards } from "@/components/students/student-stat-cards";
@@ -40,7 +41,8 @@ import {
   calculatePendingLateFeeAmount,
 } from "@/lib/fees/due-amounts";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
+import { formatDateTimeIst, formatShortDate, partsToIso, todayPartsIst } from "@/lib/helpers/date";
+import { getRepaymentPlanDetail } from "@/lib/repayment-plans/data";
 import { recordActivity } from "@/lib/activity/events";
 import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
@@ -115,7 +117,7 @@ export default async function StudentDetailPage({
   // the workspace snapshot; now that a family is confirmed membership rather
   // than a per-session phone match, it only needs the student id — so the page
   // dropped from 2 round trips to 1.
-  const [workspaceResult, deletionSafetyResult, familyMembersDetail] =
+  const [workspaceResult, deletionSafetyResult, familyMembersDetail, repaymentPlanDetail] =
     await Promise.all([
       getStudentWorkspaceData(resolvedParams.studentId),
       getStudentDeletionSafety(resolvedParams.studentId).catch(() => null),
@@ -125,6 +127,10 @@ export default async function StudentDetailPage({
             ReturnType<typeof getStudentFamilyMembersDetail>
           >,
       ),
+      getRepaymentPlanDetail({
+        studentId: resolvedParams.studentId,
+        today: partsToIso(todayPartsIst()),
+      }).catch(() => null),
     ]);
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
     workspaceResult;
@@ -156,6 +162,9 @@ export default async function StudentDetailPage({
   // Admin-only: `fees:write` sits in adminPermissions, while accountants get
   // only `fees:view`.
   const canEditFeePlan = hasStaffPermission(staff, "fees:write");
+  // Admin-only, and narrower than `fees:write`: only admins may put a family on
+  // a repayment calendar or take them off one.
+  const canManageRepaymentPlans = hasStaffPermission(staff, "fees:repayment_plan");
   const canViewLedger = hasStaffPermission(staff, "ledger:view");
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
@@ -1003,6 +1012,19 @@ export default async function StudentDetailPage({
         </dl>
       </MobileCard>
 
+      {/* Phones get the same card, in the overview stack rather than a side
+          rail — a plan is the first thing the office needs to see. */}
+      {repaymentPlanDetail ? (
+        <StudentRepaymentPlanCard
+          detail={repaymentPlanDetail}
+          editHref={
+            canManageRepaymentPlans
+              ? `/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}#repayment-plan`
+              : undefined
+          }
+        />
+      ) : null}
+
       {canShowDangerZone ? (
         <div className="rounded-xl border border-destructive/30 bg-destructive-soft/40 p-4">
           <p className="text-[12.5px] font-extrabold text-destructive">{tm("dangerTitle")}</p>
@@ -1166,6 +1188,19 @@ export default async function StudentDetailPage({
         reliability={paymentReliability}
         nextPending={nextPendingInfo}
       />
+
+      {/* Full width, above the tabs: an active EMI plan changes how every
+          number below should be read, so it cannot sit in a side rail. */}
+      {repaymentPlanDetail ? (
+        <StudentRepaymentPlanCard
+          detail={repaymentPlanDetail}
+          editHref={
+            canManageRepaymentPlans
+              ? `/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}#repayment-plan`
+              : undefined
+          }
+        />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] min-w-0">
         <div className="min-w-0">

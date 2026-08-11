@@ -3,7 +3,7 @@ import "server-only";
 import { after } from "next/server";
 
 import { getFeePolicySummary } from "@/lib/fees/data";
-import { calculateDaysOverdue, calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
+import { calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
 import { createClient } from "@/lib/supabase/server";
 import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getWorkbookClassOptions, getWorkbookInstallmentRows, getWorkbookStudentFinancials } from "@/lib/workbook/data";
@@ -17,6 +17,11 @@ import {
   refreshDefaulterRecoveryState,
 } from "@/lib/defaulters/contacts";
 import { resolvePromiseStatus } from "@/lib/defaulters/promise-lifecycle";
+import {
+  getRepaymentPlanCoverageForStudents,
+  type RepaymentPlanCoverage,
+} from "@/lib/repayment-plans/data";
+import { resolvePlanAwareOverdue } from "@/lib/repayment-plans/defaulter-view";
 import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
 import { buildTransportRouteLabel } from "@/lib/transport/label";
 
@@ -389,12 +394,36 @@ export async function getDefaultersPageData(
         ),
   ]);
 
+  // Active EMI plans for the candidate set, plus the installments they cover.
+  const planCoverage = await getRepaymentPlanCoverageForStudents(
+    baseRows.map((row) => row.studentId),
+  ).catch(() => new Map<string, RepaymentPlanCoverage>());
+
   // 3) Enrich every candidate (heat, behavior, promise status, no-call, family),
   //    sort by heat, then rank.
   const rows = baseRows
     .map((row) => {
-      const daysOverdue = calculateDaysOverdue(row.nextDueDate, today);
-      const overdueAmount = calculateOverdueBaseAmount(overdueRowsByStudent.get(row.studentId) ?? []);
+      // An EMI plan replaces the due-date calendar for the installments it
+      // covers — and only those. A family paying their EMI on time must not be
+      // chased for dues the school itself agreed to defer.
+      const coverage = planCoverage.get(row.studentId) ?? null;
+      const excludedOverdueRows = coverage
+        ? (overdueRowsByStudent.get(row.studentId) ?? []).filter(
+            (installment) => !coverage.coveredInstallmentIds.has(installment.installmentId),
+          )
+        : (overdueRowsByStudent.get(row.studentId) ?? []);
+      const planAware = resolvePlanAwareOverdue({
+        plan: coverage?.summary ?? null,
+        excludedOverdueAmount: calculateOverdueBaseAmount(excludedOverdueRows),
+        excludedNextDueDate: coverage
+          ? (excludedOverdueRows
+              .map((installment) => installment.dueDate)
+              .sort()[0] ?? null)
+          : row.nextDueDate,
+        today,
+      });
+      const daysOverdue = planAware.daysOverdue;
+      const overdueAmount = planAware.overdueAmount;
       const defaulterScore = row.outstandingAmount + overdueAmount + daysOverdue * 100;
       const summary = contactSummaries.get(row.studentId) ?? null;
       const heat = heatScore({
@@ -637,6 +666,10 @@ export async function getDefaulterExportRows(
       ]);
     });
 
+  const planCoverageForExport = await getRepaymentPlanCoverageForStudents(
+    financialRows.map((row) => row.studentId),
+  ).catch(() => new Map<string, RepaymentPlanCoverage>());
+
   return financialRows
     .filter((row) =>
       filters.transportRouteId ? row.transportRouteId === filters.transportRouteId : true,
@@ -676,12 +709,29 @@ export async function getDefaulterExportRows(
         transportFeeAmount: row.transportFee,
       }),
       totalPending: row.outstandingAmount,
-      overdueAmount: calculateOverdueBaseAmount(overdueByStudent.get(row.studentId) ?? []),
+      overdueAmount: resolvePlanAwareOverdue({
+        plan: planCoverageForExport.get(row.studentId)?.summary ?? null,
+        excludedOverdueAmount: calculateOverdueBaseAmount(
+          (overdueByStudent.get(row.studentId) ?? []).filter(
+            (installment) =>
+              !planCoverageForExport
+                .get(row.studentId)
+                ?.coveredInstallmentIds.has(installment.installmentId),
+          ),
+        ),
+        excludedNextDueDate: row.nextDueDate ?? null,
+        today,
+      }).overdueAmount,
       lateFeeTotal: row.lateFeeTotal,
       nextDueDate: row.nextDueDate ?? null,
       nextDueAmount: row.nextDueAmount ?? 0,
       statusLabel: row.statusLabel,
-      daysOverdue: calculateDaysOverdue(row.nextDueDate, today),
+      daysOverdue: resolvePlanAwareOverdue({
+        plan: planCoverageForExport.get(row.studentId)?.summary ?? null,
+        excludedOverdueAmount: 0,
+        excludedNextDueDate: row.nextDueDate ?? null,
+        today,
+      }).daysOverdue,
     }))
     .sort((left, right) => {
       if (right.totalPending !== left.totalPending) {

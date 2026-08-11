@@ -4,7 +4,17 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StudentForm } from "@/components/students/student-form";
+import {
+  StudentRepaymentPlanSection,
+  type RepaymentScopeOption,
+} from "@/components/students/student-repayment-plan-section";
+import { isRepaymentPlanCreationEnabled } from "@/lib/env";
 import { appendSessionParam } from "@/lib/navigation/session-href";
+import {
+  getActiveRepaymentPlan,
+  previewRepaymentPlan,
+} from "@/lib/repayment-plans/data";
+import type { RepaymentPlanScope } from "@/lib/repayment-plans/types";
 import { getStudentDetail, getStudentFormOptions } from "@/lib/students/data";
 import {
   hasStaffPermission,
@@ -12,6 +22,48 @@ import {
 } from "@/lib/supabase/session";
 
 import { updateStudentAction } from "../../actions";
+
+const REPAYMENT_SCOPES: RepaymentPlanScope[] = ["old_balance_only", "old_and_current"];
+
+/**
+ * Price both scopes server-side so the admin sees real balances before typing
+ * anything, and so the number they agree to is the number sent back as
+ * `expectedOpeningBalance`. If dues move in between, the RPC refuses rather
+ * than silently building the plan on a different figure.
+ */
+async function loadRepaymentPlanSection(studentId: string, sessionLabel: string) {
+  const [activePlan, ...previews] = await Promise.all([
+    getActiveRepaymentPlan(studentId),
+    ...REPAYMENT_SCOPES.map((scope) =>
+      previewRepaymentPlan({
+        studentId,
+        sessionLabel,
+        scope,
+        monthlyAmount: null,
+        firstDueDate: null,
+      }),
+    ),
+  ]);
+
+  const scopeOptions = previews.flatMap<RepaymentScopeOption>((result, index) => {
+    if (!result.ok) {
+      return [];
+    }
+
+    return [
+      {
+        scope: REPAYMENT_SCOPES[index],
+        openingBalance: result.preview.openingBalance,
+        oldBalanceIncluded: result.preview.oldBalanceIncluded,
+        currentYearIncluded: result.preview.currentYearIncluded,
+        lateFeeWaived: result.preview.lateFeeWaived,
+        installmentCount: result.preview.installmentCount,
+      },
+    ];
+  });
+
+  return { activePlan, scopeOptions };
+}
 
 type EditStudentPageProps = {
   params: Promise<{
@@ -49,6 +101,14 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
   const hasSessionMismatch =
     student.classSessionLabel.trim().toLowerCase() !== resolvedSessionLabel.trim().toLowerCase();
   const sessionAwareReturnTo = appendSessionParam(returnTo, resolvedSessionLabel);
+
+  // EMI plans are admin-only and deliberately live OUTSIDE the student-master
+  // form: converting dues to a repayment calendar and forgiving late fees is
+  // not a record correction, and must not ride along on a name change.
+  const canManageRepaymentPlans = hasStaffPermission(staff, "fees:repayment_plan");
+  const repaymentPlan = canManageRepaymentPlans
+    ? await loadRepaymentPlanSection(student.id, resolvedSessionLabel)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -113,6 +173,23 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
           action={updateStudentAction.bind(null, student.id)}
         />
       </SectionCard>
+
+      {repaymentPlan ? (
+        <SectionCard
+          id="repayment-plan"
+          title="Convert dues to monthly EMI"
+          description="Admin only. Spreads what this family owes over interest-free monthly instalments and permanently waives the late fees on the covered installments. Nothing in the ledger is rewritten."
+        >
+          <StudentRepaymentPlanSection
+            studentId={student.id}
+            sessionLabel={resolvedSessionLabel}
+            scopeOptions={repaymentPlan.scopeOptions}
+            activePlan={repaymentPlan.activePlan}
+            creationEnabled={isRepaymentPlanCreationEnabled()}
+            clientRequestId={crypto.randomUUID()}
+          />
+        </SectionCard>
+      ) : null}
     </div>
   );
 }

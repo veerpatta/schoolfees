@@ -37,7 +37,8 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollIntoView } from "@/hooks/use-scroll-into-view";
 import { useStoredPreference } from "@/hooks/use-stored-preference";
 import { buildPaymentAllocation, buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
-import { buildPaymentQuickAmounts } from "@/lib/payments/workflow";
+import { buildRepaymentPlanQuickAmounts, buildPaymentQuickAmounts } from "@/lib/payments/workflow";
+import { splitPaymentAcrossPlan } from "@/lib/repayment-plans/defaulter-view";
 import {
   calculateInstallmentBasePending,
   calculateOverdueBaseAmount,
@@ -245,6 +246,9 @@ export function PaymentDeskClient({
   const [activeStudentOptionIndex, setActiveStudentOptionIndex] = useState(-1);
   const [studentListScrollTop, setStudentListScrollTop] = useState(0);
   const [selectedStudent, setSelectedStudent] = useState(data.initialStudentSummary);
+  const [activeRepaymentPlan, setActiveRepaymentPlan] = useState(
+    data.initialRepaymentPlan ?? null,
+  );
   const [selectedStudentIssue, setSelectedStudentIssue] = useState<PaymentDeskIssue | null>(
     data.initialStudentIssue,
   );
@@ -467,9 +471,14 @@ export function PaymentDeskClient({
     previewBreakdown.find((item) => item.outstandingAmount > 0) ?? null;
   const paymentAmount = Number(paymentAmountInput) || 0;
   const clientPreviewAmount = paymentAmount > 0 ? paymentAmount : null;
-  const quickDiscountAmount = Number(quickDiscountInput) || 0;
+  // While an EMI plan is active, posting refuses concessions outright —
+  // changing what a family owes under an agreed plan is a rescheduling
+  // decision, not a counter decision. Zero them here so the desk cannot offer
+  // what the server will reject.
+  const concessionsLocked = Boolean(activeRepaymentPlan);
+  const quickDiscountAmount = concessionsLocked ? 0 : Number(quickDiscountInput) || 0;
   const pendingLateFeeAmount = calculatePendingLateFeeAmount(previewBreakdown);
-  const quickLateFeeWaiverAmount = waiveFullLateFee ? pendingLateFeeAmount : 0;
+  const quickLateFeeWaiverAmount = concessionsLocked || !waiveFullLateFee ? 0 : pendingLateFeeAmount;
   const quickLateFeeWaiverInput = quickLateFeeWaiverAmount > 0 ? String(quickLateFeeWaiverAmount) : "";
   const creditBalance = selectedStudent?.creditBalance ?? 0;
   const refundableAmount = selectedStudent?.refundableAmount ?? 0;
@@ -594,6 +603,7 @@ export function PaymentDeskClient({
 
   const applyStudentSummaryPayload = useCallback((payload: PaymentDeskStudentSummary) => {
     setSelectedStudent(payload.student);
+    setActiveRepaymentPlan(payload.repaymentPlan ?? null);
     setSelectedStudentIssue(payload.issue);
     setLatestStudentReceipt(payload.latestReceipt);
     setDateAwareBreakdown(payload.student?.breakdown ?? []);
@@ -612,6 +622,7 @@ export function PaymentDeskClient({
   // Applies card-only data (no breakdown) while breakdown is still loading.
   const applyStudentCardData = useCallback((payload: PaymentDeskStudentSummary) => {
     setSelectedStudent(payload.student);
+    setActiveRepaymentPlan(payload.repaymentPlan ?? null);
     setSelectedStudentIssue(payload.issue);
     setLatestStudentReceipt(payload.latestReceipt);
     setDateAwareBreakdown(null);
@@ -750,6 +761,7 @@ export function PaymentDeskClient({
       setPreviewUnavailable(false);
       setPreviewLoading(false);
       setSelectedStudent(null);
+    setActiveRepaymentPlan(null);
       setSelectedStudentIssue(null);
       setLatestStudentReceipt(null);
       return;
@@ -938,6 +950,15 @@ export function PaymentDeskClient({
       return [];
     }
 
+    if (activeRepaymentPlan) {
+      return buildRepaymentPlanQuickAmounts({
+        monthlyAmount: activeRepaymentPlan.monthlyAmount,
+        catchUpAmount: activeRepaymentPlan.catchUpAmount,
+        remainingBalance: activeRepaymentPlan.remainingBalance,
+        totalPending: previewTotalPending,
+      });
+    }
+
     return buildPaymentQuickAmounts({
       totalPending: previewTotalPending,
       nextDueAmount: previewNextDue?.outstandingAmount ?? null,
@@ -946,6 +967,7 @@ export function PaymentDeskClient({
       lastPaidAmount: latestStudentPaymentAmount,
     });
   }, [
+    activeRepaymentPlan,
     latestStudentPaymentAmount,
     pendingLateFeeAmount,
     previewNextDue,
@@ -980,6 +1002,21 @@ export function PaymentDeskClient({
         : `Next ${formatInr(quickAmount.amount)}`;
     }
 
+    if (quickAmount.key === "emiCatchUp") {
+      return quickAmount.disabled || !quickAmount.amount
+        ? "Catch up"
+        : `Catch up ${formatInr(quickAmount.amount)}`;
+    }
+    if (quickAmount.key === "emiMonthly") {
+      return quickAmount.disabled || !quickAmount.amount
+        ? "Monthly EMI"
+        : `Monthly EMI ${formatInr(quickAmount.amount)}`;
+    }
+    if (quickAmount.key === "emiFullPlan") {
+      return quickAmount.disabled || !quickAmount.amount
+        ? "Full plan"
+        : `Full plan ${formatInr(quickAmount.amount)}`;
+    }
     if (quickAmount.key === "overdue") return "Overdue";
     if (quickAmount.key === "lateFee") return "Late Fee";
     if (quickAmount.key === "lastAmount") return "Last";
@@ -1540,6 +1577,7 @@ export function PaymentDeskClient({
     window.history.replaceState({}, "", `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
     setSelectedStudentId("");
     setSelectedStudent(null);
+    setActiveRepaymentPlan(null);
     setSelectedStudentIssue(null);
     setLatestStudentReceipt(null);
     setDateAwareBreakdown(null);
@@ -1656,6 +1694,7 @@ export function PaymentDeskClient({
         applyStudentCardData(cardCached);
       } else {
         setSelectedStudent(null);
+    setActiveRepaymentPlan(null);
         setSelectedStudentIssue(null);
         setLatestStudentReceipt(null);
         setDateAwareBreakdown(null);
@@ -1802,6 +1841,7 @@ export function PaymentDeskClient({
     setStudentSearchQuery("");
     setSelectedStudentId("");
     setSelectedStudent(null);
+    setActiveRepaymentPlan(null);
     setSelectedStudentIssue(null);
     setLatestStudentReceipt(null);
     lastAmountFocusStudentIdRef.current = null;
@@ -2507,6 +2547,53 @@ export function PaymentDeskClient({
                   </p>
                 ) : null}
 
+                {activeRepaymentPlan ? (
+                  <div className="border-b border-border bg-info-soft/40 px-3 py-2.5 text-info-soft-foreground">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wide">
+                      On a monthly EMI plan
+                    </p>
+                    <p className="mt-0.5 text-[12px] leading-relaxed">
+                      {formatInr(activeRepaymentPlan.monthlyAmount)} a month ·{" "}
+                      {formatInr(activeRepaymentPlan.remainingBalance)} left
+                      {activeRepaymentPlan.nextDueDate
+                        ? ` · next ${formatInr(activeRepaymentPlan.nextDueAmount ?? 0)} on ${activeRepaymentPlan.nextDueDate}`
+                        : ""}
+                      {activeRepaymentPlan.catchUpAmount > 0
+                        ? ` · behind by ${formatInr(activeRepaymentPlan.catchUpAmount)}`
+                        : ""}
+                    </p>
+                    <p className="mt-1 text-[11px] opacity-90">
+                      This payment clears the EMI installments first; anything extra spills into
+                      the rest automatically. Discounts and late-fee waivers are disabled while the
+                      plan is active.
+                    </p>
+                    {activeRepaymentPlan.currentYearRemainsUnpaid ? (
+                      <p className="mt-1 text-[11px] font-semibold">
+                        Old balance only — current-year fees stay unpaid until this plan clears.
+                      </p>
+                    ) : null}
+                    {activeRepaymentPlan.planReviewNeeded ? (
+                      <p className="mt-1 text-[11px] font-semibold">
+                        Plan review needed — a covered fee changed since the plan was agreed.
+                      </p>
+                    ) : null}
+                    {paymentAmount > 0 ? (
+                      <p className="mt-1.5 border-t border-current/20 pt-1.5 text-[11px] font-semibold">
+                        {(() => {
+                          const split = splitPaymentAcrossPlan({
+                            amount: paymentAmount,
+                            planRemainingBalance: activeRepaymentPlan.remainingBalance,
+                          });
+
+                          return split.toOtherDues > 0
+                            ? `This ${formatInr(paymentAmount)}: ${formatInr(split.toPlan)} to the EMI plan, ${formatInr(split.toOtherDues)} to other dues.`
+                            : `All ${formatInr(paymentAmount)} goes to the EMI plan.`;
+                        })()}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className="flex flex-wrap gap-1.5 border-b border-border px-3 py-2">
                   {primaryQuickAmounts.map((qa) => (
                     <Button
@@ -2548,7 +2635,7 @@ export function PaymentDeskClient({
                     ))}
                 </div>
 
-                {canWaiveLateFee && pendingLateFeeAmount > 0 ? (
+                {canWaiveLateFee && pendingLateFeeAmount > 0 && !concessionsLocked ? (
                   <div className="flex items-center justify-between border-b border-border bg-info-soft/40 px-3 py-2.5">
                     <label
                       htmlFor="desktop-waive-late-fee"
@@ -2638,7 +2725,7 @@ export function PaymentDeskClient({
 
 
 
-                <div className="border-b border-border px-3 py-2">
+                <div className={cn("border-b border-border px-3 py-2", concessionsLocked && "hidden")}>
                   <details className="group">
                     <summary className="cursor-pointer list-none text-xs text-muted-foreground hover:text-foreground">
                       <span className="group-open:hidden">+ Additional discount / concession</span>
@@ -3035,7 +3122,7 @@ export function PaymentDeskClient({
                   </div>
                   <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 xl:col-span-2">
                     <input type="hidden" name="quickLateFeeWaiverAmount" value={quickLateFeeWaiverAmount} />
-                    {canWaiveLateFee ? (
+                    {canWaiveLateFee && !concessionsLocked ? (
                       <label className="flex items-start gap-2 text-sm font-medium text-foreground">
                         <input
                           type="checkbox"
@@ -3060,7 +3147,7 @@ export function PaymentDeskClient({
                       </p>
                     )}
                   </div>
-                  <div>
+                  <div className={cn(concessionsLocked && "hidden")}>
                     <Label htmlFor="quick-discount-amount">Additional discount / concession</Label>
                     <Input
                       id="quick-discount-amount"

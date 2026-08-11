@@ -7,6 +7,10 @@ import { getPrevYearDuesCollectionRows } from "@/lib/prev-year-dues/data";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { getRecoveryQueue } from "@/lib/recovery/data";
 import {
+  getRepaymentPlanExportRows,
+  getRepaymentScheduleExportRows,
+} from "@/lib/repayment-plans/data";
+import {
   getContactSummariesForStudents,
   getNoCallFlags,
   getPromiseReliabilityForStudents,
@@ -54,6 +58,16 @@ type RouteContext = {
     exportType: string;
   }>;
 };
+
+/** Today in IST as YYYY-MM-DD — schedule rows are priced against it. */
+function todayIsoIst() {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 async function workbookResponse(filename: string, rows: Array<Record<string, string | number>>) {
   const XLSX = await import("xlsx");
@@ -924,6 +938,35 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     "Fee Overrides",
   );
 
+  // ── EMI Plans / EMI Schedule ─────────────────────────────────────────────
+  // A family on a repayment plan owes the same rupees on a different calendar.
+  // Without these two sheets any analysis of "who is overdue" reads them as
+  // months late when the school agreed to exactly that.
+  const [emiPlanRows, emiScheduleRows] = await Promise.all([
+    getRepaymentPlanExportRows(sessionLabel).catch(() => []),
+    getRepaymentScheduleExportRows(sessionLabel, todayIsoIst()).catch(() => []),
+  ]);
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      emiPlanRows.length > 0
+        ? emiPlanRows
+        : [{ "SR no": "", Reason: "No EMI repayment plans in this session." }],
+    ),
+    "EMI Plans",
+  );
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      emiScheduleRows.length > 0
+        ? emiScheduleRows
+        : [{ "SR no": "", Reason: "No EMI schedule rows in this session." }],
+    ),
+    "EMI Schedule",
+  );
+
   // ── Payment Allocations ──────────────────────────────────────────────────
   // Receipt -> installment -> rupees, which is what "how much was paid" means
   // once a single receipt clears parts of three installments.
@@ -1433,6 +1476,24 @@ async function handleExport(request: NextRequest, context: RouteContext) {
         "Late fee": row.pendingLateFeeAmount,
         "Conventional discounts": row.conventionalDiscountLabels.join(", "),
       })),
+    );
+  }
+
+  if (exportType === "emi-plans") {
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
+      await getRepaymentPlanExportRows(resolvedSessionLabel),
+    );
+  }
+
+  if (exportType === "emi-schedule") {
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
+      await getRepaymentScheduleExportRows(resolvedSessionLabel, todayIsoIst()),
     );
   }
 

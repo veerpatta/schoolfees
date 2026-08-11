@@ -37,6 +37,9 @@ function queryResult<T>(data: T) {
     select() {
       return this;
     },
+    eq() {
+      return this;
+    },
     then(resolve: (value: { data: T; error: null }) => void) {
       return Promise.resolve({ data, error: null }).then(resolve);
     },
@@ -135,6 +138,11 @@ function mockDb(payload: {
         return { select: () => queryResult(payload.payments) };
       }
       if (table === "payment_adjustments") {
+        return { select: () => queryResult([]) };
+      }
+      // No EMI repayment plans in these fixtures: the lock rules under test are
+      // the paid/adjusted ones.
+      if (table === "student_repayment_plan_items") {
         return { select: () => queryResult([]) };
       }
       throw new Error(`Unexpected table ${table}`);

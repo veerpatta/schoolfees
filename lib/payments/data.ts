@@ -12,6 +12,10 @@ import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
 import { logError, logWarn } from "@/lib/observability/log";
+import {
+  getRepaymentPlanCollectionContext,
+  suggestRepaymentPlanAmount,
+} from "@/lib/repayment-plans/data";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { getWorkbookStudentFinancials } from "@/lib/workbook/data";
 import { buildTransportRouteLabel } from "@/lib/transport/label";
@@ -1364,6 +1368,7 @@ export async function getPaymentEntryPageData(payload: {
     initialStudentId: payload.studentId,
     initialClassId: payload.classId ?? "",
     initialStudentSummary: summary?.student ?? null,
+    initialRepaymentPlan: summary?.repaymentPlan ?? null,
     initialStudentIssue: summary?.issue ?? null,
     initialLatestReceipt: summary?.latestReceipt ?? null,
     modeOptions: policy.acceptedPaymentModes,
@@ -1515,10 +1520,10 @@ export async function getPaymentDeskStudentSummary(payload: {
       };
     }
 
-    const conventionalDiscount = await getConventionalDiscountForStudent(
-      selectedFinancial.studentId,
-      sessionLabel,
-    );
+    const [conventionalDiscount, repaymentPlan] = await Promise.all([
+      getConventionalDiscountForStudent(selectedFinancial.studentId, sessionLabel),
+      getRepaymentPlanCollectionContext(selectedFinancial.studentId).catch(() => null),
+    ]);
     const selectedStudent = {
       ...summarizeStudent(
         selectedFinancial,
@@ -1531,14 +1536,24 @@ export async function getPaymentDeskStudentSummary(payload: {
       confirmedSiblingCount: familyMembership.siblingCount,
     };
 
+    // On a plan, the useful default is what puts the family back on their
+    // agreed calendar — the catch-up figure when behind, otherwise the next
+    // EMI. Falling back to the next installment would ask for the wrong money.
+    const planSuggestion = repaymentPlan
+      ? suggestRepaymentPlanAmount(repaymentPlan)
+      : 0;
+
     return {
       student: selectedStudent,
       issue: null,
       latestReceipt: await latestReceiptPromise,
       suggestedDefaultAmount:
-        selectedStudent.totalPending > 0
-          ? (selectedStudent.nextDueAmount ?? selectedStudent.totalPending)
-          : null,
+        planSuggestion > 0
+          ? Math.min(planSuggestion, selectedStudent.totalPending)
+          : selectedStudent.totalPending > 0
+            ? (selectedStudent.nextDueAmount ?? selectedStudent.totalPending)
+            : null,
+      repaymentPlan,
       paymentDate: payload.paymentDate,
     };
   }

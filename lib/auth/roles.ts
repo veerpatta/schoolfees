@@ -16,6 +16,11 @@ export const staffPermissions = [
   "students:edit_sr_no",
   "fees:view",
   "fees:write",
+  // Converting a family's dues to a monthly EMI plan, rescheduling it, or
+  // cancelling it. Admin-only and deliberately separate from `fees:write`:
+  // it commits the school to a repayment calendar and permanently forgives
+  // late fees, which is not a Fee Setup edit.
+  "fees:repayment_plan",
   "payments:view",
   "payments:write",
   "payments:adjust",
@@ -66,6 +71,7 @@ const adminPermissions: readonly StaffPermission[] = [
   "students:edit_sr_no",
   "fees:view",
   "fees:write",
+  "fees:repayment_plan",
   "payments:view",
   "payments:write",
   "payments:adjust",

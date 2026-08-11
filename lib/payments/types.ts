@@ -1,4 +1,5 @@
 import type { PaymentMode } from "@/lib/db/types";
+import type { RepaymentPlanCollectionContext } from "@/lib/repayment-plans/types";
 import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
 export type DuplicatePaymentKind = "near-duplicate" | "daily-amount";
@@ -199,6 +200,8 @@ export type PaymentEntryPageData = {
   /** Set to `left_student_recovery` when the desk is opened in recovery mode. */
   collectionContext?: PaymentCollectionContext;
   initialStudentSummary: SelectedStudentSummary | null;
+  /** Active EMI plan for the initially selected student, if any. */
+  initialRepaymentPlan?: RepaymentPlanCollectionContext | null;
   initialStudentIssue: PaymentDeskIssue | null;
   initialLatestReceipt: {
     id: string;
@@ -237,6 +240,14 @@ export type PaymentDeskStudentSummary = {
   latestReceipt: PaymentEntryPageData["initialLatestReceipt"];
   suggestedDefaultAmount: number | null;
   paymentDate: string;
+  /**
+   * Set when the student is on an active EMI plan. The desk uses it to default
+   * the amount to the catch-up figure, offer plan-shaped quick amounts, and
+   * disable concessions — but the money lands correctly either way, because
+   * `post_student_payment_with_adjustments` allocates plan installments first
+   * regardless of what the UI shows.
+   */
+  repaymentPlan?: RepaymentPlanCollectionContext | null;
 };
 
 export type PaymentModeOption = {

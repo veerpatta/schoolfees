@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download, Sparkles, FileText } from "lucide-react";
+import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download, Sparkles, FileText, CalendarClock } from "lucide-react";
 
 import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { PageHeader } from "@/components/admin/page-header";
@@ -62,6 +62,20 @@ const exportGroups = [
         detailKey: "itemLeftStudentDuesDetail",
         icon: UsersRound,
         tone: "danger" as const,
+      },
+      {
+        key: "emi-plans",
+        labelKey: "itemEmiPlans",
+        detailKey: "itemEmiPlansDetail",
+        icon: CalendarClock,
+        tone: "info" as const,
+      },
+      {
+        key: "emi-schedule",
+        labelKey: "itemEmiSchedule",
+        detailKey: "itemEmiScheduleDetail",
+        icon: CalendarClock,
+        tone: "info" as const,
       },
     ],
   },

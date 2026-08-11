@@ -151,7 +151,12 @@ function buildClient(installmentRows: unknown[], cancelledIds: string[]) {
           }),
         };
       }
-      if (table === "payments" || table === "payment_adjustments") {
+      if (
+        table === "payments" ||
+        table === "payment_adjustments" ||
+        // No EMI repayment plans in these fixtures.
+        table === "student_repayment_plan_items"
+      ) {
         return { select: () => queryResult([]) };
       }
       throw new Error(`Unexpected table ${table}`);

@@ -15,6 +15,7 @@ import {
 
 import { PageHeader } from "@/components/admin/page-header";
 import { ActivityStrip } from "@/components/dashboard/activity-strip";
+import { EmiTrackingCard } from "@/components/dashboard/emi-tracking-card";
 import { DashboardPrefetcher } from "@/components/dashboard/dashboard-prefetcher";
 import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
 import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
@@ -2097,6 +2098,9 @@ async function DashboardBelowFold({
         <SVGTrendBarChart trendData={data.collectionTrend} sessionLabel={sessionLabel} />
         <TopDefaulters rows={data.followUpQueue} sessionLabel={sessionLabel} t={t} />
       </div>
+
+      {/* Renders nothing until the school actually has active plans. */}
+      <EmiTrackingCard sessionLabel={sessionLabel} />
 
       <ClassLeaderboard classSummary={data.classSummary} />
 

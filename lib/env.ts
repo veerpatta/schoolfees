@@ -123,6 +123,21 @@ export function isShellV2Enabled() {
   return getOptionalEnvVar("VERCEL_ENV") === "preview" || getAppMode() === "test";
 }
 
+// Gates CREATION of monthly EMI repayment plans. The schema and every read
+// surface ship everywhere; only activation / reschedule / cancel sit behind
+// this, so the feature can be exercised on TEST-2026-27 and reviewed before
+// any live family is put on a plan. Default OFF in production, ON in preview
+// and APP_MODE=test. Flip REPAYMENT_PLANS on once UAT signs off.
+export function isRepaymentPlanCreationEnabled() {
+  const value = getOptionalEnvVar("REPAYMENT_PLANS");
+
+  if (value) {
+    return truthyEnvValues.has(value.toLowerCase());
+  }
+
+  return getOptionalEnvVar("VERCEL_ENV") === "preview" || getAppMode() === "test";
+}
+
 export function isVercelProductionEnvironment() {
   return getOptionalEnvVar("VERCEL_ENV") === "production";
 }

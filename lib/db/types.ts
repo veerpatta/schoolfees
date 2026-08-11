@@ -351,7 +351,7 @@ export type ConfigChangeBlockedInstallmentRecord = {
   paidAmount: number;
   adjustmentAmount: number;
   outstandingAmount: number;
-  reasonCode: "fully_paid" | "partially_paid" | "adjustment_posted";
+  reasonCode: "fully_paid" | "partially_paid" | "adjustment_posted" | "in_repayment_plan";
   reasonLabel: string;
   actionNeeded: "update" | "cancel";
   reviewStatus: "pending" | "reviewed";

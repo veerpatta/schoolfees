@@ -87,7 +87,13 @@ type CancelPlan = {
 export type LockedInstallmentReasonCode =
   | "fully_paid"
   | "partially_paid"
-  | "adjustment_posted";
+  | "adjustment_posted"
+  // The row is part of an ACTIVE monthly EMI plan. A family agreed to a
+  // specific opening balance and a specific monthly amount; repricing the row
+  // underneath them would silently change either what they owe or how long
+  // they pay for. Held for a human, who reschedules the plan or collects the
+  // difference separately.
+  | "in_repayment_plan";
 
 export type BlockedInstallmentForReview = {
   installmentId: string;
@@ -352,8 +358,21 @@ function classifyCancelLock(payload: {
   existingInstallment: ExistingInstallmentRow;
   paidAmount: number;
   adjustmentAmount: number;
+  isInRepaymentPlan?: boolean;
 }) {
   const { existingInstallment: existing, paidAmount, adjustmentAmount } = payload;
+  const appliedForPlan = Math.max(paidAmount + adjustmentAmount, 0);
+
+  // Cancelling a row a family is paying for monthly would drop it out of the
+  // plan's opening balance without anybody deciding that.
+  if (payload.isInRepaymentPlan) {
+    return {
+      isLocked: true as const,
+      reasonCode: "in_repayment_plan" as const,
+      reasonLabel: "Covered by an active EMI plan",
+      outstandingAmount: Math.max(existing.amount_due - appliedForPlan, 0),
+    };
+  }
 
   if (paidAmount <= 0 && adjustmentAmount === 0) {
     return { isLocked: false as const, reasonCode: null, reasonLabel: null, outstandingAmount: existing.amount_due };
@@ -395,10 +414,32 @@ function classifyInstallmentLock(payload: {
   plannedInstallment: PlannedInstallment;
   paidAmount: number;
   adjustmentAmount: number;
+  isInRepaymentPlan?: boolean;
 }): InstallmentLockDecision {
   const existing = payload.existingInstallment;
   const paidAmount = payload.paidAmount;
   const adjustmentAmount = payload.adjustmentAmount;
+
+  // An EMI row is locked in BOTH directions, unlike the paid-row rule below.
+  // A reduction is normally safe because no receipt moves — but here the
+  // family has agreed to clear a specific opening balance over a specific
+  // number of months, and quietly shrinking a covered charge changes the deal.
+  // Unchanged plans stay free: only a real difference is held.
+  if (
+    payload.isInRepaymentPlan &&
+    (plannedAmountDue(payload.plannedInstallment) !== existing.amount_due ||
+      structurallyDiffers(existing, payload.plannedInstallment))
+  ) {
+    return {
+      kind: "locked",
+      reasonCode: "in_repayment_plan",
+      reasonLabel: "Covered by an active EMI plan",
+      outstandingAmount: Math.max(
+        existing.amount_due - Math.max(paidAmount + adjustmentAmount, 0),
+        0,
+      ),
+    };
+  }
 
   if (paidAmount <= 0 && adjustmentAmount === 0) {
     return { kind: "free" };
@@ -572,6 +613,9 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
   let existingInstallments: ExistingInstallmentRow[] = [];
   const paymentTotalsByInstallment = new Map<string, number>();
   const adjustmentTotalsByInstallment = new Map<string, number>();
+  // Installments covered by an ACTIVE EMI plan. Regeneration must not reprice
+  // them behind the family's back — see classifyInstallmentLock.
+  const repaymentPlanInstallmentIds = new Set<string>();
 
   if (studentIds.length > 0) {
     const { data: installmentsRaw, error: installmentsError } = await supabase
@@ -629,6 +673,16 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
       adjustmentsRawAll.forEach((row) => {
         addToAmountMap(adjustmentTotalsByInstallment, row.installment_id, row.amount_delta);
       });
+
+      const { data: planItemsRaw } = await supabase
+        .from("student_repayment_plan_items")
+        .select("installment_id, student_repayment_plans!inner(lifecycle)")
+        .eq("student_repayment_plans.lifecycle", "active")
+        .in("student_id", studentIds);
+
+      (planItemsRaw ?? []).forEach((row) => {
+        repaymentPlanInstallmentIds.add(String(row.installment_id));
+      });
     }
   }
 
@@ -685,6 +739,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
             existingInstallment: row,
             paidAmount,
             adjustmentAmount,
+            isInRepaymentPlan: repaymentPlanInstallmentIds.has(row.id),
           });
 
           if (lock.isLocked) {
@@ -930,6 +985,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
         plannedInstallment,
         paidAmount,
         adjustmentAmount,
+        isInRepaymentPlan: repaymentPlanInstallmentIds.has(existingInstallment.id),
       });
 
       if (lock.kind === "locked") {
@@ -988,6 +1044,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
           existingInstallment: row,
           paidAmount,
           adjustmentAmount,
+          isInRepaymentPlan: repaymentPlanInstallmentIds.has(row.id),
         });
 
         if (lock.isLocked && lock.reasonCode && lock.reasonLabel) {

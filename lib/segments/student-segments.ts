@@ -29,6 +29,10 @@ export type SegmentId =
   | "partlyPaid"
   | "yearClear"
   | "hasDues"
+  // monthly EMI repayment plans
+  | "onEmi"
+  | "emiDue"
+  | "emiMissed"
   // enrolment
   | "active"
   | "left"
@@ -85,6 +89,14 @@ export const STUDENT_SEGMENTS: readonly SegmentDef[] = [
   { id: "partlyPaid", family: "money", i18nKey: "partlyPaid", column: "seg_partly_paid", countKey: "partlyPaid" },
   { id: "yearClear", family: "money", i18nKey: "yearClear", column: "seg_year_clear", countKey: "yearClear" },
   { id: "hasDues", family: "money", i18nKey: "hasDues", column: "seg_has_dues", countKey: "hasDues" },
+
+  // Monthly EMI. `onEmi` is the whole cohort; the other two are the follow-up
+  // list, and they are mutually exclusive — a plan is either `due` (this
+  // month's EMI outstanding, nothing past due) or `behind` (an EMI whose date
+  // has passed is unpaid), never both.
+  { id: "onEmi", family: "money", i18nKey: "onEmi", column: "seg_on_emi", countKey: "onEmi" },
+  { id: "emiDue", family: "money", i18nKey: "emiDue", column: "seg_emi_due", countKey: "emiDue" },
+  { id: "emiMissed", family: "money", i18nKey: "emiMissed", column: "seg_emi_missed", countKey: "emiMissed" },
 
   // ── enrolment ────────────────────────────────────────────────────────────
   { id: "active", family: "enrolment", i18nKey: "active", column: "seg_active", countKey: "active", isPopulation: true },
