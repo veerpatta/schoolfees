@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-07-18",
-  "currentGeneratedAt": "2026-08-09T00:00:00.000Z",
-  "generatedFrom": "Ratcheted DOWN after the student/transaction segment filters. The filters first pushed students and transactions over their ceilings by 0.4% and 0.8%, so four overlays that were static imports mounted closed on every page load got the treatment the workbook tables already had: the Transactions receipt preview and mobile date picker, the Defaulters worklist drawer and WhatsApp draft modal, and the 21 KB Students bulk-import dialog body, which was split out of its trigger. Measured against the parent commit 9674ac7, not against the previous stale baseline: transactions -14391, defaulters -12090, dashboard -160, students -108, every other route +2 to +4. Defaulters had picked up +1035 from Turbopack regrouping shared chunks when the transactions shell started importing DownloadAnchor -- it never referenced a line of the new code -- and is now 12 KB lighter than before the feature. Verified no server-only query module leaked into a client chunk (grepped the built students and transactions chunks for v_student_directory, get_student_segment_counts and applySegmentFilters: clean). Ceilings retain the usual ~1.5% runner variance.",
+  "currentGeneratedAt": "2026-08-11T00:00:00.000Z",
+  "generatedFrom": "Re-measured after the filter-toolbar work, the Recently-opened removal and the suspected-sibling removal. Route entry JS is essentially flat: fee-setup -840, students -271, defaulters -165, dashboard/payments/exports/admin-tools -28 to -35, and transactions +1569. Transactions is the only rise and it is paid for: that screen had no active-filter pill row at all, which is exactly why its 24 segment chips had to stay expanded to be legible, so it gained ActiveFilterSummary and FilterDrawerButton (~1.5 KB) to shed ~270px of permanent chrome. Ceilings are NOT raised for it -- 208200 still stands and the new figure is under it. The real win this round is not in these numbers: rootMainFiles, which every one of these routes loads on top of its own entry, went 254.0 -> 217.6 KB gzip because the Sentry session-replay recorder (rrweb, 37.2 KB gzip, sampled at 10%) stopped being a static import and moved to lazyLoadIntegration. Verified by grepping the built rootMainFiles for recordCanvas/rrweb/MutationObserver: previously 20+ hits in 4a7b0c69-*.js, now zero in every chunk. Ceilings retain the usual ~1.5% runner variance.",
   "metric": "initial entry JS, unique chunks",
   "measurements": [
     {
@@ -9,56 +9,56 @@
       "chunks": 20,
       "rawBytes": 586256,
       "gzipBytes": 185901,
-      "currentGzipBytes": 183153
+      "currentGzipBytes": 183125
     },
     {
       "route": "/protected/students",
-      "chunks": 21,
-      "rawBytes": 646004,
+      "chunks": 22,
+      "rawBytes": 643454,
       "gzipBytes": 201782,
-      "currentGzipBytes": 198800
+      "currentGzipBytes": 198529
     },
     {
       "route": "/protected/fee-setup",
-      "chunks": 21,
-      "rawBytes": 624645,
+      "chunks": 20,
+      "rawBytes": 624294,
       "gzipBytes": 191039,
-      "currentGzipBytes": 188215
+      "currentGzipBytes": 187375
     },
     {
       "route": "/protected/payments",
       "chunks": 18,
-      "rawBytes": 562647,
+      "rawBytes": 562612,
       "gzipBytes": 176921,
-      "currentGzipBytes": 174306
+      "currentGzipBytes": 174277
     },
     {
       "route": "/protected/transactions",
-      "chunks": 23,
-      "rawBytes": 665109,
+      "chunks": 24,
+      "rawBytes": 666422,
       "gzipBytes": 208200,
-      "currentGzipBytes": 205123
+      "currentGzipBytes": 206692
     },
     {
       "route": "/protected/defaulters",
       "chunks": 22,
-      "rawBytes": 651645,
+      "rawBytes": 651945,
       "gzipBytes": 204423,
-      "currentGzipBytes": 201401
+      "currentGzipBytes": 201236
     },
     {
       "route": "/protected/exports",
       "chunks": 19,
-      "rawBytes": 565271,
+      "rawBytes": 565231,
       "gzipBytes": 178120,
-      "currentGzipBytes": 175487
+      "currentGzipBytes": 175452
     },
     {
       "route": "/protected/admin-tools",
       "chunks": 19,
-      "rawBytes": 568340,
+      "rawBytes": 568300,
       "gzipBytes": 179652,
-      "currentGzipBytes": 176997
+      "currentGzipBytes": 176965
     }
   ]
 }

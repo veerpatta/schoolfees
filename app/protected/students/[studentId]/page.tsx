@@ -110,14 +110,21 @@ export default async function StudentDetailPage({
     ? resolvedSearchParams.returnTo
     : "/protected/students";
   const encodedReturnTo = encodeURIComponent(returnTo);
-  // Run three independent loaders in parallel. familyMembersDetail needs the
-  // policy session label from the workspace snapshot, so it gets chained after
-  // — but the round trips that were previously 4-deep now collapse to 2-deep,
-  // with the heavy workspace fetch and the two side loaders overlapping.
-  const [workspaceResult, deletionSafetyResult] =
+  // All three loaders are independent, so they overlap. familyMembersDetail used
+  // to be chained after this batch because it took the policy session label from
+  // the workspace snapshot; now that a family is confirmed membership rather
+  // than a per-session phone match, it only needs the student id — so the page
+  // dropped from 2 round trips to 1.
+  const [workspaceResult, deletionSafetyResult, familyMembersDetail] =
     await Promise.all([
       getStudentWorkspaceData(resolvedParams.studentId),
       getStudentDeletionSafety(resolvedParams.studentId).catch(() => null),
+      getStudentFamilyMembersDetail(resolvedParams.studentId).catch(
+        () =>
+          ({ familyGroupId: null, members: [] }) as Awaited<
+            ReturnType<typeof getStudentFamilyMembersDetail>
+          >,
+      ),
     ]);
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
     workspaceResult;
@@ -126,16 +133,6 @@ export default async function StudentDetailPage({
   if (!student) {
     notFound();
   }
-
-  const familyMembersDetail = await getStudentFamilyMembersDetail(
-    resolvedParams.studentId,
-    financialSnapshot?.policy.academicSessionLabel || "2026-27",
-  ).catch(
-    () =>
-      ({ familyGroupId: null, confidence: null, members: [] }) as Awaited<
-        ReturnType<typeof getStudentFamilyMembersDetail>
-      >,
-  );
 
   const deletionSafety = deletionSafetyResult;
 
@@ -1072,7 +1069,6 @@ export default async function StudentDetailPage({
             <MobileStudentFamilyTab
               studentId={student.id}
               familyGroupId={familyMembersDetail.familyGroupId}
-              confidence={familyMembersDetail.confidence}
               members={familyMembersDetail.members}
               sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
               canEditStudent={canEditStudent}
@@ -1193,7 +1189,6 @@ export default async function StudentDetailPage({
           <StudentFamilyPanel
             studentId={student.id}
             familyGroupId={familyMembersDetail.familyGroupId}
-            confidence={familyMembersDetail.confidence}
             members={familyMembersDetail.members}
             sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
             canLinkSibling={canEditStudent}

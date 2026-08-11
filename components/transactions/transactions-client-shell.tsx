@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Download, Lock, Printer, SlidersHorizontal, User, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Download, Lock, Printer, Search, SlidersHorizontal, User, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
+import { ActiveFilterSummary } from "@/components/shared/active-filter-summary";
+import { FilterDrawerButton } from "@/components/shared/filter-drawer-button";
 import { SegmentFilterGroups } from "@/components/shared/segment-filter-groups";
 import { MobileDaySummary } from "@/components/transactions/mobile-day-summary";
 import { ReversedBadge } from "@/components/receipts/reversed-badge";
@@ -19,8 +21,10 @@ import { MoneyWithDefinition } from "@/components/ui/money-with-definition";
 import type { MoneyTermKey } from "@/lib/money/glossary";
 import { formatInr } from "@/lib/helpers/currency";
 import { DownloadAnchor } from "@/components/ui/download-anchor";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Sheet } from "@/components/ui/sheet";
 import {
+  SEGMENT_BY_ID,
   parseSegments,
   serializeSegments,
   type SegmentId,
@@ -141,37 +145,6 @@ function modeBadgeClassName(mode: string) {
   if (mode === "cheque") return "bg-warning-soft text-warning-soft-foreground";
   if (mode === "discount") return "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200";
   return "bg-surface-2 text-muted-foreground";
-}
-
-
-function getPaymentModeChipClassName(mode: string, active: boolean) {
-  const base = "rounded-full border px-3 py-1 text-xs font-medium transition-colors";
-
-  if (!active) {
-    return cn(base, "border-border bg-card text-muted-foreground hover:bg-surface-2 hover:text-foreground");
-  }
-
-  if (mode === "cash") {
-    return cn(base, "border-success-soft-foreground/20 bg-success-soft text-success-soft-foreground");
-  }
-
-  if (mode === "upi") {
-    return cn(base, "border-info-soft-foreground/20 bg-info-soft text-info-soft-foreground");
-  }
-
-  if (mode === "bank_transfer") {
-    return cn(base, "border-accent/20 bg-accent-soft text-accent-soft-foreground");
-  }
-
-  if (mode === "cheque") {
-    return cn(base, "border-warning-soft-foreground/20 bg-warning-soft text-warning-soft-foreground");
-  }
-
-  if (mode === "discount") {
-    return cn(base, "border-purple-300 bg-purple-100 text-purple-800 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-200");
-  }
-
-  return cn(base, "border-accent/20 bg-accent-soft text-accent-soft-foreground");
 }
 
 function buildApiUrl(view: OfficeWorkbookView, f: FilterState) {
@@ -704,6 +677,7 @@ export function TransactionsClientShell({
 }: TransactionsClientShellProps) {
   const t = useTranslations("Transactions");
   const tCommon = useTranslations("Common");
+  const tSegments = useTranslations("Segments");
   const [activeView, setActiveView] = useState(initialView);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [workbook, setWorkbook] = useState<OfficeWorkbookData>(initialWorkbook);
@@ -715,18 +689,15 @@ export function TransactionsClientShell({
   const [selectedReceiptIds, setSelectedReceiptIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [showMoreFilters, setShowMoreFilters] = useState(
-    () => Boolean(
-      initialFilters.fromDate || initialFilters.toDate ||
-      initialFilters.routeId
-    )
-  );
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   // Latches on first open so the lazy chunk is fetched once and the overlay
   // keeps its exit animation instead of vanishing on unmount.
   const [datePickerUsed, setDatePickerUsed] = useState(false);
   /** Phone-only: the desk filter bar's contents, behind a sheet. */
   const [phoneFiltersOpen, setPhoneFiltersOpen] = useState(false);
+  // Matches the `md:` breakpoint the desk card is gated on, so the one filter
+  // drawer enters from the right on a desk and from the bottom on a phone.
+  const isDeskWidth = useMediaQuery("(min-width: 768px)");
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -777,9 +748,16 @@ export function TransactionsClientShell({
     window.history.replaceState(null, "", buildPageUrl(view, newFilters));
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (debounce) {
-      // 60 ms feels instant while still batching rapid keystrokes — matches
-      // the Payment Desk search responsiveness instead of the previous 320 ms.
-      debounceRef.current = setTimeout(() => fetchData(view, newFilters), 60);
+      // 200 ms, not 60. At 60 ms an ordinary typing cadence (~120 ms/keystroke)
+      // fires a request per character, and every one of them runs the full
+      // workbook query. `fetchData` already aborts the in-flight request, so
+      // only the last response is ever rendered either way — the extra requests
+      // were pure server load, not a faster answer. The user-visible cost is
+      // ~140 ms on the final result.
+      //
+      // Kept well under the Students value: this screen has no local
+      // instant-filter to cover the gap, so the list genuinely waits here.
+      debounceRef.current = setTimeout(() => fetchData(view, newFilters), 200);
     } else {
       fetchData(view, newFilters);
     }
@@ -821,7 +799,6 @@ export function TransactionsClientShell({
   function handleReset() {
     const empty: FilterState = { classId: "", query: "", fromDate: "", toDate: "", paymentMode: "", page: 1, routeId: "", sessionLabel: "", segments: [] };
     setFilters(empty);
-    setShowMoreFilters(false);
     setActiveSavedViewId(null);
     window.history.replaceState(null, "", buildPageUrl(activeView, empty));
     fetchData(activeView, empty);
@@ -945,6 +922,84 @@ export function TransactionsClientShell({
   const phoneFilterCount =
     [filters.query, filters.classId, filters.routeId, filters.sessionLabel].filter(Boolean)
       .length + filters.segments.length;
+
+  /**
+   * Which option the Date select shows. A range that matches no preset is still
+   * a real filter, so it reports as "custom" rather than falling back to "All
+   * dates" and telling the user their range was dropped.
+   */
+  const activeDayChipKey =
+    dayChips.find((chip) => chip.active)?.key ??
+    (filters.fromDate || filters.toDate ? "custom" : "");
+
+  /**
+   * The drawer badge counts what the drawer exclusively owns at desk width.
+   * Search, class, mode and date sit in the toolbar and already show as pills,
+   * so counting them here would report the same filter twice. The phone button
+   * keeps phoneFilterCount — its header carries only the day chips and the view
+   * chips, so search and class genuinely are behind the drawer there.
+   */
+  const drawerFilterCount =
+    filters.segments.length + [filters.routeId, filters.sessionLabel].filter(Boolean).length;
+
+  /** One removable pill per applied filter, mirroring the Students toolbar. */
+  const txnFilterPills = [
+    ...(filters.query
+      ? [{
+          key: "query",
+          label: filters.query,
+          onRemove: () => handleFilterChange("query", ""),
+        }]
+      : []),
+    ...(filters.classId
+      ? [{
+          key: "class",
+          label: classOptions.find((o) => o.id === filters.classId)?.label ?? filters.classId,
+          onRemove: () => handleFilterChange("classId", ""),
+        }]
+      : []),
+    ...(filters.paymentMode
+      ? [{
+          key: "mode",
+          label:
+            paymentModeOptions.find((o) => o.value === filters.paymentMode)?.label ??
+            filters.paymentMode,
+          onRemove: () => handleFilterChange("paymentMode", ""),
+        }]
+      : []),
+    ...(filters.routeId
+      ? [{
+          key: "route",
+          label: routeOptions.find((o) => o.id === filters.routeId)?.label ?? filters.routeId,
+          onRemove: () => handleFilterChange("routeId", ""),
+        }]
+      : []),
+    ...(filters.sessionLabel
+      ? [{
+          key: "session",
+          label: filters.sessionLabel,
+          onRemove: () => handleFilterChange("sessionLabel", ""),
+        }]
+      : []),
+    ...(filters.fromDate || filters.toDate
+      ? [{
+          key: "dates",
+          label:
+            dayChips.find((chip) => chip.active)?.label ??
+            [filters.fromDate, filters.toDate].filter(Boolean).join(" → "),
+          onRemove: () => {
+            const cleared = { ...filters, fromDate: "", toDate: "", page: 1 };
+            setFilters(cleared);
+            scheduleOrFetch(activeView, cleared, false);
+          },
+        }]
+      : []),
+    ...filters.segments.map((id) => ({
+      key: `seg:${id}`,
+      label: tSegments(SEGMENT_BY_ID[id].i18nKey),
+      onRemove: () => handleSegmentToggle(id),
+    })),
+  ];
 
   const phoneChipClass = (active: boolean) =>
     cn(
@@ -1137,85 +1192,102 @@ export function TransactionsClientShell({
             ))}
           </div>
 
-          {/* ── Compact filter bar ── */}
+          {/* ── One toolbar row ──
+              This block used to be five stacked rows: a labelled search+class
+              row, a payment-mode chip row, a day-chip row, all 24 segment chips
+              in a bordered box, and a four-column "more filters" grid — roughly
+              270px of the 900px viewport before the first receipt. Payment mode
+              became a select (it was always single-select), the day chips and
+              the From/To inputs became one Date control, and the segments,
+              route and academic year moved into the drawer the phone already
+              opens. What is applied is restated as pills below. */}
           <div className="space-y-2">
-            {/* Primary row: always visible */}
-            <div className="flex flex-wrap items-end gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Search */}
-              <div className="min-w-[180px] flex-1">
-                <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-query">
-                  {t("filterSearchLabel")}
-                </label>
+              <div className="relative min-w-[220px] flex-1">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   id="txn-query"
                   type="search"
+                  aria-label={t("filterSearchLabel")}
                   value={filters.query}
                   onChange={(e) => handleFilterChange("query", e.target.value, true)}
                   placeholder={t("filterSearchPlaceholder")}
-                  className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent py-1 pl-9 pr-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </div>
 
               {/* Class */}
-              <div className="min-w-[140px] flex-1 max-w-[220px]">
-                <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-class">
-                  {t("filterClassLabel")}
-                </label>
-                <select
-                  id="txn-class"
-                  value={filters.classId}
-                  onChange={(e) => handleFilterChange("classId", e.target.value)}
-                  className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  <option value="">{t("filterClassAll")}</option>
-                  {classOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                </select>
-              </div>
-
-              {/* Payment mode chips */}
-              <div className="flex flex-wrap items-end gap-1.5">
-                {paymentModeOptions.map((option) => {
-                  const active = filters.paymentMode === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={getPaymentModeChipClassName(option.value, active)}
-                      aria-pressed={active}
-                      onClick={() => handlePaymentModeToggle(option.value)}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* More filters toggle */}
-              <button
-                type="button"
-                onClick={() => setShowMoreFilters((v) => !v)}
-                className={cn(
-                  "mt-auto flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors",
-                  showMoreFilters
-                    ? "border-accent bg-accent text-accent-foreground"
-                    : "border-border bg-surface-2 text-foreground hover:bg-surface-3"
-                )}
+              <select
+                id="txn-class"
+                aria-label={t("filterClassLabel")}
+                value={filters.classId}
+                onChange={(e) => handleFilterChange("classId", e.target.value)}
+                className="flex h-9 w-auto min-w-[9rem] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                {t("filterFiltersToggle")}
-                {extraActiveCount > 0 && (
-                  <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                    {extraActiveCount}
-                  </span>
-                )}
-              </button>
+                <option value="">{t("filterClassAll")}</option>
+                {classOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
 
-              {/* Reset — visible when any filter is active */}
+              {/* Payment mode — a select, not chips. handlePaymentModeToggle
+                  already behaved as single-select, so nothing is lost. */}
+              <select
+                id="txn-mode"
+                aria-label={t("filterPaymentModeLabel")}
+                value={filters.paymentMode}
+                onChange={(e) => handleFilterChange("paymentMode", e.target.value)}
+                className="flex h-9 w-auto min-w-[8.5rem] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">{t("filterModeAll")}</option>
+                {paymentModeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+
+              {/* Date range. The presets keep applyDayRange and its IST
+                  arithmetic untouched — only the trigger changed shape. Picking
+                  "Custom range" opens the drawer, where the From/To inputs live. */}
+              <select
+                id="txn-date"
+                aria-label={t("filterDateLabel")}
+                value={activeDayChipKey}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "") {
+                    const cleared = { ...filters, fromDate: "", toDate: "", page: 1 };
+                    setFilters(cleared);
+                    scheduleOrFetch(activeView, cleared, false);
+                    return;
+                  }
+                  if (value === "custom") {
+                    setPhoneFiltersOpen(true);
+                    return;
+                  }
+                  applyDayRange(value as "Today" | "Yesterday" | "This week" | "This month");
+                }}
+                className="flex h-9 w-auto min-w-[8.5rem] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">{t("filterDateAll")}</option>
+                {dayChips.map((chip) => (
+                  <option key={chip.key} value={chip.key}>{chip.label}</option>
+                ))}
+                <option value="custom">{t("filterDateCustom")}</option>
+              </select>
+
+              {/* Segments, route and academic year live in the drawer the phone
+                  filter button already opens — one drawer, one filter set. */}
+              <FilterDrawerButton
+                onClick={() => setPhoneFiltersOpen(true)}
+                expanded={phoneFiltersOpen}
+                activeCount={drawerFilterCount}
+                label={t("filterFiltersToggle")}
+              />
+
               {(filters.query || filters.classId || filters.paymentMode || extraActiveCount > 0) && (
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="mt-auto flex h-9 items-center gap-1 rounded-md border border-border px-3 text-sm text-muted-foreground hover:bg-surface-2 transition-colors"
+                  className="flex h-9 shrink-0 items-center gap-1 rounded-md border border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-surface-2"
                   title={t("filterClearTitle")}
                 >
                   <X className="h-3.5 w-3.5" /> {t("filterClear")}
@@ -1223,121 +1295,17 @@ export function TransactionsClientShell({
               )}
             </div>
 
-            {/* Date-range quick chips — visible above the secondary filter row so
-                staff can jump to common windows without opening More filters.
-                Shares applyDayRange with the phone header so the two rows can
-                never drift on which day "Today" means. */}
-            <div className="flex flex-wrap gap-1.5">
-              {dayChips.map((chip) => (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={() => applyDayRange(chip.key)}
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                    chip.active
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border bg-card text-foreground hover:bg-surface-2",
-                  )}
-                >
-                  {chip.label}
-                </button>
-              ))}
-              {(filters.fromDate || filters.toDate) ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newFilters = { ...filters, fromDate: "", toDate: "", page: 1 };
-                    setFilters(newFilters);
-                    scheduleOrFetch(activeView, newFilters, false);
-                  }}
-                  className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-surface-2"
-                >
-                  {t("filterClearDates")}
-                </button>
-              ) : null}
-            </div>
-
-            {/* Student segments. On the receipt views these scope by WHO
-                paid, not by a property of the receipt. */}
-            <SegmentFilterGroups
-              selected={filters.segments}
-              counts={null}
-              onToggle={handleSegmentToggle}
-              layout="wrap"
-              className="rounded-lg border border-border bg-surface-2/50 p-3"
-            />
-
-            {/* Secondary row: date range, route, academic year */}
-            {showMoreFilters && (
-              <div className="grid gap-2 rounded-lg border border-border bg-surface-2/50 p-3 sm:grid-cols-2 lg:grid-cols-4">
-                {/* Session */}
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-session">
-                    {t("filterAcademicYearLabel")}
-                  </label>
-                  <select
-                    id="txn-session"
-                    value={filters.sessionLabel}
-                    onChange={(e) => handleFilterChange("sessionLabel", e.target.value)}
-                    className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                  >
-                    <option value="">{t("filterAcademicYearCurrent")}</option>
-                    {sessionOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-
-                {/* Route */}
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-route">
-                    {t("filterRouteLabel")}
-                  </label>
-                  <select
-                    id="txn-route"
-                    value={filters.routeId}
-                    onChange={(e) => handleFilterChange("routeId", e.target.value)}
-                    className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                  >
-                    <option value="">{t("filterRouteAll")}</option>
-                    {routeOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                  </select>
-                </div>
-
-                {/* From date */}
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-from">
-                    {t("filterFromLabel")}
-                  </label>
-                  <input
-                    id="txn-from"
-                    type="date"
-                    value={filters.fromDate}
-                    onChange={(e) => {
-    const newFilters = { ...filters, fromDate: e.target.value, page: 1 };
-                      setFilters(newFilters);
-                      if (!e.target.value || newFilters.toDate) scheduleOrFetch(activeView, newFilters, false);
-                    }}
-                    className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                  />
-                </div>
-
-                {/* To date */}
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground" htmlFor="txn-to">
-                    {t("filterToLabel")}
-                  </label>
-                  <input
-                    id="txn-to"
-                    type="date"
-                    value={filters.toDate}
-                    onChange={(e) => {
-                      const newFilters = { ...filters, toDate: e.target.value, page: 1 };
-                      setFilters(newFilters);
-                      if (!e.target.value || newFilters.fromDate) scheduleOrFetch(activeView, newFilters, false);
-                    }}
-                    className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                  />
-                </div>
+            {/* One removable pill per applied filter. Transactions had no such
+                row, which is why the controls had to stay expanded to be
+                legible; this does that job in ~28px instead of ~270px. */}
+            {txnFilterPills.length > 0 && (
+              <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                <ActiveFilterSummary
+                  pills={txnFilterPills}
+                  onClearAll={handleReset}
+                  clearAllLabel={t("filterClear")}
+                  removeAriaLabel={(label) => t("filterRemoveAria", { label })}
+                />
               </div>
             )}
           </div>
@@ -1559,6 +1527,10 @@ export function TransactionsClientShell({
         open={phoneFiltersOpen}
         onClose={() => setPhoneFiltersOpen(false)}
         title={t("filterFiltersToggle")}
+        // A bottom sheet is the right shape on a phone and the wrong one on a
+        // desk, where it would cover the receipts it is filtering. Same sheet,
+        // same state, same content — only the edge it enters from changes.
+        side={isDeskWidth ? "right" : "bottom"}
         size="md"
       >
         <div className="flex flex-col gap-4 pt-2">
@@ -1664,6 +1636,45 @@ export function TransactionsClientShell({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Exact range. The toolbar's Date select covers the four presets and
+              sends "Custom range" here, so this is where an arbitrary window is
+              actually chosen — it has to exist in the drawer or that option
+              would open a sheet with nowhere to set the dates. */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="mobile-eyebrow text-muted-foreground" htmlFor="txn-from">
+                {t("filterFromLabel")}
+              </label>
+              <input
+                id="txn-from"
+                type="date"
+                value={filters.fromDate}
+                onChange={(event) => {
+                  const next = { ...filters, fromDate: event.target.value, page: 1 };
+                  setFilters(next);
+                  if (!event.target.value || next.toDate) scheduleOrFetch(activeView, next, false);
+                }}
+                className="mt-1.5 h-12 w-full rounded-xl border border-input bg-surface px-3 text-[15px] font-semibold text-foreground"
+              />
+            </div>
+            <div>
+              <label className="mobile-eyebrow text-muted-foreground" htmlFor="txn-to">
+                {t("filterToLabel")}
+              </label>
+              <input
+                id="txn-to"
+                type="date"
+                value={filters.toDate}
+                onChange={(event) => {
+                  const next = { ...filters, toDate: event.target.value, page: 1 };
+                  setFilters(next);
+                  if (!event.target.value || next.fromDate) scheduleOrFetch(activeView, next, false);
+                }}
+                className="mt-1.5 h-12 w-full rounded-xl border border-input bg-surface px-3 text-[15px] font-semibold text-foreground"
+              />
+            </div>
           </div>
 
           <div className="flex gap-2 pt-1">

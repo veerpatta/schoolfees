@@ -8,10 +8,10 @@ import { useTranslations } from "next-intl";
 import { SectionCard } from "@/components/admin/section-card";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
 import { ActiveFilterSummary } from "@/components/shared/active-filter-summary";
+import { FilterDrawerButton } from "@/components/shared/filter-drawer-button";
 import { SegmentFilterGroups } from "@/components/shared/segment-filter-groups";
 import { SummaryRow, SummaryCell } from "@/components/data-table/summary-row";
 import { MobileStudentsScreen } from "@/components/students/mobile-students-screen";
-import { RecentStudentAccess } from "@/components/students/recent-student-access";
 import { StudentListTable } from "@/components/students/student-list-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,7 +84,6 @@ type StudentQuickLoadProps = {
   routeOptions: StudentRouteOption[];
   canWrite: boolean;
   canCollectPayments: boolean;
-  lastViewedByUser?: Record<string, string>;
   initialSegmentCounts?: SegmentCounts;
   /** Fee-profile chips read student_fee_overrides, which RLS gates on fees:view. */
   canViewFees?: boolean;
@@ -99,7 +98,6 @@ export function StudentQuickLoad({
   routeOptions,
   canWrite,
   canCollectPayments,
-  lastViewedByUser,
   initialSegmentCounts,
   canViewFees = true,
 }: StudentQuickLoadProps) {
@@ -197,6 +195,13 @@ export function StudentQuickLoad({
     );
   }, [filters]);
 
+  // The desktop badge counts only what the drawer exclusively owns. Route and
+  // status sit in the toolbar at that width and already show as pills, so
+  // counting them here would report the same filter twice. The phone button
+  // keeps using activeFilterCount, because its header carries only search and
+  // class — everything else really is behind the drawer there.
+  const drawerFilterCount = filters.segments.length;
+
   const activeSavedViewId = useMemo<string | null>(() => {
     for (const view of STUDENT_BUILTIN_VIEWS) {
       if (
@@ -293,8 +298,21 @@ export function StudentQuickLoad({
           return payload;
         };
 
-        if (!isInitialHydration) {
-          const identityPayload = await loadMode("identity");
+        // Both passes are independent requests over the same params, so they
+        // go out together. They used to be awaited in series — identity, then
+        // financial — which meant the final numbers landed two round trips
+        // after every filter change instead of one. Identity still paints
+        // first, because it is the faster query and it resolves first; the
+        // financial pass then overwrites it with the enriched rows.
+        const identityRequest = isInitialHydration ? null : loadMode("identity");
+        const financialRequest = loadMode("financial");
+
+        // Nothing must reject before both are attached, or the loser becomes an
+        // unhandled rejection when the AbortController tears the pair down.
+        if (identityRequest) financialRequest.catch(() => {});
+
+        if (identityRequest) {
+          const identityPayload = await identityRequest;
           identitiesLoaded = true;
           if (identityPayload.segmentCounts) setSegmentCounts(identityPayload.segmentCounts);
           setStudents(identityPayload.students);
@@ -302,7 +320,7 @@ export function StudentQuickLoad({
           setPage(identityPayload.page);
         }
 
-        const financialPayload = await loadMode("financial");
+        const financialPayload = await financialRequest;
         setStudents(financialPayload.students);
         setTotalCount(financialPayload.totalCount);
         setPage(financialPayload.page);
@@ -427,16 +445,6 @@ export function StudentQuickLoad({
     />
   );
 
-  const recentAccess = (
-    <RecentStudentAccess
-      students={students}
-      lastViewedByUser={lastViewedByUser ?? {}}
-      sessionLabel={initialFilters.sessionLabel}
-      returnTo={returnTo}
-      canCollectPayments={canCollectPayments}
-    />
-  );
-
   return (
     <>
       {/* ── Phone (mobile app v2 §STUDENTS) ────────────────────────────
@@ -474,7 +482,6 @@ export function StudentQuickLoad({
           pageCount={pageCount}
           onPrevPage={() => setPage((value) => Math.max(1, value - 1))}
           onNextPage={() => setPage((value) => Math.min(pageCount, value + 1))}
-          recentAccess={recentAccess}
           segmentRow={
             <SegmentFilterGroups
               selected={filters.segments}
@@ -495,119 +502,117 @@ export function StudentQuickLoad({
         title={t("findStudentsTitle")}
         description={t("findStudentsDescription")}
       >
-        <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-5">
-          <div className="xl:col-span-2">
-            <Label htmlFor="query">{t("searchLabel")}</Label>
-            <div className="relative mt-2">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <Input
-                id="query"
-                ref={searchRef}
-                data-student-search="true"
-                value={filters.query}
-                onChange={(event) => {
-                  setPage(1);
-                  setFilters((previous) => ({ ...previous, query: event.target.value }));
-                }}
-                placeholder={t("searchPlaceholder")}
-                title={t("searchFocusHint")}
-                className="pl-9 pr-8 h-9 peer"
-              />
-              <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground transition-opacity opacity-0 peer-placeholder-shown:opacity-100 peer-focus:opacity-0">
-                /
-              </kbd>
-            </div>
+        {/* One toolbar row. The four controls used to sit in a 5-column grid,
+            each with a <Label> stacked above it, and the 24 segment chips were
+            expanded below a divider — together ~300px of chrome before a single
+            student appeared. The labels are gone because every control already
+            says what it is: the search placeholder, and the "All classes" /
+            "All routes" / "All statuses" zero-option on each select. Screen
+            readers get the same text through aria-label. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="query"
+              ref={searchRef}
+              data-student-search="true"
+              aria-label={t("searchLabel")}
+              value={filters.query}
+              onChange={(event) => {
+                setPage(1);
+                setFilters((previous) => ({ ...previous, query: event.target.value }));
+              }}
+              placeholder={t("searchPlaceholder")}
+              title={t("searchFocusHint")}
+              className="peer h-9 pl-9 pr-8"
+            />
+            <kbd className="pointer-events-none absolute right-2.5 top-1/2 inline-flex h-5 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 transition-opacity peer-placeholder-shown:opacity-100 peer-focus:opacity-0">
+              /
+            </kbd>
           </div>
 
-          <div>
-            <Label htmlFor="classId">{t("classLabel")}</Label>
-            <div className="relative mt-2">
-              <GraduationCap className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <select
-                id="classId"
-                value={filters.classId}
-                onChange={(event) => {
-                  setPage(1);
-                  setFilters((previous) => ({ ...previous, classId: event.target.value }));
-                }}
-                className={`${selectClassName} pl-9 h-9`}
-              >
-                <option value="">{t("classAll")}</option>
-                {classOptions.map((classOption) => (
-                  <option key={classOption.id} value={classOption.id}>
-                    {classOption.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            </div>
+          <div className="relative">
+            <GraduationCap className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <select
+              id="classId"
+              aria-label={t("classLabel")}
+              value={filters.classId}
+              onChange={(event) => {
+                setPage(1);
+                setFilters((previous) => ({ ...previous, classId: event.target.value }));
+              }}
+              className={`${selectClassName} h-9 w-auto min-w-[9rem] pl-9`}
+            >
+              <option value="">{t("classAll")}</option>
+              {classOptions.map((classOption) => (
+                <option key={classOption.id} value={classOption.id}>
+                  {classOption.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           </div>
 
-          <div>
-            <Label htmlFor="transportRouteId">{t("transportRouteLabel")}</Label>
-            <div className="relative mt-2">
-              <Bus className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <select
-                id="transportRouteId"
-                value={filters.transportRouteId}
-                onChange={(event) => {
-                  setPage(1);
-                  setFilters((previous) => ({ ...previous, transportRouteId: event.target.value }));
-                }}
-                className={`${selectClassName} pl-9 h-9`}
-              >
-                <option value="">{t("transportRouteAll")}</option>
-                {routeOptions.map((route) => (
-                  <option key={route.id} value={route.id}>
-                    {route.routeCode
-                      ? t("transportRouteWithCode", { label: route.label, code: route.routeCode })
-                      : route.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            </div>
+          <div className="relative">
+            <Bus className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <select
+              id="transportRouteId"
+              aria-label={t("transportRouteLabel")}
+              value={filters.transportRouteId}
+              onChange={(event) => {
+                setPage(1);
+                setFilters((previous) => ({ ...previous, transportRouteId: event.target.value }));
+              }}
+              className={`${selectClassName} h-9 w-auto min-w-[9rem] pl-9`}
+            >
+              <option value="">{t("transportRouteAll")}</option>
+              {routeOptions.map((route) => (
+                <option key={route.id} value={route.id}>
+                  {route.routeCode
+                    ? t("transportRouteWithCode", { label: route.label, code: route.routeCode })
+                    : route.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           </div>
 
-          <div>
-            <Label htmlFor="status">{t("statusLabel")}</Label>
-            <div className="relative mt-2">
-              <UserCheck className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <select
-                id="status"
-                value={filters.status}
-                onChange={(event) => {
-                  setPage(1);
-                  setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
-                }}
-                className={`${selectClassName} pl-9 h-9`}
-              >
-                <option value="">{t("statusAll")}</option>
-                <option value="active">{t("statusActive")}</option>
-                <option value="inactive">{t("statusInactive")}</option>
-                <option value="left">{t("statusLeft")}</option>
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            </div>
+          <div className="relative">
+            <UserCheck className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <select
+              id="status"
+              aria-label={t("statusLabel")}
+              value={filters.status}
+              onChange={(event) => {
+                setPage(1);
+                setFilters((previous) => ({ ...previous, status: event.target.value as StudentListFilters["status"] }));
+              }}
+              className={`${selectClassName} h-9 w-auto min-w-[8rem] pl-9`}
+            >
+              <option value="">{t("statusAll")}</option>
+              <option value="active">{t("statusActive")}</option>
+              <option value="inactive">{t("statusInactive")}</option>
+              <option value="left">{t("statusLeft")}</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           </div>
 
-        </div>
-
-        {/* Segments, on desktop too. The chip row was mobile-only, so every
-            question that is not class/route/status was unreachable from the
-            surface the office actually works on. */}
-        <div className="mt-4 border-t border-border pt-4">
-          {segmentGroups("wrap")}
+          {/* Opens the same sheet the phone's filter button drives, so there is
+              one drawer and one filter set across both widths. */}
+          <FilterDrawerButton
+            onClick={() => setFilterSheetOpen(true)}
+            expanded={filterSheetOpen}
+            activeCount={drawerFilterCount}
+            label={t("filterMoreFilters")}
+          />
         </div>
 
         {hasVisibleFilters && (
-          <div className="mt-4 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200">
             {activeFilterSummary}
           </div>
         )}
       </SectionCard>
-
-      {recentAccess}
 
       <SectionCard
         title={t("studentListTitle")}
@@ -674,7 +679,6 @@ export function StudentQuickLoad({
               canCollectPayments={canCollectPayments}
               returnTo={returnTo}
               session={initialFilters.sessionLabel}
-              lastViewedByUser={lastViewedByUser}
               selection={canWrite && isDesktop ? {
                 selectedIds,
                 onToggle: toggleSelection,
@@ -705,7 +709,11 @@ export function StudentQuickLoad({
           <Sheet
             open={filterSheetOpen}
             onClose={() => setFilterSheetOpen(false)}
-            title={t("filterRouteAndStatus")}
+            title={t("filterMoreFilters")}
+            // A bottom sheet is the right shape on a phone and the wrong one on
+            // a desk, where it would cover the list it is filtering. Same sheet,
+            // same state, same content — only the edge it enters from changes.
+            side={isDesktop ? "right" : "bottom"}
             size="md"
           >
             <div className="space-y-4 pt-2">

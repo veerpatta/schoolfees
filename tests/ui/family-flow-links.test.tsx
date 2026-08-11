@@ -35,7 +35,6 @@ describe("family flow links", () => {
       <StudentFamilyPanel
         studentId={selfStudentId}
         familyGroupId={familyGroupId}
-        confidence="confirmed"
         sessionLabel={sessionLabel}
         members={[
           member({ id: selfStudentId, fullName: "TEST Self", isSelf: true }),
@@ -49,12 +48,11 @@ describe("family flow links", () => {
     expect(html).not.toContain(`/protected/payments/family/${familyGroupId}`);
   });
 
-  it("no longer links suspected siblings to the removed Families page", () => {
+  it("never presents a family as anything other than confirmed", () => {
     const html = renderToStaticMarkup(
       <StudentFamilyPanel
         studentId={selfStudentId}
-        familyGroupId={null}
-        confidence="suspected"
+        familyGroupId={familyGroupId}
         sessionLabel={sessionLabel}
         members={[
           member({ id: selfStudentId, fullName: "TEST Self", isSelf: true }),
@@ -66,6 +64,24 @@ describe("family flow links", () => {
     // The "Confirm Sibling Group" flow and its Families route are gone; siblings
     // are linked/unlinked directly on the profile instead.
     expect(html).not.toContain("/protected/students/families");
-    expect(html).toContain("Suspected Siblings");
+    // Phone-match detection was removed: every family on this panel is one a
+    // person linked, so the amber "unverified" state must not come back.
+    expect(html).toContain("Confirmed Family Group");
+    expect(html).not.toContain("Suspected");
+    expect(html).not.toContain("unverified");
+  });
+
+  it("offers only the manual picker when a student has no family linked", () => {
+    const html = renderToStaticMarkup(
+      <StudentFamilyPanel
+        studentId={selfStudentId}
+        familyGroupId={null}
+        sessionLabel={sessionLabel}
+        members={[member({ id: selfStudentId, fullName: "TEST Self", isSelf: true })]}
+      />,
+    );
+
+    expect(html).toContain("No siblings linked yet");
+    expect(html).not.toContain("Suspected");
   });
 });

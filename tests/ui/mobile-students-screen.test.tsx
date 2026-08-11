@@ -178,7 +178,7 @@ describe("phone students list", () => {
   it("keeps the sibling pill, which is the only family affordance on the list", () => {
     const html = renderList([
       student({
-        siblingPill: { siblingCount: 2, href: "/protected/students/student-1", confidence: "confirmed" },
+        siblingPill: { siblingCount: 2, href: "/protected/students/student-1" },
       }),
     ]);
 
@@ -256,8 +256,10 @@ describe("phone family tab", () => {
 
   it("drives the same sibling server actions as the desktop panel", () => {
     expect(family).toContain("LinkSiblingTrigger");
-    expect(family).toContain("LinkSuspectedSiblingsButton");
     expect(family).toContain("UnlinkSiblingTrigger");
+    // Phone-match detection is gone: there is no one-tap "link the suspected
+    // group" path, only the explicit picker.
+    expect(family).not.toContain("LinkSuspectedSiblingsButton");
   });
 
   it("collects per sibling and never posts one receipt for the family", () => {
@@ -265,10 +267,10 @@ describe("phone family tab", () => {
     expect(family).not.toContain("/protected/payments/family");
   });
 
-  it("warns that confirming a suspected group can apply the 3rd Child Policy", () => {
-    const en = JSON.parse(read("messages/en.json")) as {
-      MobileApp: Record<string, string>;
-    };
-    expect(en.MobileApp.familySuspectedBody).toContain("3rd Child");
+  it("keeps no suspected-sibling wording in any dictionary", () => {
+    for (const locale of ["en", "hi", "hi-en"]) {
+      expect(read(`messages/${locale}.json`)).not.toContain("familySuspected");
+      expect(read(`messages/${locale}.json`)).not.toContain("linkSuspected");
+    }
   });
 });

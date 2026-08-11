@@ -83,6 +83,14 @@ export async function GET(request: Request) {
     mode: mode === "identity" ? "identity" : mode === "financial" ? "financial" : "full",
   }, {
     headers: {
+      // The paymentDesk branch above has always been cacheable; the list modes
+      // sent nothing, so flipping a filter off and back on — which the roll
+      // screen does constantly — always paid a full round trip. `private` keeps
+      // student data in the staff member's own browser and out of any shared
+      // cache. 15s is short enough that a payment posted at the desk shows on
+      // the next deliberate look, and stale-while-revalidate repaints instantly
+      // while the fresh copy lands.
+      "Cache-Control": "private, max-age=15, stale-while-revalidate=60",
       "Server-Timing": `auth;dur=${authMs.toFixed(1)}, ${mode === "identity" ? "identity" : "financial"};dur=${dataMs.toFixed(1)}, total;dur=${(performance.now() - startedAt).toFixed(1)}`,
     },
   });

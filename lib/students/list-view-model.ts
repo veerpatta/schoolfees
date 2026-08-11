@@ -25,18 +25,3 @@ export function filterStudentWorkspaceRows(input: {
     return true;
   });
 }
-
-export function getRecentlyViewedStudents(input: {
-  students: StudentListItem[];
-  lastViewedByUser: Record<string, string>;
-  limit?: number;
-}) {
-  return input.students
-    .filter((student) => Boolean(input.lastViewedByUser[student.id]))
-    .sort(
-      (left, right) =>
-        Date.parse(input.lastViewedByUser[right.id]) -
-        Date.parse(input.lastViewedByUser[left.id]),
-    )
-    .slice(0, input.limit ?? 5);
-}

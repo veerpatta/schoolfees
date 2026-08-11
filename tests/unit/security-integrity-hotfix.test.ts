@@ -36,8 +36,10 @@ describe("security and integrity hotfix", () => {
 
   it("locks anonymous users out of financial projections and posting RPCs", () => {
     const sql = readFileSync(migrationPath, "utf8");
+    // mv_student_sibling_groups was in this list until the phone-match sibling
+    // detection was removed and the matview dropped. The revoke is still in the
+    // historical migration; there is just no object left for it to protect.
     for (const projection of [
-      "mv_student_sibling_groups",
       "v_student_financial_state",
       "v_workbook_installment_balances",
       "v_workbook_student_financials",

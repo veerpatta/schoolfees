@@ -83,32 +83,10 @@ export type StudentListItem = {
   financialLoading?: boolean;
 };
 
+/** Always a confirmed family — there is no detected/suspected variety any more. */
 export type StudentSiblingPill = {
   siblingCount: number;
   href: string;
-  confidence: "confirmed" | "suspected";
-};
-
-export type SiblingGroupStudentSummary = {
-  studentId: string;
-  admissionNo: string;
-  fullName: string;
-  classLabel: string;
-  outstandingAmount: number;
-};
-
-export type SiblingGroupSummary = {
-  groupKey: string;
-  sessionLabel: string;
-  studentIds: string[];
-  studentCount: number;
-  phoneMatch: string[];
-  fatherNameMatch: boolean;
-  confidence: "confirmed" | "suspected";
-  existingFamilyGroupId: string | null;
-  guardianPhone: string | null;
-  pendingTotal: number;
-  students: SiblingGroupStudentSummary[];
 };
 
 export type StudentDetail = {

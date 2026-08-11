@@ -303,7 +303,6 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     allocationResult,
     feeSettingResult,
     directoryResult,
-    siblingGroupResult,
   ] = await Promise.all([
     fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
       supabase
@@ -350,10 +349,6 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         .eq("session_label", sessionLabel)
         .in("student_id", chunk),
     ),
-    supabase
-      .from("mv_student_sibling_groups")
-      .select("group_key, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id")
-      .eq("session_label", sessionLabel),
   ]);
 
   type FeeOverrideRow = {
@@ -566,11 +561,10 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `                      'manual' and 'payment_desk' were granted by a person —`,
     `                      "Granted by a person" says so directly. Counting all`,
     `                      of them as forgiveness overstates it by hundreds.`,
-    `* Siblings          — both senses of the word, tagged in "Source":`,
-    `                      "Confirmed family group" is what the office recorded`,
-    `                      (this drives the 3rd Child policy), "Detected group" is`,
-    `                      what the app infers from a shared phone or father name`,
-    `                      and has NOT been confirmed by anyone.`,
+    `* Siblings          — the family groups the office linked, which drive the`,
+    `                      3rd Child policy. A family exists only when staff link`,
+    `                      it; the app no longer guesses one from a shared phone`,
+    `                      number, so every row here was confirmed by a person.`,
     `* Student Segments  — one yes/no column per filter chip in the app (never`,
     `                      paid, year clear, old balance due, overdue, on`,
     `                      transport, RTE, …), generated from the same definition`,
@@ -1096,25 +1090,15 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   );
 
   // ── Siblings ─────────────────────────────────────────────────────────────
-  // Two different things, both called "siblings" in the app: the family groups
-  // the office has confirmed (which drive the 3rd Child policy), and the groups
-  // the app DETECTS from a shared phone or father name. Both are here, tagged.
-  type SiblingGroupRow = {
-    group_key: string;
-    student_ids: string[] | null;
-    student_count: number | null;
-    phone_match: string[] | null;
-    father_name_match: boolean | null;
-    confidence: string | null;
-    existing_family_group_id: string | null;
-  };
-
+  // Confirmed family groups only — the ones the office linked, which are what
+  // the 3rd Child policy runs on. The old phone-match "detected group" rows are
+  // gone: a shared guardian phone is not a family, and shipping both senses in
+  // one sheet under a "Confidence" column was the confusion this removed.
   const siblingRows: Array<Record<string, string | number>> = [];
   for (const [studentId, family] of familyByStudentId) {
     const student = studentIndex.get(studentId);
     const group = firstOf(family.family_ref);
     siblingRows.push({
-      "Source": "Confirmed family group",
       "Group": group?.family_label ?? "",
       "SR no": student?.admissionNo ?? "",
       "Student": student?.studentName ?? "",
@@ -1124,34 +1108,8 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       "Sibling order": family.sibling_order ?? "",
       "Policy candidate": family.is_policy_candidate ? "yes" : "no",
       "Order overridden": family.manual_order_override ? "yes" : "no",
-      "Confidence": "confirmed",
       "Notes": family.notes ?? "",
     });
-  }
-  for (const group of (siblingGroupResult.data ?? []) as SiblingGroupRow[]) {
-    for (const studentId of group.student_ids ?? []) {
-      const student = studentIndex.get(studentId);
-      if (!student) continue;
-      siblingRows.push({
-        "Source": "Detected group",
-        "Group": group.group_key,
-        "SR no": student.admissionNo,
-        "Student": student.studentName,
-        "Class": student.classLabel,
-        "Guardian name": "",
-        "Guardian phone": (group.phone_match ?? []).join(", "),
-        "Sibling order": "",
-        "Policy candidate": "",
-        "Order overridden": "",
-        "Confidence": group.confidence ?? "suspected",
-        "Notes": [
-          group.father_name_match ? "father name matches" : "",
-          group.existing_family_group_id ? "already grouped by the office" : "",
-        ]
-          .filter(Boolean)
-          .join("; "),
-      });
-    }
   }
 
   XLSX.utils.book_append_sheet(
@@ -1159,7 +1117,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     XLSX.utils.json_to_sheet(
       siblingRows.length > 0
         ? siblingRows
-        : [{ Source: "", Notes: "No sibling groups recorded or detected for this session." }],
+        : [{ Group: "", Notes: "No family groups linked for this session." }],
     ),
     "Siblings",
   );

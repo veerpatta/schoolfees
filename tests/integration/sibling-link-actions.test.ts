@@ -39,11 +39,9 @@ vi.mock("@/lib/system-sync/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
 }));
 
-const {
-  linkSiblingsAction,
-  linkSuspectedSiblingsAction,
-  unlinkSiblingAction,
-} = await import("@/app/protected/students/sibling-actions");
+const { linkSiblingsAction, unlinkSiblingAction } = await import(
+  "@/app/protected/students/sibling-actions"
+);
 
 const SESSION = "TEST-2026-27";
 const INITIAL = { status: "idle", message: null, familyGroupId: null } as const;
@@ -267,34 +265,6 @@ describe("linkSiblingsAction", () => {
 
     const result = await linkSiblingsAction(INITIAL, linkForm("a", ["a"]));
     expect(result.status).toBe("error");
-  });
-});
-
-describe("linkSuspectedSiblingsAction", () => {
-  it("links the whole phone-matched group and backfills the session", async () => {
-    supabase = createFakeSupabase({
-      students: [student("a"), student("b"), student("c")],
-      student_family_groups: [],
-      student_family_members: [],
-      mv_student_sibling_groups: [
-        {
-          session_label: SESSION,
-          student_ids: ["a", "b", "c"],
-          phone_match: ["9000000001"],
-          father_name_match: true,
-        },
-      ],
-    });
-
-    const result = await linkSuspectedSiblingsAction(INITIAL, (() => {
-      const formData = new FormData();
-      formData.set("studentId", "a");
-      formData.set("sessionLabel", SESSION);
-      return formData;
-    })());
-
-    expect(result.status).toBe("success");
-    expect(membersOf(result.familyGroupId as string).sort()).toEqual(["a", "b", "c"]);
   });
 });
 

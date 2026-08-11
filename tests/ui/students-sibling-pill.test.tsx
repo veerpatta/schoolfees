@@ -81,7 +81,6 @@ describe("students sibling pill", () => {
             siblingPill: {
               siblingCount: 2,
               href: "/protected/students/student-1",
-              confidence: "confirmed",
             },
           }),
         ]}

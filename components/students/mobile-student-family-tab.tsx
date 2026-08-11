@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { MobileCard, MobileNote, MobileStatStrip } from "@/components/mobile-app/mobile-kit";
+import { MobileCard, MobileStatStrip } from "@/components/mobile-app/mobile-kit";
 import { LinkSiblingTrigger } from "@/components/students/link-sibling-trigger";
-import { LinkSuspectedSiblingsButton } from "@/components/students/link-suspected-siblings-button";
 import { StudentAvatar } from "@/components/students/student-avatar";
 import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
 import { UnlinkSiblingTrigger } from "@/components/students/unlink-sibling-trigger";
@@ -23,13 +22,12 @@ import type { StudentFamilyMemberDetail } from "@/lib/students/data";
  * `tests/unit/individual-payments-only-audit.test.ts` enforces it.
  *
  * Linking never grants a discount by itself. The 3rd Child Policy is applied by
- * the server actions these triggers already call, after an explicit staff tap —
- * which is why the suspected-group card says so out loud.
+ * the server actions these triggers already call, after an explicit staff tap.
+ * A family only exists once staff link it — there is no phone-match detection.
  */
 export async function MobileStudentFamilyTab({
   studentId,
   familyGroupId,
-  confidence,
   members,
   sessionLabel,
   canEditStudent,
@@ -39,7 +37,6 @@ export async function MobileStudentFamilyTab({
 }: {
   studentId: string;
   familyGroupId: string | null;
-  confidence: "confirmed" | "suspected" | null;
   members: StudentFamilyMemberDetail[];
   sessionLabel: string;
   canEditStudent: boolean;
@@ -93,31 +90,12 @@ export async function MobileStudentFamilyTab({
 
   return (
     <div className="flex flex-col gap-2.5">
-      {confidence === "suspected" ? (
-        <MobileNote icon="⚠️" className="border-warning/50 bg-warning-soft">
-          <span className="font-bold text-warning-soft-foreground">
-            {t("familySuspected", { count: members.length })}
-          </span>{" "}
-          <span className="text-warning-soft-foreground">{t("familySuspectedBody")}</span>
-        </MobileNote>
-      ) : null}
-
-      {confidence === "suspected" && canEditStudent ? (
-        <LinkSuspectedSiblingsButton
-          studentId={studentId}
-          sessionLabel={sessionLabel}
-          count={members.length}
-        />
-      ) : null}
-
       <MobileCard>
         <div className="flex items-baseline justify-between gap-2.5">
           <h2 className="text-[13.5px] font-extrabold text-foreground">{t("familyTitle")}</h2>
-          {confidence === "confirmed" ? (
-            <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-success-soft-foreground">
-              {t("familyConfirmed")}
-            </span>
-          ) : null}
+          <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-success-soft-foreground">
+            {t("familyConfirmed")}
+          </span>
         </div>
 
         <ul className="mt-3 flex flex-col gap-2">

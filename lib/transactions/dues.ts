@@ -465,26 +465,31 @@ function buildFetchedPage<T>(rows: T[], page: number, pageSize: number) {
 export async function getOfficeWorkbookData(
   filters: OfficeWorkbookFilters,
 ): Promise<OfficeWorkbookData> {
-  const classOptions = await getWorkbookClassOptions(filters.sessionLabel || undefined);
   const paginationInput = normalizePagination(filters);
 
+  // Class options and the segment scope are independent of each other, so they
+  // overlap. Class options used to be awaited alone on the line above, which
+  // put a blocking round trip in front of EVERY filter request — including each
+  // keystroke in the search box — to fetch a 38-row list that only changes when
+  // the session does.
+  //
   // Segments resolve to a student-id scope once, then apply to every view --
   // including the receipt views, where they mean "receipts belonging to these
   // students" rather than a property of the receipt itself.
-  const segmentStudentIds =
+  const [classOptions, segmentStudentIds] = await Promise.all([
+    getWorkbookClassOptions(filters.sessionLabel || undefined),
     filters.segments && filters.segments.length > 0
-      ? (
-          await getStudentDirectoryIds(
-            {
-              sessionLabel: filters.sessionLabel,
-              classId: filters.classId || undefined,
-              transportRouteId: filters.routeId || undefined,
-              segments: filters.segments,
-            },
-            { page: 1, pageSize: 5000 },
-          )
-        ).studentIds
-      : null;
+      ? getStudentDirectoryIds(
+          {
+            sessionLabel: filters.sessionLabel,
+            classId: filters.classId || undefined,
+            transportRouteId: filters.routeId || undefined,
+            segments: filters.segments,
+          },
+          { page: 1, pageSize: 5000 },
+        ).then((result) => result.studentIds)
+      : Promise.resolve(null),
+  ]);
 
   const sharedFilters = {
     classId: filters.classId || undefined,

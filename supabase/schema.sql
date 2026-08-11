@@ -12,14 +12,23 @@
 -- guards are this file's, chosen so it replays top to bottom on an empty
 -- database.
 --
+-- Amended at migration 20260811090000, which only DROPS objects: the
+-- v_student_sibling_groups view, the mv_student_sibling_groups matview and its
+-- two indexes, queue_sibling_groups_refresh(),
+-- refresh_sibling_groups_if_requested(), the three queue_sibling_refresh_*
+-- triggers, their grants and comment, and the refresh-sibling-groups-matview
+-- cron entry. Their definitions were removed from this snapshot rather than
+-- re-introspecting the whole catalog — for a pure drop the result is identical.
+-- Verified against the live catalog afterwards: none of them remain.
+--
 -- The previous snapshot had drifted badly: it was missing 18 tables and 7 views
 -- that exist in production, and several objects it did carry had been redefined
 -- since. To refresh, re-run the introspection, or with Docker available:
 --
 --   supabase db dump --schema public,private -f supabase/schema.sql
 --
--- Covers 53 tables, 17 views, 4 materialized views, 45 functions, 126 triggers,
--- 177 indexes, 410 constraints, 156 RLS policies and every grant across the
+-- Covers 58 tables, 16 views, 3 materialized views, 43 functions, 123 triggers,
+-- 175 indexes, 410 constraints, 156 RLS policies and every grant across the
 -- `public` and `private` schemas. Excludes the Supabase-managed `auth`,
 -- `storage` and `extensions` schemas, all row data, and the pg_cron schedule —
 -- that is listed as a comment at the end, because cron.schedule() is not
@@ -3784,26 +3793,6 @@ end;
 $function$
 ;
 
-create or replace function public.queue_sibling_groups_refresh()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-begin
-  insert into public.workbook_materialized_view_refresh_queue
-    (queue_key, pending, requested_at, request_count)
-  values ('sibling_groups', true, now(), 1)
-  on conflict (queue_key) do update
-    set pending = true,
-        requested_at = excluded.requested_at,
-        request_count = public.workbook_materialized_view_refresh_queue.request_count + 1;
-
-  return null;
-end;
-$function$
-;
-
 create or replace function public.queue_workbook_materialized_view_refresh()
  RETURNS void
  LANGUAGE plpgsql
@@ -4078,39 +4067,6 @@ begin
     refresh materialized view public.v_workbook_student_financials;
     refresh materialized view public.v_student_financial_state;
   end if;
-end;
-$function$
-;
-
-create or replace function public.refresh_sibling_groups_if_requested()
- RETURNS boolean
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-declare
-  v_requested_at timestamptz;
-begin
-  select requested_at
-    into v_requested_at
-  from public.workbook_materialized_view_refresh_queue
-  where queue_key = 'sibling_groups'
-    and pending = true
-  for update skip locked;
-
-  if v_requested_at is null then
-    return false;
-  end if;
-
-  refresh materialized view concurrently public.mv_student_sibling_groups;
-
-  update public.workbook_materialized_view_refresh_queue
-  set pending = false,
-      last_refreshed_at = now(),
-      request_count = 0
-  where queue_key = 'sibling_groups';
-
-  return true;
 end;
 $function$
 ;
@@ -4637,85 +4593,6 @@ with (security_invoker = true) as
    FROM student_late_fee_waivers w
   WHERE voided_at IS NULL AND (source = ANY (ARRAY['manual'::text, 'payment_desk'::text]))
   GROUP BY student_id, session_label;
-
-create or replace view public.v_student_sibling_groups
-with (security_invoker = true) as
- WITH student_phones AS (
-         SELECT s.id AS student_id,
-            c.session_label,
-            s.father_name,
-            regexp_replace(COALESCE(raw_phone.raw_value, ''::text), '[^0-9]'::text, ''::text, 'g'::text) AS normalized_phone
-           FROM students s
-             JOIN classes c ON c.id = s.class_id
-             CROSS JOIN LATERAL ( VALUES (s.primary_phone), (s.secondary_phone)) raw_phone(raw_value)
-          WHERE s.status = 'active'::student_status
-        ), valid_student_phones AS (
-         SELECT DISTINCT student_phones.student_id,
-            student_phones.session_label,
-            student_phones.father_name,
-            student_phones.normalized_phone
-           FROM student_phones
-          WHERE student_phones.normalized_phone ~ '^[0-9]{10}$'::text AND (student_phones.normalized_phone <> ALL (ARRAY['9999999999'::text, '0000000000'::text, '1234567890'::text])) AND student_phones.normalized_phone !~ '^([0-9])\1{9}$'::text AND student_phones.normalized_phone !~ '([0-9])\1{6,}'::text
-        ), phone_groups AS (
-         SELECT valid_student_phones.session_label,
-            valid_student_phones.normalized_phone,
-            array_agg(valid_student_phones.student_id ORDER BY valid_student_phones.student_id) AS student_ids,
-            count(DISTINCT valid_student_phones.student_id)::integer AS student_count
-           FROM valid_student_phones
-          GROUP BY valid_student_phones.session_label, valid_student_phones.normalized_phone
-         HAVING count(DISTINCT valid_student_phones.student_id) >= 2
-        ), detected_groups AS (
-         SELECT md5(array_to_string(phone_groups.student_ids, '|'::text)) AS group_key,
-            phone_groups.session_label,
-            phone_groups.student_ids,
-            phone_groups.student_count,
-            array_agg(phone_groups.normalized_phone ORDER BY phone_groups.normalized_phone) AS phone_match
-           FROM phone_groups
-          GROUP BY phone_groups.session_label, phone_groups.student_ids, phone_groups.student_count
-        ), existing_groups AS (
-         SELECT group_record.id AS family_group_id,
-            group_record.academic_session_label AS session_label,
-            array_agg(member.student_id ORDER BY member.student_id) AS student_ids
-           FROM student_family_groups group_record
-             JOIN student_family_members member ON member.family_group_id = group_record.id AND member.academic_session_label = group_record.academic_session_label
-          GROUP BY group_record.id, group_record.academic_session_label
-        ), father_matches AS (
-         SELECT detected_1.group_key,
-            count(DISTINCT normalized_father.normalized_name) = 1 AND min(normalized_father.normalized_name) <> ''::text AS father_name_match
-           FROM detected_groups detected_1
-             JOIN students s ON s.id = ANY (detected_1.student_ids)
-             CROSS JOIN LATERAL ( SELECT TRIM(BOTH FROM regexp_replace(regexp_replace(lower(COALESCE(s.father_name, ''::text)), '[^[:alnum:][:space:]]'::text, ' '::text, 'g'::text), '\s+'::text, ' '::text, 'g'::text)) AS normalized_name) normalized_father
-          GROUP BY detected_1.group_key
-        )
- SELECT detected.group_key,
-    detected.session_label,
-    detected.student_ids,
-    detected.student_count,
-    detected.phone_match,
-    COALESCE(father_matches.father_name_match, false) AS father_name_match,
-        CASE
-            WHEN existing.family_group_id IS NOT NULL THEN 'confirmed'::text
-            ELSE 'suspected'::text
-        END AS confidence,
-    existing.family_group_id AS existing_family_group_id
-   FROM detected_groups detected
-     LEFT JOIN father_matches ON father_matches.group_key = detected.group_key
-     LEFT JOIN LATERAL ( SELECT existing_groups.family_group_id
-           FROM existing_groups
-          WHERE existing_groups.session_label = detected.session_label AND detected.student_ids <@ existing_groups.student_ids
-          ORDER BY (array_length(existing_groups.student_ids, 1)), existing_groups.family_group_id
-         LIMIT 1) existing ON true;
-
-create materialized view if not exists public.mv_student_sibling_groups as
- SELECT group_key,
-    session_label,
-    student_ids,
-    student_count,
-    phone_match,
-    father_name_match,
-    confidence,
-    existing_family_group_id
-   FROM v_student_sibling_groups;
 
 create or replace view public.v_notion_daily_summary
 with (security_invoker = true) as
@@ -5899,8 +5776,6 @@ create or replace view public.v_notion_family_fee_summary as
 
 -- Materialized view indexes -------------------------------------------------
 
-create unique index if not exists mv_student_sibling_groups_key_idx on public.mv_student_sibling_groups using btree (session_label, group_key);
-create index if not exists mv_student_sibling_groups_student_ids_idx on public.mv_student_sibling_groups using gin (student_ids);
 create unique index if not exists v_student_financial_state_idx on public.v_student_financial_state using btree (student_id);
 create index if not exists idx_v_workbook_installments_session on public.v_workbook_installment_balances using btree (session_label);
 create index if not exists idx_v_workbook_installments_student on public.v_workbook_installment_balances using btree (student_id);
@@ -6014,11 +5889,9 @@ create or replace trigger enforce_third_child_traceability_trg BEFORE INSERT OR 
 create or replace trigger refresh_financials_on_conventional_assignment AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.student_conventional_discount_assignments FOR EACH STATEMENT EXECUTE FUNCTION trigger_refresh_financial_views();
 create or replace trigger set_updated_at_on_student_conventional_discount_assignments BEFORE UPDATE ON public.student_conventional_discount_assignments FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 create or replace trigger audit_student_family_groups AFTER INSERT OR DELETE OR UPDATE ON public.student_family_groups FOR EACH ROW EXECUTE FUNCTION private.capture_audit_event();
-create or replace trigger queue_sibling_refresh_on_family_groups AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.student_family_groups FOR EACH STATEMENT EXECUTE FUNCTION queue_sibling_groups_refresh();
 create or replace trigger set_actor_columns_on_student_family_groups BEFORE INSERT OR UPDATE ON public.student_family_groups FOR EACH ROW EXECUTE FUNCTION private.set_actor_columns();
 create or replace trigger set_updated_at_on_student_family_groups BEFORE UPDATE ON public.student_family_groups FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 create or replace trigger audit_student_family_members AFTER INSERT OR DELETE OR UPDATE ON public.student_family_members FOR EACH ROW EXECUTE FUNCTION private.capture_audit_event();
-create or replace trigger queue_sibling_refresh_on_family_members AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.student_family_members FOR EACH STATEMENT EXECUTE FUNCTION queue_sibling_groups_refresh();
 create or replace trigger set_updated_at_on_student_family_members BEFORE UPDATE ON public.student_family_members FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 create or replace trigger audit_student_fee_overrides AFTER INSERT OR DELETE OR UPDATE ON public.student_fee_overrides FOR EACH ROW EXECUTE FUNCTION private.capture_audit_event();
 create or replace trigger refresh_financials_on_student_override AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.student_fee_overrides FOR EACH STATEMENT EXECUTE FUNCTION trigger_refresh_financial_views();
@@ -6027,7 +5900,6 @@ create or replace trigger set_updated_at_on_student_fee_overrides BEFORE UPDATE 
 create or replace trigger refresh_financials_on_late_fee_waiver AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.student_late_fee_waivers FOR EACH STATEMENT EXECUTE FUNCTION trigger_refresh_financial_views();
 create or replace trigger audit_student_share_links AFTER INSERT OR DELETE OR UPDATE ON public.student_share_links FOR EACH ROW EXECUTE FUNCTION private.capture_audit_event();
 create or replace trigger audit_students AFTER INSERT OR DELETE OR UPDATE ON public.students FOR EACH ROW EXECUTE FUNCTION private.capture_audit_event();
-create or replace trigger queue_sibling_refresh_on_students AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.students FOR EACH STATEMENT EXECUTE FUNCTION queue_sibling_groups_refresh();
 create or replace trigger refresh_financials_on_student AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.students FOR EACH STATEMENT EXECUTE FUNCTION trigger_refresh_financial_views();
 create or replace trigger set_actor_columns_on_students BEFORE INSERT OR UPDATE ON public.students FOR EACH ROW EXECUTE FUNCTION private.set_actor_columns();
 create or replace trigger set_updated_at_on_students BEFORE UPDATE ON public.students FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
@@ -6951,9 +6823,6 @@ grant delete, insert, references, select, trigger, truncate, update on table pub
 grant delete, insert, references, select, trigger, truncate, update on table public.v_student_installment_facets to service_role;
 grant delete, insert, references, select, trigger, truncate, update on table public.v_student_manual_late_fee_waivers to authenticated;
 grant delete, insert, references, select, trigger, truncate, update on table public.v_student_manual_late_fee_waivers to service_role;
-grant delete, insert, references, select, trigger, truncate, update on table public.v_student_sibling_groups to anon;
-grant delete, insert, references, select, trigger, truncate, update on table public.v_student_sibling_groups to authenticated;
-grant delete, insert, references, select, trigger, truncate, update on table public.v_student_sibling_groups to service_role;
 grant delete, insert, references, select, trigger, truncate, update on table public.v_transport_route_outstanding to anon;
 grant delete, insert, references, select, trigger, truncate, update on table public.v_transport_route_outstanding to authenticated;
 grant delete, insert, references, select, trigger, truncate, update on table public.v_transport_route_outstanding to service_role;
@@ -7016,14 +6885,12 @@ grant execute on function public.preview_workbook_payment_allocation(uuid, date)
 grant execute on function public.preview_workbook_payment_allocation(uuid, date) to service_role;
 grant execute on function public.process_refund_with_adjustment(uuid) to authenticated;
 grant execute on function public.process_refund_with_adjustment(uuid) to service_role;
-grant execute on function public.queue_sibling_groups_refresh() to service_role;
 grant execute on function public.queue_workbook_materialized_view_refresh() to service_role;
 grant execute on function public.realign_recent_import_students_to_active_session(uuid) to authenticated;
 grant execute on function public.realign_recent_import_students_to_active_session(uuid) to service_role;
 grant execute on function public.refresh_defaulter_recovery_state(text, date) to authenticated;
 grant execute on function public.refresh_defaulter_recovery_state(text, date) to service_role;
 grant execute on function public.refresh_financial_materialized_views(boolean) to service_role;
-grant execute on function public.refresh_sibling_groups_if_requested() to service_role;
 grant execute on function public.refresh_workbook_materialized_views_if_requested() to service_role;
 grant execute on function public.rls_auto_enable() to service_role;
 grant execute on function public.set_my_preferred_locale(text) to authenticated;
@@ -7078,7 +6945,6 @@ comment on function refresh_defaulter_recovery_state(text,date) is 'Resolves lat
 comment on function trigger_refresh_financial_views() is 'Enqueues a workbook matview refresh. Deliberately does NOT refresh inline — see 20260726000002. Drained by the payment action post-response and by the 2-minute cron backstop.';
 comment on function void_late_fee_waiver(uuid,text) is 'Reverse a late-fee waiver, restoring the charge. The row is marked voided, never deleted. Gated on payments:adjust because this RAISES what a family owes. MUST be called with the user-JWT client.';
 comment on function waive_late_fee(uuid,integer,text,text,uuid,uuid) is 'Waive late fee for a student, writing per-installment rows to public.student_late_fee_waivers. Waivable is capped at least(final_late_fee, pending_amount): a late fee already paid cannot be waived, because waiving it would turn collected money into an unexplained credit and drop it out of the late-fee figures. p_installment_id targets one installment; omitted, the amount is allocated oldest-first. Idempotent on p_client_request_id. MUST be called with the user-JWT client -- it is SECURITY INVOKER and guards on has_permission(), which needs auth.uid().';
-comment on materialized view public.mv_student_sibling_groups is 'Read optimization for authenticated sibling workflows; never a write source of truth.';
 comment on table private.vpps_direct_import_backups is 'Pre-write JSON snapshots for audited direct VPPS import operations.';
 comment on table private.vpps_direct_import_stage_dues is 'Private staging dues for the 2026-27 latest Excel direct import.';
 comment on table private.vpps_direct_import_stage_skipped is 'Private staging skipped-row audit for the 2026-27 latest Excel direct import.';
@@ -7108,5 +6974,4 @@ comment on view public.v_student_manual_late_fee_waivers is 'Late-fee waivers a 
 -- cron.schedule('enqueue-workbook-refresh-daily', '35 18 * * *', ...)  active=true
 -- cron.schedule('notion-fee-sync-daily', '0 1 * * *', ...)  active=true
 -- cron.schedule('notion-fee-sync-daily-test', '0 1 * * *', ...)  active=true
--- cron.schedule('refresh-sibling-groups-matview', '*/2 * * * *', ...)  active=true
 -- cron.schedule('refresh-workbook-materialized-views', '*/2 * * * *', ...)  active=true

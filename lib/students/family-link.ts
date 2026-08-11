@@ -1,11 +1,15 @@
 /**
  * Which students the sibling picker must NOT offer.
  *
- * Only confirmed members — students who actually hold a row in the family
- * group — are already linked and therefore hidden. A "suspected" group is a
- * phone match and nothing more: hiding those students filtered out the exact
- * siblings staff had opened the picker to link, so the list looked as if it had
- * silently dropped them.
+ * Only students who actually hold a row in the family group are already linked,
+ * and only those are hidden. The `!familyGroupId` guard therefore returns an
+ * empty list: a student with no family excludes nobody.
+ *
+ * That guard used to carry more weight. When the app also surfaced phone-matched
+ * "suspected" groups, `members` could be full while `familyGroupId` was null,
+ * and excluding those members filtered out the exact siblings staff had opened
+ * the picker to link. The detection is gone, so the case is now simply "no
+ * family yet" — but the guard stays, because it is what makes that correct.
  *
  * Shared by the desktop family panel and the phone family tab so the two
  * surfaces cannot drift.

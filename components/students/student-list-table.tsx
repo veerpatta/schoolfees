@@ -11,7 +11,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { StudentAvatar } from "@/components/students/student-avatar";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
-import { timeAgoShort } from "@/lib/helpers/time-ago";
 import type { StudentListItem } from "@/lib/students/types";
 import { isYearCleared } from "@/lib/fees/year-clear";
 import { cn } from "@/lib/utils";
@@ -48,8 +47,6 @@ type StudentListTableProps = {
   canCollectPayments?: boolean;
   returnTo: string;
   session?: string;
-  /** Map of studentId → last student_view event ISO timestamp by current user. */
-  lastViewedByUser?: Record<string, string>;
   /** When provided, the table renders a multi-select checkbox column. */
   selection?: {
     selectedIds: ReadonlyArray<string>;
@@ -420,7 +417,7 @@ export const MobileStudentList = React.memo(function MobileStudentList({
   canCollectPayments = canWrite,
   returnTo,
   session,
-}: Omit<StudentListTableProps, "selection" | "lastViewedByUser">) {
+}: Omit<StudentListTableProps, "selection">) {
   const t = useTranslations("Students");
   const withSession = (href: string) => appendSessionParam(href, session);
 
@@ -466,7 +463,6 @@ export const StudentListTable = React.memo(function StudentListTable({
   canCollectPayments = canWrite,
   returnTo,
   session,
-  lastViewedByUser,
   selection,
 }: StudentListTableProps) {
   const t = useTranslations("Students");
@@ -618,11 +614,6 @@ export const StudentListTable = React.memo(function StudentListTable({
                         </span>
                       ))}
                     </div>
-                  ) : null}
-                  {lastViewedByUser?.[student.id] ? (
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      {t("lastViewedByYou", { when: timeAgoShort(lastViewedByUser[student.id]) ?? t("lastViewedFallback") })}
-                    </p>
                   ) : null}
                 </td>
                 <td className="px-4 py-3.5 text-sm text-foreground">

@@ -48,7 +48,6 @@ export function MobileStudentsScreen({
   pageCount,
   onPrevPage,
   onNextPage,
-  recentAccess,
   segmentRow,
   activeFilterSummary,
 }: {
@@ -75,8 +74,6 @@ export function MobileStudentsScreen({
   pageCount: number;
   onPrevPage: () => void;
   onNextPage: () => void;
-  /** Recently-viewed strip. Hidden while a search is in flight so it never competes with results. */
-  recentAccess?: ReactNode;
   /** Money-segment chips. Below the sticky header, not inside it — the header
       is already title + search + class chips and a fourth row would take a
       fifth of the screen before a single student appeared. */
@@ -197,10 +194,6 @@ export function MobileStudentsScreen({
         <div className="mb-2.5 rounded-xl border border-warning/40 bg-warning-soft px-3 py-2 text-[11.5px] text-warning-soft-foreground">
           {loadError}
         </div>
-      ) : null}
-
-      {recentAccess && !query.trim() ? (
-        <div className="mb-3">{recentAccess}</div>
       ) : null}
 
       {isLoading ? (

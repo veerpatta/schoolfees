@@ -36,7 +36,6 @@ import {
   type StudentSessionOption,
 } from "@/lib/students/types";
 import { countRecentImportStudentsOutsideSession } from "@/lib/students/session-reanchor";
-import { getLastEventByRef } from "@/lib/activity/events";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
@@ -166,20 +165,6 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
     (value): value is string => Boolean(value),
   );
 
-  let lastViewedByUser: Record<string, string> = {};
-  if (staff?.id && students.length > 0) {
-    try {
-      const map = await getLastEventByRef(
-        staff.id as string,
-        "student_view",
-        students.map((row) => row.id),
-      );
-      lastViewedByUser = Object.fromEntries(map);
-    } catch {
-      lastViewedByUser = {};
-    }
-  }
-
   return (
     // `flex flex-col gap-6`, not `space-y-6`: Tailwind's space-y selector is
     // `:not([hidden]) ~ :not([hidden])`, which skips the `hidden` *attribute*
@@ -306,7 +291,6 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
         routeOptions={routeOptions}
         canWrite={canWriteStudents}
         canCollectPayments={canCollectPayments}
-        lastViewedByUser={lastViewedByUser}
         initialSegmentCounts={segmentCounts}
         canViewFees={hasStaffPermission(staff, "fees:view")}
       />

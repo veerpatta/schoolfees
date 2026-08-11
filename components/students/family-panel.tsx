@@ -3,7 +3,6 @@ import { formatInr } from "@/lib/helpers/currency";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { LinkSiblingTrigger } from "@/components/students/link-sibling-trigger";
-import { LinkSuspectedSiblingsButton } from "@/components/students/link-suspected-siblings-button";
 import { UnlinkSiblingTrigger } from "@/components/students/unlink-sibling-trigger";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { resolveSiblingPickerExclusions } from "@/lib/students/family-link";
@@ -12,7 +11,6 @@ import type { StudentFamilyMemberDetail } from "@/lib/students/data";
 type StudentFamilyPanelProps = {
   studentId: string;
   familyGroupId: string | null;
-  confidence: "confirmed" | "suspected" | null;
   members: StudentFamilyMemberDetail[];
   sessionLabel: string;
   canLinkSibling?: boolean;
@@ -28,7 +26,6 @@ type StudentFamilyPanelProps = {
 export function StudentFamilyPanel({
   studentId,
   familyGroupId,
-  confidence,
   members,
   sessionLabel,
   canLinkSibling = false,
@@ -77,22 +74,16 @@ export function StudentFamilyPanel({
   return (
     <Section title="Family & Siblings" description="Consolidated sibling dashboard." variant="card" padding="tight">
       <div className="space-y-4">
-        {/* Confidence Badge Box */}
-        <div className={`rounded-lg p-3 text-xs ${
-          confidence === "confirmed" 
-            ? "bg-success-soft text-success-soft-foreground" 
-            : "bg-warning-soft text-warning-soft-foreground"
-        }`}>
+        {/* Every family on this panel is one staff explicitly linked. */}
+        <div className="rounded-lg bg-success-soft p-3 text-xs text-success-soft-foreground">
           <div className="flex items-center justify-between">
             <span className="font-semibold uppercase tracking-wider text-[10px]">
-              {confidence === "confirmed" ? "Confirmed Family Group" : "Suspected Siblings"}
+              Confirmed Family Group
             </span>
             <span className="text-[10px] opacity-85">Session {sessionLabel}</span>
           </div>
           <p className="mt-1 leading-relaxed">
-            {confidence === "confirmed" 
-              ? "All siblings are linked under a verified family group." 
-              : "Matching phone number detected. Sibling grouping is unverified."}
+            All siblings are linked under a verified family group.
           </p>
         </div>
 
@@ -204,13 +195,6 @@ export function StudentFamilyPanel({
                 </Link>
               </Button>
             </>
-          ) : null}
-          {confidence === "suspected" && !familyGroupId && canLinkSibling ? (
-            <LinkSuspectedSiblingsButton
-              studentId={studentId}
-              sessionLabel={sessionLabel}
-              count={members.length}
-            />
           ) : null}
           {linkSiblingTrigger}
         </div>

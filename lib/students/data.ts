@@ -31,7 +31,6 @@ import type {
   StudentRouteOption,
   StudentSessionOption,
   StudentSiblingPill,
-  SiblingGroupSummary,
   StudentDeletionSafety,
   StudentValidatedInput,
 } from "@/lib/students/types";
@@ -120,31 +119,6 @@ type StudentWorkbookFinancialRow = {
   missing_status_flag?: boolean | null;
 };
 
-type SiblingGroupViewRow = {
-  group_key: string;
-  session_label: string;
-  student_ids: string[] | null;
-  student_count: number;
-  phone_match: string[] | null;
-  father_name_match: boolean | null;
-  confidence: "confirmed" | "suspected";
-  existing_family_group_id: string | null;
-};
-
-type SiblingGroupStudentRow = {
-  id: string;
-  admission_no: string;
-  full_name: string;
-  class_ref: StudentJoinClass | StudentJoinClass[] | null;
-};
-
-type StudentFamilyGroupRow = {
-  id: string;
-  academic_session_label: string;
-  family_label: string;
-  guardian_phone: string | null;
-};
-
 type StudentFamilyMemberRow = {
   family_group_id: string;
   student_id: string;
@@ -226,16 +200,6 @@ function isRecoverableWorkbookLoadError(error: { message?: string } | null | und
   );
 }
 
-/**
- * The sibling-group matview is scanned with an array-overlap filter, which is
- * the slowest read on the student list. Under export load (getAllStudents walks
- * every page) it can exceed the Postgres statement timeout. Cap it client-side
- * so a slow read is abandoned quickly instead of holding the request open until
- * Postgres cancels it — the cap is multiplied by the page count on the export
- * path, so keep it small. Sibling pills are decorative; losing them is fine.
- */
-const SIBLING_GROUP_QUERY_TIMEOUT_MS = 2500;
-
 /** Postgres `query_canceled` — what a statement timeout surfaces as. */
 const STATEMENT_TIMEOUT_CODE = "57014";
 
@@ -271,316 +235,93 @@ function isTimeoutLikeLoadError(error: { message?: string; code?: string } | nul
   );
 }
 
-function isRecoverableSiblingGroupLoadError(
-  error: { message?: string; code?: string } | null | undefined,
-) {
-  if (isTimeoutLikeLoadError(error)) {
-    return true;
-  }
+/**
+ * Sibling pills come from confirmed family membership only.
+ *
+ * This used to also scan `mv_student_sibling_groups` — a phone-match heuristic —
+ * with an array-overlap filter, which was the slowest read on the student list
+ * and needed a client-side abort to stay inside the statement timeout. That
+ * detection is gone: a family exists when staff link it, never because two
+ * students share a phone number. Both reads below are plain indexed lookups.
+ */
+async function getStudentSiblingPills(studentIds: readonly string[]) {
+  const map = new Map<string, StudentSiblingPill>();
 
-  if (!error?.message) {
-    return false;
-  }
-
-  const message = error.message.toLowerCase();
-  return message.includes("v_student_sibling_groups") || isRecoverableWorkbookLoadError(error);
-}
-
-function buildSiblingPill(group: SiblingGroupViewRow, studentId: string): StudentSiblingPill | null {
-  const studentIds = group.student_ids ?? [];
-  const siblingCount = Math.max(0, studentIds.filter((id) => id !== studentId).length);
-
-  if (siblingCount < 1) {
-    return null;
-  }
-
-  return {
-    siblingCount,
-    // The pill is informational; siblings are managed on the student profile.
-    href: `/protected/students/${studentId}`,
-    confidence: group.confidence,
-  };
-}
-
-async function getStudentSiblingPills(
-  studentIds: readonly string[],
-  sessionLabel?: string | null,
-) {
   if (studentIds.length === 0) {
-    return new Map<string, StudentSiblingPill>();
+    return map;
   }
 
   const supabase = await createClient();
-  let query = supabase
-    .from("mv_student_sibling_groups")
-    .select(
-      "group_key, session_label, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id",
-    )
-    .overlaps("student_ids", studentIds)
-    // Abandon the array-overlap scan rather than letting it run into the
-    // Postgres statement timeout; the error path below degrades to no pills.
-    .abortSignal(AbortSignal.timeout(SIBLING_GROUP_QUERY_TIMEOUT_MS));
 
-  if (sessionLabel) {
-    query = query.eq("session_label", sessionLabel);
-  }
-
-  const [
-    { data, error },
-    { data: matchingMembersRaw, error: matchingMembersError },
-  ] = await Promise.all([
-    query,
-    // Membership is resolved across ALL sessions so manually-linked siblings
-    // persist into future sessions (the link is per-student, not per-session).
-    supabase
-      .from("student_family_members")
-      .select("family_group_id, student_id, academic_session_label")
-      .in("student_id", studentIds),
-  ]);
-
-  if (error) {
-    if (isRecoverableSiblingGroupLoadError(error)) {
-      console.warn("Sibling group fields could not be loaded; falling back to base student data.", error.message);
-      return new Map<string, StudentSiblingPill>();
-    }
-
-    throw new Error(`Unable to load sibling group fields: ${error.message}`);
-  }
-
-  const groups = ((data ?? []) as SiblingGroupViewRow[]).filter((group) => group.student_count >= 2);
-  const map = new Map<string, StudentSiblingPill>();
+  // Membership is resolved across ALL sessions so manually-linked siblings
+  // persist into future sessions (the link is per-student, not per-session).
+  const { data: matchingMembersRaw, error: matchingMembersError } = await supabase
+    .from("student_family_members")
+    .select("family_group_id, student_id, academic_session_label")
+    .in("student_id", studentIds);
 
   if (matchingMembersError) {
-    if (!isRecoverableSiblingGroupLoadError(matchingMembersError)) {
-      throw new Error(`Unable to load confirmed sibling fields: ${matchingMembersError.message}`);
+    if (isTimeoutLikeLoadError(matchingMembersError)) {
+      console.warn(
+        "Sibling group fields could not be loaded; falling back to base student data.",
+        matchingMembersError.message,
+      );
+      return map;
     }
-  } else {
-    const matchingMembers = (matchingMembersRaw ?? []) as StudentFamilyMemberRow[];
-    const familyGroupIds = [...new Set(matchingMembers.map((row) => row.family_group_id))];
 
-    if (familyGroupIds.length > 0) {
-      const { data: familyMembersRaw, error: familyMembersError } = await supabase
-        .from("student_family_members")
-        .select("family_group_id, student_id, academic_session_label")
-        .in("family_group_id", familyGroupIds);
-
-      if (familyMembersError && !isRecoverableSiblingGroupLoadError(familyMembersError)) {
-        throw new Error(`Unable to load confirmed family members: ${familyMembersError.message}`);
-      }
-
-      const membersByFamily = new Map<string, StudentFamilyMemberRow[]>();
-      ((familyMembersRaw ?? []) as StudentFamilyMemberRow[]).forEach((row) => {
-        membersByFamily.set(row.family_group_id, [...(membersByFamily.get(row.family_group_id) ?? []), row]);
-      });
-
-      membersByFamily.forEach((members) => {
-        const distinctStudentCount = new Set(members.map((row) => row.student_id)).size;
-        if (distinctStudentCount < 2) {
-          return;
-        }
-
-        members.forEach((member) => {
-          if (!studentIds.includes(member.student_id)) {
-            return;
-          }
-
-          map.set(member.student_id, {
-            siblingCount: new Set(
-              members.filter((row) => row.student_id !== member.student_id).map((row) => row.student_id),
-            ).size,
-            href: `/protected/students/${member.student_id}`,
-            confidence: "confirmed",
-          });
-        });
-      });
-    }
+    throw new Error(`Unable to load confirmed sibling fields: ${matchingMembersError.message}`);
   }
 
-  groups.forEach((group) => {
-    (group.student_ids ?? []).forEach((studentId) => {
-      if (!studentIds.includes(studentId) || map.has(studentId)) {
+  const matchingMembers = (matchingMembersRaw ?? []) as StudentFamilyMemberRow[];
+  const familyGroupIds = [...new Set(matchingMembers.map((row) => row.family_group_id))];
+
+  if (familyGroupIds.length === 0) {
+    return map;
+  }
+
+  // A second pass, because the first only returns the rows for the students on
+  // this page — the sibling COUNT needs every member of each of their families.
+  const { data: familyMembersRaw, error: familyMembersError } = await supabase
+    .from("student_family_members")
+    .select("family_group_id, student_id, academic_session_label")
+    .in("family_group_id", familyGroupIds);
+
+  if (familyMembersError) {
+    if (isTimeoutLikeLoadError(familyMembersError)) {
+      return map;
+    }
+
+    throw new Error(`Unable to load confirmed family members: ${familyMembersError.message}`);
+  }
+
+  const membersByFamily = new Map<string, StudentFamilyMemberRow[]>();
+  ((familyMembersRaw ?? []) as StudentFamilyMemberRow[]).forEach((row) => {
+    membersByFamily.set(row.family_group_id, [...(membersByFamily.get(row.family_group_id) ?? []), row]);
+  });
+
+  const pageStudentIds = new Set(studentIds);
+
+  membersByFamily.forEach((members) => {
+    const distinctStudentCount = new Set(members.map((row) => row.student_id)).size;
+    if (distinctStudentCount < 2) {
+      return;
+    }
+
+    members.forEach((member) => {
+      if (!pageStudentIds.has(member.student_id)) {
         return;
       }
 
-      const pill = buildSiblingPill(group, studentId);
-
-      if (pill) {
-        map.set(studentId, pill);
-      }
+      map.set(member.student_id, {
+        siblingCount: new Set(
+          members.filter((row) => row.student_id !== member.student_id).map((row) => row.student_id),
+        ).size,
+        href: `/protected/students/${member.student_id}`,
+      });
     });
   });
 
   return map;
-}
-
-/** Loads detected sibling groups with child rows and pending totals for the Students family workspace. */
-export async function getSiblingGroups(sessionLabel?: string | null): Promise<SiblingGroupSummary[]> {
-  const supabase = await createClient();
-  let query = supabase
-    .from("mv_student_sibling_groups")
-    .select(
-      "group_key, session_label, student_ids, student_count, phone_match, father_name_match, confidence, existing_family_group_id",
-    )
-    .order("confidence", { ascending: true })
-    .order("student_count", { ascending: false });
-
-  if (sessionLabel) {
-    query = query.eq("session_label", sessionLabel);
-  }
-
-  const [
-    { data, error },
-    { data: familyGroupsRaw, error: familyGroupsError },
-  ] = await Promise.all([
-    query,
-    (() => {
-      let familyQuery = supabase
-        .from("student_family_groups")
-        .select("id, academic_session_label, family_label, guardian_phone")
-        .order("family_label", { ascending: true });
-
-      if (sessionLabel) {
-        familyQuery = familyQuery.eq("academic_session_label", sessionLabel);
-      }
-
-      return familyQuery;
-    })(),
-  ]);
-
-  if (error) {
-    throw new Error(`Unable to load sibling groups: ${error.message}`);
-  }
-
-  if (familyGroupsError) {
-    throw new Error(`Unable to load confirmed family groups: ${familyGroupsError.message}`);
-  }
-
-  const groups = ((data ?? []) as SiblingGroupViewRow[]).filter((group) => group.student_count >= 2);
-  const familyGroups = (familyGroupsRaw ?? []) as StudentFamilyGroupRow[];
-  let confirmedFamilyMembers: StudentFamilyMemberRow[] = [];
-
-  if (familyGroups.length > 0) {
-    const { data: membersRaw, error: membersError } = await supabase
-      .from("student_family_members")
-      .select("family_group_id, student_id, academic_session_label")
-      .in("family_group_id", familyGroups.map((group) => group.id));
-
-    if (membersError) {
-      throw new Error(`Unable to load confirmed family members: ${membersError.message}`);
-    }
-
-    confirmedFamilyMembers = (membersRaw ?? []) as StudentFamilyMemberRow[];
-  }
-
-  const detectedFamilyIds = new Set(
-    groups.flatMap((group) => (group.existing_family_group_id ? [group.existing_family_group_id] : [])),
-  );
-  const membersByFamily = new Map<string, StudentFamilyMemberRow[]>();
-  confirmedFamilyMembers.forEach((member) => {
-    membersByFamily.set(member.family_group_id, [...(membersByFamily.get(member.family_group_id) ?? []), member]);
-  });
-  const persistedOnlyGroups: SiblingGroupViewRow[] = familyGroups.flatMap((group) => {
-    if (detectedFamilyIds.has(group.id)) {
-      return [];
-    }
-
-    const members = membersByFamily.get(group.id) ?? [];
-    const memberIds = members.map((member) => member.student_id).sort();
-
-    if (memberIds.length < 2) {
-      return [];
-    }
-
-    return [
-      {
-        group_key: group.id,
-        session_label: group.academic_session_label,
-        student_ids: memberIds,
-        student_count: memberIds.length,
-        phone_match: group.guardian_phone ? [group.guardian_phone] : [],
-        father_name_match: false,
-        confidence: "confirmed",
-        existing_family_group_id: group.id,
-      } satisfies SiblingGroupViewRow,
-    ];
-  });
-  const allGroups = [...groups, ...persistedOnlyGroups];
-  const allStudentIds = [...new Set(allGroups.flatMap((group) => group.student_ids ?? []))];
-
-  if (allGroups.length === 0 || allStudentIds.length === 0) {
-    return [];
-  }
-
-  const [studentsResult, financialsResult] = await Promise.all([
-    supabase
-      .from("students")
-      .select(
-        "id, admission_no, full_name, class_ref:classes(id, session_label, status, class_name, section, stream_name)",
-      )
-      .in("id", allStudentIds),
-    supabase
-      .from("v_workbook_student_financials")
-      .select("student_id, outstanding_amount")
-      .in("student_id", allStudentIds),
-  ]);
-
-  if (studentsResult.error) {
-    throw new Error(`Unable to load sibling students: ${studentsResult.error.message}`);
-  }
-
-  if (financialsResult.error && !isRecoverableWorkbookLoadError(financialsResult.error)) {
-    throw new Error(`Unable to load sibling pending totals: ${financialsResult.error.message}`);
-  }
-
-  const studentMap = new Map(
-    ((studentsResult.data ?? []) as SiblingGroupStudentRow[]).map((row) => [row.id, row]),
-  );
-  const outstandingMap = new Map(
-    ((financialsResult.data ?? []) as Array<{ student_id: string; outstanding_amount: number | null }>).map(
-      (row) => [row.student_id, row.outstanding_amount ?? 0],
-    ),
-  );
-
-  return allGroups.map((group) => {
-    const studentIds = group.student_ids ?? [];
-    const students = studentIds.flatMap((studentId) => {
-      const row = studentMap.get(studentId);
-
-      if (!row) {
-        return [];
-      }
-
-      const classRef = toSingleRecord(row.class_ref);
-
-      return [
-        {
-          studentId: row.id,
-          admissionNo: row.admission_no,
-          fullName: row.full_name,
-          classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
-          outstandingAmount: outstandingMap.get(row.id) ?? 0,
-        },
-      ];
-    });
-
-    return {
-      groupKey: group.group_key,
-      sessionLabel: group.session_label,
-      studentIds,
-      studentCount: group.student_count,
-      phoneMatch: group.phone_match ?? [],
-      fatherNameMatch: Boolean(group.father_name_match),
-      confidence: group.confidence,
-      existingFamilyGroupId: group.existing_family_group_id,
-      guardianPhone: group.phone_match?.[0] ?? null,
-      pendingTotal: students.reduce((total, student) => total + student.outstandingAmount, 0),
-      students,
-    } satisfies SiblingGroupSummary;
-  });
-}
-
-export async function getStudentSiblingPill(studentId: string) {
-  return (await getStudentSiblingPills([studentId])).get(studentId) ?? null;
 }
 
 export function getClassOptionsForSession(
@@ -936,8 +677,8 @@ async function getStudentsPageUncached(
         academicSessionLabel: listSessionLabel,
         studentIds,
       }).catch(() => []),
-      getStudentSiblingPills(studentIds, listSessionLabel).catch((error) => {
-        if (isRecoverableSiblingGroupLoadError(error)) {
+      getStudentSiblingPills(studentIds).catch((error) => {
+        if (isTimeoutLikeLoadError(error)) {
           return new Map<string, StudentSiblingPill>();
         }
 
@@ -1810,67 +1551,53 @@ export type StudentFamilyMemberDetail = {
   } | null;
 };
 
+/**
+ * A family is what staff linked, never what a shared phone number suggested.
+ *
+ * This used to fall back to `mv_student_sibling_groups` when a student had no
+ * membership row, and render the result as an amber "Suspected Siblings" panel.
+ * Two students sharing a guardian phone are not necessarily siblings — the live
+ * data had one child appearing in two different detected families — so the
+ * detection is gone. An unlinked student simply has no family until someone
+ * links one through the picker.
+ */
 export async function getStudentFamilyMembersDetail(
   studentId: string,
-  sessionLabel: string,
 ): Promise<{
   familyGroupId: string | null;
-  confidence: "confirmed" | "suspected" | null;
   members: StudentFamilyMemberDetail[];
 }> {
   const supabase = await createClient();
 
-  // 1. Check if the student is in a confirmed family group. Resolve membership
-  //    across ALL sessions (the link is per-student, not per-session) so a
-  //    linked sibling shows up in every session. We deliberately avoid
-  //    `.maybeSingle()` here: a student can have membership rows in more than
-  //    one session, and `.maybeSingle()` throws on multiple rows — which the
-  //    caller swallows, making siblings silently disappear.
+  // Resolve membership across ALL sessions (the link is per-student, not
+  // per-session) so a linked sibling shows up in every session. We deliberately
+  // avoid `.maybeSingle()` here: a student can have membership rows in more than
+  // one session, and `.maybeSingle()` throws on multiple rows — which the
+  // caller swallows, making siblings silently disappear.
   const { data: ownMembershipRows } = await supabase
     .from("student_family_members")
     .select("family_group_id")
     .eq("student_id", studentId);
 
+  const familyGroupId = (ownMembershipRows ?? [])[0]?.family_group_id ?? null;
+
+  if (!familyGroupId) {
+    return { familyGroupId: null, members: [] };
+  }
+
   let targetStudentIds: string[] = [studentId];
-  let familyGroupId: string | null = null;
-  let confidence: "confirmed" | "suspected" | null = null;
 
-  const ownFamilyGroupId = (ownMembershipRows ?? [])[0]?.family_group_id ?? null;
+  const { data: allConfirmedMembers } = await supabase
+    .from("student_family_members")
+    .select("student_id")
+    .eq("family_group_id", familyGroupId);
 
-  if (ownFamilyGroupId) {
-    familyGroupId = ownFamilyGroupId;
-    confidence = "confirmed";
-    const { data: allConfirmedMembers } = await supabase
-      .from("student_family_members")
-      .select("student_id")
-      .eq("family_group_id", familyGroupId);
-
-    if (allConfirmedMembers && allConfirmedMembers.length > 0) {
-      targetStudentIds = [...new Set(allConfirmedMembers.map((m) => m.student_id))];
-    }
-  } else {
-    // 2. If not linked, surface a phone-detected suspected sibling group for the
-    //    current session (informational only; staff link explicitly). Use
-    //    array-pick instead of `.maybeSingle()` to tolerate edge duplicates.
-    const { data: suspectedGroupRows } = await supabase
-      .from("mv_student_sibling_groups")
-      .select("student_ids, confidence, existing_family_group_id")
-      .overlaps("student_ids", [studentId])
-      .eq("session_label", sessionLabel)
-      .limit(1);
-
-    const suspectedGroupRow = (suspectedGroupRows ?? [])[0];
-    if (suspectedGroupRow && suspectedGroupRow.student_ids) {
-      targetStudentIds = [...new Set(suspectedGroupRow.student_ids as string[])];
-      // Only "confirmed" when a real membership row exists (handled above);
-      // a phone match is always "suspected" here.
-      confidence = "suspected";
-      familyGroupId = null;
-    }
+  if (allConfirmedMembers && allConfirmedMembers.length > 0) {
+    targetStudentIds = [...new Set(allConfirmedMembers.map((m) => m.student_id))];
   }
 
   if (targetStudentIds.length === 0) {
-    return { familyGroupId: null, confidence: null, members: [] };
+    return { familyGroupId: null, members: [] };
   }
 
   // 3. Fetch student details and class labels
@@ -1927,7 +1654,6 @@ export async function getStudentFamilyMembersDetail(
 
   return {
     familyGroupId,
-    confidence,
     members: members.sort((a, b) => (a.isSelf ? -1 : b.isSelf ? 1 : a.fullName.localeCompare(b.fullName))),
   };
 }

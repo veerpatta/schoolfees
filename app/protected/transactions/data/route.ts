@@ -94,7 +94,16 @@ export async function GET(request: NextRequest) {
 
   // Server-Timing is added only when instrumentation is enabled (preview /
   // PERF_TIMING=1); production responses stay byte-for-byte unchanged.
-  const headers: Record<string, string> = { "cache-control": "no-store" };
+  //
+  // `no-store` meant that toggling a filter and toggling it straight back —
+  // the commonest interaction on this screen — paid a full server round trip
+  // every time. `private` keeps it in the staff member's own browser and out of
+  // any shared cache; 15s is short enough that a payment posted at the desk
+  // still shows up on the next deliberate look, and stale-while-revalidate
+  // repaints instantly while the fresh copy lands.
+  const headers: Record<string, string> = {
+    "Cache-Control": "private, max-age=15, stale-while-revalidate=60",
+  };
   const serverTiming = timer.header();
   if (serverTiming) headers["Server-Timing"] = serverTiming;
 

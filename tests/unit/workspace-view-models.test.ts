@@ -6,10 +6,7 @@ import {
   getSelectedRecoveryEntry,
 } from "@/lib/defaulters/workspace";
 import type { RecoveryDeskEntry } from "@/lib/defaulters/recovery";
-import {
-  filterStudentWorkspaceRows,
-  getRecentlyViewedStudents,
-} from "@/lib/students/list-view-model";
+import { filterStudentWorkspaceRows } from "@/lib/students/list-view-model";
 import type { StudentListItem } from "@/lib/students/types";
 
 const students = [
@@ -61,18 +58,6 @@ describe("shared Students and Defaulters view models", () => {
         onlyWithDues: true,
       }).map((student) => student.id),
     ).toEqual(["student-1"]);
-  });
-
-  it("orders recent students from the same last-viewed contract", () => {
-    expect(
-      getRecentlyViewedStudents({
-        students,
-        lastViewedByUser: {
-          "student-1": "2026-07-27T08:00:00.000Z",
-          "student-2": "2026-07-27T09:00:00.000Z",
-        },
-      }).map((student) => student.id),
-    ).toEqual(["student-2", "student-1"]);
   });
 
   it("keeps desktop queue selection and mobile call progress on one queue", () => {

@@ -19,9 +19,9 @@ describe("sibling picker exclusions", () => {
     ).toEqual([SELF, SIBLING]);
   });
 
-  it("keeps a suspected group selectable", () => {
-    // Phone-matched students are NOT linked yet. Excluding them removed the
-    // very siblings staff opened the picker to link.
+  it("excludes nobody when the student has no family yet", () => {
+    // A student with no family group has nothing to hide from the picker, so
+    // every candidate stays selectable even if `members` is somehow populated.
     expect(
       resolveSiblingPickerExclusions({
         familyGroupId: null,

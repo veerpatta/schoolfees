@@ -160,7 +160,6 @@ describe("getStudents — pending late fee on the list", () => {
           ],
           error: null,
         },
-        mv_student_sibling_groups: { data: [], error: null },
         student_family_members: { data: [], error: null },
       }),
     );
@@ -210,7 +209,6 @@ describe("getStudents — pending late fee on the list", () => {
           ],
           error: null,
         },
-        mv_student_sibling_groups: { data: [], error: null },
         student_family_members: { data: [], error: null },
       }),
     );
@@ -256,7 +254,6 @@ describe("getStudents — pending late fee on the list", () => {
           ],
           error: null,
         },
-        mv_student_sibling_groups: { data: [], error: null },
         student_family_members: { data: [], error: null },
       }),
     );
@@ -304,7 +301,6 @@ describe("getStudents — pending late fee on the list", () => {
           ],
           error: null,
         },
-        mv_student_sibling_groups: { data: [], error: null },
         student_family_members: { data: [], error: null },
       }),
     );

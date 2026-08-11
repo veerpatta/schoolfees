@@ -82,15 +82,19 @@ describe("office workbook helpers", () => {
     );
   });
 
-  it("transactions UI exposes payment-mode chips and one-click receipt reprint links", () => {
+  it("transactions UI exposes a payment-mode filter and one-click receipt reprint links", () => {
     const source = readFileSync(
       join(process.cwd(), "components/transactions/transactions-client-shell.tsx"),
       "utf8",
     );
     const workbookData = readFileSync(join(process.cwd(), "lib/workbook/data.ts"), "utf8");
 
+    // The phone header still filters by mode with chips; the desk toolbar now
+    // uses a select instead, because the chip row was single-select anyway and
+    // cost a whole row of a filter bar that had grown to ~270px.
     expect(source).toContain("handlePaymentModeToggle");
-    expect(source).toContain("getPaymentModeChipClassName");
+    expect(source).toContain('id="txn-mode"');
+    expect(source).toContain('aria-label={t("filterPaymentModeLabel")}');
     expect(source).toContain('target="_blank"');
     expect(source).toContain("receiptPrintHref(row.receiptId, sessionLabel)");
     expect(workbookData).toContain('.eq("payment_mode", filters.paymentMode)');
