@@ -46,21 +46,24 @@ describe("student detail: figures that share a label share a source", () => {
     // `ledger.totalPayments` is every payment row for the student: all
     // sessions, all modes including discount close-outs, and it ignores
     // payment_adjustments — so it reads HIGH for precisely the students with a
-    // reversed receipt or a write-off.
+    // reversed receipt or a write-off. `ledger.payments` stays in use for the
+    // payment-lines table; only the TOTAL must not come from there.
     const page = read(PAGE);
 
-    expect(page).not.toContain("totalCollected={ledger?.totalPayments ?? 0}");
-    expect(page).toContain("totalCollected={cashPaidAllInstallments}");
+    expect(page).not.toContain("ledger?.totalPayments");
+    expect(page).not.toContain("ledger.totalPayments");
+    expect(page).toContain("paidThisSession={cashPaidAllInstallments}");
   });
 
-  it("never displays the retired late-fee waiver pool column", () => {
+  it("never reads the retired late-fee waiver pool column", () => {
     // student_fee_overrides.late_fee_waiver_amount is DEPRECATED 2026-08-08 and
     // no engine reads it. The live truth is the sum of per-installment waivers.
+    // Asserted on the value, not on any one prop name, so the guarantee
+    // survives the props being rearranged.
     const page = read(PAGE);
 
-    expect(page).not.toContain("<Money value={student.lateFeeWaiverAmount} />");
-    expect(page).not.toContain("lateFeeWaiverAmount={student.lateFeeWaiverAmount ?? 0}");
-    expect(page).toContain("lateFeeWaiverAmount={lateFeeWaivedTotal}");
+    expect(page).not.toContain("student.lateFeeWaiverAmount");
+    expect(page).toContain("currentWaiverAmount: lateFeeWaivedTotal");
   });
 
   it("shows one name for credit, not credit next to refundable", () => {

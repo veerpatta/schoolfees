@@ -6,31 +6,34 @@ import { useTranslations } from "next-intl";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type TabKey = "dues" | "receipts" | "payments" | "fee-plan" | "about";
+export type TabKey = "receipts" | "dues" | "fee-plan" | "about";
 
 type StudentWorkspaceTabsProps = {
   defaultTab: TabKey;
   counts: {
     dues: number;
     receipts: number;
-    payments: number;
   };
-  duesContent: React.ReactNode;
   receiptsContent: React.ReactNode;
-  paymentsContent: React.ReactNode;
+  duesContent: React.ReactNode;
   feePlanContent: React.ReactNode;
   aboutContent: React.ReactNode;
 };
 
 /**
- * The phone design draws tabs as an underline rule, not a filled pill, and
- * that treatment now applies at every width instead of only from `md` up.
+ * Four tabs, receipts first and default.
  *
- * It keeps FIVE tabs, though, where the design shows three. Folding receipts,
- * payment lines and the fee plan under "Fees" would remove views the office
- * uses daily — the design's information architecture is worth adopting, its
- * deletions are not. Five underline tabs do not fit across 390px, so the row
- * scrolls horizontally rather than compressing to unreadable labels.
+ * The page's main job is checking payment history — finding a receipt,
+ * confirming what was paid. That was the third tab, roughly 1,100px down.
+ *
+ * Was five. "Receipts" and "Payment lines" were two tabs answering the same
+ * question, which reliably produced "which one do I look at?"; they are now one
+ * surface, receipts first with the allocation lines beneath. The tab VALUES are
+ * unchanged so `?tab=` links shared before this still resolve — see
+ * `normalizeTab`, which additionally maps the retired `payments` value here.
+ *
+ * The underline treatment is the phone design's, applied at every width. Tabs
+ * scroll horizontally rather than compressing to unreadable labels.
  */
 const triggerClass = [
   "shrink-0 whitespace-nowrap rounded-none border-b-[2.5px] border-transparent bg-transparent",
@@ -64,9 +67,8 @@ export function StudentWorkspaceTabs(props: StudentWorkspaceTabsProps) {
     ) : null;
 
   const tabs: Array<{ value: TabKey; label: string; badge?: number }> = [
-    { value: "dues", label: t("tabDues"), badge: props.counts.dues },
     { value: "receipts", label: t("tabReceipts"), badge: props.counts.receipts },
-    { value: "payments", label: t("tabPaymentLines"), badge: props.counts.payments },
+    { value: "dues", label: t("tabDues"), badge: props.counts.dues },
     { value: "fee-plan", label: t("tabFeePlan") },
     { value: "about", label: t("tabAbout") },
   ];
@@ -84,9 +86,8 @@ export function StudentWorkspaceTabs(props: StudentWorkspaceTabsProps) {
         </TabsList>
       </div>
 
-      <TabsContent value="dues" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.duesContent}</TabsContent>
       <TabsContent value="receipts" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.receiptsContent}</TabsContent>
-      <TabsContent value="payments" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.paymentsContent}</TabsContent>
+      <TabsContent value="dues" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.duesContent}</TabsContent>
       <TabsContent value="fee-plan" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.feePlanContent}</TabsContent>
       <TabsContent value="about" className="mt-4 focus-visible:ring-0 focus-visible:ring-offset-0">{props.aboutContent}</TabsContent>
     </Tabs>

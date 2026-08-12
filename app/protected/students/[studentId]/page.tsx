@@ -14,17 +14,15 @@ import { MobileStudentFamilyTab } from "@/components/students/mobile-student-fam
 import { MobileStudentProfile } from "@/components/students/mobile-student-profile";
 import { StudentAboutPanel } from "@/components/students/student-about-panel";
 import { StudentDangerZone } from "@/components/students/student-danger-zone";
+import { StudentDetailHeader } from "@/components/students/student-detail-header";
 import { StudentFeePlanEditButton } from "@/components/students/student-fee-plan-edit-button";
-import { StudentIdentityStrip } from "@/components/students/student-identity-strip";
+import { StudentMoneyBand } from "@/components/students/student-money-band";
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
 import { StudentRepaymentPlanCard } from "@/components/students/student-repayment-plan-card";
 import { ShareFeeWhatsApp } from "@/components/students/share-fee-whatsapp";
 import { StudentReceiptsPanel } from "@/components/students/student-receipts-panel";
-import { StudentStatCards } from "@/components/students/student-stat-cards";
-import { StudentStickyHeader } from "@/components/students/student-sticky-header";
 import { StudentWorkspaceTabs } from "@/components/students/student-workspace-tabs";
 import { StudentFamilyPanel } from "@/components/students/family-panel";
-import { StudentFinanceGlance } from "@/components/students/student-finance-glance";
 import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
@@ -58,7 +56,7 @@ type StudentDetailPageProps = {
   }>;
 };
 
-const newWorkspaceTabs = ["dues", "receipts", "payments", "fee-plan", "about"] as const;
+const newWorkspaceTabs = ["receipts", "dues", "fee-plan", "about"] as const;
 type NewWorkspaceTab = (typeof newWorkspaceTabs)[number];
 
 function normalizeTab(value: string | undefined): NewWorkspaceTab {
@@ -68,13 +66,20 @@ function normalizeTab(value: string | undefined): NewWorkspaceTab {
     return "about";
   }
 
+  // `payments` was its own tab until the two "what was paid" views were merged.
+  // Links shared before that still exist, so they land where the content went.
+  if (normalized === "payments") {
+    return "receipts";
+  }
+
+  // Receipts, not dues: the page's main job is checking payment history.
   return newWorkspaceTabs.includes(normalized as NewWorkspaceTab)
     ? (normalized as NewWorkspaceTab)
-    : "dues";
+    : "receipts";
 }
 
 /**
- * The phone shows three tabs where the desktop shows five. Map the desktop
+ * The phone shows three tabs where the desktop shows four. Map the desktop
  * deep links onto them so a `?tab=` URL shared from a computer opens the right
  * screen on a phone instead of silently falling back to the first tab. The
  * client only ever receives the resolved value, so there is one table.
@@ -83,17 +88,8 @@ function normalizeMobileTab(value: string | undefined): "fees" | "family" | "abo
   const desktopTab = normalizeTab(value);
   if (desktopTab === "about") return "about";
   if ((value ?? "").trim() === "family") return "family";
-  // dues, receipts, payments and fee-plan all live on the phone's Fees tab.
+  // dues, receipts and fee-plan all live on the phone's Fees tab.
   return "fees";
-}
-
-function getSchoolDateStamp(referenceDate = new Date()) {
-  return new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(referenceDate);
 }
 
 const formatDateTime = (value: string) => formatDateTimeIst(value);
@@ -117,7 +113,10 @@ export default async function StudentDetailPage({
   // the workspace snapshot; now that a family is confirmed membership rather
   // than a per-session phone match, it only needs the student id — so the page
   // dropped from 2 round trips to 1.
-  const [workspaceResult, deletionSafetyResult, familyMembersDetail, repaymentPlanDetail] =
+  // `tm` joins the batch rather than being awaited later: RSC renders both the
+  // phone and desktop trees, so every desktop render was paying for a
+  // sequential round trip it never displays.
+  const [workspaceResult, deletionSafetyResult, familyMembersDetail, repaymentPlanDetail, tm] =
     await Promise.all([
       getStudentWorkspaceData(resolvedParams.studentId),
       getStudentDeletionSafety(resolvedParams.studentId).catch(() => null),
@@ -131,6 +130,7 @@ export default async function StudentDetailPage({
         studentId: resolvedParams.studentId,
         today: partsToIso(todayPartsIst()),
       }).catch(() => null),
+      getTranslations("MobileApp"),
     ]);
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
     workspaceResult;
@@ -236,7 +236,6 @@ export default async function StudentDetailPage({
   // applies"). Not a figure this student owes — that is pendingLateFeeAmount.
   const lateFeeFlatAmount = financialSnapshot?.policy.lateFeeFlatAmount ?? 0;
 
-  const todayIso = getSchoolDateStamp();
   const feeBreakupRows = financialSnapshot
     ? buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown)
     : [];
@@ -252,11 +251,7 @@ export default async function StudentDetailPage({
   const conventionalDiscountLabels =
     financialSnapshot?.resolvedBreakdown.conventionalDiscountLabels ?? [];
 
-  // Payment stat cards — computed from already-fetched data, no extra DB calls
-  const allPayments = ledger?.payments ?? [];
   const paidInstallments = installmentBalances.filter((b) => b.balanceStatus === "paid").length;
-  const overdueInstallments = installmentBalances.filter((b) => b.balanceStatus === "overdue").length;
-  const partialInstallments = installmentBalances.filter((b) => b.balanceStatus === "partial").length;
 
   const modeLabels: Record<string, string> = {
     cash: "Cash",
@@ -265,24 +260,6 @@ export default async function StudentDetailPage({
     cheque: "Cheque",
   };
   const receiptIdByNumber = new Map(receipts.map((r) => [r.receiptNumber, r.id]));
-  const lastPaymentRow = allPayments[0] ?? null;
-  const lastPaymentInfo = lastPaymentRow
-    ? {
-        date: lastPaymentRow.paymentDate,
-        amount: lastPaymentRow.paymentAmount,
-        mode: modeLabels[lastPaymentRow.paymentMode] ?? lastPaymentRow.paymentMode,
-      }
-    : null;
-
-  const onTimePaid = allPayments.filter((p) => p.paymentDate <= p.dueDate).length;
-  const paymentReliability =
-    allPayments.length >= 3
-      ? {
-          onTimeCount: onTimePaid,
-          totalCount: allPayments.length,
-          percent: Math.round((onTimePaid / allPayments.length) * 100),
-        }
-      : null;
 
   const firstPendingInstallment = installmentBalances.find((b) => b.pendingAmount > 0) ?? null;
   const nextPendingInfo = firstPendingInstallment
@@ -453,12 +430,9 @@ export default async function StudentDetailPage({
   // cleanly — otherwise the resolver's post-conventional-discount tuition
   // would appear alongside the conventional discount, producing nonsensical
   // arithmetic on the screen.
-  const glanceBreakdownRows = financialSnapshot
-    ? buildFeeBreakupDisplayRows(financialSnapshot.resolvedBreakdown)
-    : [];
-  const glanceAnnualHeads = glanceBreakdownRows
-    .filter((row) => row.kind === "charge" && row.amount > 0)
-    .map((row) => ({ label: row.label, amount: row.amount }));
+  // Same function, same argument, same result as `feeBreakupRows` above — it
+  // was simply called twice.
+  const glanceBreakdownRows = feeBreakupRows;
   const glanceDiscountAmount = glanceBreakdownRows
     .filter((row) => row.kind === "discount")
     .reduce((sum, row) => sum + Math.abs(row.amount), 0);
@@ -734,10 +708,8 @@ export default async function StudentDetailPage({
   );
 
   // ── Phone screens (mobile app v2 §STUDENT DETAIL) ────────────────────────
-  // Built from the values already computed above — no extra loaders. The
-  // desktop tree below is untouched, just wrapped in `hidden md:block`.
-  const tm = await getTranslations("MobileApp");
-
+  // Built from the values already computed above — no extra loaders. `tm` is
+  // resolved in the opening Promise.all.
   const mobileStatusPill = (status: string) => {
     const tone =
       status === "paid"
@@ -995,7 +967,7 @@ export default async function StudentDetailPage({
     { key: tm("aboutRoute"), value: student.transportRouteLabel || tm("aboutNotSet") },
     { key: tm("aboutOldBalance"), value: formatInr(prevYearDuesAmount) },
     { key: tm("aboutCredit"), value: formatInr(financialSnapshot?.creditBalance ?? 0) },
-    { key: tm("aboutLateFeeWaiver"), value: formatInr(student.lateFeeWaiverAmount ?? 0) },
+    { key: tm("aboutLateFeeWaiver"), value: formatInr(lateFeeWaivedTotal) },
     {
       key: tm("aboutStatus"),
       value: `${student.studentStatusLabel} · ${student.status}`,
@@ -1082,17 +1054,6 @@ export default async function StudentDetailPage({
         }}
       />
 
-      {/* Desktop only: `sticky top-14` is meaningless on a phone, where `main`
-          is the scroll region and the phone profile carries its own header. */}
-      <div className="hidden md:block">
-        <StudentStickyHeader
-          fullName={student.fullName}
-          classLabel={student.classLabel}
-          admissionNo={student.admissionNo}
-          outstandingAmount={outstandingAmount}
-        />
-      </div>
-
       {/* ── Phone (mobile app v2 §STUDENT DETAIL) ──────────────────────
           Three tabs and a fixed action bar. The desktop tree below is the
           same components as before, wrapped so a phone never renders both. */}
@@ -1145,28 +1106,12 @@ export default async function StudentDetailPage({
         </Notice>
       ) : null}
 
-      <StudentIdentityStrip
+      <StudentDetailHeader
         student={student}
         outstandingAmount={outstandingAmount}
         prevYearDuesAmount={prevYearDuesAmount}
-        overdueAmount={overdueAmount}
-        pendingLateFeeAmount={effectivePendingLateFeeAmount}
-        waivableInstallments={waivableInstallments}
-        creditBalance={financialSnapshot?.creditBalance ?? 0}
-        nextDueDate={firstPendingInstallment?.dueDate ?? null}
-        nextDueLabel={firstPendingInstallment ? getDisplayInstallmentLabel(firstPendingInstallment) : null}
-        nextDueAmount={firstPendingInstallment?.pendingAmount ?? null}
-        todayIso={todayIso}
         canPostPayments={canPostPayments}
         canEditStudent={canEditStudent}
-        canWaiveLateFee={canWaiveLateFee}
-        // Live sum of what is actually forgiven, not the retired
-        // student_fee_overrides.late_fee_waiver_amount pool column (DEPRECATED
-        // 2026-08-08 — no engine reads it). The waive dialog shows this as
-        // "previously waived", so a stale figure misleads the person granting
-        // the next waiver.
-        lateFeeWaiverAmount={lateFeeWaivedTotal}
-        sessionLabel={financialSnapshot?.policy.academicSessionLabel ?? ""}
         canPrintReceipts={canPrintReceipts}
         canViewLedger={canViewLedger}
         latestReceiptId={receipts[0]?.id ?? null}
@@ -1174,116 +1119,121 @@ export default async function StudentDetailPage({
         encodedReturnTo={encodedReturnTo}
       />
 
-      <StudentFinanceGlance
-        annualHeads={glanceAnnualHeads}
-        discountAmount={glanceDiscountAmount}
-        discountLabels={glanceDiscountLabels}
-        totalAnnual={sessionFeeTotal}
-        totalPaid={cashPaidAllInstallments}
-        discountClosedAmount={discountClosedAmount}
-        totalPending={outstandingAmount}
+      <StudentMoneyBand
+        outstandingAmount={outstandingAmount}
         overdueAmount={overdueAmount}
         pendingLateFeeAmount={effectivePendingLateFeeAmount}
-        lateFeeWaivedTotal={lateFeeWaivedTotal}
         creditBalance={financialSnapshot?.creditBalance ?? 0}
-        installments={installmentBalances.map((b) => ({
-          installmentId: b.installmentId,
-          installmentNo: b.installmentNo,
-          installmentLabel: getDisplayInstallmentLabel(b),
-          dueDate: b.dueDate,
-          baseCharge: b.baseCharge,
-          pendingAmount: b.pendingAmount,
-          paidAmount: b.paidAmount,
-          rawLateFee: b.rawLateFee,
-          finalLateFee: b.finalLateFee,
-          waiverApplied: b.waiverApplied,
-          adjustmentAmount: b.adjustmentAmount,
-          lastPaymentDate: b.lastPaymentDate,
-          balanceStatus: b.balanceStatus,
-        }))}
-        nextDueDate={firstPendingInstallment?.dueDate ?? null}
-        nextDueLabel={firstPendingInstallment ? getDisplayInstallmentLabel(firstPendingInstallment) : null}
-        nextDueAmount={firstPendingInstallment?.pendingAmount ?? null}
-      />
-
-      <StudentStatCards
-        installmentProgress={{
-          paid: paidInstallments,
-          overdue: overdueInstallments,
-          partial: partialInstallments,
-          total: installmentBalances.length,
+        paidThisSession={cashPaidAllInstallments}
+        discountClosedAmount={discountClosedAmount}
+        sessionFeeTotal={sessionFeeTotal}
+        installmentsPaid={paidInstallments}
+        installmentsTotal={installmentBalances.length}
+        installmentsPending={installmentBalances.filter((row) => row.pendingAmount > 0).length}
+        nextDue={
+          firstPendingInstallment
+            ? {
+                label: getDisplayInstallmentLabel(firstPendingInstallment),
+                amount: firstPendingInstallment.pendingAmount,
+                dueDate: firstPendingInstallment.dueDate,
+              }
+            : null
+        }
+        lastReceipt={
+          receipts[0]
+            ? {
+                id: receipts[0].id,
+                receiptNumber: receipts[0].receiptNumber,
+                totalAmount: receipts[0].totalAmount,
+                paymentDate: receipts[0].paymentDate,
+              }
+            : null
+        }
+        emiPlan={
+          repaymentPlanDetail
+            ? {
+                monthlyAmount: repaymentPlanDetail.summary.monthlyAmount,
+                statusLabel: repaymentPlanDetail.summary.paymentStatus.replace(/_/g, " "),
+                reviewNeeded: repaymentPlanDetail.summary.planReviewNeeded,
+              }
+            : null
+        }
+        waive={{
+          canWaive: canWaiveLateFee,
+          studentId: student.id,
+          studentLabel: student.fullName,
+          studentAdmissionNo: student.admissionNo,
+          classLabel: student.classLabel,
+          // Live sum of what is actually forgiven, not the retired
+          // student_fee_overrides.late_fee_waiver_amount pool column
+          // (DEPRECATED 2026-08-08 — no engine reads it).
+          currentWaiverAmount: lateFeeWaivedTotal,
+          sessionLabel: financialSnapshot?.policy.academicSessionLabel ?? "",
+          waivableInstallments,
         }}
-        // `ledger.totalPayments` is every payment row for the student: all
-        // sessions, all modes INCLUDING discount close-outs, and it ignores
-        // payment_adjustments. So it reads HIGHER than reality for exactly the
-        // students most likely to be under review — the ones with a reversed
-        // receipt or a write-off. The workbook projection is session-scoped,
-        // cash-only and nets adjustments, and it is what every other figure on
-        // this page already uses.
-        totalCollected={cashPaidAllInstallments}
-        annualTotal={sessionFeeTotal}
-        lastPayment={lastPaymentInfo}
-        reliability={paymentReliability}
-        nextPending={nextPendingInfo}
+        encodedReturnTo={encodedReturnTo}
       />
 
-      {/* Full width, above the tabs: an active EMI plan changes how every
-          number below should be read, so it cannot sit in a side rail. */}
-      {repaymentPlanDetail ? (
-        <StudentRepaymentPlanCard
-          detail={repaymentPlanDetail}
-          canWaiveLateFees={canManageRepaymentPlans}
-          editHref={
-            canManageRepaymentPlans
-              ? `/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}#repayment-plan`
-              : undefined
-          }
-        />
-      ) : null}
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px] min-w-0">
-        <div className="min-w-0">
-          <StudentWorkspaceTabs
-            defaultTab={activeTab}
-            counts={{
-              dues: installmentBalances.filter((row) => row.pendingAmount > 0).length,
-              receipts: receipts.length,
-              payments: ledger?.payments.length ?? 0,
-            }}
-            duesContent={duesContent}
-            receiptsContent={receiptsContent}
-            paymentsContent={paymentsContent}
-            feePlanContent={feePlanContent}
-            aboutContent={<StudentAboutPanel student={student} ledger={ledger} receipts={receipts} />}
-          />
-        </div>
-
-        <aside className="lg:sticky lg:top-20 lg:self-start space-y-6 min-w-0">
-          <StudentQuickReference student={student} financialSnapshot={financialSnapshot} />
-          <StudentFamilyPanel
-            studentId={student.id}
-            familyGroupId={familyMembersDetail.familyGroupId}
-            members={familyMembersDetail.members}
-            sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
-            canLinkSibling={canEditStudent}
-            currentStudent={{
-              fullName: student.fullName,
-              admissionNo: student.admissionNo,
-              classLabel: student.classLabel,
-              fatherName: student.fatherName ?? null,
-              primaryPhone: student.fatherPhone ?? student.motherPhone ?? null,
-            }}
-          />
-          <ShareFeeWhatsApp
-            studentId={student.id}
-            studentName={student.fullName}
-            familyGroupId={familyMembersDetail.familyGroupId}
-            fatherPhone={student.fatherPhone}
-            motherPhone={student.motherPhone}
-            pendingAmount={outstandingAmount}
-          />
-        </aside>
-      </div>
+      {/* One column. The rail used to be taller than the content beside it, so
+          it — not the content — set the page length. */}
+      <StudentWorkspaceTabs
+        defaultTab={activeTab}
+        counts={{
+          dues: installmentBalances.filter((row) => row.pendingAmount > 0).length,
+          receipts: receipts.length,
+        }}
+        receiptsContent={
+          <div className="space-y-6">
+            {receiptsContent}
+            {paymentsContent}
+          </div>
+        }
+        duesContent={duesContent}
+        feePlanContent={
+          <div className="space-y-6">
+            {repaymentPlanDetail ? (
+              <StudentRepaymentPlanCard
+                detail={repaymentPlanDetail}
+                canWaiveLateFees={canManageRepaymentPlans}
+                editHref={
+                  canManageRepaymentPlans
+                    ? `/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}#repayment-plan`
+                    : undefined
+                }
+              />
+            ) : null}
+            {feePlanContent}
+            <StudentQuickReference student={student} financialSnapshot={financialSnapshot} />
+          </div>
+        }
+        aboutContent={
+          <div className="space-y-6">
+            <StudentAboutPanel student={student} ledger={ledger} receipts={receipts} />
+            <StudentFamilyPanel
+              studentId={student.id}
+              familyGroupId={familyMembersDetail.familyGroupId}
+              members={familyMembersDetail.members}
+              sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
+              canLinkSibling={canEditStudent}
+              currentStudent={{
+                fullName: student.fullName,
+                admissionNo: student.admissionNo,
+                classLabel: student.classLabel,
+                fatherName: student.fatherName ?? null,
+                primaryPhone: student.fatherPhone ?? student.motherPhone ?? null,
+              }}
+            />
+            <ShareFeeWhatsApp
+              studentId={student.id}
+              studentName={student.fullName}
+              familyGroupId={familyMembersDetail.familyGroupId}
+              fatherPhone={student.fatherPhone}
+              motherPhone={student.motherPhone}
+              pendingAmount={outstandingAmount}
+            />
+          </div>
+        }
+      />
 
       {canShowDangerZone ? (
         <StudentDangerZone
