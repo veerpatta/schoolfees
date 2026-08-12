@@ -23,6 +23,7 @@ import { ShareFeeWhatsApp } from "@/components/students/share-fee-whatsapp";
 import { StudentReceiptsPanel } from "@/components/students/student-receipts-panel";
 import { StudentWorkspaceTabs } from "@/components/students/student-workspace-tabs";
 import { StudentFamilyPanel } from "@/components/students/family-panel";
+import { Badge } from "@/components/ui/badge";
 import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
@@ -34,7 +35,6 @@ import {
 } from "@/lib/prev-year-dues/display";
 import { cn } from "@/lib/utils";
 import {
-  calculateInstallmentBasePending,
   calculateOverdueBaseAmount,
   calculatePendingLateFeeAmount,
 } from "@/lib/fees/due-amounts";
@@ -385,33 +385,27 @@ export default async function StudentDetailPage({
     </Section>
   );
 
+  // Four hand-rolled tonal spans, replaced by the primitive that already
+  // renders exactly these tones everywhere else in the app.
+  const INSTALLMENT_STATUS_BADGE: Record<
+    string,
+    { label: string; variant: "success" | "danger" | "warning" }
+  > = {
+    paid: { label: "Paid", variant: "success" },
+    overdue: { label: "Overdue", variant: "danger" },
+    partial: { label: "Partial", variant: "warning" },
+  };
+
   const getInstallmentStatusPill = (status: string) => {
-    switch (status) {
-      case "paid":
-        return (
-          <span className="inline-flex items-center rounded-full bg-success-soft px-2.5 py-0.5 text-[11px] font-semibold text-success-soft-foreground">
-            Paid
-          </span>
-        );
-      case "overdue":
-        return (
-          <span className="inline-flex items-center rounded-full bg-destructive-soft px-2.5 py-0.5 text-[11px] font-semibold text-destructive-soft-foreground">
-            Overdue
-          </span>
-        );
-      case "partial":
-        return (
-          <span className="inline-flex items-center rounded-full bg-warning-soft px-2.5 py-0.5 text-[11px] font-semibold text-warning-soft-foreground">
-            Partial
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center rounded-full bg-surface-3/50 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-            {status}
-          </span>
-        );
-    }
+    const badge = INSTALLMENT_STATUS_BADGE[status];
+
+    return badge ? (
+      <Badge variant={badge.variant} dot>
+        {badge.label}
+      </Badge>
+    ) : (
+      <Badge variant="neutral">{status}</Badge>
+    );
   };
 
   // `paidAmount` on the workbook installment row is cash-only (the view
@@ -505,16 +499,18 @@ export default async function StudentDetailPage({
         </div>
       ) : (
         <>
+        {/* Three money columns, not five. "Base due" and "Late fee" collapse
+            into one Charged cell with the late fee as a sub-line, because the
+            two are only ever read together; Adjustments becomes a chip under
+            Paid and only when it is non-zero, which is rare. */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full min-w-[820px] text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
               <tr>
                 <th className="px-4 py-3">Installment</th>
                 <th className="px-4 py-3">Due date</th>
-                <th className="px-4 py-3 text-right">Base due</th>
-                <th className="px-4 py-3 text-right">Late fee</th>
+                <th className="px-4 py-3 text-right">Charged</th>
                 <th className="px-4 py-3 text-right">Paid</th>
-                <th className="px-4 py-3 text-right">Adjustments</th>
                 <th className="px-4 py-3 text-right">Outstanding</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
@@ -532,39 +528,34 @@ export default async function StudentDetailPage({
                     ) : null}
                   </td>
                   <td className="px-4 py-3 font-mono tabular-nums text-muted-foreground">{formatShortDate(item.dueDate)}</td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums"><Money value={item.baseCharge} size="sm" /></td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums">
+                    <Money value={item.baseCharge + item.finalLateFee} size="sm" />
                     {item.finalLateFee > 0 ? (
-                      <>
-                        <Money value={item.finalLateFee} size="sm" />
-                        {item.waiverApplied > 0 ? (
-                          <div className="text-[10px] text-success-soft-foreground font-medium mt-0.5">
-                            −{formatInr(item.waiverApplied)} waived
-                          </div>
-                        ) : null}
-                      </>
-                    ) : item.waiverApplied > 0 ? (
-                      // Fully waived. This used to fall through to a bare ₹0, which
-                      // hid the fact that a late fee had been charged at all and
-                      // then forgiven — the single most confusing cell on the page.
-                      <span className="text-[11px] font-semibold text-success-soft-foreground">
-                        {formatInr(item.waiverApplied)} waived
-                      </span>
-                    ) : (
-                      <Money value={0} size="sm" />
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-success-soft-foreground"><Money value={item.paidAmount} size="sm" /></td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground"><Money value={item.adjustmentAmount} size="sm" /></td>
-                  <td className="px-4 py-3 text-right font-semibold text-foreground font-mono tabular-nums"><Money value={item.pendingAmount} size="sm" /></td>
-                  <td className="px-4 py-3">
-                    {getInstallmentStatusPill(item.balanceStatus)}
-                    {item.balanceStatus === "overdue" ? (
-                      <div className="mt-1 text-[11px] font-medium text-destructive">
-                        <Money value={calculateInstallmentBasePending(item)} size="sm" /> without late fee
+                      <div className="mt-0.5 text-[10px] font-medium text-destructive">
+                        incl. {formatInr(item.finalLateFee)} late fee
+                      </div>
+                    ) : null}
+                    {item.waiverApplied > 0 ? (
+                      // Never let a forgiven late fee vanish into a bare total:
+                      // "a fee was charged and then waived" is the single thing
+                      // people most often come to this row to check.
+                      <div className="mt-0.5 text-[10px] font-medium text-success-soft-foreground">
+                        {formatInr(item.waiverApplied)} late fee waived
                       </div>
                     ) : null}
                   </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-success-soft-foreground">
+                    <Money value={item.paidAmount} size="sm" />
+                    {item.adjustmentAmount !== 0 ? (
+                      <div className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+                        {formatInr(item.adjustmentAmount)} adjusted
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-foreground font-mono tabular-nums">
+                    <Money value={item.pendingAmount} size="sm" />
+                  </td>
+                  <td className="px-4 py-3">{getInstallmentStatusPill(item.balanceStatus)}</td>
                 </tr>
                 );
               })}
@@ -581,9 +572,9 @@ export default async function StudentDetailPage({
       title="Payments"
       description={paymentLinesDescription}
     >
-      <p className="mb-4 text-sm leading-6 text-muted-foreground sm:hidden">
-        {paymentLinesDescription}
-      </p>
+      {/* `sm:hidden` inside a `hidden md:block` tree can never render: the
+          parent is hidden below 768px and this hides at and above 640px. It was
+          a second copy of the Section description nobody has ever seen. */}
       <div className="mb-4 flex flex-wrap gap-2">
         <ValueStatePill tone="locked">Locked payment history</ValueStatePill>
       </div>

@@ -37,6 +37,10 @@ const DESKTOP_ONLY = new Map<string, string>([
     "app/protected/students/[studentId]/page.tsx",
     "the whole desktop tree sits inside one `hidden md:block` branch; the phone renders MobileStudentProfile instead",
   ],
+  [
+    "components/students/student-receipts-panel.tsx",
+    "exactly one consumer — the student page's desktop tree, itself `hidden md:block`. It used to carry a md:hidden card twin that could therefore never render; that dead branch was deleted rather than kept to satisfy this rule.",
+  ],
 ]);
 
 describe("wide tables on phones", () => {

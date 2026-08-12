@@ -102,7 +102,7 @@ describe("student edit form — transport", () => {
   it("shows the transport override amount with nothing collapsed over it", () => {
     const { container } = renderForm({ transportOverride: "14000" });
 
-    const override = screen.getByLabelText("Transport override");
+    const override = screen.getByLabelText(/^Transport override/);
     expect(override).toHaveValue(14000);
 
     // The specific regression: no ancestor may be a closed disclosure.
@@ -123,7 +123,7 @@ describe("student edit form — transport", () => {
   it("counts nothing when the student has no exceptions", () => {
     const { container } = renderForm();
 
-    expect(screen.getByLabelText("Transport override")).toHaveValue(null);
+    expect(screen.getByLabelText(/^Transport override/)).toHaveValue(null);
     expect(container.textContent).not.toContain("1 set");
     expect(effectiveLine()).toContain("No transport");
   });
@@ -134,7 +134,7 @@ describe("student edit form — transport", () => {
 
     expect(effectiveLine()).toContain("No transport");
 
-    await user.type(screen.getByLabelText("Transport override"), "2500");
+    await user.type(screen.getByLabelText(/^Transport override/), "2500");
 
     expect(effectiveLine()).toContain("Custom transport (₹2,500)");
   });

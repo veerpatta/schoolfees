@@ -82,10 +82,12 @@ describe("student edit form has nothing collapsed", () => {
     renderForm();
 
     // One field from each group that used to sit behind a closed disclosure.
+    // Prefix-matched: a `required` marker and a `hint` both render inside the
+    // <label>, so the accessible name carries more than the bare field name.
     expect(screen.getByLabelText("Mother phone")).toBeInTheDocument();
-    expect(screen.getByLabelText("Transport override")).toBeInTheDocument();
-    expect(screen.getByLabelText("Tuition override")).toBeInTheDocument();
-    expect(screen.getByLabelText("Record status")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Transport override/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Tuition override/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Record status/)).toBeInTheDocument();
   });
 
   it("counts the exceptions in the section header, not on a closed summary", () => {

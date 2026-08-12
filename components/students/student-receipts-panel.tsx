@@ -44,7 +44,10 @@ export function StudentReceiptsPanel({
   canPrintReceipts,
   encodedReturnTo,
 }: StudentReceiptsPanelProps) {
-  const [view, setView] = useState<ViewMode>("by-session");
+  // Timeline first. A receipt lookup is almost always "the one from last week",
+  // not "the 2024-25 group" — grouping by session made the common case start
+  // with a collapsed accordion.
+  const [view, setView] = useState<ViewMode>("timeline");
   const timeline = useMemo(() => {
     return [...receipts].sort(
       (a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime(),
@@ -165,49 +168,21 @@ function BySessionView({
               </span>
             </summary>
 
-            <div className="md:hidden divide-y divide-border/60">
-              {group.receipts.map((receipt) => (
-                <div key={receipt.id} className="px-4 py-3 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 font-semibold text-sm">
-                      {receipt.receiptNumber}
-                      {receipt.isReversed ? <ReversedBadge /> : null}
-                    </span>
-                    <span className={receipt.isReversed ? "line-through opacity-60" : undefined}>
-                      <Money value={receipt.totalAmount} size="sm" />
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{formatShortDate(receipt.paymentDate)}</span>
-                    <span className="inline-flex items-center rounded-md bg-surface-3/50 px-2 py-0.5 font-medium">
-                      {receipt.paymentModeLabel}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    {receipt.referenceNumber ? (
-                      <span className="text-xs text-muted-foreground font-mono">
-                        Ref: {receipt.referenceNumber}
-                      </span>
-                    ) : <span />}
-                    <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2">
-                      <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
-                        {canPrintReceipts ? "Print" : "Open"}
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
+            {/* The phone card list that used to live here could never
+                render: this panel has exactly one consumer, the student
+                page's desktop tree, which is itself `hidden md:block`.
+                Phones get MobileStudentProfile instead. */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              {/* No Reference column: reference numbers became optional for
+                  every payment mode in 20260602042112, so the column is empty
+                  for most rows. It is still on the receipt itself. */}
+              <table className="w-full min-w-[640px] text-left text-sm">
                 <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
                   <tr>
                     <th className="px-4 py-3">Receipt</th>
                     <th className="px-4 py-3">Date</th>
                     <th className="px-4 py-3">Mode</th>
                     <th className="px-4 py-3 text-right">Amount</th>
-                    <th className="px-4 py-3">Reference</th>
                     <th className="px-4 py-3">Received by</th>
                     <th className="px-4 py-3 text-right">Action</th>
                   </tr>
@@ -235,7 +210,6 @@ function BySessionView({
                       >
                         <Money value={receipt.totalAmount} size="sm" />
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{receipt.referenceNumber ?? "—"}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{receipt.receivedBy || "—"}</td>
                       <td className="px-4 py-3 text-right">
                         <Button asChild size="sm" variant="outline" className="h-8">

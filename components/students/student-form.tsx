@@ -8,7 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
+import { SelectNative } from "@/components/ui/select-native";
+import { Textarea } from "@/components/ui/textarea";
 import { StudentPhotoUpload } from "@/components/students/student-photo-upload";
 import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import { appendSessionParam } from "@/lib/navigation/session-href";
@@ -83,12 +86,6 @@ type StudentFormProps = {
     formData: FormData,
   ) => Promise<StudentFormActionState>;
 };
-
-const selectClassName =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:ring-destructive/30";
-
-const textAreaClassName =
-  "flex min-h-[84px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:ring-destructive/30";
 
 const studentFormFieldLabels: Partial<Record<keyof StudentFormValues, string>> = {
   fullName: "Student name",
@@ -207,70 +204,79 @@ export function StudentForm({
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="sessionLabel" value={sessionLabel} />
-      <div className="flex flex-wrap gap-2">
-        <ValueStatePill tone="editable">Student Master</ValueStatePill>
-        <ValueStatePill tone="policy">Fee exceptions</ValueStatePill>
-        {values.conventionalPolicyIds.length > 0 ? (
-          <ValueStatePill tone="review">Conventional discount</ValueStatePill>
-        ) : null}
-      </div>
-
       {state.message ? (
-        <div
-          className={
+        <Notice
+          tone={
             state.status === "error"
-              ? "rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
+              ? "danger"
               : state.status === "warning"
-                ? "rounded-md border bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground"
-                : "rounded-md border bg-success-soft px-3 py-2 text-sm text-success-soft-foreground"
+                ? "warning"
+                : "success"
           }
-          role={state.status === "error" ? "alert" : "status"}
+          action={
+            /*
+              The follow-up buttons appear on a warning too: the student WAS
+              saved, and the most likely next step after "some fee rows were
+              left for review" is to open the student and look at them.
+            */
+            state.status !== "error" && state.studentId ? (
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm">
+                  <Link href={withSession(`/protected/payments?studentId=${state.studentId}`)}>Open Payment Desk</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={withSession(`/protected/students/${state.studentId}?returnTo=${encodeURIComponent(returnTo)}`)}>
+                    Open student
+                  </Link>
+                </Button>
+              </div>
+            ) : null
+          }
         >
           {state.message}
-          {/*
-            The follow-up buttons appear on a warning too: the student WAS
-            saved, and the most likely next step after "some fee rows were left
-            for review" is to open the student and look at them.
-          */}
-          {state.status !== "error" && state.studentId ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button asChild size="sm">
-                <Link href={withSession(`/protected/payments?studentId=${state.studentId}`)}>Open Payment Desk</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href={withSession(`/protected/students/${state.studentId}?returnTo=${encodeURIComponent(returnTo)}`)}>
-                  Open student
-                </Link>
-              </Button>
-            </div>
-          ) : null}
-        </div>
+        </Notice>
       ) : null}
 
       {hasFieldErrors ? (
-        <div
-          className="rounded-md border bg-destructive-soft px-3 py-2 text-sm text-destructive-soft-foreground"
-          role="alert"
+        <Notice
+          tone="danger"
+          title={`Please review ${fieldErrorEntries.length} fields before saving.`}
         >
-          <p className="font-medium">
-            Please review {fieldErrorEntries.length} fields before saving.
-          </p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
+          <ul className="list-disc space-y-1 pl-5">
             {fieldErrorEntries.map(([fieldName, message]) => (
               <li key={fieldName}>
-                <a className="underline underline-offset-2" href={`#${fieldName}`}>
+                {/*
+                  A bare fragment jump moves the viewport but leaves focus
+                  behind, so a screen reader never hears the field's
+                  aria-describedby error. Focusing the control announces it, and
+                  `block: "center"` clears the sticky identity bar. The href
+                  stays for the no-JS path.
+                */}
+                <a
+                  className="underline underline-offset-2"
+                  href={`#${fieldName}`}
+                  onClick={(event) => {
+                    const target = document.getElementById(fieldName);
+
+                    if (!target) return;
+
+                    event.preventDefault();
+                    target.scrollIntoView({ block: "center", behavior: "smooth" });
+                    target.focus({ preventScroll: true });
+                  }}
+                >
                   {studentFormFieldLabels[fieldName] ?? fieldName}: {message}
                 </a>
               </li>
             ))}
           </ul>
-        </div>
+        </Notice>
       ) : null}
 
       {disableSubmit ? (
-        <div className="rounded-md border bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
+        <Notice tone="warning">
           No class records found. Add classes before creating students.
-        </div>
+        </Notice>
       ) : null}
 
       <div className="space-y-4">
@@ -282,7 +288,7 @@ export function StudentForm({
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <Label htmlFor="fullName">Student name</Label>
+            <Label htmlFor="fullName" required>Student name</Label>
             <Input
               id="fullName"
               name="fullName"
@@ -295,12 +301,12 @@ export function StudentForm({
           </div>
 
           <div>
-            <Label htmlFor="classId">Class</Label>
-            <select
+            <Label htmlFor="classId" required>Class</Label>
+            <SelectNative
               id="classId"
               name="classId"
               defaultValue={values.classId}
-              className={`${selectClassName} mt-2`}
+              className="mt-2"
               required
               {...getFieldAccessibility(state, "classId")}
             >
@@ -310,7 +316,7 @@ export function StudentForm({
                   {classOption.label}
                 </option>
               ))}
-            </select>
+            </SelectNative>
             <FieldError fieldName="classId" message={getFieldError(state, "classId")} />
           </div>
 
@@ -355,12 +361,12 @@ export function StudentForm({
 
           <div>
             <Label htmlFor="transportRouteId">Transport route</Label>
-            <select
+            <SelectNative
               id="transportRouteId"
               name="transportRouteId"
               value={transportRouteId}
               onChange={(event) => setTransportRouteId(event.target.value)}
-              className={`${selectClassName} mt-2`}
+              className="mt-2"
               {...getFieldAccessibility(state, "transportRouteId")}
             >
               <option value="">{NO_TRANSPORT_LABEL}</option>
@@ -373,7 +379,7 @@ export function StudentForm({
                       : routeOption.label}
                 </option>
               ))}
-            </select>
+            </SelectNative>
             {/* The route picker cannot tell the whole truth on its own. A
                 student with no route and a transport override IS charged, and
                 this control said "No transport" while it happened -- three
@@ -395,18 +401,18 @@ export function StudentForm({
 
           <div>
             <Label htmlFor="studentTypeOverride">New / Existing</Label>
-            <select
+            <SelectNative
               id="studentTypeOverride"
               name="studentTypeOverride"
               defaultValue={values.studentTypeOverride}
-              className={`${selectClassName} mt-2`}
+              className="mt-2"
               required
               disabled={!canEditFinance}
               {...getFieldAccessibility(state, "studentTypeOverride")}
             >
               <option value="existing">Existing</option>
               <option value="new">New</option>
-            </select>
+            </SelectNative>
             {!canEditFinance ? (
               <p
                 id="studentTypeOverride-locked"
@@ -420,11 +426,11 @@ export function StudentForm({
 
           <div className="md:col-span-2">
             <Label htmlFor="notes">Notes</Label>
-            <textarea
+            <Textarea
               id="notes"
               name="notes"
               defaultValue={values.notes}
-              className={`${textAreaClassName} mt-2`}
+              className="mt-2"
               placeholder="Optional office notes"
             />
           </div>
@@ -433,6 +439,7 @@ export function StudentForm({
 
       <Section
         title="Parent details and address"
+        actions={<ValueStatePill tone="editable">Student Master</ValueStatePill>}
         description="A mother's phone is not a second-class field — it was behind a closed disclosure with the DOB and the address."
       >
         <div className="grid gap-4 md:grid-cols-2">
@@ -466,11 +473,11 @@ export function StudentForm({
           </div>
           <div className="md:col-span-2">
             <Label htmlFor="address">Address</Label>
-            <textarea
+            <Textarea
               id="address"
               name="address"
               defaultValue={values.address}
-              className={`${textAreaClassName} mt-2`}
+              className="mt-2"
             />
           </div>
           <div className="md:col-span-2">
@@ -485,6 +492,7 @@ export function StudentForm({
       {canEditFinance ? (
       <Section
         title="Conventional discounts"
+        actions={<ValueStatePill tone="policy">School policy</ValueStatePill>}
         description="Use these only for approved school policies like RTE, Staff Child, or 3rd Child."
       >
         <div className="space-y-4">
@@ -542,13 +550,17 @@ export function StudentForm({
               <FieldError fieldName="conventionalDiscountReason" message={getFieldError(state, "conventionalDiscountReason")} />
             </div>
             <div>
-              <Label htmlFor="conventionalDiscountFamilyGroup">Family / sibling group</Label>
+              <Label
+                htmlFor="conventionalDiscountFamilyGroup"
+                hint="Required for 3rd Child unless overridden"
+              >
+                Family / sibling group
+              </Label>
               <Input
                 id="conventionalDiscountFamilyGroup"
                 name="conventionalDiscountFamilyGroup"
                 defaultValue={values.conventionalDiscountFamilyGroup}
                 className="mt-2"
-                placeholder="Required for 3rd Child unless overridden"
               />
             </div>
             <div className="md:col-span-2">
@@ -563,11 +575,11 @@ export function StudentForm({
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="conventionalDiscountNotes">Policy notes</Label>
-              <textarea
+              <Textarea
                 id="conventionalDiscountNotes"
                 name="conventionalDiscountNotes"
                 defaultValue={values.conventionalDiscountNotes}
-                className={`${textAreaClassName} mt-2`}
+                className="mt-2"
                 placeholder="Optional office notes"
               />
             </div>
@@ -581,9 +593,14 @@ export function StudentForm({
         title="Fee exceptions"
         description="Student-specific exceptions only. School-wide defaults stay in Fee Setup."
         actions={
-          feeExceptionCount > 0 ? (
-            <Badge variant="accent">{feeExceptionCount} set</Badge>
-          ) : null
+          <span className="flex items-center gap-2">
+            {feeExceptionCount > 0 ? (
+              <Badge variant="accent">{feeExceptionCount} set</Badge>
+            ) : null}
+            {/* These fields move money: changing one needs fees:write and a
+                reason, enforced in updateStudentAction. */}
+            <ValueStatePill tone="policy">Needs a reason</ValueStatePill>
+          </span>
         }
       >
         {/* Never collapsed. Behind a closed disclosure, this panel hid the
@@ -592,7 +609,7 @@ export function StudentForm({
         <div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div>
-              <Label htmlFor="tuitionOverride">Tuition override</Label>
+              <Label htmlFor="tuitionOverride" hint="Leave blank for the class default">Tuition override</Label>
               <Input
                 id="tuitionOverride"
                 name="tuitionOverride"
@@ -601,13 +618,12 @@ export function StudentForm({
                 min={0}
                 defaultValue={values.tuitionOverride}
                 className="mt-2"
-                placeholder="Leave blank for class default"
                 {...getFieldAccessibility(state, "tuitionOverride")}
               />
               <FieldError fieldName="tuitionOverride" message={getFieldError(state, "tuitionOverride")} />
             </div>
             <div>
-              <Label htmlFor="transportOverride">Transport override</Label>
+              <Label htmlFor="transportOverride" hint="Leave blank for the route default">Transport override</Label>
               <Input
                 id="transportOverride"
                 name="transportOverride"
@@ -617,7 +633,6 @@ export function StudentForm({
                 value={transportOverride}
                 onChange={(event) => setTransportOverride(event.target.value)}
                 className="mt-2"
-                placeholder="Leave blank for route default"
                 {...getFieldAccessibility(state, "transportOverride")}
               />
               {transportIsCustom ? (
@@ -655,7 +670,7 @@ export function StudentForm({
               <FieldError fieldName="otherAdjustmentHead" message={getFieldError(state, "otherAdjustmentHead")} />
             </div>
             <div>
-              <Label htmlFor="otherAdjustmentAmount">Other adjustment amount</Label>
+              <Label htmlFor="otherAdjustmentAmount" hint="Positive adds, negative subtracts">Other adjustment amount</Label>
               <Input
                 id="otherAdjustmentAmount"
                 name="otherAdjustmentAmount"
@@ -663,7 +678,6 @@ export function StudentForm({
                 inputMode="decimal"
                 defaultValue={values.otherAdjustmentAmount}
                 className="mt-2"
-                placeholder="Positive or negative"
                 {...getFieldAccessibility(state, "otherAdjustmentAmount")}
               />
               <FieldError fieldName="otherAdjustmentAmount" message={getFieldError(state, "otherAdjustmentAmount")} />
@@ -682,22 +696,25 @@ export function StudentForm({
             </div>
             <div className="md:col-span-2 xl:col-span-3">
               <Label htmlFor="feeProfileNotes">Advanced notes</Label>
-              <textarea id="feeProfileNotes" name="feeProfileNotes" defaultValue={values.feeProfileNotes} className={`${textAreaClassName} mt-2`} placeholder="Optional reason details for accounts review" />
+              <Textarea id="feeProfileNotes" name="feeProfileNotes" defaultValue={values.feeProfileNotes} className="mt-2" placeholder="Optional reason details for accounts review" />
             </div>
           </div>
         </div>
       </Section>
       ) : null}
 
-      <Section title="Record status">
+      <Section
+        title="Record status"
+        actions={<ValueStatePill tone="editable">Student Master</ValueStatePill>}
+      >
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <Label htmlFor="status">Record status</Label>
-            <select
+            <Label htmlFor="status" required>Record status</Label>
+            <SelectNative
               id="status"
               name="status"
               defaultValue={values.status}
-              className={`${selectClassName} mt-2`}
+              className="mt-2"
               required
               {...getFieldAccessibility(state, "status")}
             >
@@ -706,7 +723,7 @@ export function StudentForm({
                   {statusOption.label}
                 </option>
               ))}
-            </select>
+            </SelectNative>
             <FieldError fieldName="status" message={getFieldError(state, "status")} />
           </div>
         </div>
