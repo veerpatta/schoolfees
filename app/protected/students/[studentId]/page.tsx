@@ -190,6 +190,16 @@ export default async function StudentDetailPage({
     0,
   );
 
+  // What a partial-scope EMI plan actually leaves outside itself, priced live.
+  // Drives whether the "stays outside the plan" notice is worth showing at all:
+  // a current-year-only plan for a student with no previous-year balance was
+  // being told about a balance that does not exist.
+  const currentYearDuesAmount = installmentBalances.reduce(
+    (sum, row) =>
+      !isCarryForwardInstallment(row) && row.pendingAmount > 0 ? sum + row.pendingAmount : sum,
+    0,
+  );
+
   const prevYearDuesAmount = installmentBalances.reduce(
     (sum, row) => (isCarryForwardInstallment(row) && row.pendingAmount > 0 ? sum + row.pendingAmount : sum),
     0,
@@ -1025,6 +1035,13 @@ export default async function StudentDetailPage({
         <StudentRepaymentPlanCard
           detail={repaymentPlanDetail}
           canWaiveLateFees={canManageRepaymentPlans}
+          duesOutsidePlanAmount={
+            repaymentPlanDetail.summary.scope === "old_balance_only"
+              ? currentYearDuesAmount
+              : repaymentPlanDetail.summary.scope === "current_year_only"
+                ? prevYearDuesAmount
+                : 0
+          }
           editHref={
             canManageRepaymentPlans
               ? `/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}#repayment-plan`

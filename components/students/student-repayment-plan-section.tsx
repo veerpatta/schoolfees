@@ -299,11 +299,14 @@ function ActivationForm({
                   <span className="block text-sm text-muted-foreground">
                     {formatInr(option.openingBalance)} across {option.installmentCount}{" "}
                     installment{option.installmentCount === 1 ? "" : "s"}
-                    {option.currentYearIncluded > 0
-                      ? ` — includes ${formatInr(option.currentYearIncluded)} of current-year fees not yet due`
+                    {/* Only worth saying when the option MIXES the two: on
+                        "current year only" it restates the option's own name,
+                        and the amount is the total already shown. */}
+                    {option.currentYearIncluded > 0 && option.oldBalanceIncluded > 0
+                      ? ` — of which ${formatInr(option.currentYearIncluded)} is current-year fees not yet due`
                       : ""}
                   </span>
-                  {excludedAmount > 0 ? (
+                  {excludedAmount > 0 && !disabled ? (
                     <span className="block text-sm text-muted-foreground">
                       Leaves {formatInr(excludedAmount)} of{" "}
                       {excludes === "current_year" ? "current-year" : "previous-year"} dues outside

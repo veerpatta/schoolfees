@@ -481,10 +481,33 @@ export async function getRepaymentPlanCollectionContext(
     return null;
   }
 
-  const { data } = await supabase
-    .from("student_repayment_plan_items")
-    .select("installment_id")
-    .eq("plan_id", summary.planId);
+  const outside = getDuesOutsidePlan(summary.scope);
+
+  const [{ data }, { data: balances }] = await Promise.all([
+    supabase
+      .from("student_repayment_plan_items")
+      .select("installment_id")
+      .eq("plan_id", summary.planId),
+    // Price what the scope leaves out, so the desk warns about money that
+    // actually exists. A current-year-only plan for a student with no
+    // previous-year balance was warning about a balance of zero.
+    outside
+      ? supabase
+          .from("v_workbook_installment_balances")
+          .select("pending_amount, is_carry_forward")
+          .eq("student_id", studentId)
+          .eq("session_label", summary.sessionLabel)
+          .gt("pending_amount", 0)
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const duesOutsidePlanAmount = (balances ?? [])
+    .filter((row) =>
+      outside === "previous_year"
+        ? row.is_carry_forward === true
+        : row.is_carry_forward !== true,
+    )
+    .reduce((sum, row) => sum + toInt(row.pending_amount), 0);
 
   return {
     planId: summary.planId,
@@ -498,7 +521,8 @@ export async function getRepaymentPlanCollectionContext(
     missedInstallmentCount: summary.missedInstallmentCount,
     planReviewNeeded: summary.planReviewNeeded,
     coveredInstallmentIds: (data ?? []).map((row) => String(row.installment_id)),
-    duesOutsidePlan: getDuesOutsidePlan(summary.scope),
+    duesOutsidePlan: outside,
+    duesOutsidePlanAmount,
   };
 }
 

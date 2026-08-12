@@ -139,6 +139,7 @@ export function StudentRepaymentPlanCard({
   detail,
   editHref,
   canWaiveLateFees = false,
+  duesOutsidePlanAmount = 0,
   className,
 }: {
   detail: RepaymentPlanDetail;
@@ -146,6 +147,12 @@ export function StudentRepaymentPlanCard({
   editHref?: string;
   /** True for `fees:repayment_plan`. Only admins forgive an EMI late fee. */
   canWaiveLateFees?: boolean;
+  /**
+   * Money the plan's scope deliberately leaves out, priced live. Zero means
+   * the partial scope happens to cover everything this student owes, so the
+   * "stays outside the plan" notice would be describing nothing.
+   */
+  duesOutsidePlanAmount?: number;
   className?: string;
 }) {
   const { summary, schedule } = detail;
@@ -224,17 +231,20 @@ export function StudentRepaymentPlanCard({
         </Notice>
       ) : null}
 
-      {getDuesOutsidePlan(summary.scope) === "current_year" ? (
+      {/* Gated on money actually sitting outside, not on the scope alone. A
+          `current_year_only` plan for a student with no previous-year balance
+          was being told about a balance that does not exist. */}
+      {duesOutsidePlanAmount > 0 && getDuesOutsidePlan(summary.scope) === "current_year" ? (
         <Notice tone="info" className="mt-4">
-          Only the previous-year balance is on EMI. Current-year fees keep their own due dates, and
-          payments clear this plan first.
+          Only the previous-year balance is on EMI. {formatInr(duesOutsidePlanAmount)} of
+          current-year fees keeps its own due dates, and payments clear this plan first.
         </Notice>
       ) : null}
 
-      {getDuesOutsidePlan(summary.scope) === "previous_year" ? (
+      {duesOutsidePlanAmount > 0 && getDuesOutsidePlan(summary.scope) === "previous_year" ? (
         <Notice tone="info" className="mt-4">
-          Only this year&rsquo;s fees are on EMI. The previous-year balance keeps its own due date,
-          and payments clear this plan first.
+          Only this year&rsquo;s fees are on EMI. {formatInr(duesOutsidePlanAmount)} of
+          previous-year balance keeps its own due date, and payments clear this plan first.
         </Notice>
       ) : null}
 

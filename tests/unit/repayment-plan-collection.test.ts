@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { buildRepaymentPlanQuickAmounts } from "@/lib/payments/workflow";
@@ -33,6 +36,7 @@ function planContext(
     planReviewNeeded: false,
     coveredInstallmentIds: [],
     duesOutsidePlan: null,
+    duesOutsidePlanAmount: 0,
     ...overrides,
   };
 }
@@ -104,6 +108,51 @@ describe("repayment plan scopes", () => {
     expect(getDuesOutsidePlan("old_balance_only")).toBe("current_year");
     expect(getDuesOutsidePlan("current_year_only")).toBe("previous_year");
     expect(getDuesOutsidePlan("old_and_current")).toBeNull();
+  });
+
+  /**
+   * The scope says what a plan CAN leave out; only the balance says whether it
+   * actually did. Found in the running app: a `current_year_only` plan on a
+   * student with no previous-year balance told the cashier that previous-year
+   * dues were sitting outside it and staying unpaid. There were none.
+   *
+   * Every surface that warns is gated on the amount, not the scope alone —
+   * the Payment Desk banner, the plan card, and the scope picker.
+   */
+  it("carries the amount, so a surface can decline to warn about nothing", () => {
+    const context = planContext({
+      scope: "current_year_only",
+      duesOutsidePlan: "previous_year",
+      duesOutsidePlanAmount: 0,
+    });
+
+    expect(context.duesOutsidePlan).toBe("previous_year");
+    expect(context.duesOutsidePlanAmount).toBe(0);
+  });
+});
+
+describe("surfaces warn about dues outside a plan only when there are some", () => {
+  const BANNER = join(process.cwd(), "components/payments/payment-desk-emi-banner.tsx");
+  const CARD = join(process.cwd(), "components/students/student-repayment-plan-card.tsx");
+  const PICKER = join(process.cwd(), "components/students/student-repayment-plan-section.tsx");
+
+  it("gates the Payment Desk banner on the amount", () => {
+    const source = readFileSync(BANNER, "utf8");
+
+    expect(source).toContain("plan.duesOutsidePlanAmount > 0 && plan.duesOutsidePlan");
+    expect(source).not.toMatch(/\{plan\.duesOutsidePlan === "(current|previous)_year" \?/);
+  });
+
+  it("gates the plan card on the amount", () => {
+    const source = readFileSync(CARD, "utf8");
+
+    expect(source).toContain("duesOutsidePlanAmount > 0 && getDuesOutsidePlan");
+  });
+
+  it("hides the scope picker's trade-off line on an unavailable option", () => {
+    // A scope worth Rs 0 cannot be chosen, so telling the admin what it would
+    // leave behind is noise on a disabled control.
+    expect(readFileSync(PICKER, "utf8")).toContain("excludedAmount > 0 && !disabled");
   });
 });
 

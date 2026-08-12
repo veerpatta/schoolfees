@@ -38,14 +38,17 @@ export function PaymentDeskEmiBanner({
         This payment clears the EMI installments first; anything extra spills into the rest
         automatically. Discounts and late-fee waivers are disabled while the plan is active.
       </p>
-      {plan.duesOutsidePlan === "current_year" ? (
+      {/* Only when there is money outside to warn about. */}
+      {plan.duesOutsidePlanAmount > 0 && plan.duesOutsidePlan === "current_year" ? (
         <p className="mt-1 text-[11px] font-semibold">
-          Previous-year balance only — current-year fees sit outside this plan and stay unpaid.
+          Previous-year balance only — {formatInr(plan.duesOutsidePlanAmount)} of current-year fees
+          sits outside this plan and stays unpaid.
         </p>
       ) : null}
-      {plan.duesOutsidePlan === "previous_year" ? (
+      {plan.duesOutsidePlanAmount > 0 && plan.duesOutsidePlan === "previous_year" ? (
         <p className="mt-1 text-[11px] font-semibold">
-          Current year only — previous-year dues sit outside this plan and stay unpaid.
+          Current year only — {formatInr(plan.duesOutsidePlanAmount)} of previous-year dues sits
+          outside this plan and stays unpaid.
         </p>
       ) : null}
       {plan.planReviewNeeded ? (

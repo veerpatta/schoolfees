@@ -198,6 +198,12 @@ export type RepaymentPlanCollectionContext = {
    * told before taking the money. Null when the plan covers everything.
    */
   duesOutsidePlan: "current_year" | "previous_year" | null;
+  /**
+   * What that omission is actually worth. Zero means the partial scope happens
+   * to cover everything owed, so warning about it would name a balance the
+   * student does not have.
+   */
+  duesOutsidePlanAmount: number;
 };
 
 export const REPAYMENT_PLAN_MAX_TERM_MONTHS = 12;
