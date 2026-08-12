@@ -12,6 +12,37 @@
 -- guards are this file's, chosen so it replays top to bottom on an empty
 -- database.
 --
+-- STALE as of migration 20260812140000. The late-fee split
+-- (20260812120000_late_fee_is_a_separate_charge) rewrote the financial view
+-- stack, and this snapshot has NOT been re-introspected since. Read the
+-- migration, not this file, for any of:
+--
+--   private.workbook_installment_snapshot     pending_amount is now FEES ONLY;
+--   v_workbook_installment_balances           new late_fee_pending and
+--                                             total_pending columns; new
+--                                             late_fee_status; balance_status
+--                                             reads 'paid' once fees are clear
+--   v_workbook_student_financials             outstanding_amount is fees only;
+--                                             late_fee_outstanding_amount comes
+--                                             from late_fee_pending directly
+--   v_student_financial_state                 gains late_fee_pending
+--   v_student_installment_facets              pending_late_fee_amount reads the
+--                                             new column
+--   v_student_repayment_plan_status           stops subtracting the late fee by
+--                                             hand
+--   post_student_payment                      allocate against total_pending
+--   post_student_payment_with_adjustments     allocate against total_pending
+--   preview_workbook_payment_allocation       gains the two new columns
+--   waive_late_fee                            caps on late_fee_pending
+--   get_dashboard_fee_split                   reads late_fee_pending
+--   private.repayment_plan_remaining          reads fees-only pending_amount
+--   private.repayment_plan_candidates         reads fees-only pending_amount
+--   public.reschedule_student_repayment_plan  reads fees-only pending_amount
+--
+-- Regenerating needs a machine that can reach the live catalog; `supabase db
+-- dump` still needs Docker and will truncate this file to zero bytes if it
+-- cannot start one.
+--
 -- Amended at migration 20260811090000, which only DROPS objects: the
 -- v_student_sibling_groups view, the mv_student_sibling_groups matview and its
 -- two indexes, queue_sibling_groups_refresh(),

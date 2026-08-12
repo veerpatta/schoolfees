@@ -123,7 +123,7 @@ async function fetchAll(table, columns, apply) {
 // ── The data ───────────────────────────────────────────────────────────────
 const balances = await fetchAll(
   "v_workbook_installment_balances",
-  "installment_id, student_id, installment_no, base_charge, paid_amount, pending_amount, raw_late_fee, waiver_applied, final_late_fee, balance_status, is_carry_forward",
+  "installment_id, student_id, installment_no, base_charge, paid_amount, pending_amount, late_fee_pending, total_pending, raw_late_fee, waiver_applied, final_late_fee, balance_status, late_fee_status, is_carry_forward",
   (query) => query.eq("session_label", sessionLabel),
 );
 
@@ -154,9 +154,13 @@ const feeSplit = await (async () => {
     record("engines agree", false, `get_dashboard_fee_split failed: ${feeSplit.error}`);
   } else {
     const dashboardLateFee = Number(feeSplit.row?.late_fee_pending ?? 0);
+    // late_fee_pending is a real column since 20260812120000. It used to be
+    // spelled least(final_late_fee, pending_amount), which worked only while
+    // pending_amount still had the late fee inside it -- once pending_amount
+    // became fees-only that expression read 0 for every family whose fees were
+    // clear, which is most of the people who actually still owe a late fee.
     const matviewLateFee = balances.reduce(
-      (total, row) =>
-        total + Math.min(Math.max(row.final_late_fee, 0), Math.max(row.pending_amount, 0)),
+      (total, row) => total + Math.max(row.late_fee_pending, 0),
       0,
     );
     const drift = Math.abs(dashboardLateFee - matviewLateFee);
@@ -217,6 +221,15 @@ const feeSplit = await (async () => {
   );
 }
 
+// NOTE (20260812140000): this check compares against the 2026-08-08 snapshot to
+// prove THE RULE CHANGE did not raise anyone's bill. A row whose
+// late_fee_flat_amount was 0 at the cut-over and has since been corrected is a
+// different event, and correcting a rate is allowed to raise a bill -- that is
+// what correcting it means. Such a row is excluded below: it shows in the
+// snapshot as raw_late_fee 0 on an installment that was already past due, which
+// can only mean the rate was 0 then.
+const CUT_OVER_DATE = "2026-08-08";
+
 // ── 5. Grandfathering held ─────────────────────────────────────────────────
 // The rule change in 20260808140000 wrote a 'grandfather' waiver equal to
 // (new raw fee - old raw fee) so that final_late_fee stayed put for everyone who
@@ -231,7 +244,7 @@ const feeSplit = await (async () => {
   try {
     data = await fetchAll(
       "late_fee_rule_change_snapshot",
-      "installment_id, final_late_fee",
+      "installment_id, final_late_fee, raw_late_fee, due_date, base_charge, applied_amount",
       (query) => query.eq("session_label", sessionLabel),
     );
   } catch (thrown) {
@@ -243,10 +256,28 @@ const feeSplit = await (async () => {
   } else if ((data?.length ?? 0) === 0) {
     record("grandfathering held", true, "no snapshot rows for this session (nothing to compare)");
   } else {
+    // Rows whose rate was 0 at the cut-over. Past its due date, still owing
+    // base, and charging nothing: under the unified rule that combination is
+    // impossible unless no rate was set. Their rate has since been corrected,
+    // which is allowed to raise the bill. See CUT_OVER_DATE above. The
+    // applied < base term matters -- without it this also swallows every row
+    // that was legitimately settled on time, which was 986 of 2116.
+    const rateFixedLater = new Set(
+      data
+        .filter(
+          (snapshot) =>
+            Number(snapshot.raw_late_fee) === 0 &&
+            String(snapshot.due_date) < CUT_OVER_DATE &&
+            Number(snapshot.applied_amount) < Number(snapshot.base_charge),
+        )
+        .map((snapshot) => snapshot.installment_id),
+    );
+
     const offenders = data
       .map((snapshot) => {
         const current = balanceByInstallment.get(snapshot.installment_id);
         if (!current) return null;
+        if (rateFixedLater.has(snapshot.installment_id)) return null;
         const before = Number(snapshot.final_late_fee);
         return current.final_late_fee === before
           ? null
@@ -256,7 +287,8 @@ const feeSplit = await (async () => {
     record(
       "grandfathering held",
       offenders.length === 0,
-      `${offenders.length} of ${data.length} snapshot row(s) moved`,
+      `${offenders.length} of ${data.length} snapshot row(s) moved`
+        + (rateFixedLater.size > 0 ? `, ${rateFixedLater.size} excluded as later rate fixes` : ""),
       offenders,
     );
   }
@@ -282,6 +314,57 @@ const feeSplit = await (async () => {
       "expected excludes late fee",
       !contaminated,
       `expected ${expected}, base ${baseTotal}, late fee ${lateFeeTotal}`,
+    );
+  }
+}
+
+// ── 7. Fees and late fee stay in their own columns ─────────────────────────
+// Since 20260812120000 pending_amount is fees only and late_fee_pending carries
+// the late fee. The two must still add up to what a cashier can collect against
+// the installment, or money has gone missing from one side of the split.
+{
+  const offenders = balances
+    .filter((row) => row.pending_amount + row.late_fee_pending !== row.total_pending)
+    .map(
+      (row) =>
+        `${row.installment_id}: fees ${row.pending_amount} + late fee ${row.late_fee_pending} <> total ${row.total_pending}`,
+    );
+  record(
+    "fees and late fee add up",
+    offenders.length === 0,
+    offenders.length === 0
+      ? "0 installment(s) with a broken split"
+      : `${offenders.length} installment(s) with a broken split`,
+    offenders,
+  );
+}
+
+// ── 8. Every chargeable installment carries a rate ─────────────────────────
+// The late fee is derived from installments.late_fee_flat_amount, which the
+// generator stamps once at creation and nothing re-stamps afterwards. A row
+// left at 0 can never accrue, however overdue it gets, and nothing anywhere
+// says so -- 385 rows in the live 2026-27 session sat like that from 2026-05-24
+// until 20260812130000 backfilled them. Carry-forward rows are the deliberate
+// exception: they carry 0 on purpose and must never accrue.
+{
+  const { data, error } = await supabase
+    .from("installments")
+    .select("id, late_fee_flat_amount, is_carry_forward, status, classes!inner(session_label)")
+    .eq("classes.session_label", sessionLabel)
+    .neq("status", "cancelled")
+    .or("late_fee_flat_amount.is.null,late_fee_flat_amount.lte.0");
+
+  if (error) {
+    record("chargeable installments carry a rate", false, `query failed: ${error.message}`);
+  } else {
+    const offenders = (data ?? []).filter((row) => !row.is_carry_forward);
+    record(
+      "chargeable installments carry a rate",
+      offenders.length === 0,
+      offenders.length === 0
+        ? "0 installment(s) stuck at a zero rate"
+        : `${offenders.length} non-carry-forward installment(s) stuck at a zero rate`,
+      offenders.slice(0, 5).map((row) => `${row.id}: rate ${row.late_fee_flat_amount ?? "null"}`),
     );
   }
 }
