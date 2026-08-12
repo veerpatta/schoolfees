@@ -30,12 +30,11 @@ type BandItem = {
 
 function DeltaLine({ delta }: { delta: KpiDelta | null }) {
   if (!delta || delta.deltaPct === null) return null;
-  return (
-    <span className="mt-1 block text-[11px] text-nav-muted">
-      {delta.deltaPct > 0 ? "▲" : delta.deltaPct < 0 ? "▼" : "•"} {Math.abs(delta.deltaPct)}%{" "}
-      {delta.comparator}
-    </span>
-  );
+  // delta.label, not a re-derived arrow plus delta.comparator. comparator is
+  // the comparison AMOUNT in rupees, so that rendered as "▼ 100% 4450" -- a
+  // percentage and a bare rupee figure jammed together, meaning nothing. The
+  // type already formats the sentence: "▼ 100% vs Tue avg".
+  return <span className="mt-1 block text-[11px] text-nav-muted">{delta.label}</span>;
 }
 
 export function MoneyBand({

@@ -261,6 +261,41 @@ describe("dashboard boards", () => {
     expect(page).toContain('min-h-[32rem]');
   });
 
+  it("the delta line reads as a sentence, not a percent next to a rupee figure", () => {
+    // KpiDelta.comparator is the comparison AMOUNT. Rendering it beside the
+    // percentage produced "▼ 100% 4450" on the live dashboard -- two unrelated
+    // numbers touching. The type already formats the sentence.
+    const html = renderToStaticMarkup(
+      <MoneyBand
+        collectedToday={0}
+        collectedThisYear={195331}
+        expectedThisYear={1718500}
+        feesPending={1522669}
+        lateFeePending={18250}
+        receiptsToday={0}
+        todayDelta={{
+          comparator: 4450,
+          deltaPct: -100,
+          label: "▼ 100% vs Wed avg",
+          tone: "danger",
+        }}
+        sessionLabel="TEST-2026-27"
+        labels={{
+          today: "Today collection",
+          thisYear: "This year collected",
+          expectedThisYear: "of",
+          feesPending: "Fees pending",
+          lateFeePending: "Late fee pending",
+          receipts: "receipts",
+          lateFeeHint: "Tracked separately — never part of fees",
+        }}
+      />,
+    );
+
+    expect(html).toContain("▼ 100% vs Wed avg");
+    expect(html).not.toContain("4450");
+  });
+
   it("counts are not dressed up as rupees", () => {
     // Seen in the browser on the live dashboard: "Classes tracked Rs 19",
     // "Families with fees due Rs 73", and a roster donut reading "Overdue
