@@ -37,6 +37,12 @@ export function ViewSwitcher({
             <li key={view} className="flex-1">
               <Link
                 href={`/protected/dashboard?session=${encodeURIComponent(sessionLabel)}&view=${view}`}
+                // The route is force-dynamic, so Next only prefetches the
+                // loading shell by default and every board click paid a cold
+                // server render. prefetch warms the whole RSC payload instead;
+                // the boards read a session-tagged cache, so warming four of
+                // them costs one query rather than four.
+                prefetch
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",

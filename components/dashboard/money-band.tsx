@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CountUp } from "@/components/ui/count-up";
 import { Money } from "@/components/ui/money";
+import { formatInr } from "@/lib/helpers/currency";
 import type { KpiDelta } from "@/lib/dashboard/kpi-delta";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +41,7 @@ function DeltaLine({ delta }: { delta: KpiDelta | null }) {
 export function MoneyBand({
   collectedToday,
   collectedThisYear,
+  expectedThisYear,
   feesPending,
   lateFeePending,
   receiptsToday,
@@ -49,6 +51,8 @@ export function MoneyBand({
 }: {
   collectedToday: number;
   collectedThisYear: number;
+  /** The fee book's target for the year. Never includes a late fee. */
+  expectedThisYear: number;
   feesPending: number;
   lateFeePending: number;
   receiptsToday: number;
@@ -57,6 +61,7 @@ export function MoneyBand({
   labels: {
     today: string;
     thisYear: string;
+    expectedThisYear: string;
     feesPending: string;
     lateFeePending: string;
     receipts: string;
@@ -64,9 +69,12 @@ export function MoneyBand({
   };
 }) {
   const withSession = (href: string) => `${href}?session=${encodeURIComponent(sessionLabel)}`;
+  const collectionRate =
+    expectedThisYear > 0
+      ? Math.min(100, Math.round((collectedThisYear / expectedThisYear) * 100))
+      : 0;
 
   const rest: BandItem[] = [
-    { key: "year", label: labels.thisYear, value: collectedThisYear },
     {
       key: "fees",
       label: labels.feesPending,
@@ -97,6 +105,32 @@ export function MoneyBand({
             {receiptsToday} {labels.receipts}
           </span>
           <DeltaLine delta={todayDelta} />
+        </div>
+
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-nav-muted">
+            {labels.thisYear}
+          </p>
+          <Money
+            value={collectedThisYear}
+            className="mt-1 block font-display-money text-2xl leading-none text-nav-foreground"
+          />
+          <div
+            className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-nav-surface"
+            role="progressbar"
+            aria-label={`${labels.thisYear} ${collectionRate}%`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={collectionRate}
+          >
+            <div
+              className="h-full rounded-full bg-success"
+              style={{ width: `${collectionRate}%` }}
+            />
+          </div>
+          <span className="mt-1 block text-[11px] text-nav-muted">
+            {collectionRate}% {labels.expectedThisYear} {formatInr(expectedThisYear)}
+          </span>
         </div>
 
         {rest.map((item) => {

@@ -55,7 +55,6 @@ import { Section } from "@/components/ui/section";
 import {
   getDashboardAboveFoldData,
   getDashboardPageData,
-  getRouteCollectionSummary,
   scheduleDashboardAutoPrepare,
   type DashboardAlert,
   type DashboardCurrentInstallment,
@@ -1419,12 +1418,14 @@ async function DashboardBelowFold({
   view: DashboardView;
 }) {
   const t = await getTranslations("Dashboard");
-  // Analytics joins the same Promise.all rather than awaiting after it: it is
-  // an independent round trip and serialising it would put the slowest board a
-  // full query behind the money band for no reason.
-  const [data, routeSummary, analytics] = await Promise.all([
+  // Overview is built from getDashboardPageData; the other four boards are built
+  // entirely from the analytics payload. Fetching both for every board meant a
+  // tab click paid for work the tab could not display -- and getRouteCollectionSummary,
+  // now folded into the analytics query, was shipping 507 student rows from Mumbai
+  // to produce twenty. Analytics is cached on `session:{label}`, so once one
+  // board has loaded it the rest are a cache read.
+  const [data, analytics] = await Promise.all([
     getDashboardPageData({ staffRole, sessionLabel }),
-    getRouteCollectionSummary(sessionLabel),
     getDashboardAnalytics(sessionLabel),
   ]);
   scheduleDashboardAutoPrepare({
@@ -1543,13 +1544,13 @@ async function DashboardBelowFold({
         </Section>
       </div>
 
-      {routeSummary.length > 0 ? (
+      {analytics.routeRecovery.length > 0 ? (
         <Section
           title={t("routeProgressTitle")}
           description={t("routeProgressDescription")}
           variant="card"
         >
-          <RouteCollectionHeatmap rows={routeSummary} />
+          <RouteCollectionHeatmap rows={analytics.routeRecovery} />
         </Section>
       ) : null}
 
@@ -1867,6 +1868,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <MoneyBand
             collectedToday={aboveFold.kpis.todaysCollection}
             collectedThisYear={currentYearCollected}
+            expectedThisYear={currentYearExpected}
             feesPending={currentYearPending}
             lateFeePending={lateFeePending}
             receiptsToday={aboveFold.kpis.receiptsToday}
@@ -1875,6 +1877,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             labels={{
               today: t("todayCollection"),
               thisYear: t("thisYearCollected"),
+              expectedThisYear: t("ofExpectedLabel"),
               feesPending: t("feesPendingLabel"),
               lateFeePending: t("lateFeePendingLabel"),
               receipts: t("receiptsWord"),

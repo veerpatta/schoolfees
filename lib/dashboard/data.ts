@@ -9,7 +9,7 @@ import {
   getDisplayInstallmentLabel,
   isCarryForwardInstallment,
 } from "@/lib/prev-year-dues/display";
-import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
+import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import {
   type DashboardClassSummaryRow,
   type DashboardClassInstallmentPendingRow,
@@ -643,29 +643,41 @@ export async function getDashboardAlerts(options: {
   return filterDashboardAlertsForRole(alerts, options.staffRole);
 }
 
-// Shared per-request RPC fetch. Dashboard above-fold and below-fold both
-// need get_dashboard_summary for the same (session, day) tuple — wrapping in
-// React.cache() dedupes the round trip so the below-fold Suspense island
-// resolves instantly from memory instead of re-issuing the call.
+async function loadDashboardSummaryRpc(sessionLabel: string, today: string) {
+  const supabase = await getCacheSafeClient();
+  const { data, error } = await supabase.rpc("get_dashboard_summary", {
+    p_session_label: sessionLabel,
+    p_today: today,
+  });
+  if (error) {
+    throw new Error(`Unable to load dashboard summary: ${error.message}`);
+  }
+  const result = data as unknown as DashboardSummaryRpcResult;
+  dedupeInstallmentDuplicates(result);
+  await augmentCarryForwardDashboardResult(sessionLabel, result);
+  return result;
+}
+
+// Two layers, because they solve different problems.
+//
+// React.cache() dedupes within ONE render: above-fold and the below-fold
+// Suspense island both need this tuple, and without it the island re-issues
+// the call.
+//
+// unstable_cache survives ACROSS renders, which is what makes switching
+// dashboard boards feel instant. Every ?view= click is a fresh server
+// navigation, and this RPC blocks the first byte of it -- measured at 177ms
+// against live 2026-27, paid again on every tab. It is a session rollup that
+// only moves when money moves, so it is keyed by (session, school day) and
+// tagged `session:{label}`, the tag revalidateSessionFinance already busts
+// after every posting. Same contract as getShellPulse.
 const _getDashboardSummaryCached = cache(
-  async (sessionLabel: string, today: string) => {
-    const _t0 = Date.now();
-    const supabase = await getCacheSafeClient();
-    const { data, error } = await supabase.rpc("get_dashboard_summary", {
-      p_session_label: sessionLabel,
-      p_today: today,
-    });
-    if (error) {
-      throw new Error(`Unable to load dashboard summary: ${error.message}`);
-    }
-    console.log(
-      `[dashboard-summary-rpc] loaded in ${Date.now() - _t0}ms (cached per request)`,
-    );
-    const result = data as unknown as DashboardSummaryRpcResult;
-    dedupeInstallmentDuplicates(result);
-    await augmentCarryForwardDashboardResult(sessionLabel, result);
-    return result;
-  },
+  async (sessionLabel: string, today: string) =>
+    cacheSafeUnstableCache(
+      async () => loadDashboardSummaryRpc(sessionLabel, today),
+      ["dashboard-summary", sessionLabel, today],
+      { tags: [`session:${sessionLabel}`] },
+    )(),
 );
 
 export async function getDashboardAboveFoldData(options: {

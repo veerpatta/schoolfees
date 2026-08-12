@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getActiveSessionLabel } from "@/lib/session/active";
+import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
 import { after } from "next/server";
 
 import type { PaymentMode, RefundRequestStatus } from "@/lib/db/types";
@@ -121,6 +123,29 @@ function toSuccess(message: string): FinanceControlsActionState {
   };
 }
 
+/**
+ * Refunds move money, so they must bust the same cache tag a posting does.
+ *
+ * This path only ever called revalidatePath, which clears rendered routes but
+ * not tagged data caches -- so anything cached on `session:{label}` kept
+ * serving pre-refund numbers until the next posting happened to bust it. That
+ * already affected the sidebar's "Day so far" card (getShellPulse), and it
+ * would silently affect the dashboard rollups now that they are cached the
+ * same way. A refund is exactly the kind of correction the office reloads the
+ * page to confirm.
+ */
+async function revalidateFinanceTags() {
+  try {
+    const sessionLabel = await getActiveSessionLabel();
+    if (sessionLabel) {
+      revalidateSessionFinance(sessionLabel);
+    }
+  } catch {
+    // A tag we could not bust is a stale number, not a failed refund. The
+    // refund itself has already been written; never fail the action for this.
+  }
+}
+
 function revalidateFinanceSurface() {
   revalidatePath("/protected/finance-controls");
   revalidatePath("/protected/payments");
@@ -134,6 +159,7 @@ function revalidateFinanceSurface() {
   // the matview refresh now (migration 20260726000002). Drain after the
   // response so the finance surfaces reflect the refund straight away.
   after(drainFinancialViewRefresh);
+  after(revalidateFinanceTags);
 }
 
 export async function submitRefundWorkflowAction(

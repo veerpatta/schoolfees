@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
+import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 
 /**
  * Everything the dashboard shows below the money band, in one round trip.
@@ -69,12 +69,24 @@ export type DebtConcentration = {
   top50Pct: number;
 };
 
+/** Same shape as DashboardRouteSummaryRow, grouped in SQL instead of Node. */
+export type RouteRecoveryRow = {
+  routeId: string | null;
+  routeLabel: string;
+  studentCount: number;
+  expectedAmount: number;
+  collectedAmount: number;
+  pendingAmount: number;
+  collectionRate: number;
+};
+
 export type DashboardAnalytics = {
   sessionLabel: string;
   debtAge: DebtAgeBucket[];
   lateFee: DashboardLateFeeLedger;
   monthlyCollection: MonthlyCollectionPoint[];
   classRecovery: ClassRecoveryRow[];
+  routeRecovery: RouteRecoveryRow[];
   concentration: DebtConcentration;
 };
 
@@ -91,6 +103,7 @@ const EMPTY_ANALYTICS: DashboardAnalytics = {
   },
   monthlyCollection: [],
   classRecovery: [],
+  routeRecovery: [],
   concentration: {
     studentsWithDues: 0,
     totalPending: 0,
@@ -101,12 +114,16 @@ const EMPTY_ANALYTICS: DashboardAnalytics = {
   },
 };
 
-/**
- * Never throws. The dashboard's money band is rendered from a different call
- * and must still paint if this one fails -- a broken analytics panel is not a
- * reason to show the office a blank page on the morning they need the numbers.
- */
-export async function getDashboardAnalytics(sessionLabel: string): Promise<DashboardAnalytics> {
+function getSchoolDateStamp(referenceDate = new Date()) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(referenceDate);
+}
+
+async function getDashboardAnalyticsUncached(sessionLabel: string): Promise<DashboardAnalytics> {
   try {
     const supabase = await getCacheSafeClient();
     const { data, error } = await supabase.rpc("get_dashboard_analytics", {
@@ -127,7 +144,31 @@ export async function getDashboardAnalytics(sessionLabel: string): Promise<Dashb
       debtAge: payload.debtAge ?? [],
       monthlyCollection: payload.monthlyCollection ?? [],
       classRecovery: payload.classRecovery ?? [],
+      routeRecovery: payload.routeRecovery ?? [],
     };
+  } catch {
+    return { ...EMPTY_ANALYTICS, sessionLabel };
+  }
+}
+
+/**
+ * Never throws. The money band is rendered from a different call and must still
+ * paint if this one fails -- a broken analytics panel is not a reason to show
+ * the office a blank page on the morning they need the numbers.
+ *
+ * Cached on `session:{label}`, the same tag revalidateSessionFinance already
+ * busts after every posting, plus the school date so the day rolls over on its
+ * own. Without this every board switch was a fresh Mumbai round trip for a
+ * rollup that only moves when money moves: measured 718ms cold, 28ms warm.
+ * Same reasoning, and the same tag, as getShellPulse.
+ */
+export async function getDashboardAnalytics(sessionLabel: string): Promise<DashboardAnalytics> {
+  try {
+    return await cacheSafeUnstableCache(
+      async () => getDashboardAnalyticsUncached(sessionLabel),
+      ["dashboard-analytics", sessionLabel, getSchoolDateStamp()],
+      { tags: [`session:${sessionLabel}`] },
+    )();
   } catch {
     return { ...EMPTY_ANALYTICS, sessionLabel };
   }
@@ -143,6 +184,10 @@ export const DASHBOARD_VIEWS = [
 ] as const;
 
 export type DashboardView = (typeof DASHBOARD_VIEWS)[number];
+
+export function emptyDashboardAnalytics(sessionLabel: string): DashboardAnalytics {
+  return { ...EMPTY_ANALYTICS, sessionLabel };
+}
 
 export function resolveDashboardView(value: string | string[] | undefined): DashboardView {
   // searchParams hands back string[] when a key repeats. Taking [0] rather than

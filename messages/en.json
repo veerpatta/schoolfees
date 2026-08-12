@@ -942,7 +942,8 @@
     "viewCollection": "Collection",
     "viewRecovery": "Recovery",
     "viewClasses": "Classes",
-    "viewLateFee": "Late fee"
+    "viewLateFee": "Late fee",
+    "ofExpectedLabel": "of"
   },
   "Payments": {
     "eyebrow": "Payments",

@@ -76,6 +76,17 @@ const ANALYTICS: DashboardAnalytics = {
       recoveryRate: 85,
     },
   ],
+  routeRecovery: [
+    {
+      routeId: "route-1",
+      routeLabel: "Amet Bus",
+      studentCount: 86,
+      expectedAmount: 1979600,
+      collectedAmount: 491000,
+      pendingAmount: 1489600,
+      collectionRate: 25,
+    },
+  ],
   concentration: {
     studentsWithDues: 484,
     totalPending: 9945416,
@@ -92,6 +103,7 @@ describe("dashboard boards", () => {
       <MoneyBand
         collectedToday={24000}
         collectedThisYear={2900000}
+        expectedThisYear={13242175}
         feesPending={10558591}
         lateFeePending={12000}
         receiptsToday={3}
@@ -100,6 +112,7 @@ describe("dashboard boards", () => {
         labels={{
           today: "Collected today",
           thisYear: "Collected this year",
+          expectedThisYear: "of",
           feesPending: "Fees pending",
           lateFeePending: "Late fee pending",
           receipts: "receipts",
@@ -113,6 +126,12 @@ describe("dashboard boards", () => {
     // The hint is the whole point: the two numbers sit side by side and the
     // band says out loud that one is not part of the other.
     expect(html).toContain("never part of fees");
+    // Expected this year went missing when the hero KPIs were replaced. The
+    // collected figure now reads against it, so the target is visible and the
+    // collection rate comes back with it.
+    expect(html).toContain("Collected this year");
+    expect(html).toContain("22%");
+    expect(html).toContain("1,32,42,175");
     // Ink recipe, so the band prints and reads correctly in dark mode.
     expect(html).toContain("bg-nav");
   });

@@ -942,7 +942,8 @@
     "viewCollection": "वसूली",
     "viewRecovery": "बकाया वसूली",
     "viewClasses": "कक्षाएँ",
-    "viewLateFee": "लेट फीस"
+    "viewLateFee": "लेट फीस",
+    "ofExpectedLabel": "में से लक्ष्य"
   },
   "Payments": {
     "eyebrow": "भुगतान",

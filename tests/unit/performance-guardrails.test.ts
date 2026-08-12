@@ -256,9 +256,22 @@ describe("office performance guardrails", () => {
     expect(templates).toContain('const XLSX = await import("xlsx")');
 
     expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
+    // The two per-query caches the consolidated summary replaced must stay gone.
     expect(dashboardData).not.toContain('["dashboard-financials-active", sessionLabel]');
     expect(dashboardData).not.toContain('["dashboard-installments", sessionLabel]');
-    expect(dashboardData).not.toContain("cacheSafeUnstableCache(");
+
+    // Caching the consolidated summary itself IS wanted -- it is what makes
+    // switching dashboard boards cheap, since every ?view= click is a fresh
+    // server navigation that this call blocks (177ms against live 2026-27).
+    // The guardrail is that it stays tied to the tag every money path busts,
+    // and keyed by the school day so it rolls over on its own.
+    expect(dashboardData).toContain('["dashboard-summary", sessionLabel, today]');
+    expect(dashboardData).toContain("tags: [`session:${sessionLabel}`]");
+    // And a refund has to bust that tag too, or the cache serves pre-refund
+    // numbers until the next posting happens to clear it.
+    expect(readRepoFile("app/protected/finance-controls/actions.ts")).toContain(
+      "revalidateSessionFinance(sessionLabel)",
+    );
 
     expect(sidebarNav).toContain("const eagerPrefetchHrefs = new Set");
     expect(sidebarNav).toContain('"/protected/payments"');
