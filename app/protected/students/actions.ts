@@ -298,11 +298,53 @@ export async function updateStudentAction(
   const canEditAdmissionNo = hasStaffPermission(staffSession, "students:edit_sr_no");
   const canEditFinance = hasStaffPermission(staffSession, "students:write");
 
-  if (!canEditAdmissionNo || !canEditFinance) {
+  /**
+   * Fee fields that a form may legitimately not render at all.
+   *
+   * ABSENT and EMPTY are different answers and must not be conflated. A text
+   * input that is on screen always posts, empty string included — so "empty"
+   * means the user cleared it. "Absent" means the form never offered the field,
+   * which is the case whenever fee editing is delegated elsewhere, and the only
+   * safe reading is "leave what is on the record".
+   *
+   * Without this, the first save from a form that stops rendering these inputs
+   * silently wipes every override on the student.
+   */
+  const OPTIONAL_FEE_FIELDS = [
+    "tuitionOverride",
+    "transportOverride",
+    "discountAmount",
+    "otherAdjustmentHead",
+    "otherAdjustmentAmount",
+    "feeProfileReason",
+    "feeProfileNotes",
+  ] as const;
+
+  const absentFeeFields = OPTIONAL_FEE_FIELDS.filter((field) => !formData.has(field));
+
+  if (!canEditAdmissionNo || !canEditFinance || absentFeeFields.length > 0) {
     const existing = await getStudentDetail(studentId);
 
     if (!canEditAdmissionNo) {
       formData.set("admissionNo", existing?.admissionNo ?? "");
+    }
+
+    // Restore only the fields the form did not offer. Applies to every role:
+    // a field that was never on screen cannot have been edited by anyone.
+    if (existing && absentFeeFields.length > 0) {
+      const savedValue: Record<(typeof OPTIONAL_FEE_FIELDS)[number], string> = {
+        tuitionOverride: existing.tuitionOverride?.toString() ?? "",
+        transportOverride: existing.transportOverride?.toString() ?? "",
+        discountAmount: existing.discountAmount.toString(),
+        otherAdjustmentHead: existing.otherAdjustmentHead ?? "",
+        otherAdjustmentAmount: existing.otherAdjustmentAmount?.toString() ?? "",
+        feeProfileReason: existing.overrideReason ?? "Student Master workbook profile",
+        feeProfileNotes: existing.overrideNotes ?? "",
+      };
+
+      for (const field of absentFeeFields) {
+        formData.set(field, savedValue[field]);
+      }
     }
 
     if (!canEditFinance && existing) {
@@ -376,6 +418,62 @@ export async function updateStudentAction(
         studentId: null,
         submittedValues: input,
       };
+    }
+
+    /**
+     * Two surfaces write these same columns: this form and StudentFeePlanSheet.
+     * The sheet has always been the stricter of the two — `fees:write`, a
+     * mandatory reason, and it resolves the conventional-discount collision.
+     * This form asked for none of that, so the same money could be changed
+     * under a weaker contract depending on which button was clicked.
+     *
+     * Rather than duplicate the sheet's collision logic here — a second copy is
+     * how the two drifted apart in the first place — the form now holds the
+     * same guards and refuses the one case only the sheet handles correctly.
+     */
+    const feeFieldsChanged =
+      previousStudent.tuitionOverride !== validated.data.tuitionOverride ||
+      previousStudent.transportOverride !== validated.data.transportOverride ||
+      previousStudent.discountAmount !== validated.data.discountAmount ||
+      (previousStudent.otherAdjustmentHead ?? "") !==
+        (validated.data.otherAdjustmentHead ?? "") ||
+      (previousStudent.otherAdjustmentAmount ?? null) !==
+        (validated.data.otherAdjustmentAmount ?? null);
+
+    if (feeFieldsChanged) {
+      const feeError = (message: string): StudentFormActionState => ({
+        status: "error",
+        message,
+        fieldErrors: {},
+        studentId: null,
+        submittedValues: input,
+      });
+
+      if (!hasStaffPermission(staffSession, "fees:write")) {
+        return feeError(
+          "Changing a student's fee exceptions needs fee-edit permission. Everything else on this form saved nothing — no change was made.",
+        );
+      }
+
+      if ((validated.data.feeProfileReason ?? "").trim().length < 4) {
+        return feeError(
+          "Add a reason of at least 4 characters for the fee exception change, so the audit trail explains it.",
+        );
+      }
+
+      // A tuition override on a student carrying a policy discount is the one
+      // case that needs the backfilled conventional discount unwound from
+      // discount_amount. Only the fee-plan editor does that; getting it wrong
+      // double-subtracts.
+      const settingTuitionOverride =
+        validated.data.tuitionOverride !== null &&
+        validated.data.tuitionOverride !== previousStudent.tuitionOverride;
+
+      if (settingTuitionOverride && previousStudent.conventionalDiscountPolicyIds.length > 0) {
+        return feeError(
+          "This student is on a conventional discount policy, so a custom tuition amount has to be set through “Edit custom fees” — that editor unwinds the policy discount at the same time. Nothing was changed.",
+        );
+      }
     }
 
     const updatedStudentId = await updateStudent(studentId, validated.data);

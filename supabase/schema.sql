@@ -2358,8 +2358,12 @@ AS $function$
       when greatest(
         waiver_eval.base_charge + waiver_eval.raw_late_fee - waiver_eval.waiver_applied
           - waiver_eval.applied_amount - waiver_eval.discount_closeout_amount, 0) <= 0 then 'paid'
-      when waiver_eval.applied_amount > 0 or waiver_eval.discount_closeout_amount > 0 then 'partial'
+      -- Overdue outranks partial, matching v_workbook_installment_balances.
+      -- A family that paid Rs 500 of a Rs 10,000 installment two months ago is
+      -- overdue; partial is true but not the fact the office acts on. See
+      -- 20260522030225, whose intent this restores in the function.
       when p_as_of_date > waiver_eval.due_date then 'overdue'
+      when waiver_eval.applied_amount > 0 or waiver_eval.discount_closeout_amount > 0 then 'partial'
       else 'pending'
     end as balance_status,
     waiver_eval.last_payment_date, waiver_eval.transport_route_id,
