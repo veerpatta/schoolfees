@@ -1,0 +1,117 @@
+# Students
+
+The student master, and every per-student exception to the fee policy.
+
+| | |
+|---|---|
+| Routes | `/protected/students`, `/[studentId]`, `/[studentId]/edit`, `/[studentId]/statement`, `/new`, `/bulk-update` |
+| Handlers | `/students/index` (search), `/students/photo`, `/[studentId]/fee-pdf`, `/family/[familyGroupId]/{fee-pdf,statement,receipts}` |
+| Components | `components/students/` |
+| Lib | `lib/students/` (server-only), `lib/segments/` (shared with Transactions) |
+
+## The list
+
+Backed by `v_student_directory` — one filterable row per student per session, so a
+predicate and its count come from the same query.
+
+That matters because of how it used to work: the list picked 40 identities first and
+enriched them with money second, so a dues filter would narrow the page while the header
+count reported the unfiltered total. Anything money-shaped was computed after the fact,
+printed on the row, and unreachable as a filter.
+
+**24 segment chips in four families** — money, enrolment, quality, fee profile — each with
+a live count, on Students and Transactions both. `lib/segments/student-segments.ts` defines
+them; the `seg_*` columns in the view implement them.
+
+Three rules:
+
+- **OR within a family, AND across families.** "Overdue + Fully paid" must mean *either* —
+  those buckets are mutually exclusive, and ANDing them returns nothing, which reads as a
+  broken filter.
+- **A family never scopes its own counts.** Scope every count by every selection and each
+  unselected chip reads 0 — the classic broken-facet bug.
+- **Every `seg_*` must mirror the TypeScript predicate it replaces, quirks included.** A
+  filter that disagrees with the number printed on the row it filters is worse than no
+  filter.
+
+Fee-profile chips carry `requiresPermission: "fees:view"`. `student_fee_overrides` has
+narrower RLS than `students`, so a teacher gets a NULL join and would read a confident
+`false` — hide the chip rather than show a wrong zero.
+
+`lib/segments` sits outside `lib/students` on purpose: that folder is `server-only`, and
+Transactions imports the segment vocabulary into the browser.
+
+## The student page
+
+Built around payment history, which is what the page is actually opened for.
+
+**Identity bar** → **money band** (Outstanding · Paid this session · Session fee · Last
+receipt, with one mutually-exclusive status ribbon) → **four tabs, Receipts first and
+default**.
+
+Every figure has exactly one home. The previous version rendered `outstandingAmount` under
+eight different labels across 2,150px of page, with receipts 1,100px down.
+
+Two constraints that are easy to break:
+
+- **One saffron CTA per screen** (design system §6). `StudentRowCollectButton
+  variant="primary"` hardcodes `bg-accent`, so mounting it beside another accent button
+  ships two.
+- **The phone branch is a separate subtree.** Desktop work sits inside `hidden md:block`;
+  `md:hidden` renders unchanged. A `md:hidden` block *inside* a `hidden md:block` tree can
+  never render — two such dead blocks were found and deleted.
+
+## Per-student exceptions
+
+- **`student_fee_overrides`** — custom tuition, transport, academic fee, other heads, a
+  per-student late-fee rate, and a manual discount. Editing requires `fees:write` and a
+  reason of at least four characters, from **both** editors: the fee panel in the edit form
+  and `StudentFeePlanSheet`. Two editors writing the same money columns under different
+  contracts is how these drift.
+- **Conventional discounts** — RTE / Staff Child / 3rd Child and custom policies, assigned
+  explicitly, never inferred from an import. Tuition only, at most two active per student
+  per year, lowest candidate tuition wins. See `docs/modules/conventional-discounts.md`.
+- **Transport is charged two ways** — a `transport_routes` row, or
+  `student_fee_overrides.custom_transport_fee_amount` with no route at all. Always render
+  through `buildTransportRouteLabel`; "No transport" printed beside a ₹14,000 charge was a
+  real bug on three surfaces.
+
+A discount only moves money when dues are **regenerated**. Writing an assignment directly
+in SQL leaves it disagreeing with the projection — that is what
+`scripts/repair-discount-drift.mjs` exists to find.
+
+## Families
+
+`student_family_groups` + `student_family_members`, **staff-confirmed only**, one family
+per student per session. They exist to make the 3rd Child Policy traceable.
+
+Phone-number-derived sibling guessing was removed in `20260811090000`. On live data it
+produced 27 groups over 59 students, six pairing unrelated surnames, one child in two
+"families" at once — and it was the slowest read in the app. **Do not reintroduce it.**
+
+## EMI plans
+
+A student carrying a previous-year balance can be put on interest-free monthly
+instalments. The card lives on this page; the rules are in
+`docs/product/school-rules.md` and the data model in `docs/maps/database-map.md`.
+While a plan is active, concession controls here are hidden and refused server-side.
+
+## Bulk update
+
+`/protected/students/bulk-update` ships a column-picked Excel sheet pre-filled with current
+values. Four rules:
+
+- **A blank cell means "leave alone."** Only the literal word `CLEAR` empties a value, and
+  `CLEAR` is refused for class and status.
+- **A row with any invalid cell is skipped whole**, never applied in part.
+- **The browser never sends a change list** — apply re-posts the file and the server
+  recomputes the change set against current stored values.
+- **Class ids are confined to the active session.** An unscoped lookup once repointed 372
+  real students into `TEST-2026-27`.
+
+Dues regenerate only for students whose class, route or status actually moved.
+
+## Related
+
+`docs/modules/import.md` · `docs/modules/conventional-discounts.md` ·
+`docs/modules/payment-desk.md`

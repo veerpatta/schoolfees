@@ -1,5 +1,15 @@
 # CONVENTIONAL_DISCOUNTS.md
 
+> Since `20260618053746` the three policies below are **built-ins, not the whole set**.
+> Custom policies can be created and carry `is_builtin = false`; every rule in this
+> document applies to them too.
+>
+> A discount only moves money when dues are **regenerated**. Writing an assignment
+> directly in SQL leaves it disagreeing with the projection —
+> `scripts/repair-discount-drift.mjs` finds those. Its `--only-decreases` flag matters: a
+> negative drift is a discount that never landed and is safe to repair, while a positive
+> drift **raises** what a family owes and is never applied in bulk.
+
 ## Implemented Conventional Policies
 
 - **RTE** -> tuition `₹0`

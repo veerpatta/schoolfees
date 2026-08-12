@@ -1,5 +1,22 @@
 # PAYMENT_DESK_GUIDE.md
 
+> **Fees and late fee are separate lines.** Since `20260812120000` the desk shows fees owed
+> and late fee owed as two figures, and posting allocates against `total_pending` — the two
+> added. Allocating against fees alone would refuse to let a cashier take a late fee the
+> ledger is still asking for.
+>
+> Also on this surface and not described below: the per-installment **late-fee waiver
+> sheet** (`waive-late-fee-sheet.tsx`), the **EMI banner** for a student on a repayment plan
+> (`payment-desk-emi-banner.tsx`), the **UPI QR** (`upi-qr-code.tsx`), and the admin **bulk
+> entry** sub-surface at `/protected/payments/bulk` — part of this module precisely because
+> every row posts through `post_student_payment_with_adjustments`.
+>
+> While an EMI plan is active, counter concessions are refused. Changing the deal is an
+> admin rescheduling the plan, not a cashier waiving on the spot.
+>
+> `components/payments/payment-desk-mobile.tsx` carries a **3,520-line CI budget**. It has
+> been raised once and must not be raised again — split the file instead.
+
 ## Purpose
 
 Fast cashier workflow for posting student payments and generating receipts.

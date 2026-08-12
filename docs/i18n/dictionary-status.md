@@ -19,25 +19,39 @@ real translations by re-running.
 
 | Namespace      | Translated | Total | %    | Priority |
 |----------------|------------|-------|------|----------|
-| Activity       |   9        |   9   | 100% | done |
-| Common         |  43        |  43   | 100% | done |
-| Dashboard      | 102        | 103   |  99% | done |
-| Defaulters     | 251        | 260   |  97% | done |
-| Exports        |  21        |  23   |  91% | done |
-| FeeSetup       | 235        | 235   | 100% | done |
-| Navigation     |  16        |  16   | 100% | done |
-| Payments       |  69        |  73   |  95% | done |
-| Receipts       | 132        | 133   |  99% | done |
-| Roles          |   5        |   5   | 100% | done |
-| Students       |  92        |  94   |  98% | done |
-| Transactions   | 108        | 110   |  98% | done |
-| Locale         |   4        |   6   |  67% | low |
-| AdminTools     |   2        | 180   |   1% | low — admin-only |
+| Activity       |     11     |    11 | 100% | done |
+| AdminTools     |     13     |   191 |   7% | high |
+| Common         |     43     |    43 | 100% | done |
+| Dashboard      |    157     |   159 |  99% | low |
+| Defaulters     |    380     |   393 |  97% | low |
+| Exports        |     29     |    31 |  94% | low |
+| FeeSetup       |    259     |   259 | 100% | done |
+| Locale         |      4     |     6 |  67% | low |
+| MobileApp      |    219     |   220 | 100% | done |
+| Navigation     |     19     |    19 | 100% | done |
+| Payments       |     79     |    83 |  95% | low |
+| Receipts       |    162     |   163 |  99% | low |
+| Roles          |      5     |     5 | 100% | done |
+| Segments       |     33     |    34 |  97% | low |
+| Students       |    105     |   107 |  98% | low |
+| Toasts         |     20     |    20 | 100% | done |
+| Transactions   |    124     |   126 |  98% | low |
 
-**Total: 1,089 / 1,290 strings (84%)** translated to plain everyday Hindi /
-Hinglish. The remaining 201 strings fall back to English source text — almost
-all of them in `AdminTools`, which is admin-only and rarely touched by
-non-technical staff.
+**Total: 1,662 / 1,870 strings (89%)** across 17 namespaces. Verified 2026-08-12 by
+comparing every leaf key in `messages/hi.json` against `messages/en.json`; a key whose
+Hindi value is identical to the English source counts as untranslated.
+
+All three dictionaries carry the same 1,870 keys — `hi-en.json` included. **They move
+together:** a key present in one and missing from another takes the route down, which is
+why the student-page rebuild deliberately added no new keys.
+
+Of the 208 strings still showing English, **178 are in `AdminTools`** — the least
+parent-facing surface in the app, and the reason it is the only namespace still marked
+high priority.
+
+An interpolated message must be called with its params: `t("lateFeeSeparate")` without
+`{amount}` threw a next-intl `FORMATTING_ERROR` on every dashboard render.
+`tests/ui/dashboard-intl-placeholders.test.ts` guards that.
 
 ## Tone guidelines
 

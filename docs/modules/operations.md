@@ -1,5 +1,17 @@
 # OPERATIONS_GUIDE.md
 
+> **Day close is automatic.** A nightly cron (`/api/cron/auto-day-close`) closes the day;
+> the Finance Controls close view is read-only. Manual approval and cash/bank
+> reconciliation were removed. A second cron takes a nightly backup. Both authenticate on
+> `CRON_SECRET`.
+>
+> Other daily surfaces added since this guide was written: the **defaulter recovery desk**
+> (contact log, heat ranking, call queue, voice notes), **refunds and 10-minute undo**,
+> **EMI plan setup**, **previous-year dues carry-forward**, and **promotion runs** for
+> year-end rollover.
+>
+> Exports are now ten types, not four — see `docs/modules/exports.md`.
+
 ## Daily Office Workflow
 
 1. Open **Dashboard** for daily situation.

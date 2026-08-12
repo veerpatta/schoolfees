@@ -1,5 +1,19 @@
 # FEE_SETUP_GUIDE.md
 
+> Not described below, but part of this module: **fee heads**, the academic-fee
+> distribution mode (`first_only` / `equal`), **conventional discount policy editing**
+> (which triggers `applyThirdChildPolicyForSession()`), the generate screen at
+> `/protected/fee-setup/generate`, and **time travel** at `/protected/fee-setup/time-travel`
+> (`lib/fees/time-travel.ts`).
+>
+> On the late fee: it is now a **separate charge, excluded from expected fees** — see
+> `docs/product/school-rules.md`. When the rule itself changed on 2026-08-08 the increase
+> was grandfathered rather than billed, and `late_fee_rule_change_snapshot` records the
+> pre-change position.
+>
+> **Regeneration must leave alone:** carry-forward rows, EMI-covered installments, and any
+> paid / partial / adjusted row. Fee Setup publish previews impact before applying.
+
 ## Purpose
 
 Configure academic-year fee defaults safely with preview/publish controls.

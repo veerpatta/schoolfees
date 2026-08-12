@@ -14,12 +14,20 @@ Top-level office download center for XLSX files.
 
 ## Current Common Exports
 
-- all students
-- class-wise dues
-- defaulters (filtered exports match the on-screen Defaulters filters)
-- receipt register
-- conventional discount students
-- **AI context bundle** (`ai-context-bundle`) — see below
+All ten `exportType` values, from `app/protected/exports/[exportType]/route.ts`:
+
+- `all-students`
+- `class-wise-dues`
+- `defaulters` (filtered exports match the on-screen Defaulters filters)
+- `receipt-register`
+- `conventional-discount-students`
+- `previous-year-dues` — carry-forward balances
+- `left-student-dues` — students who left still owing
+- `emi-plans` — active repayment plans
+- `emi-schedule` — the monthly calendar behind them
+- **`ai-context-bundle`** — see below
+
+Exports stream **all rows**; there is no page cap.
 
 ## AI context bundle
 
