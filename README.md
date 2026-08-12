@@ -11,7 +11,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Vitest](https://img.shields.io/badge/Vitest-777%20passing-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Vitest](https://img.shields.io/badge/Vitest-1777%20passing-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
 [![Deployed on Vercel](https://img.shields.io/badge/Vercel-live-000000?logo=vercel&logoColor=white)](https://schoolfees-two.vercel.app)
 
 🔗 **Live app:** [schoolfees-two.vercel.app](https://schoolfees-two.vercel.app) · 📦 **Repo:** [github.com/veerpatta/schoolfees](https://github.com/veerpatta/schoolfees)
@@ -133,7 +133,7 @@ All staff modules live under `app/protected/` with a parallel three-layer shape:
 
 | | Module | Route | What it does |
 |---|---|---|---|
-| 📊 | **Dashboard** | `/protected/dashboard` | Read-only analytics: collected, pending, %, class-wise, top defaulters |
+| 📊 | **Dashboard** | `/protected/dashboard` | Five analytical boards behind a switcher — Overview, Collection, Recovery, Classes, Late fee — under a fixed money band |
 | 👨‍🎓 | **Students** | `/protected/students` | Student master + per-student fee exceptions & discounts |
 | 📋 | **Fee Setup** | `/protected/fee-setup` | Yearly policy: tuition, transport, due dates, late fee, fee heads |
 | 💵 | **Payment Desk** | `/protected/payments` | The **only** place payments are posted; prints receipts |
@@ -146,6 +146,16 @@ All staff modules live under `app/protected/` with a parallel three-layer shape:
 | 🗂️ | **Master Data** | `/protected/master-data` | Sessions, classes, routes, fee heads, payment modes |
 | 👮 | **Staff** | `/protected/staff` | Accounts & RBAC |
 | 📥 | **Imports** | `/protected/imports` | Staged student import (upload → map → dry-run → commit) |
+| 📈 | **Reports** | `/protected/reports` | Outstanding, daily collection, receipt register, student ledger |
+| 📒 | **Ledger** | `/protected/ledger` | Ledger display |
+| ⚙️ | **Settings** | `/protected/settings` | School settings hub + the money glossary |
+| 🧮 | **Fee Structure** | `/protected/fee-structure` | Fee structure display |
+
+**Admin Tools** covers year transfer and session delete, previous-year dues carry-forward,
+promotion runs, the recovery desk, session health, the activity feed and WhatsApp templates.
+**EMI repayment plans** (monthly instalments for families clearing an old balance) surface
+on the student page, the Payment Desk, Defaulters and Exports; the one status view is
+`v_student_repayment_plan_status`.
 
 ---
 
@@ -256,7 +266,10 @@ Engine: **`workbook_v1`** (`lib/fees/`, `lib/workbook/`).
 | `v_workbook_installment_balances` | Installment-level balances (materialized) |
 | `v_student_financial_state` | Pending vs credit/refund projection |
 | `preview_workbook_payment_allocation` | Date-aware **live** preview RPC |
-| `post_student_payment` | Posting RPC (idempotency + advisory locks) |
+| `post_student_payment_with_adjustments` | **The** posting RPC — idempotency, advisory locks, counter-side discount and late-fee waiver |
+| `get_dashboard_analytics` | Everything the dashboard shows below the money band, in one query |
+| `student_repayment_plans` + `v_student_repayment_plan_status` | EMI plans and the single view every surface reads |
+| `student_late_fee_waivers` | One row per waiver, per installment; voided, never deleted |
 | `process_refund_with_adjustment` | Posts reversal adjustments for a refund |
 | `delete_academic_session_safe` | Guarded ≤30-day, zero-payment session delete |
 
@@ -279,7 +292,7 @@ npm run dev                  # → http://localhost:3000
 ```bash
 npm run dev          # 🔥 dev server
 npm run check        # ✅ lint + typecheck
-npm run test         # 🧪 vitest (777 tests)
+npm run test         # 🧪 vitest (291 files, 1,777 tests)
 npm run build        # 📦 production build
 npx vitest run tests/integration/payment-desk-workflow.test.ts   # single file
 ```
@@ -336,7 +349,7 @@ Run before every PR (`AGENTS.md` order): **`typecheck → lint → test → buil
 ```
 ✔ tsc --noEmit        clean
 ✔ eslint .            0 errors / 0 warnings
-✔ vitest run          777 / 777 passing
+✔ vitest run          1777 / 1777 passing
 ✔ next build          green
 ```
 

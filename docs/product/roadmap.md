@@ -46,7 +46,37 @@ Admin Tools revamp + launch hardening:
   cron catch-up)
 - exports stream **all rows** (no page caps); **AI context bundle** export with
   README + Adjustments/Refunds sheets
-- clean lint (0 errors/warnings); 777 tests green
+- clean lint (0 errors/warnings); **291 test files / 1,777 tests** green
+
+### Since 2026-05 (the last time this list was updated)
+
+- **EMI repayment plans** — interest-free monthly instalments for families clearing an old
+  balance, three scopes, plan-aware desk and defaulters, plans superseded rather than edited.
+- **Previous-year dues carry-forward** — unpaid prior-session dues carried in as their own
+  installment line with a full import audit trail, plus an Admin Tools screen.
+- **The late fee became a separate charge** — fees and late fee have their own columns in
+  both engines; a late fee no longer makes anyone a defaulter, and 385 installments that
+  could never charge one were repaired.
+- **Dashboard rebuilt** into five URL-driven boards under a money band, on one analytics
+  query cached against the session tag.
+- **Segment facets** — 24 filter chips with live counts on Students and Transactions, from
+  one queryable view rather than post-hoc filtering.
+- **Custom conventional discount policies** beyond the three built-ins, plus a drift-repair
+  script that will lower a bill in bulk but never raise one.
+- **Refunds, undo and reversal honesty** — refunds post ledger reversals, a 10-minute admin
+  undo exists, and a reversed receipt is visible, marked and excluded from every total.
+- **Student page and edit form rebuilt** around payment history; nothing collapsed.
+- **Recovery desk** — contact log, heat ranking, call queue, plus a read model for students
+  who left still owing.
+- **Bulk payment entry** and a resumable, chunked student import.
+- **Automatic day close** and nightly backup on cron; Finance Controls close view is read-only.
+- **Suspected-sibling detection removed** — it guessed families from shared phone numbers,
+  got them wrong, and was the slowest read in the app. Confirmed family groups stay.
+- **RBAC hardening** — a missing or inactive staff row now yields no role at all, where it
+  used to fall back to `view_only`.
+- **Performance** — RLS `has_permission()` wrapped in scalar subqueries (per-statement, not
+  per-row), materialized financial views with a queued concurrent refresh, route bundle
+  ceilings that ratchet down.
 
 ## Live Production (Current)
 
@@ -62,6 +92,11 @@ Admin Tools revamp + launch hardening:
 
 0. Monitor production stability and address any live-data edge cases.
 1. richer exports and report packaging
-2. continued dashboard chart polish and readability improvements
-3. role-specific hardening of admin/config screens
-4. staging deployment and release checklist refinement
+2. role-specific hardening of admin/config screens
+3. staging deployment and release checklist refinement
+4. regenerate `supabase/schema.sql` from the live catalog — it is knowingly stale
+5. decide the **₹8.5 lakh of automatically waived late fee**: the 08-08 rule change and the
+   rate backfill grandfathered it rather than billing families. It is visible and voidable
+   on the dashboard's Late fee board; nobody has decided whether to collect it.
+6. ~₹4.5 lakh of late fee accrues on **20-10-2026** when Instalment 3 falls due, unless
+   paid or waived first. Nothing is pre-waived for it.

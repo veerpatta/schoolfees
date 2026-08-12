@@ -1,8 +1,18 @@
-# Test Environment Isolation
+# Test Environment Isolation — PROPOSAL, NOT CURRENT STATE
 
-VPPS fee app test data is moving away from `session_label = 'TEST...'` as the
-main safety boundary. A label is easy to filter incorrectly. The new lightweight
-boundary is schema-level isolation.
+> **Status: not adopted.** This was written as a proposal in May 2026 and never
+> became the operating model. **`session_label = 'TEST-2026-27'` is still the
+> real safety boundary**, and it is what every hard safety rule in `CLAUDE.md`,
+> `AGENTS.md` and `docs/product/school-rules.md` enforces today. The machinery
+> below exists (`scripts/migrate-test-data-to-test-schema.ts`, migration
+> `20260515152802_test_schema_init`) but is unused.
+>
+> Read this as an option that is still open, not as a description of how the app
+> works. If it is ever adopted, the safety rules in those three files have to
+> move with it — a half-migrated boundary is worse than either whole one.
+
+The argument for it: a label is easy to filter incorrectly, and schema-level
+isolation cannot be got wrong by a missing `where` clause.
 
 ## Option A: Single Supabase Project, Two Deployments
 

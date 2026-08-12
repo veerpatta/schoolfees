@@ -233,9 +233,9 @@ function normalizeBalanceStatus(
 
 /**
  * `v_workbook_installment_balances` emits more than one row per installment
- * number (duplicate label variants — see docs/ui-refresh/mobile-and-bugs-punchlist.md
- * P0-2). Collapse to one row per `installment_no`, keeping the longer (more
- * descriptive) label, and sort by installment number.
+ * number when the same number carries different label variants, so a receipt
+ * would list "Installment 2" twice. Collapse to one row per `installment_no`,
+ * keeping the longer (more descriptive) label, and sort by installment number.
  */
 function buildInstallmentStatus(
   rows: WorkbookInstallmentBalanceRow[],

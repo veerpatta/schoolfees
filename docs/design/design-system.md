@@ -25,7 +25,8 @@ ones so the bar stays where it is.
 All visual values flow from `app/globals.css` (HSL tokens) and
 `tailwind.config.ts` (semantic color names). Pages **must** consume the
 semantic names — never raw Tailwind hues. The migration scripts in
-`scripts/migrate-design-tokens*.mjs` prove this is enforceable.
+`scripts/_archive/design-tokens-migration/` prove this was enforceable — they are
+archived now that the migration is done.
 
 Phase E adds a formal token registry in `lib/design/office-tokens.ts`. The
 registry maps office-friendly token names to the CSS variables in
@@ -111,15 +112,39 @@ For each significant screen, decisions were made against four questions:
 ### 3.1 Dashboard (`/protected/dashboard`)
 
 - **Main job:** "What needs me today?" + "How is collection going?"
-- **Notice first:** Three hero KPIs — Today collection · Pending dues ·
-  Collection rate. Animated count-up draws the eye without being noisy.
-- **Secondary:** Quick Actions row (one saffron CTA, the rest outlined),
-  Today panel (collection + mode breakdown), then 2-up Top Defaulters +
-  Recent Receipts.
-- **Hidden:** The old `<details>` block hiding Class-wise pending,
-  Collection trend, Installment status, Class summary, Alerts is **gone**
-  — those sections are now first-class. The 8-KPI desktop grid collapsed to
-  3 hero + 5 quieter secondary KPIs in a 2-column block alongside Today.
+- **Notice first:** The money band — one ink surface carrying four numbers that
+  are true on every board: Collected today · Collected this year (against the
+  year's target, with the rate) · Fees pending · Late fee pending. The last two
+  are deliberately adjacent and deliberately separate, with a caption saying so.
+- **Secondary:** A switcher picking one of **five boards**, each a grid of tiles:
+  Overview · Collection · Recovery · Classes · Late fee.
+- **Hidden:** Nothing is hidden. What went away is repetition — the previous
+  design stacked fourteen full-width sections, each with a title *and* a
+  paragraph, and three of them restated the same KPIs. `HeroKpis`,
+  `DesktopSecondaryKpis`, `CollectionFunnelBar`, `OldBalanceRecoveryCard` and
+  `InstallmentPulse` were deleted outright.
+
+**Rules the rebuild had to obey, and any change here still does:**
+
+- **Boards are `?view=` links, not client tab state.** A board stays linkable,
+  back works, and it costs no bundle. `scroll={false}` — these are tabs, not page
+  navigations, and the default scroll-to-top threw the reader off what they were
+  reading.
+- **No charting library.** `/protected/dashboard` sits under a gzip ceiling in
+  `quality/route-bundle-baseline.json` with single-digit KB of headroom; recharts
+  is ~100 KB. Every chart is hand-rolled SVG in `components/dashboard/tiles.tsx`
+  on the `--chart-1…5` tokens, which had been defined and unused since the token
+  migration.
+- **A tile is one label, one number, one visual, at most one short footnote.**
+  No `description` prop in the grid — a titled section with a paragraph under it
+  is what buried the charts last time.
+- **Counts are not money.** `StatTile` and `MiniDonut` take `format="count"`;
+  rendering "19 classes" through `<Money>` produced "₹19" on a screen whose whole
+  job is money.
+- The board area keeps a height floor so switching cannot collapse the page and
+  push it back down when the next board streams in.
+
+Detail: `docs/modules/dashboard.md`.
 
 ### 3.2 Payment Desk (`/protected/payments`)
 
@@ -130,7 +155,7 @@ For each significant screen, decisions were made against four questions:
 - **Hidden:** Diagnostic details collapsed under a `<details>` *for admins
   only*. Tab "selected" state now uses a calm ink fill (no more black slab on
   every page).
-- **Deferred (see §5):** Splitting the 2,154-line client into composable
+- **Deferred (see §5):** Splitting the (now 3,515-line, budget 3,520) client into composable
   pieces — high reward but high risk for an append-only financial flow. To be
   tackled as a focused follow-up with regression tests in place.
 
@@ -474,7 +499,7 @@ that never stops is the same dead-click bug in a new costume.
 | `components/ui/*` | Every primitive listed in §2 |
 | `components/admin/dashboard-shell.tsx` | Sidebar + Topbar + MobileBottomNav + RouteProgress |
 | `components/office/office-ui.tsx` | Cross-page office patterns — all token-driven |
-| `scripts/migrate-design-tokens*.mjs` | Idempotent migration scripts; safe to re-run |
+| `scripts/_archive/design-tokens-migration/` | The one-time token migration, kept for reference |
 
 If you change any token in `globals.css`, the whole app cascades — no need to
 touch individual page files. That's the win this redesign was built around.

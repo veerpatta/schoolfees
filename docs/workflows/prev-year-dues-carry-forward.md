@@ -72,7 +72,7 @@ Expected envelope before owner decisions: ~82 candidate students, ₹9,73,500.
 ### 3. Apply (only after approval)
 
 Use the Admin Tools → **Previous Year Dues** screen (upload → dry-run preview →
-apply) once it ships, or the approved apply path. The apply:
+apply) at `/protected/admin-tools/prev-year-dues`. The apply:
 - runs in a single transaction;
 - snapshots affected installments first;
 - is idempotent (skips students that already have the carry-forward line);
@@ -93,8 +93,10 @@ single-batch rollback.)
 
 ## Session note
 
-`app_settings.active_session_label` is currently `TEST-2026-27` while the live
-session is `2026-27`. The real import targets `2026-27`. If the dashboard/
+`app_settings.active_session_label` is `2026-27` — verified against the live
+database on 2026-08-12. This note previously claimed it was `TEST-2026-27`,
+which contradicted every other doc; it was wrong. The real import targets
+`2026-27`. If the dashboard/
 defaulters are pinned to `TEST-2026-27`, carried-forward dues imported into
 `2026-27` will not be visible there until the active session label is set to
 `2026-27`. Confirm with the owner.

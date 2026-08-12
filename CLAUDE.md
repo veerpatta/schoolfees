@@ -9,9 +9,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 3. `docs/product/mvp-scope.md`
 4. `docs/product/school-rules.md`
 5. `docs/modules/import.md`
-6. `docs/product/roadmap.md`
-7. `PRODUCTION_OPERATIONS_CHECKLIST.md`
-8. `UAT_CHECKLIST.md`
+6. `docs/modules/dashboard.md`
+7. `docs/modules/students.md`
+8. `docs/product/roadmap.md`
+9. `PRODUCTION_OPERATIONS_CHECKLIST.md`
+10. `UAT_CHECKLIST.md`
 
 ## What This Project Is
 
@@ -30,7 +32,16 @@ npm run check          # lint + typecheck together
 npm run test           # vitest run (all tests)
 npm run test:watch     # vitest interactive watch
 npm run test:coverage  # coverage report
+
+npm run quality:budgets       # source line budgets + the money-formatting audit
+npm run quality:bundles:check # route JS against quality/route-bundle-baseline.json
+npm run smoke:readiness       # Playwright: authenticated a11y + visual smoke
 ```
+
+**`quality:budgets` fails on raw money formatting.** `toLocaleString('en-IN')`,
+`Intl.NumberFormat('en-IN')` and hand-written `₹`/`Rs.` outside `lib/helpers/currency.ts`
+are CI errors; a deliberate exception needs an `@allow-raw-money-format` comment with a
+reason. Bundle ceilings are **ratcheted down, never raised** to accommodate growth.
 
 Run a single test file:
 ```bash
@@ -47,6 +58,10 @@ node scripts/verify-live-fee-health.mjs   # Production fee-health verification
 node scripts/verify-late-fee-health.mjs   # Late-fee invariants (both engines, waivers, grandfathering)
 node scripts/verify-live-sync-health.mjs  # System sync verification
 node scripts/check-quality-budgets.mjs    # Quality budget checks
+node scripts/verify-workbook-parity.mjs   # Workbook engine parity
+node scripts/verify-required-sessions.mjs # Required academic sessions exist
+node scripts/audit-test-data-in-public.mjs # TEST- data leaking into live (read-only)
+node scripts/prev-year-dues-dry-run.mjs   # Carry-forward matching, no writes
 
 # Students whose ledger disagrees with their resolved fee policy. Read-only by
 # default; `--apply` re-runs the real fee engine via
@@ -73,7 +88,7 @@ no discount at all. It fails quiet, not loud.
 
 ### Stack
 
-Next.js 16.2.4 App Router + TypeScript 5 (strict) + React 19.2, deployed to Vercel. Supabase (Postgres + Auth + RLS) as the database, hosted in Mumbai region. UI via shadcn/ui (Radix UI + Tailwind CSS 3.4). Tests with Vitest 4.1.5. Path alias `@/*` maps to repo root.
+Next.js 16.2.12 App Router + TypeScript 5 (strict) + React 19.2.8, deployed to Vercel in the Mumbai region (`bom1`). Supabase (Postgres + Auth + RLS) as the database, also Mumbai. UI via shadcn/ui (Radix UI + Tailwind CSS 3.4). i18n via next-intl 4 (en / hi / hi-en). Errors via Sentry. Tests with Vitest 4.1.10. Path alias `@/*` maps to repo root.
 
 ### Source-of-Truth Rule
 
@@ -81,7 +96,33 @@ Next.js 16.2.4 App Router + TypeScript 5 (strict) + React 19.2, deployed to Verc
 
 ### Financial Immutability
 
-All payment/receipt records are **append-only**. Corrections use a separate `payment_adjustments` table with an audit trail. Never rewrite `payments` or `receipts` rows directly — this constraint applies at every layer (DB, API, UI).
+All payment/receipt records are **append-only**. Corrections use a separate `payment_adjustments` table with an audit trail. Never rewrite `payments` or `receipts` rows directly — this constraint applies at every layer (DB, API, UI). A reversed receipt stays visible and marked, and is excluded from every collection figure; it is never deleted or silently subtracted.
+
+### A late fee is not a fee
+
+Since `20260812120000` the two kinds of money have their own columns everywhere:
+
+| Column | Means |
+|--------|-------|
+| `pending_amount` | **Fees only.** Never contains a late fee. Decides overdue and defaulter status. |
+| `late_fee_pending` | The late fee still owed, after waivers and after any payment against it. |
+| `total_pending` | The two added. What a cashier can actually collect. |
+
+`balance_status` reads `paid` once fees are clear, whatever the late fee is doing;
+`late_fee_status` (`none | pending | waived | paid`) carries that separately. A family
+whose only debt is a late fee is **not** a defaulter.
+
+Three things follow, and getting one wrong is a money bug:
+
+- **The posting RPCs and the desk preview allocate against `total_pending`.** Fees-only
+  would refuse to let a cashier take a late fee the ledger is still asking for.
+- **The repayment-plan functions want `pending_amount`.** They used to subtract the late
+  fee by hand; doing that now subtracts it twice.
+- **`waive_late_fee` caps on `late_fee_pending`.** Never re-derive it as
+  `least(final_late_fee, pending_amount)` — that expression reads 0 for exactly the
+  families who still have a waivable late fee.
+
+Verify with `node scripts/verify-late-fee-health.mjs --session <label>` (8 invariants).
 
 ### RBAC
 
@@ -117,10 +158,16 @@ All staff workspace modules live under `app/protected/`, each with a parallel th
 | Finance Controls | `/protected/finance-controls` | Automatic day-close view (read-only), refunds, and correction review |
 | Master Data | `/protected/master-data` | School lists (sessions, classes, routes) |
 | Staff Management | `/protected/staff` | Staff accounts and RBAC |
-| Session Switcher | `/protected/session` | Academic session switching |
 | Settings | `/protected/settings` | School Settings hub (identity + fee-policy summary + system health) |
 | Setup | `/protected/setup` | Retired — redirects to Admin Tools (first-time setup removed) |
 | Fee Structure | `/protected/fee-structure` | Fee structure display |
+| Password | `/protected/password` | Change own password |
+| Access denied | `/protected/access-denied` | Where a failed permission guard lands |
+
+There is no page at `/protected/session` — only `app/protected/session/actions.ts`.
+Session switching happens through the pill in the workspace shell.
+`/protected/collections` and `/protected/dues` are redirect aliases; see
+`docs/maps/legacy-routes.md`.
 
 **Admin Tools sub-features:** Transfer to Next Session (year-end rollover —
 copies classes/fee policy/discount policies, promotes students, carries credit;
@@ -133,6 +180,7 @@ Session Health, Activity feed, WhatsApp templates.
 
 ### Where to Look
 
+- Dashboard: `app/protected/dashboard`, `lib/dashboard`, `components/dashboard`
 - Payments: `app/protected/payments`, `lib/payments`, `components/payments`
 - Students: `app/protected/students`, `lib/students`, `components/students`
 - Fee Setup: `app/protected/fee-setup`, `lib/setup`, `lib/fees`, `components/fees`
@@ -142,6 +190,11 @@ Session Health, Activity feed, WhatsApp templates.
 - Exports: `app/protected/exports`, `lib/reports`
 - Admin tools: `app/protected/admin-tools` (+ legacy redirect from `/protected/advanced`)
 - Session: `lib/session` (active session, switcher, cookie, resolver)
+- EMI plans: `lib/repayment-plans`, `components/students/student-repayment-plan-card.tsx`
+- Segments: `lib/segments` (deliberately outside `lib/students`, which is `server-only`)
+- Money vocabulary: `lib/money/glossary.ts`, `lib/helpers/currency.ts`, `components/ui/money*.tsx`
+- Previous-year dues: `lib/prev-year-dues`, `app/protected/admin-tools/prev-year-dues`
+- Left students who still owe: `lib/recovery` (read model; the non-active complement to `lib/defaulters`)
 - System sync: `lib/system-sync` (finance revalidation, office sync, health checks)
 - i18n: `i18n/` (locale config), `messages/` (en / hi / hi-en dictionaries), `hooks/` (shared client hooks)
 - Database: `supabase/schema.sql`, `supabase/migrations/`
@@ -154,6 +207,9 @@ Session Health, Activity feed, WhatsApp templates.
 - `lib/fees/policy.ts` — canonical active fee policy resolver (server-only).
 - `lib/fees/regeneration.ts` — safe dues recalculation logic.
 - `lib/fees/generator.ts` — batch fetching for installment rows.
+- `lib/dashboard/analytics.ts` — the dashboard boards, the analytics fetch and its cache contract.
+- `lib/money/glossary.ts` — one canonical definition per money label. **Update this first; the code follows it.**
+- `lib/segments/student-segments.ts` — the 24 filter chips and the columns behind them.
 - `lib/fees/conventional-discounts.ts` + `lib/fees/conventional-discount-rules.ts` — discount policy logic.
 - `lib/payments/workflow.ts` + `lib/payments/payment-desk-workflow.ts` — payment posting workflow.
 - `lib/payments/allocation.ts` — payment allocation logic.
@@ -164,7 +220,10 @@ Session Health, Activity feed, WhatsApp templates.
 - `lib/system-sync/finance-revalidation.ts` — financial sync and revalidation.
 - `lib/env.ts` — env var accessors that throw on missing or placeholder values.
 - `lib/db/types.ts` — generated Supabase database types.
-- `supabase/schema.sql` — canonical DB schema.
+- `supabase/schema.sql` — readable snapshot of the schema, **not** the source of truth and
+  currently stale: it was last regenerated on 2026-08-09, before the late-fee split and the
+  dashboard analytics work. Its own header lists the objects that have moved since.
+  `supabase/migrations/` is authoritative.
 - `supabase/migrations/` — ordered migration history.
 
 ### Supabase Client Pattern
@@ -183,25 +242,32 @@ Root `proxy.ts` delegates to `lib/supabase/proxy.ts` for session refresh on ever
 
 **RPCs that gate on `public.has_permission(...)` MUST be called via the user-JWT supabase client (`createClient()` from `lib/supabase/server.ts`), NEVER the service-role admin client.** `has_permission` requires `auth.uid() is not null`, which is null under a service-role JWT — every call would raise "You do not have permission…". Server Actions enforce RBAC upstream via `requireStaffPermission()` and the in-RPC check is defense-in-depth. Affected RPCs: `post_student_payment_with_adjustments`, `waive_late_fee`, and anything else with `public.has_permission(...)` as its first guard.
 
-### Supabase MCP Migration Workflow — version mismatch trap
+### Applying migrations
 
-**`mcp__supabase__apply_migration` generates its own `schema_migrations.version` from the wall-clock time at apply, not from the filename.** If you write `supabase/migrations/20260528100000_foo.sql` and apply it via the MCP, the remote table records (say) `20260528151701` — a different version. The Supabase Preview action / `supabase db push --dry-run` then fails with:
+**Use the CLI.** It authenticates from `supabase/.temp/project-ref`, honours the filename's
+timestamp, and runs the migration in a transaction:
 
+```bash
+npx supabase db push --linked --yes
+npx supabase migration list --linked      # confirm local and remote agree
 ```
-Remote migration versions not found in local migrations directory.
-```
 
-**Required workflow when applying migrations via the MCP:**
+Wrap anything risky in explicit `begin; … commit;` so a failure rolls the whole thing back —
+that is what made it safe to drop and rebuild the financial view stack with `CASCADE`.
 
-1. Write the migration file with any sortable timestamp filename.
-2. Call `mcp__supabase__apply_migration({ name, query })`.
-3. Immediately call `mcp__supabase__list_migrations` and find the version that was just recorded for `name`.
-4. **`git mv`** the local file so its filename version matches the recorded version (`<recorded_version>_<name>.sql`).
-5. `grep` the repo for any tests / docs that hardcode the old filename and update them.
+Two traps:
 
-The file CONTENTS stay byte-for-byte identical — only the filename's leading timestamp changes. This keeps the Supabase Preview check, the rollout doc, and the `supabase/migrations/` ordering all consistent with what's actually live in Postgres. PR #41 (commit `bfb5fee`) shows the pattern.
+- **`npx supabase db dump` needs Docker, and without it truncates its target file to zero
+  bytes.** It destroyed `supabase/schema.sql` once; `git checkout --` restored it. Do not
+  point it at a tracked file on a machine without Docker.
+- **`mcp__supabase__apply_migration` stamps its own `schema_migrations.version` from the
+  wall clock, not the filename**, so the Supabase Preview check then fails with *"Remote
+  migration versions not found in local migrations directory."* If you must use it (urgent
+  hotfix, no CLI to hand), immediately call `list_migrations` and `git mv` the local file so
+  its leading timestamp matches what Postgres recorded. Contents stay byte-identical.
 
-Alternative: avoid the MCP for new migrations and use `supabase db push` from the CLI instead, which honors the filename version. The MCP is fine for applying urgent hotfixes when CLI access isn't handy, as long as the rename step is done in the same session.
+Read-only catalog inspection through the MCP is fine, and it honours
+`begin; … rollback;` — which makes it a good way to dry-run a migration before pushing it.
 
 ### Fee Engine (Workbook Mode)
 
@@ -209,8 +275,32 @@ The fee calculation engine is `workbook_v1`. Core lib files in `lib/fees/` and `
 - `v_workbook_student_financials` — per-student financial projection (materialized view)
 - `v_workbook_installment_balances` — installment-level balances (materialized view)
 - `v_student_financial_state` — pending vs credit/refund projection
-- `preview_workbook_payment_allocation` — date-aware preview RPC
-- `post_student_payment` — posting RPC with idempotency/locking and receipt linkage
+- `preview_workbook_payment_allocation` — the Payment Desk's read model
+- `post_student_payment_with_adjustments` — **the posting RPC the desk uses**, with
+  idempotency, per-student advisory locking, receipt linkage and counter-side discount /
+  late-fee waiver. `post_student_payment` is the older, narrower one.
+- `get_dashboard_summary`, `get_dashboard_fee_split`, `get_dashboard_analytics` — the three
+  reads behind the dashboard
+- `private.workbook_installment_snapshot` — the second engine
+
+**The late-fee rule is duplicated verbatim in `v_workbook_installment_balances` and
+`private.workbook_installment_snapshot`, and the two must be edited together.** Both carry
+the same `>>> SHARED LATE FEE RULE <<<` marker. `20260812001114` string-patched only the
+function, and EMI late fees were visible to the Payment Desk and invisible to the dashboard,
+defaulters and every export for four days.
+
+### Dashboard
+
+Five boards behind a switcher, chosen by `?view=overview|collection|recovery|classes|latefee`,
+under a money band that stays put. See `docs/modules/dashboard.md`. Three rules:
+
+- Boards are **links, not client tab state** — a board must stay linkable and back-navigable.
+- **No charting library.** `/protected/dashboard` sits under a gzip ceiling in
+  `quality/route-bundle-baseline.json`; every chart is hand-rolled SVG on `--chart-1…5`.
+- `get_dashboard_summary` and `get_dashboard_analytics` are cached on the
+  `session:{label}` tag that `revalidateSessionFinance` already busts after every posting.
+  **Anything that moves money must bust that tag** — refunds did not, and served stale
+  numbers until the next posting happened to clear it.
 
 ### Academic Session Labels
 
@@ -231,6 +321,11 @@ Routes are embedded in their respective modules (not centralized under `/api/`):
 | `/api/imports/students/upload` | Student import file upload |
 | `/api/imports/students/batch/[batchId]/summary` | Import batch preview |
 | `/api/imports/students/batch/[batchId]/commit` | Finalize import |
+| `/api/imports/payments/upload` + `/batch/[batchId]/{summary,commit}` | Bulk payment upload |
+| `/api/cron/auto-day-close` | Nightly automatic day close (`CRON_SECRET`) |
+| `/api/cron/nightly-backup` | Nightly backup (`CRON_SECRET`) |
+| `/api/admin/repair-discount-drift` | Re-runs the fee engine for drifted students |
+| `/api/command/students`, `/api/command/receipts` | Command-palette lookups |
 | `/api/manifest` | PWA manifest (role-aware runtime caching) |
 | `/auth/confirm` | Email confirmation callback |
 | `/protected/students/index` | Student search/index |
@@ -243,17 +338,33 @@ Routes are embedded in their respective modules (not centralized under `/api/`):
 | `/protected/finance-controls/export` | Finance report export |
 | `/protected/reports/export` | General report export |
 | `/protected/imports/template` | Excel template download |
+| `/protected/payments/bulk/template` | Bulk payment template |
+| `/protected/receipts/[receiptId]/detail` | Receipt detail fetch |
+| `/protected/defaulters/{contact-log,fee-breakdown,voice-note}` | Follow-up logging |
+| `/protected/students/{photo,index}` | Photo upload, student search |
+| `/protected/students/[studentId]/fee-pdf` · `/family/[familyGroupId]/{fee-pdf,receipts,statement}` | Parent documents |
+| `/r/[code]` | Public receipt verification |
 
 ## Test Structure
 
 ```
-tests/unit/        # 29 files — pure/domain logic, no DB
-tests/integration/ # 50 files — module/workflow/system tests
-tests/ui/          # 22 files — route/component/resilience/UI policy tests
-tests/setup.ts     # Global afterEach: clears and restores mocks
+tests/unit/            # 119 files — pure/domain logic, no DB
+tests/integration/     # 90 files  — module/workflow/system tests
+tests/ui/              # 82 files  — route/component/resilience/UI policy tests
+tests/smoke-readiness/ # Playwright — authenticated a11y + visual smoke
+tests/smoke-2026-05/   # Playwright — deep crawl
+tests/setup.ts         # Global afterEach: clears and restores mocks
 ```
 
+`npm run test` runs **291 vitest files / 1,777 tests** across two projects: `node` for
+everything, and `interaction` (jsdom + Testing Library) for `tests/ui/interaction/**`.
+Playwright is separate — `npm run smoke:readiness`.
+
 Coverage is collected for `lib/**/*.ts` and `app/protected/**/*.ts`. Coverage provider: v8.
+
+**Many tests assert on source strings** — that a component is still mounted, that a class
+recipe is still applied, that a budget is still declared. A refactor that renames a component
+will fail them, and the fix is to repoint the assertion, not to delete it.
 
 ## Environment Variables
 
@@ -281,7 +392,12 @@ Copy `.env.example` to `.env.local` for local development. Required values:
 6. `2026-27` is the live production session with real school financial records.
    Use `TEST-2026-27` for all testing and debugging. Never add test data,
    post test payments, or make experimental changes to the `2026-27` session.
-7. Fee Setup publish must preview impact first and protect paid/partial/adjusted rows from silent rewrite.
+7. Fee Setup publish must preview impact first and protect paid/partial/adjusted rows from
+   silent rewrite. It must also leave carry-forward rows and EMI-covered installments alone.
+8. A late fee is never folded into a fees figure, and never makes a student a defaulter.
+   The rule lives in two engines that must be edited together.
+9. A plan is never edited in place. Rescheduling writes a replacement and supersedes the
+   old one, so the schedule a parent was shown stays on file.
 
 ## Testing and Debugging Rules
 
@@ -293,7 +409,9 @@ Copy `.env.example` to `.env.local` for local development. Required values:
 ## Active AY 2026-27 Policy Defaults
 
 Canonical values (from `docs/product/school-rules.md` and `lib/config/fee-rules.ts`):
-- Late fee: ₹1,000 flat
+- Late fee: ₹1,000 flat — charged the day an installment passes its due date with fees
+  still unsettled, and kept until paid or explicitly waived. **Never part of fees pending**,
+  and never accrues on a carry-forward row (those carry a rate of 0 deliberately).
 - Installment due dates: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027
 - New student academic fee: ₹1,100 | Existing: ₹500
 - Class 12 Science annual tuition default: ₹38,000
@@ -318,6 +436,8 @@ docs/maps/          # Folder map, database map, module map, legacy routes, dange
 docs/workflows/     # Operational workflow docs (test data, production ops)
 docs/design/        # Design system notes
 docs/i18n/          # Translation/dictionary status
+docs/qa/            # Reusable QA checklists
+docs/quality/       # Quality baselines and advisor decisions
 docs/samples/       # Sample data files (e.g. import test CSV)
 ```
 

@@ -23,7 +23,7 @@ Preferred full display name:
 
 - active academic session: `2026-27`
 - fee engine: `workbook_v1`
-- late fee: flat `₹1000`
+- late fee: flat `₹1000` — see "Late fee" below for the rule, which changed materially
 - installment due dates:
   - `20-04-2026`
   - `20-07-2026`
@@ -39,6 +39,59 @@ Preferred full display name:
 
 If docs/notes conflict, this file and `lib/config/fee-rules.ts` are the active
 intent.
+
+## Late fee
+
+**A late fee is a separate charge, not part of what a family owes in fees.**
+
+- Charged the day an installment passes its due date with fees still unsettled.
+- Once charged it **stays owed** until it is paid or explicitly waived. Clearing the fees
+  afterwards does not remove it.
+- An installment settled in full **on or before** its due date is never charged.
+- A **carry-forward (previous-year) row never accrues one** — those rows carry a rate of
+  zero on purpose.
+- It is **never counted in fees pending, expected fees, overdue, or defaulter status.** A
+  family whose only remaining debt is a late fee is not a defaulter and their installment
+  reads *paid*.
+- It can be waived per installment, with a reason, by whoever has
+  `payments:waive_late_fee`. A waiver is voided, never deleted, and voiding one bills that
+  installment again.
+- **A late fee that has already been paid cannot be waived.** Handing back collected money
+  is a refund — a different act, with its own surface and audit trail.
+
+Two engines compute this — `v_workbook_installment_balances` and
+`private.workbook_installment_snapshot` — and they carry the same rule verbatim. They must
+be changed together.
+
+When the rule itself changed on 08-08-2026, the school approved the correction but **not**
+back-charging families, so the increase was cancelled with `source='grandfather'` waivers
+rather than billed. That is the precedent: a rule may be corrected going forward without
+raising a bill that was already communicated.
+
+## Monthly repayment plans (EMI)
+
+A family carrying a previous-year balance can clear it over **interest-free monthly
+instalments**. A plan is a layer *over* dues that already exist — it never rewrites
+installments, receipts or the fee engine.
+
+- Three scopes: previous year only, current year only, or both.
+- Activation waives the late fees on the covered installments, so a family that keeps to
+  the calendar pays none.
+- **A missed monthly instalment charges a flat ₹1,000**, as its own real installment row.
+  A plan defers late fees; it does not forgive them.
+- A family paying their EMI on time **is not a defaulter**, even though the covered
+  installments are months past their original dates.
+- A plan is never edited in place. Rescheduling writes a replacement and supersedes the
+  old one, so the schedule a parent was shown stays on file.
+- While a plan is active, concessions at the counter are refused — changing the deal is an
+  admin rescheduling it, not a cashier waiving on the spot.
+
+## Previous-year dues (carry-forward)
+
+Unpaid dues from the prior session are carried into the current one as a **dedicated
+installment line**, marked `is_carry_forward`, with an early due date and **zero late fee**.
+They are reported separately as "old balance" and must never be blended into this year's
+collection figures. Fee Setup regeneration must leave them alone.
 
 ## Conventional Discount Policies (Current)
 
