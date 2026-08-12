@@ -85,24 +85,24 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
   outstanding: {
     key: "outstanding",
     label: "Outstanding",
-    summary: "Total Due − Total Paid. All money still owed today, late fee included.",
+    summary: "Fees still owed. A late fee is never counted here.",
     detail:
-      "Always equals Total Due − Total Paid for the active academic session, INCLUDING any unpaid late fee. Breaks down as Fees pending (base) + Late fee. Only the Fees-pending part decides whether a student counts as overdue / a defaulter — an unpaid late fee alone never makes a student a defaulter. If the student has a credit balance (paid more than due), Outstanding is ₹0 and the surplus shows as Credit Balance.",
+      "The fees not yet paid for the active academic session — tuition + transport + academic fee + other heads, after discounts. A late fee is a separate charge and is never folded in: it has its own line, Late Fee Pending. This is the figure that decides overdue and defaulter status, so a family who owes nothing but a ₹1,000 late fee is not a defaulter. Add the two together for what the counter can collect. If the student has paid more than they owe, Outstanding is ₹0 and the surplus shows as Credit Balance.",
     source: "v_workbook_student_financials.outstanding_amount",
   },
   pending: {
     key: "pending",
     label: "Pending",
-    summary: "Total still owed (fees + late fee). Same as Outstanding at student level.",
+    summary: "Fees still owed. Same as Outstanding at student level.",
     detail:
-      "When shown next to a specific installment, this is the unpaid portion of THAT installment (including its late fee, minus any waiver). When shown at the student level, it equals Outstanding = Fees pending (base) + Late fee.",
+      "Next to a specific installment, the unpaid fees of THAT installment. At student level it equals Outstanding. Either way a late fee is excluded and shown on its own line — an installment whose fees are clear reads Paid even while a late fee is still owed on it.",
   },
   feesPending: {
     key: "feesPending",
     label: "Fees pending",
     summary: "Fees still owed, late fee excluded. Drives overdue / defaulter status.",
     detail:
-      "The base charge (tuition + transport + academic + other heads, after discount) not yet paid. Late fee is deliberately excluded — a student is treated as PAID once Fees pending reaches ₹0, even if a late fee is still owed. This is the figure that determines 'Due now', 'Overdue', and defaulter lists.",
+      "The base charge (tuition + transport + academic + other heads, after discount) not yet paid. Late fee is deliberately excluded — a student is treated as PAID once Fees pending reaches ₹0, even if a late fee is still owed. This is the figure that determines 'Due now', 'Overdue', and defaulter lists. Since the late-fee split it is the same number as Outstanding; both are kept because screens that show a late fee beside it read better with the fuller name.",
     source: "v_workbook_student_financials.base_outstanding_amount",
   },
   dueNow: {

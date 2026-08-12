@@ -100,8 +100,10 @@ describe("ai context bundle", () => {
     for (const column of [
       '"Total paid"',
       '"Discount close-out (not cash)"',
-      '"Outstanding (base only)"',
-      '"Outstanding (late fee only)"',
+      // Renamed by the late-fee split: "Outstanding" still means everything the
+      // family owes, and the two lines below it are the fees/late-fee split.
+      '"Fees pending"',
+      '"Late fee pending (student)"',
       '"Old balance (carry forward)"',
       '"Overdue amount"',
       '"Late fee pending"',

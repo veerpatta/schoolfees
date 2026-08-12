@@ -96,7 +96,10 @@ type WorkbookInstallmentBalanceRow = {
   final_late_fee: number;
   total_charge: number;
   pending_amount: number;
+  late_fee_pending?: number | null;
+  total_pending?: number | null;
   balance_status: "paid" | "partial" | "overdue" | "pending" | "waived";
+  late_fee_status?: "none" | "pending" | "waived" | "paid" | null;
   last_payment_date: string | null;
   transport_route_id: string | null;
   transport_route_name: string | null;
@@ -188,9 +191,17 @@ export type WorkbookStudentFinancial = {
   discountClosedAmount: number;
   totalDue: number;
   totalPaid: number;
+  /**
+   * Fees still owed. Never contains a late fee -- see the late-fee split in
+   * 20260812120000. This is the number that decides overdue and defaulter
+   * status, so a family whose only debt is a late fee is not a defaulter.
+   */
   outstandingAmount: number;
+  /** Identical to outstandingAmount since the split. Kept for readability. */
   baseOutstandingAmount: number;
   lateFeeOutstandingAmount: number;
+  /** Fees + late fee. What a cashier can actually collect from this student. */
+  totalOwedAmount: number;
   nextDueDate: string | null;
   nextDueAmount: number | null;
   nextDueLabel: string | null;
@@ -253,8 +264,18 @@ export type WorkbookInstallmentBalance = {
   waiverApplied: number;
   finalLateFee: number;
   totalCharge: number;
+  /**
+   * Fees still owed on this installment. Never contains a late fee, and
+   * `balanceStatus` reads 'paid' as soon as it hits zero even while
+   * `lateFeePending` is still positive.
+   */
   pendingAmount: number;
+  /** Late fee still owed here, after waivers and after any payment on it. */
+  lateFeePending: number;
+  /** `pendingAmount + lateFeePending`. What the counter can collect. */
+  totalPending: number;
   balanceStatus: "paid" | "partial" | "overdue" | "pending" | "waived";
+  lateFeeStatus: "none" | "pending" | "waived" | "paid";
 };
 
 export type WorkbookTransaction = {
@@ -391,9 +412,11 @@ function mapFinancialRow(row: WorkbookStudentFinancialRow): WorkbookStudentFinan
     totalPaid: row.total_paid,
     outstandingAmount: row.outstanding_amount,
     baseOutstandingAmount: row.base_outstanding_amount ?? row.outstanding_amount,
-    lateFeeOutstandingAmount:
-      row.late_fee_outstanding_amount ??
-      Math.max((row.outstanding_amount ?? 0) - (row.base_outstanding_amount ?? row.outstanding_amount ?? 0), 0),
+    // Read straight off the view. It used to be derived as
+    // (outstanding - base_outstanding); since the split those two are the same
+    // number, so that subtraction now yields 0 for everyone.
+    lateFeeOutstandingAmount: row.late_fee_outstanding_amount ?? 0,
+    totalOwedAmount: (row.outstanding_amount ?? 0) + (row.late_fee_outstanding_amount ?? 0),
     nextDueDate: row.next_due_date,
     nextDueAmount: row.next_due_amount,
     nextDueLabel: row.next_due_label,
@@ -452,8 +475,13 @@ function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallm
     waiverApplied: row.waiver_applied,
     finalLateFee: row.final_late_fee,
     totalCharge: row.total_charge,
+    // Fees only. The late fee on this installment is lateFeePending; add the
+    // two for what the counter can collect against it (totalPending).
     pendingAmount: row.pending_amount,
+    lateFeePending: row.late_fee_pending ?? 0,
+    totalPending: row.total_pending ?? row.pending_amount + (row.late_fee_pending ?? 0),
     balanceStatus: row.balance_status,
+    lateFeeStatus: row.late_fee_status ?? "none",
   };
 }
 

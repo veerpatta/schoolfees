@@ -62,6 +62,7 @@ function student(
     outstandingAmount: 1500,
     baseOutstandingAmount: 1500,
     lateFeeOutstandingAmount: 0,
+    totalOwedAmount: 1500,
     nextDueDate: "2026-04-20",
     nextDueAmount: 1500,
     nextDueLabel: "Installment 1",
@@ -112,7 +113,10 @@ function installment(
     finalLateFee: 0,
     totalCharge: 1500,
     pendingAmount: 1500,
+    lateFeePending: 0,
+    totalPending: 1500,
     balanceStatus: "pending",
+    lateFeeStatus: "none",
     ...overrides,
   };
 }

@@ -18,9 +18,13 @@ import { cn } from "@/lib/utils";
  * fee never makes a student a defaulter. Late fee is always its own line.
  */
 export type FeeStatusSummaryProps = {
-  /** Total owed incl. late fee — `outstanding_amount`. */
+  /**
+   * Total owed incl. late fee. NOT `outstanding_amount` -- that column is fees
+   * only since the late-fee split (20260812120000). Pass
+   * `v_student_financial_state.pending_amount`, or `totalOwedAmount`.
+   */
   pending: number;
-  /** Base owed, late fee excluded — `base_outstanding_amount`. */
+  /** Fees owed, late fee excluded — `outstanding_amount`. */
   feesPending: number;
   /** Late-fee remainder — `late_fee_outstanding_amount`. */
   lateFeePending: number;

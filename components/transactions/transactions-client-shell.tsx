@@ -206,6 +206,9 @@ function SummaryCards({ summary, t }: { summary: OfficeWorkbookSummary; t: TxnTr
     { key: "students", label: t("summaryStudents"), value: summary.studentCount },
     { key: "totalDue", label: t("summaryTotalDue"), value: summary.totalDue, termKey: "totalDue" },
     { key: "outstanding", label: t("summaryOutstanding"), value: summary.totalOutstanding, termKey: "outstanding" },
+    // Its own tile, not folded into Outstanding. A late fee is a separate
+    // charge and the two move for completely different reasons.
+    { key: "lateFeePending", label: t("summaryLateFeePending"), value: summary.totalLateFeePending, termKey: "lateFeePending" },
     { key: "totalPaid", label: t("summaryTotalPaid"), value: summary.totalPaid, termKey: "totalPaid" },
     { key: "discounts", label: t("summaryDiscounts"), value: summary.totalDiscount, termKey: "discountTotal" },
     { key: "lateFeeWaived", label: t("summaryLateFeeWaived"), value: summary.totalLateFeeWaived, termKey: "lateFeeWaived" },

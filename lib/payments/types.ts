@@ -110,7 +110,17 @@ export type InstallmentBalanceItem = {
   amountDue: number;
   paymentsTotal: number;
   adjustmentsTotal: number;
+  /**
+   * What the counter can collect against this installment: fees + late fee.
+   * This is the figure the posting RPC allocates against (it reads
+   * total_pending), so the preview must agree or the desk offers a different
+   * number from the one the ledger accepts.
+   */
   outstandingAmount: number;
+  /** Fees only. Never contains a late fee. */
+  feesPending: number;
+  /** Late fee still owed here, after waivers and any payment against it. */
+  lateFeePending: number;
   rawLateFee: number;
   waiverApplied: number;
   finalLateFee: number;

@@ -89,6 +89,8 @@ type PaymentPreviewRpcRow = {
   waiver_applied: number;
   final_late_fee: number;
   pending_amount: number;
+  late_fee_pending?: number | null;
+  total_pending?: number | null;
   balance_status: InstallmentBalanceItem["balanceStatus"];
 };
 
@@ -664,7 +666,11 @@ function summarizeStudent(
   installmentCount: number,
   conventionalDiscount: { amount: number; labels: string[] },
 ): SelectedStudentSummary {
-  const pendingAmount = financialState?.pending_amount ?? financial.outstandingAmount;
+  // The desk's headline is what a cashier can collect, so it keeps the late
+  // fee in. The fallback is totalOwedAmount, not outstandingAmount -- the
+  // latter is fees only since the late-fee split and would quietly drop the
+  // late fee whenever the financial-state row is missing.
+  const pendingAmount = financialState?.pending_amount ?? financial.totalOwedAmount;
   const totalDue = financial.baseChargeTotal;
   const totalPaid = financialState?.total_paid ?? financial.totalPaid;
 
@@ -686,9 +692,7 @@ function summarizeStudent(
     totalPaid,
     totalPending: pendingAmount,
     baseOutstandingAmount: financial.baseOutstandingAmount ?? pendingAmount,
-    lateFeeOutstandingAmount:
-      financial.lateFeeOutstandingAmount ??
-      Math.max(pendingAmount - (financial.baseOutstandingAmount ?? pendingAmount), 0),
+    lateFeeOutstandingAmount: financial.lateFeeOutstandingAmount ?? 0,
     creditBalance: financialState?.credit_balance ?? 0,
     overpaidAmount: financialState?.overpaid_amount ?? 0,
     refundableAmount: financialState?.refundable_amount ?? 0,
@@ -1176,7 +1180,7 @@ export async function preflightPaymentPosting(payload: {
     Math.max(payload.quickDiscountAmount ?? 0, 0) +
     Math.max(payload.quickLateFeeWaiverAmount ?? 0, 0);
   const pendingLateFeeAmount = previewRows.reduce(
-    (sum, row) => sum + Math.min(row.finalLateFee, row.outstandingAmount),
+    (sum, row) => sum + row.lateFeePending,
     0,
   );
   const revisedPendingAmount = Math.max(previewPendingAmount - adjustmentAmount, 0);
@@ -2053,7 +2057,13 @@ async function getPaymentDateAwareInstallmentBalancesUncached(payload: {
       amountDue: row.total_charge,
       paymentsTotal: row.paid_amount,
       adjustmentsTotal: row.adjustment_amount,
-      outstandingAmount: row.pending_amount,
+      // total_pending, not pending_amount: since the late-fee split
+      // pending_amount is fees only, and the posting RPC allocates against
+      // the total. A desk preview built on fees alone would refuse to let a
+      // cashier take the late fee the ledger is still asking for.
+      outstandingAmount: row.total_pending ?? row.pending_amount + (row.late_fee_pending ?? 0),
+      feesPending: row.pending_amount,
+      lateFeePending: row.late_fee_pending ?? 0,
       rawLateFee: row.raw_late_fee,
       waiverApplied: row.waiver_applied,
       finalLateFee: row.final_late_fee,

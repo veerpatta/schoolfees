@@ -470,7 +470,9 @@ export async function getDefaultersPageData(
         totalPaid: row.totalPaid,
         totalPending: row.outstandingAmount,
         overdueAmount,
-        lateFee: row.lateFeeTotal,
+        // Still owed, not ever-charged. lateFeeTotal keeps counting a late fee
+        // the family has already paid, which is not a thing to chase them for.
+        lateFee: row.lateFeeOutstandingAmount,
         discountApplied: row.discountAmount,
         lateFeeWaived: row.lateFeeWaiverAmount,
         overdueInstallments: row.overdueInstallmentCount,
@@ -734,7 +736,7 @@ export async function getDefaulterExportRows(
         excludedNextDueDate: row.nextDueDate ?? null,
         today,
       }).overdueAmount,
-      lateFeeTotal: row.lateFeeTotal,
+      lateFeeTotal: row.lateFeeOutstandingAmount,
       nextDueDate: row.nextDueDate ?? null,
       nextDueAmount: row.nextDueAmount ?? 0,
       statusLabel: row.statusLabel,

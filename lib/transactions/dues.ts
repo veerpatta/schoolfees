@@ -118,7 +118,9 @@ export type OfficeWorkbookSummary = {
   studentCount: number;
   totalDue: number;
   totalPaid: number;
+  /** Fees only. A late fee is counted in totalLateFeePending instead. */
   totalOutstanding: number;
+  totalLateFeePending: number;
   totalDiscount: number;
   totalLateFeeWaived: number;
   transportStudentCount: number;
@@ -278,6 +280,7 @@ async function getBaseOfficeStudents(
       outstandingAmount: 0,
       baseOutstandingAmount: 0,
       lateFeeOutstandingAmount: 0,
+      totalOwedAmount: 0,
       nextDueDate: null,
       nextDueAmount: null,
       nextDueLabel: null,
@@ -302,6 +305,7 @@ function buildSummary(rows: WorkbookStudentFinancial[]): OfficeWorkbookSummary {
       acc.totalDue += row.baseChargeTotal;
       acc.totalPaid += row.totalPaid;
       acc.totalOutstanding += row.outstandingAmount;
+      acc.totalLateFeePending += row.lateFeeOutstandingAmount;
       acc.totalDiscount += row.discountAmount;
       acc.totalLateFeeWaived += row.lateFeeWaiverAmount;
       acc.transportStudentCount += Number(Boolean(row.transportRouteId));
@@ -316,6 +320,7 @@ function buildSummary(rows: WorkbookStudentFinancial[]): OfficeWorkbookSummary {
       totalDue: 0,
       totalPaid: 0,
       totalOutstanding: 0,
+      totalLateFeePending: 0,
       totalDiscount: 0,
       totalLateFeeWaived: 0,
       transportStudentCount: 0,

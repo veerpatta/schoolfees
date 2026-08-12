@@ -81,8 +81,11 @@ export function buildReceiptPreviewAllocation(payload: {
     .filter((item) => item.outstandingAmount > 0)
     .map((item) => {
       const pendingBefore = item.outstandingAmount;
-      const lateFeePending = Math.min(item.finalLateFee, pendingBefore);
-      const lateFeeWaived = Math.min(remainingLateFeeWaiver, lateFeePending);
+      // Read off the row rather than re-derived as min(finalLateFee, pending).
+      // That expression only worked while pending_amount carried both kinds of
+      // money; since the split it reads 0 for anyone whose fees are clear --
+      // which is exactly who still has a waivable late fee.
+      const lateFeeWaived = Math.min(remainingLateFeeWaiver, item.lateFeePending);
       remainingLateFeeWaiver -= lateFeeWaived;
 
       const pendingAfterWaiver = pendingBefore - lateFeeWaived;

@@ -690,9 +690,12 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         "Total due": row.baseChargeTotal,
         "Total paid": row.totalPaid,
         "Discount close-out (not cash)": row.discountClosedAmount,
-        "Outstanding": row.outstandingAmount,
-        "Outstanding (base only)": row.baseOutstandingAmount,
-        "Outstanding (late fee only)": row.lateFeeOutstandingAmount,
+        // "Outstanding" keeps meaning what it always meant in this workbook --
+        // everything the family still owes -- so old spreadsheets that total
+        // this column stay correct. The two lines under it are the split.
+        "Outstanding": row.totalOwedAmount,
+        "Fees pending": row.outstandingAmount,
+        "Late fee pending (student)": row.lateFeeOutstandingAmount,
         "Old balance (carry forward)": Number(facets?.old_balance_amount ?? 0),
         "Overdue amount": Number(facets?.overdue_base_amount ?? 0),
         "Late fee pending": Number(facets?.pending_late_fee_amount ?? 0),
@@ -749,8 +752,11 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         "Late fee (waiver)": row.waiverApplied,
         "Late fee (final)": row.finalLateFee,
         "Total charge": row.totalCharge,
-        "Pending": row.pendingAmount,
+        "Pending": row.totalPending,
+        "Fees pending": row.pendingAmount,
+        "Late fee pending": row.lateFeePending,
         "Status": row.balanceStatus,
+        "Late fee status": row.lateFeeStatus,
         "Last payment date": row.lastPaymentDate ?? "",
       })),
     ),

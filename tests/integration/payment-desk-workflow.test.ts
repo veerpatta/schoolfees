@@ -44,6 +44,8 @@ const selectedStudent = {
       paymentsTotal: 0,
       adjustmentsTotal: 0,
       outstandingAmount: 1100,
+      feesPending: 1000,
+      lateFeePending: 100,
       rawLateFee: 100,
       waiverApplied: 0,
       finalLateFee: 100,
