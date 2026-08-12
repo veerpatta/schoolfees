@@ -175,7 +175,7 @@ export function OverviewBoard({
 /* ── Collection ────────────────────────────────────────────────────────── */
 
 export function CollectionBoard({ analytics }: { analytics: DashboardAnalytics }) {
-  const months = analytics.monthlyCollection;
+  const months = analytics.monthlyCollection ?? [];
   const collected = months.reduce((sum, month) => sum + month.amount, 0);
   const receipts = months.reduce((sum, month) => sum + month.receipts, 0);
   const averageReceipt = receipts > 0 ? Math.round(collected / receipts) : 0;
@@ -284,7 +284,18 @@ export function RecoveryBoard({
   analytics: DashboardAnalytics;
   oldBalance: { original: number; recovered: number; pending: number };
 }) {
-  const { debtAge, concentration } = analytics;
+  // Defaulted at the read, not just in the loader. A payload cached by an
+  // earlier build can be missing a field this build maps over, and an
+  // exception here blanks the whole board behind the error boundary.
+  const debtAge = analytics.debtAge ?? [];
+  const concentration = analytics.concentration ?? {
+    studentsWithDues: 0,
+    totalPending: 0,
+    top10Amount: 0,
+    top10Pct: 0,
+    top50Amount: 0,
+    top50Pct: 0,
+  };
   const stale = debtAge.find((bucket) => bucket.bucket === "90+");
   const agedTotal = debtAge.reduce((sum, bucket) => sum + bucket.feesPending, 0);
 
@@ -363,7 +374,7 @@ export function ClassesBoard({
   analytics: DashboardAnalytics;
   sessionLabel: string;
 }) {
-  const rows = analytics.classRecovery;
+  const rows = analytics.classRecovery ?? [];
   const worstPending = Math.max(...rows.map((row) => row.feesPending), 1);
   const behind = rows.filter((row) => row.recoveryRate < 50).length;
   const ahead = rows.filter((row) => row.recoveryRate >= 75).length;
@@ -425,12 +436,21 @@ export function LateFeeBoard({
   analytics: DashboardAnalytics;
   sessionLabel: string;
 }) {
-  const { lateFee } = analytics;
-  const automatic = lateFee.byWaiverSource.filter(
+  const lateFee = analytics.lateFee ?? {
+    charged: 0,
+    waived: 0,
+    pending: 0,
+    studentsWithPending: 0,
+    byWaiverSource: [],
+    nextAccrual: { dueDate: null, amount: 0, installments: 0 },
+  };
+  const nextAccrual = lateFee.nextAccrual ?? { dueDate: null, amount: 0, installments: 0 };
+  const waiverSources = lateFee.byWaiverSource ?? [];
+  const automatic = waiverSources.filter(
     (source) => source.source === "grandfather" || source.source === "migration",
   );
   const automaticTotal = automatic.reduce((sum, source) => sum + source.amount, 0);
-  const decided = lateFee.byWaiverSource.filter(
+  const decided = waiverSources.filter(
     (source) => source.source !== "grandfather" && source.source !== "migration",
   );
 
@@ -495,16 +515,16 @@ export function LateFeeBoard({
 
       <Tile
         label="Next accrual"
-        tone={lateFee.nextAccrual.amount > 0 ? "danger" : "default"}
+        tone={nextAccrual.amount > 0 ? "danger" : "default"}
       >
-        {lateFee.nextAccrual.amount > 0 ? (
+        {nextAccrual.amount > 0 ? (
           <>
             <p className="font-display-money text-3xl leading-none">
-              {formatInr(lateFee.nextAccrual.amount)}
+              {formatInr(nextAccrual.amount)}
             </p>
             <p className="text-xs leading-snug text-muted-foreground">
-              lands on {formatDate(lateFee.nextAccrual.dueDate)} across{" "}
-              {lateFee.nextAccrual.installments} installments, unless they are paid or waived first.
+              lands on {formatDate(nextAccrual.dueDate)} across{" "}
+              {nextAccrual.installments} installments, unless they are paid or waived first.
             </p>
           </>
         ) : (

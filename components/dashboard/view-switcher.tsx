@@ -43,6 +43,12 @@ export function ViewSwitcher({
                 // the boards read a session-tagged cache, so warming four of
                 // them costs one query rather than four.
                 prefetch
+                // Link scrolls to top by default, which threw the page upward
+                // on every board click -- the switcher and the board under it
+                // are both below the money band, so the one thing you are
+                // looking at is the one thing that moved. These are tabs, not
+                // page navigations; the reader stays where they were.
+                scroll={false}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",

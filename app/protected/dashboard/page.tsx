@@ -1387,18 +1387,18 @@ function FeeDataAttentionBanner({
 
 
 
+// Shaped like a board, not like the stack that used to live here, and given a
+// floor height. Swapping a full board for a shorter skeleton collapsed the page
+// mid-switch and then pushed it back down when the content arrived -- the
+// scroll position survived, but the content under it moved anyway.
 function DashboardBelowFoldSkeleton() {
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-        <LoadingBlock />
-        <LoadingBlock />
-      </div>
+    <div className="grid min-h-[32rem] grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       <LoadingBlock />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-        <LoadingBlock />
-        <LoadingBlock />
-      </div>
+      <LoadingBlock />
+      <LoadingBlock />
+      <LoadingBlock />
+      <LoadingBlock />
       <LoadingBlock />
     </div>
   );
@@ -1435,12 +1435,12 @@ async function DashboardBelowFold({
   });
   const autoPrepareCount =
     canAutoPrepareDues && data.systemSyncHealth
-      ? data.systemSyncHealth.studentsMissingInstallments.length
+      ? (data.systemSyncHealth.studentsMissingInstallments?.length ?? 0)
       : 0;
   // Same source the desktop banner uses; shown regardless of write permission
   // because reading "these students are missing from every total" matters to
   // anyone looking at the numbers.
-  const missingDuesCount = data.systemSyncHealth?.studentsMissingInstallments.length ?? 0;
+  const missingDuesCount = data.systemSyncHealth?.studentsMissingInstallments?.length ?? 0;
 
   const visibleAlerts = data.alerts.filter((alert) => {
     if (staffRole !== "admin") {
@@ -1544,7 +1544,7 @@ async function DashboardBelowFold({
         </Section>
       </div>
 
-      {analytics.routeRecovery.length > 0 ? (
+      {(analytics.routeRecovery?.length ?? 0) > 0 ? (
         <Section
           title={t("routeProgressTitle")}
           description={t("routeProgressDescription")}
@@ -1913,6 +1913,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             />
           </div>
         </div>
+        <div className="min-h-[32rem]">
         <Suspense fallback={<DashboardBelowFoldSkeleton />}>
           <DashboardBelowFold
             staffRole={staff.appRole}
@@ -1922,6 +1923,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             view={view}
           />
         </Suspense>
+        </div>
       </div>
 
       {/* Tablet-only floating desk shortcut. Phones (v2) get a full-width

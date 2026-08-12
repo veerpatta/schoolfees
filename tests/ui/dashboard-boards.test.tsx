@@ -211,6 +211,32 @@ describe("dashboard boards", () => {
     expect(labelled.length).toBe(bars.length);
   });
 
+  it("a board survives an analytics payload that predates one of its fields", () => {
+    // The data cache keeps objects across deployments, so a payload written by
+    // the previous build can arrive missing a field the current build reads.
+    // That is not hypothetical: routeRecovery did exactly this and
+    // `analytics.routeRecovery.length` took the whole below-fold area down
+    // behind the error boundary. A missing field must degrade to an empty
+    // panel, never throw.
+    const stale = JSON.parse(JSON.stringify(ANALYTICS)) as Record<string, unknown>;
+    delete stale.routeRecovery;
+    delete stale.debtAge;
+    delete (stale.lateFee as Record<string, unknown>).byWaiverSource;
+
+    const asAnalytics = stale as unknown as DashboardAnalytics;
+    expect(() =>
+      renderToStaticMarkup(<LateFeeBoard analytics={asAnalytics} sessionLabel="2026-27" />),
+    ).not.toThrow();
+    expect(() =>
+      renderToStaticMarkup(
+        <RecoveryBoard
+          analytics={asAnalytics}
+          oldBalance={{ original: 0, recovered: 0, pending: 0 }}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
   it("charts use design-system tokens, never raw hex", () => {
     const html = [
       renderToStaticMarkup(<LateFeeBoard analytics={ANALYTICS} sessionLabel="2026-27" />),

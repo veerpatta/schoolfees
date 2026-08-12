@@ -123,6 +123,41 @@ function getSchoolDateStamp(referenceDate = new Date()) {
   }).format(referenceDate);
 }
 
+/**
+ * Fills in anything the payload is missing.
+ *
+ * Applied to cached values as well as fresh ones, and that is the point: a
+ * cached object's SHAPE outlives the deploy that wrote it. When routeRecovery
+ * was added, entries written minutes earlier were still being served without
+ * it, and `analytics.routeRecovery.length` threw inside the board -- caught by
+ * the error boundary, so the whole below-fold area went blank. The key is
+ * versioned below so that cannot recur, but a normalizer that runs on the way
+ * out means the next field to be added degrades to an empty panel instead of
+ * taking the dashboard down.
+ */
+function normalizeAnalytics(
+  payload: Partial<DashboardAnalytics> | null | undefined,
+  sessionLabel: string,
+): DashboardAnalytics {
+  if (!payload) return { ...EMPTY_ANALYTICS, sessionLabel };
+  return {
+    ...EMPTY_ANALYTICS,
+    ...payload,
+    sessionLabel: payload.sessionLabel ?? sessionLabel,
+    lateFee: {
+      ...EMPTY_ANALYTICS.lateFee,
+      ...(payload.lateFee ?? {}),
+      byWaiverSource: payload.lateFee?.byWaiverSource ?? [],
+      nextAccrual: { ...EMPTY_ANALYTICS.lateFee.nextAccrual, ...(payload.lateFee?.nextAccrual ?? {}) },
+    },
+    concentration: { ...EMPTY_ANALYTICS.concentration, ...(payload.concentration ?? {}) },
+    debtAge: payload.debtAge ?? [],
+    monthlyCollection: payload.monthlyCollection ?? [],
+    classRecovery: payload.classRecovery ?? [],
+    routeRecovery: payload.routeRecovery ?? [],
+  };
+}
+
 async function getDashboardAnalyticsUncached(sessionLabel: string): Promise<DashboardAnalytics> {
   try {
     const supabase = await getCacheSafeClient();
@@ -134,22 +169,21 @@ async function getDashboardAnalyticsUncached(sessionLabel: string): Promise<Dash
       return { ...EMPTY_ANALYTICS, sessionLabel };
     }
 
-    const payload = data as Partial<DashboardAnalytics>;
-    return {
-      ...EMPTY_ANALYTICS,
-      ...payload,
-      sessionLabel: payload.sessionLabel ?? sessionLabel,
-      lateFee: { ...EMPTY_ANALYTICS.lateFee, ...(payload.lateFee ?? {}) },
-      concentration: { ...EMPTY_ANALYTICS.concentration, ...(payload.concentration ?? {}) },
-      debtAge: payload.debtAge ?? [],
-      monthlyCollection: payload.monthlyCollection ?? [],
-      classRecovery: payload.classRecovery ?? [],
-      routeRecovery: payload.routeRecovery ?? [],
-    };
+    return normalizeAnalytics(data as Partial<DashboardAnalytics>, sessionLabel);
   } catch {
     return { ...EMPTY_ANALYTICS, sessionLabel };
   }
 }
+
+/**
+ * Bump whenever the shape of DashboardAnalytics changes.
+ *
+ * The data cache persists across deployments, so without this a new field is
+ * absent from every entry written by the previous build until something busts
+ * `session:{label}` -- which, for a session with no activity that day, may be
+ * nobody.
+ */
+const ANALYTICS_SHAPE_VERSION = "v2-route-recovery";
 
 /**
  * Never throws. The money band is rendered from a different call and must still
@@ -164,11 +198,12 @@ async function getDashboardAnalyticsUncached(sessionLabel: string): Promise<Dash
  */
 export async function getDashboardAnalytics(sessionLabel: string): Promise<DashboardAnalytics> {
   try {
-    return await cacheSafeUnstableCache(
+    const cached = await cacheSafeUnstableCache(
       async () => getDashboardAnalyticsUncached(sessionLabel),
-      ["dashboard-analytics", sessionLabel, getSchoolDateStamp()],
+      ["dashboard-analytics", ANALYTICS_SHAPE_VERSION, sessionLabel, getSchoolDateStamp()],
       { tags: [`session:${sessionLabel}`] },
     )();
+    return normalizeAnalytics(cached, sessionLabel);
   } catch {
     return { ...EMPTY_ANALYTICS, sessionLabel };
   }
