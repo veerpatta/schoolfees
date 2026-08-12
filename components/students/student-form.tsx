@@ -4,9 +4,11 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 
 import { ValueStatePill } from "@/components/office/office-ui";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Section } from "@/components/ui/section";
 import { StudentPhotoUpload } from "@/components/students/student-photo-upload";
 import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import { appendSessionParam } from "@/lib/navigation/session-href";
@@ -193,7 +195,6 @@ export function StudentForm({
       ? values.otherAdjustmentAmount
       : "",
   ].filter((value) => value.trim().length > 0).length;
-  const hasFeeExceptions = feeExceptionCount > 0;
 
   const recordAlreadySaved = state.status === "error" && Boolean(state.studentId);
   const disableSubmit = classOptions.length === 0 || recordAlreadySaved;
@@ -430,11 +431,11 @@ export function StudentForm({
         </div>
       </div>
 
-      <details className="rounded-xl border border-border bg-card">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
-          Parent details and address
-        </summary>
-        <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2">
+      <Section
+        title="Parent details and address"
+        description="A mother's phone is not a second-class field — it was behind a closed disclosure with the DOB and the address."
+      >
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
             <Label htmlFor="dateOfBirth">DOB</Label>
             <Input
@@ -479,17 +480,14 @@ export function StudentForm({
             </div>
           </div>
         </div>
-      </details>
+      </Section>
 
       {canEditFinance ? (
-      <details className="rounded-xl border border-border bg-card">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
-          Conventional Discounts
-        </summary>
-        <div className="space-y-4 border-t border-border p-4">
-          <p className="text-sm text-muted-foreground">
-            Use these only for approved school policies like RTE, Staff Child, or 3rd Child.
-          </p>
+      <Section
+        title="Conventional discounts"
+        description="Use these only for approved school policies like RTE, Staff Child, or 3rd Child."
+      >
+        <div className="space-y-4">
           {conventionalDiscountPolicies.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 px-4 py-4 text-sm text-muted-foreground">
               Conventional discounts are not configured for this year yet.
@@ -575,26 +573,23 @@ export function StudentForm({
             </div>
           </div>
         </div>
-      </details>
+      </Section>
       ) : null}
 
       {canEditFinance ? (
-      <details className="rounded-xl border border-border bg-card" open={hasFeeExceptions}>
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
-          Fee exceptions
-          {/* Collapsed by default, this panel hid the amount that was charging
-              a student for transport the route picker said they did not have.
-              A count on the closed summary means nobody has to guess. */}
-          {feeExceptionCount > 0 ? (
-            <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent-soft-foreground">
-              {feeExceptionCount} set
-            </span>
-          ) : null}
-        </summary>
-        <div className="border-t border-border p-4">
-          <p className="mb-4 text-sm text-muted-foreground">
-            Student-specific exceptions only. School-wide defaults stay in Fee Setup.
-          </p>
+      <Section
+        title="Fee exceptions"
+        description="Student-specific exceptions only. School-wide defaults stay in Fee Setup."
+        actions={
+          feeExceptionCount > 0 ? (
+            <Badge variant="accent">{feeExceptionCount} set</Badge>
+          ) : null
+        }
+      >
+        {/* Never collapsed. Behind a closed disclosure, this panel hid the
+            amount that was charging a student for transport the route picker
+            said they did not have. */}
+        <div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div>
               <Label htmlFor="tuitionOverride">Tuition override</Label>
@@ -691,14 +686,11 @@ export function StudentForm({
             </div>
           </div>
         </div>
-      </details>
+      </Section>
       ) : null}
 
-      <details className="rounded-xl border border-border bg-card">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
-          Record status
-        </summary>
-        <div className="grid gap-4 border-t border-border p-4 md:grid-cols-2">
+      <Section title="Record status">
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
             <Label htmlFor="status">Record status</Label>
             <select
@@ -718,7 +710,7 @@ export function StudentForm({
             <FieldError fieldName="status" message={getFieldError(state, "status")} />
           </div>
         </div>
-      </details>
+      </Section>
 
       {/* Clears the fixed mobile nav (z-40); at bottom-0/z-10 the Save button
           was underneath it on every phone add/edit. */}

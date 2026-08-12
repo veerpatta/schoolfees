@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
 import { StudentForm } from "@/components/students/student-form";
+import { Notice } from "@/components/ui/notice";
 import {
   StudentRepaymentPlanSection,
   type RepaymentScopeOption,
@@ -128,14 +129,15 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
         }
       />
 
-      <SectionCard
-        title="Student details"
-        description="Keep record corrections and fee exceptions clear."
-      >
+        {/* The form owns its own Sections now, so the outer SectionCard is
+            gone — it made every group a card inside a card inside a
+            card-shaped disclosure. */}
         {hasSessionMismatch ? (
-          <div className="mb-4 rounded-lg border bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground">
-            This student is currently in {student.classSessionLabel || "another academic year"}, but Fee Setup is active for {resolvedSessionLabel}. Choose an active {resolvedSessionLabel} class before dues can be prepared.
-          </div>
+          <Notice tone="warning" title="This student is in a different academic year">
+            {student.classSessionLabel || "Another academic year"} holds this record, but Fee Setup
+            is active for {resolvedSessionLabel}. Choose an active {resolvedSessionLabel} class
+            before dues can be prepared.
+          </Notice>
         ) : null}
         <StudentForm
           mode="edit"
@@ -177,13 +179,12 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
           returnTo={sessionAwareReturnTo}
           action={updateStudentAction.bind(null, student.id)}
         />
-      </SectionCard>
 
       {repaymentPlan ? (
         <SectionCard
           id="repayment-plan"
           title="Convert dues to monthly EMI"
-          description="Admin only. Spreads what this family owes over interest-free monthly instalments and permanently waives the late fees on the covered installments. Nothing in the ledger is rewritten."
+          description="Admin only. Spreads what this family owes over interest-free monthly instalments. The covered installments stop accruing their own late fees; from then on the EMI calendar carries the only penalty — a flat Rs 1,000 for each monthly instalment that passes unpaid, which an admin can waive. Nothing in the ledger is rewritten."
         >
           <StudentRepaymentPlanSection
             studentId={student.id}

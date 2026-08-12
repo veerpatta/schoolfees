@@ -89,27 +89,42 @@ describe("student edit form — transport", () => {
     expect(effectiveLine()).toContain("Fee exceptions");
   });
 
-  it("opens Fee exceptions when the student has one, so the amount is on screen", () => {
+  /**
+   * These two used to assert that the Fee exceptions `<details>` was open when
+   * the student had an override, because a CLOSED one is how a student came to
+   * be charged Rs 14,000 for transport the route picker said they did not have.
+   *
+   * Nothing collapses any more, so the mechanism they checked is gone. The
+   * behaviour they were protecting is not, and it is now stronger: the amount
+   * is on screen unconditionally. Asserted against visibility rather than
+   * against a disclosure's state.
+   */
+  it("shows the transport override amount with nothing collapsed over it", () => {
     const { container } = renderForm({ transportOverride: "14000" });
 
-    const panels = Array.from(container.querySelectorAll("details"));
-    const feeExceptions = panels.find((panel) =>
-      panel.querySelector("summary")?.textContent?.includes("Fee exceptions"),
-    );
+    const override = screen.getByLabelText("Transport override");
+    expect(override).toHaveValue(14000);
 
-    expect(feeExceptions, "Fee exceptions panel is not rendered").toBeTruthy();
-    expect(feeExceptions).toHaveProperty("open", true);
-    expect(feeExceptions?.querySelector("summary")?.textContent).toContain("1 set");
+    // The specific regression: no ancestor may be a closed disclosure.
+    let node: HTMLElement | null = override as HTMLElement;
+    while (node) {
+      if (node.tagName === "DETAILS") {
+        expect(node, "the transport override is inside a collapsible panel").toHaveProperty(
+          "open",
+          true,
+        );
+      }
+      node = node.parentElement;
+    }
+
+    expect(container.textContent).toContain("1 set");
   });
 
-  it("leaves Fee exceptions closed when the student has none", () => {
+  it("counts nothing when the student has no exceptions", () => {
     const { container } = renderForm();
 
-    const feeExceptions = Array.from(container.querySelectorAll("details")).find((panel) =>
-      panel.querySelector("summary")?.textContent?.includes("Fee exceptions"),
-    );
-
-    expect(feeExceptions).toHaveProperty("open", false);
+    expect(screen.getByLabelText("Transport override")).toHaveValue(null);
+    expect(container.textContent).not.toContain("1 set");
     expect(effectiveLine()).toContain("No transport");
   });
 

@@ -145,12 +145,40 @@ For each significant screen, decisions were made against four questions:
 
 ### 3.4 Student detail (`/protected/students/[id]`)
 
-- **Main job:** See one student's full picture — basics, dues, history.
-- **Notice first:** Header strip with student name, class, admission no, and
-  the *single* primary action ("Collect at Payment Desk").
-- **Secondary:** Dues breakdown, payment history, contact info, ledger.
-- **Hidden:** Conventional-discount and exception editing kept but visually
-  quieter, behind tonal `soft` buttons.
+- **Main job:** Find a receipt and confirm what was paid. Not "see one
+  student's full picture" — that framing is what produced a 2,150px page with
+  ~40 money figures above the tabs and receipts 1,100px down.
+- **Notice first:** A one-row identity bar (name, class, SR, status) carrying
+  the *single* primary action, "Collect ₹X"; then the money band — one status
+  ribbon and exactly four figures: Outstanding, Paid this session, Session fee,
+  Last receipt.
+- **Secondary:** Four tabs, **Receipts first and default** (receipts and their
+  allocation lines together), then Dues, Fees & plan, Record.
+- **Hidden:** Conventional-discount and exception editing stay on the edit page.
+  Family, sharing and record history live in the Record tab.
+
+**Rules this page is held to.** Every money figure has exactly one canonical
+home — if a number appears twice under the same label, one of them is wrong.
+Figures come off the workbook projection (`v_workbook_installment_balances`),
+never the policy resolver or `ledger.totalPayments`, so `Paid + Outstanding =
+Total` holds. The status ribbon renders exactly one state. There is no side
+rail: it was taller than the content beside it, so it set the page length.
+
+### 3.4a Student edit (`/protected/students/[id]/edit`)
+
+- **Main job:** Correct one field and save.
+- **Notice first:** Any blocking problem, as a `<Notice>` above the form.
+- **Secondary:** Five visible `<Section>` groups — Student, Parent details and
+  address, Conventional discounts, Fee exceptions, Record status.
+- **Hidden:** Nothing. **No `<details>` on this page**, enforced by
+  `tests/ui/interaction/student-form-nothing-collapsed.test.tsx`.
+
+Collapsing was tried and cost real money: 19 of 27 controls sat behind three
+closed disclosures, one holding the fee overrides. A student was charged
+₹14,000 for transport the route picker said they did not have, and the error
+summary's `#fieldName` anchors could point into a hidden panel. Twenty-seven
+controls is not too many for a desk screen; twenty-seven controls with eight
+visible is the defect.
 
 ### 3.5 Defaulters (`/protected/defaulters`)
 
