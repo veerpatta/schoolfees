@@ -15,6 +15,20 @@ import {
 
 import { PageHeader } from "@/components/admin/page-header";
 import { ActivityStrip } from "@/components/dashboard/activity-strip";
+import {
+  ClassesBoard,
+  CollectionBoard,
+  LateFeeBoard,
+  OverviewBoard,
+  RecoveryBoard,
+} from "@/components/dashboard/boards";
+import { MoneyBand } from "@/components/dashboard/money-band";
+import { ViewSwitcher } from "@/components/dashboard/view-switcher";
+import {
+  getDashboardAnalytics,
+  resolveDashboardView,
+  type DashboardView,
+} from "@/lib/dashboard/analytics";
 import { EmiTrackingCard } from "@/components/dashboard/emi-tracking-card";
 import { DashboardPrefetcher } from "@/components/dashboard/dashboard-prefetcher";
 import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
@@ -24,7 +38,6 @@ import {
   MobilePendingByClass,
 } from "@/components/dashboard/mobile-dashboard-screen";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
-import { RoleFocusActions } from "@/components/dashboard/role-focus-actions";
 import { RouteCollectionHeatmap } from "@/components/dashboard/route-collection-heatmap";
 import { OptimisticBanner } from "@/components/dashboard/optimistic-banner";
 import { MissingDuesBanner } from "@/components/shared/missing-dues-banner";
@@ -34,8 +47,6 @@ import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CountUp } from "@/components/ui/count-up";
-import { KpiCard } from "@/components/ui/kpi-card";
 import { LoadingBlock } from "@/components/ui/loading-skeleton";
 import { Money } from "@/components/ui/money";
 import { MoneyGlossaryLink } from "@/components/ui/money-glossary";
@@ -44,14 +55,13 @@ import { Section } from "@/components/ui/section";
 import {
   getDashboardAboveFoldData,
   getDashboardPageData,
-  getPendingImportBatchCount,
   getRouteCollectionSummary,
   scheduleDashboardAutoPrepare,
   type DashboardAlert,
   type DashboardCurrentInstallment,
 } from "@/lib/dashboard/data";
 import { getTodayActivityCounts } from "@/lib/activity/events";
-import { computeTodayCollectionDelta, type KpiDelta } from "@/lib/dashboard/kpi-delta";
+import { computeTodayCollectionDelta } from "@/lib/dashboard/kpi-delta";
 import type {
   DashboardClassSummaryRow,
   DashboardInstallmentSummaryRow,
@@ -117,48 +127,6 @@ function formatUpdatedAt(iso: string): string {
   }
 }
 
-function InstallmentPulse({
-  installment,
-  pending,
-  currentYearPending,
-  previousYearPending,
-  lateFeePending,
-  followUpCount,
-  t,
-}: {
-  installment: Awaited<ReturnType<typeof getDashboardAboveFoldData>>["currentInstallment"];
-  pending: number;
-  currentYearPending: number;
-  previousYearPending: number;
-  lateFeePending: number;
-  followUpCount: number;
-  t: DashboardTranslator;
-}) {
-  if (!installment) {
-    return null;
-  }
-
-  const tone = installment.status === "overdue" ? "warning" : "info";
-
-  return (
-    <Notice
-      tone={tone}
-      iconless
-      title={t("installmentPulsePending", {
-        label: installment.label,
-        dueDate: formatShortDate(installment.dueDate),
-      })}
-    >
-      <Money value={pending} size="sm" />{" "}
-      {t("installmentPulseBody", { count: followUpCount })}
-      <span className="mt-1 block text-xs text-muted-foreground">
-        Current <Money value={currentYearPending} size="xs" /> · Previous year{" "}
-        <Money value={previousYearPending} size="xs" /> · Late fee{" "}
-        <Money value={lateFeePending} size="xs" />
-      </span>
-    </Notice>
-  );
-}
 
 function CriticalAlerts({
   syncError,
@@ -193,475 +161,12 @@ function CriticalAlerts({
   );
 }
 
-function getCollectionRateSignal(
-  rate: number,
-  t: DashboardTranslator,
-): {
-  label: string;
-  tone: "success" | "warning" | "danger";
-} {
-  if (rate >= 75) return { label: t("signalOnTrack"), tone: "success" };
-  if (rate >= 50) return { label: t("signalBehindPace"), tone: "warning" };
-  return { label: t("signalNeedsAttention"), tone: "danger" };
-}
-
-function getCollectionRateHealth(rate: number, t: DashboardTranslator) {
-  return getCollectionRateSignal(rate, t);
-}
-
-/**
- * `onInk` renders the chip for the dark hero card. The paper tones are all
- * light "soft" tokens — on ink they read as pasted-on white pills, and in dark
- * mode the neutral one (surface-2) is the same lightness as --nav, so it
- * disappears entirely.
- */
-function KpiDeltaLine({ delta, onInk = false }: { delta: KpiDelta | null; onInk?: boolean }) {
-  if (!delta) return null;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
-        onInk
-          ? cn(
-              "bg-nav-surface",
-              delta.tone === "success" && "text-success-soft",
-              delta.tone === "danger" && "text-destructive-soft",
-              delta.tone === "neutral" && "text-nav-muted",
-            )
-          : cn(
-              delta.tone === "success" && "bg-success-soft text-success-soft-foreground",
-              delta.tone === "danger" && "bg-destructive-soft text-destructive-soft-foreground",
-              delta.tone === "neutral" && "bg-surface-2 text-muted-foreground",
-            ),
-      )}
-    >
-      {delta.label}
-    </span>
-  );
-}
 
 
-function HeroKpis({
-  collected,
-  collectionRate,
-  receiptsToday,
-  followUpCount,
-  overdueAmount,
-  currentYearExpected,
-  currentYearCollected,
-  currentYearPending,
-  previousYearPending,
-  previousYearCollected,
-  lateFeePending,
-  todayDelta,
-  canPostPayments,
-  sessionLabel,
-  t,
-}: {
-  collected: number;
-  collectionRate: number;
-  receiptsToday: number;
-  followUpCount: number;
-  overdueAmount: number;
-  currentYearExpected: number;
-  currentYearCollected: number;
-  currentYearPending: number;
-  previousYearPending: number;
-  previousYearCollected: number;
-  lateFeePending: number;
-  todayDelta: KpiDelta | null;
-  canPostPayments: boolean;
-  sessionLabel?: string;
-  t: DashboardTranslator;
-}) {
-  const rateSignal = getCollectionRateHealth(collectionRate, t);
-  const collectedPct =
-    currentYearExpected > 0
-      ? Math.min(100, Math.round((currentYearCollected / currentYearExpected) * 100))
-      : 0;
 
-  // Split this year's pending into what is already late and what has simply
-  // not fallen due yet. `overdueAmount` spans both pots (it can include old
-  // balance), so cap it at this year's pending before splitting.
-  const overdueWithinYear = Math.min(overdueAmount, currentYearPending);
-  const upcomingWithinYear = Math.max(currentYearPending - overdueWithinYear, 0);
-  const overduePct =
-    currentYearExpected > 0
-      ? Math.min(100 - collectedPct, Math.round((overdueWithinYear / currentYearExpected) * 100))
-      : 0;
-  const upcomingPct = Math.max(0, 100 - collectedPct - overduePct);
 
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
-  /* Ledger Calm 2.0 hero band: ink today-card (serif display money + desk
-     CTA), year-progress card, needs-attention card. Old balance keeps its own
-     card below — the three-pot split stays intact. */
-  return (
-    <div className="hidden gap-3 sm:grid md:grid-cols-3">
-      {/* Today — ink card. print:hidden because the band's background drops
-          on paper while the pale foreground stays, leaving the figure
-          invisible; the dashboard is a screen surface, not a report. */}
-      <div className="relative overflow-hidden rounded-2xl bg-nav px-5 py-5 text-nav-foreground shadow-md print:hidden">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-nav-muted">
-          {t("todayCollection")}
-        </p>
-        <div className="mt-2">
-          <CountUp
-            value={collected}
-            className="font-display-money text-4xl leading-none tracking-tight text-nav-foreground"
-          />
-        </div>
-        <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-nav-muted">
-          <span>{t("receiptsPosted", { count: receiptsToday })}</span>
-          <KpiDeltaLine delta={todayDelta} onInk />
-        </p>
-        <div className="mt-4 flex items-center gap-2">
-          {canPostPayments ? (
-            <Link
-              href={withSession("/protected/payments")}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground shadow-sm transition-colors hover:bg-accent/90"
-            >
-              <BadgeIndianRupee className="size-3.5" aria-hidden="true" />
-              {t("openPaymentDesk")}
-            </Link>
-          ) : null}
-          <Link
-            href={withSession("/protected/transactions?view=collection_today")}
-            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium text-nav-muted transition-colors hover:bg-nav-hover hover:text-nav-foreground"
-          >
-            {t("receipts")}
-            <ChevronRight className="size-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-      </div>
 
-      {/* Year progress — strictly this session's own fees. The full-year
-          target is stated FIRST and in words ("This year expected · fees
-          only"), then collected and pending sit underneath it so the three
-          figures visibly reconcile: collected + pending = expected. Old
-          balance and late fee are named explicitly as tracked-separately so
-          nobody reads the expected total as the whole session's money. */}
-      <div className="rounded-2xl border border-border bg-card px-5 py-5 shadow-xs">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {t("yearProgress")}
-          </p>
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-              rateSignal.tone === "success" && "bg-success-soft text-success-soft-foreground",
-              rateSignal.tone === "warning" && "bg-warning-soft text-warning-soft-foreground",
-              rateSignal.tone === "danger" && "bg-destructive-soft text-destructive-soft-foreground",
-            )}
-          >
-            {rateSignal.label}
-          </span>
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {t("thisYearExpected")} · {t("thisYearFeesOnly")}
-        </p>
-        <div className="mt-0.5">
-          <CountUp
-            value={currentYearExpected}
-            className="text-2xl font-semibold tracking-tight text-foreground"
-          />
-        </div>
-        {/* Three-segment track: collected · overdue · upcoming. The year's
-            money is never just "done vs not" — what is already late reads
-            differently from what simply has not fallen due yet. */}
-        <div
-          className="mt-3 flex h-2 overflow-hidden rounded-full bg-surface-3"
-          role="progressbar"
-          aria-valuenow={collectedPct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`${t("thisYearCollected")} ${collectedPct}%`}
-        >
-          <span
-            className="h-full bg-success transition-[width] duration-500 ease-out-expo"
-            style={{ width: `${collectedPct}%` }}
-            title={`${t("thisYearCollected")} · ${formatInr(currentYearCollected)}`}
-          />
-          <span
-            className="h-full bg-destructive transition-[width] duration-500 ease-out-expo"
-            style={{ width: `${overduePct}%` }}
-            title={`${t("overdue")} · ${formatInr(overdueWithinYear)}`}
-          />
-          <span
-            className="h-full bg-warning/60 transition-[width] duration-500 ease-out-expo"
-            style={{ width: `${upcomingPct}%` }}
-            title={`${t("dueNotOverdue")} · ${formatInr(upcomingWithinYear)}`}
-          />
-        </div>
-        <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <span aria-hidden="true" className="size-2 rounded-full bg-success" />
-            {t("collected")}
-          </span>
-          {overdueWithinYear > 0 ? (
-            <span className="inline-flex items-center gap-1">
-              <span aria-hidden="true" className="size-2 rounded-full bg-destructive" />
-              {t("overdue")} {formatInr(overdueWithinYear)}
-            </span>
-          ) : null}
-          {upcomingWithinYear > 0 ? (
-            <span className="inline-flex items-center gap-1">
-              <span aria-hidden="true" className="size-2 rounded-full bg-warning/60" />
-              {t("dueNotOverdue")} {formatInr(upcomingWithinYear)}
-            </span>
-          ) : null}
-        </p>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          <span>
-            <span className="block text-muted-foreground">{t("thisYearCollected")}</span>
-            <span className="font-semibold tabular-nums text-success">
-              {formatInr(currentYearCollected)}
-            </span>{" "}
-            <span className="text-muted-foreground">({collectedPct}%)</span>
-          </span>
-          <Link
-            href={withSession("/protected/defaulters")}
-            className="group text-right"
-          >
-            <span className="block text-muted-foreground group-hover:text-foreground">
-              {t("thisYearPending")}
-            </span>
-            <span className="font-semibold tabular-nums text-warning">
-              {formatInr(currentYearPending)}
-            </span>
-          </Link>
-        </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          {t("excludesOldBalance")}
-          {lateFeePending > 0
-            ? ` · ${t("lateFeeSeparate", { amount: formatInr(lateFeePending) })}`
-            : ""}
-        </p>
-        {previousYearCollected > 0 ? (
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {t("oldBalanceCollectedInline", {
-              amount: formatInr(previousYearCollected),
-            })}
-          </p>
-        ) : null}
-      </div>
-
-      {/* Needs attention — overdue money + follow-up load */}
-      <div className="rounded-2xl border border-destructive/30 bg-destructive-soft px-5 py-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-destructive-soft-foreground">
-          {t("needsAttention")}
-        </p>
-        <div className="mt-2">
-          <CountUp
-            value={overdueAmount}
-            className="text-2xl font-semibold tracking-tight text-destructive"
-          />
-        </div>
-        <p className="mt-1 text-xs text-destructive-soft-foreground">
-          {t("overdueWithoutLateFee")} · {t("pastInstallmentDueDate")}
-        </p>
-        <p className="mt-2 text-xs text-destructive-soft-foreground">
-          {t("studentsCount", { count: followUpCount })}
-          {/* Name the old-balance share explicitly — this card's overdue figure
-              spans both pots, unlike Year progress next door. */}
-          {previousYearPending > 0 ? (
-            <>
-              {" · "}
-              {t("oldBalanceShort")} <Money value={previousYearPending} size="xs" />
-            </>
-          ) : null}
-          {lateFeePending > 0 ? (
-            <>
-              {" · "}
-              {t("lateFeePendingLabel")} <Money value={lateFeePending} size="xs" />
-            </>
-          ) : null}
-        </p>
-        <Link
-          href={withSession("/protected/defaulters")}
-          className="mt-3 inline-flex items-center gap-1 rounded-lg border border-destructive/30 bg-card px-3 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive-soft"
-        >
-          <ClipboardList className="size-3.5" aria-hidden="true" />
-          {t("defaulters")}
-          <ChevronRight className="size-3.5" aria-hidden="true" />
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Desktop secondary KPI strip — the five quieter numbers under the hero band:
- * this month, average receipt, active students, old-balance recovery, and
- * late fee still pending.
- */
-function DesktopSecondaryKpis({
-  kpis,
-  sessionLabel,
-  t,
-}: {
-  kpis: DashboardKpis;
-  sessionLabel?: string;
-  t: DashboardTranslator;
-}) {
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
-  const avgReceipt =
-    kpis.receiptsToday > 0 ? Math.round(kpis.todaysCollection / kpis.receiptsToday) : 0;
-  const previousYearOriginal = kpis.previousYearOriginal ?? 0;
-  const previousYearCollected = kpis.previousYearCollected ?? 0;
-  const oldBalancePct =
-    previousYearOriginal > 0
-      ? Math.min(100, Math.round((previousYearCollected / previousYearOriginal) * 100))
-      : 0;
-
-  return (
-    <div className="hidden gap-2 sm:grid sm:grid-cols-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-5">
-      <KpiCard
-        label={t("thisMonth")}
-        value={<Money value={kpis.thisMonthCollection} size="lg" />}
-        hint={t("monthlyReceipts")}
-        href={withSession("/protected/transactions?view=receipts")}
-      />
-      <KpiCard
-        label={t("avgReceipt")}
-        value={avgReceipt > 0 ? <Money value={avgReceipt} size="lg" /> : <span className="text-lg font-semibold text-muted-foreground">—</span>}
-        hint={t("postedToday")}
-      />
-      <KpiCard
-        label={t("activeStudents")}
-        value={<span className="text-lg font-semibold tabular text-foreground">{kpis.totalStudents}</span>}
-        hint={t("currentSession")}
-        href={withSession("/protected/students")}
-      />
-      <KpiCard
-        label={t("oldBalanceTitle")}
-        value={<span className="text-lg font-semibold tabular text-foreground">{oldBalancePct}%</span>}
-        hint={t("oldBalanceRecovered")}
-        href={withSession("/protected/admin-tools/prev-year-dues")}
-      />
-      {/* `lateFeeSeparate` carries an {amount} placeholder; calling it bare
-          threw a next-intl FORMATTING_ERROR on every dashboard render. The
-          card already shows the figure, so pass it through. */}
-      <KpiCard
-        label={t("lateFeePendingLabel")}
-        value={<Money value={kpis.lateFeePending ?? 0} size="lg" tone="warning" />}
-        hint={t("lateFeeSeparate", { amount: formatInr(kpis.lateFeePending ?? 0) })}
-        href={withSession("/protected/defaulters")}
-      />
-    </div>
-  );
-}
-
-/**
- * OldBalanceRecoveryCard gives previous-year carry-forward dues their own
- * dedicated home instead of letting them leak into this year's cards. It
- * reads as a small recovery tracker: brought forward → recovered → still due,
- * with a reconciliation line so the office can always tie the session's total
- * receipts back to the split buckets.
- */
-function OldBalanceRecoveryCard({
-  originalAmount,
-  recoveredAmount,
-  pendingAmount,
-  lateFeePending,
-  totalCollected,
-  currentYearCollected,
-  sessionLabel,
-  t,
-}: {
-  originalAmount: number;
-  recoveredAmount: number;
-  pendingAmount: number;
-  lateFeePending: number;
-  totalCollected: number;
-  currentYearCollected: number;
-  sessionLabel?: string;
-  t: DashboardTranslator;
-}) {
-  const hasOldBalance =
-    originalAmount > 0 || pendingAmount > 0 || recoveredAmount > 0;
-  if (!hasOldBalance) {
-    return null;
-  }
-
-  const recoveredPct =
-    originalAmount > 0
-      ? Math.min(100, Math.round((recoveredAmount / originalAmount) * 100))
-      : 0;
-  const otherCollected = Math.max(
-    0,
-    totalCollected - currentYearCollected - recoveredAmount,
-  );
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
-
-  return (
-    <div className="rounded-lg border border-amber-300 bg-amber-50/70 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-amber-500 bg-amber-100 text-[9px] font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-200">
-            Old
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-foreground">{t("oldBalanceTitle")}</p>
-            <p className="text-[11px] text-muted-foreground">{t("oldBalanceDescription")}</p>
-          </div>
-        </div>
-        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-          {t("oldBalanceRecoveredPct", { pct: recoveredPct })}
-        </span>
-      </div>
-
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("oldBalanceBroughtForward")}
-          </p>
-          <Money value={originalAmount} size="sm" className="mt-0.5" />
-        </div>
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("oldBalanceRecovered")}
-          </p>
-          <Money value={recoveredAmount} size="sm" tone="success" className="mt-0.5" />
-        </div>
-        <Link href={withSession("/protected/defaulters")} className="group">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("oldBalanceStillDue")}
-          </p>
-          <span className="mt-0.5 inline-flex items-center gap-1">
-            <Money value={pendingAmount} size="sm" tone="warning" />
-            <ChevronRight
-              className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-              aria-hidden="true"
-            />
-          </span>
-        </Link>
-      </div>
-
-      <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-900/60">
-        <div
-          className="h-full rounded-full bg-amber-500 transition-all duration-500"
-          style={{ width: `${recoveredPct}%` }}
-        />
-      </div>
-
-      <p className="mt-2.5 border-t border-amber-200 pt-2 text-[11px] text-muted-foreground dark:border-amber-900">
-        {t("sessionMoneyReconciliation", {
-          total: formatInr(totalCollected),
-          currentYear: formatInr(currentYearCollected),
-          previousYear: formatInr(recoveredAmount),
-          other: formatInr(otherCollected),
-        })}
-        {lateFeePending > 0 ? (
-          <>
-            {" · "}
-            {t("lateFeeSeparate", { amount: formatInr(lateFeePending) })}
-          </>
-        ) : null}
-      </p>
-    </div>
-  );
-}
 
 
 /* ---------------------------------------------------------------------------
@@ -722,92 +227,6 @@ function QuickActions({
    after the KPI cards. DailyMomentumCard below stays parked for now.
    --------------------------------------------------------------------------- */
 
-function CollectionFunnelBar({
-  expected,
-  collected,
-  pending,
-  overdue,
-}: {
-  expected: number;
-  collected: number;
-  pending: number;
-  overdue: number;
-}) {
-  if (expected === 0) return null;
-
-  const collectedPct = Math.min(100, Math.round((collected / expected) * 100));
-  const overdueWithinPending = Math.min(overdue, pending);
-  const normalPending = Math.max(0, pending - overdueWithinPending);
-  const pendingPct = Math.min(100, Math.round((normalPending / expected) * 100));
-  const overduePct = Math.min(100, Math.round((overdueWithinPending / expected) * 100));
-  const unaccountedPct = Math.max(0, 100 - collectedPct - pendingPct - overduePct);
-
-  return (
-    <Section
-      title="Collection Funnel"
-      description="This year's fees only - old balance and late fees are tracked separately. Overdue excludes late fee."
-      variant="card"
-    >
-      <div className="space-y-4">
-        <div className="relative h-8 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="absolute left-0 top-0 h-full bg-emerald-500 transition-all duration-700"
-            style={{ width: `${collectedPct}%` }}
-            title={`Collected: ${collectedPct}%`}
-          />
-          <div
-            className="absolute top-0 h-full bg-amber-400 transition-all duration-700"
-            style={{ left: `${collectedPct}%`, width: `${pendingPct}%` }}
-            title={`Pending: ${pendingPct}%`}
-          />
-          <div
-            className="absolute top-0 h-full bg-red-500 transition-all duration-700"
-            style={{ left: `${collectedPct + pendingPct}%`, width: `${overduePct}%` }}
-            title={`Overdue: ${overduePct}%`}
-          />
-          {unaccountedPct > 0 ? (
-            <div
-              className="absolute top-0 h-full bg-muted-foreground/20"
-              style={{
-                left: `${collectedPct + pendingPct + overduePct}%`,
-                width: `${unaccountedPct}%`,
-              }}
-            />
-          ) : null}
-          {collectedPct >= 12 ? (
-            <span className="absolute inset-0 flex items-center pl-3 text-xs font-semibold text-white">
-              {collectedPct}% collected
-            </span>
-          ) : null}
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 text-sm">
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
-              <span className="font-medium text-foreground">Collected</span>
-            </div>
-            <Money value={collected} size="sm" tone="success" className="pl-4" />
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
-              <span className="font-medium text-foreground">Due not overdue</span>
-            </div>
-            <Money value={normalPending} size="sm" tone="warning" className="pl-4" />
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
-              <span className="font-medium text-foreground">Overdue without late fee</span>
-            </div>
-            <Money value={overdue} size="sm" tone="danger" className="pl-4" />
-          </div>
-        </div>
-      </div>
-    </Section>
-  );
-}
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function DailyMomentumCard({
@@ -1328,25 +747,25 @@ function InstallmentTrack({ installments }: { installments: DashboardInstallment
       ring: "border-emerald-500 bg-emerald-500",
       text: "text-emerald-700",
       label: "Cleared",
-      dotColor: "#10b981",
+      dotColor: "hsl(var(--success))",
     },
     overdue: {
       ring: "border-red-500 bg-red-50",
       text: "text-red-700",
       label: "Overdue",
-      dotColor: "#ef4444",
+      dotColor: "hsl(var(--destructive))",
     },
     current: {
       ring: "border-amber-500 bg-amber-50",
       text: "text-amber-700",
       label: "Due Soon",
-      dotColor: "#f59e0b",
+      dotColor: "hsl(var(--warning))",
     },
     upcoming: {
       ring: "border-muted bg-muted/40",
       text: "text-muted-foreground",
       label: "Upcoming",
-      dotColor: "#94a3b8",
+      dotColor: "hsl(var(--muted-foreground))",
     },
   } as const;
 
@@ -1491,7 +910,7 @@ function ClassLeaderboard({ classSummary }: { classSummary: DashboardClassSummar
   const sorted = [...classSummary].sort((a, b) => b.collectionRate - a.collectionRate);
 
   const getRateColor = (rate: number) =>
-    rate >= 75 ? "#10b981" : rate >= 50 ? "#f59e0b" : "#ef4444";
+    rate >= 75 ? "hsl(var(--success))" : rate >= 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
 
   const getRateBg = (rate: number) =>
     rate >= 75
@@ -1573,9 +992,9 @@ function StudentStatusRing({
   const size = 104;
   const center = size / 2;
   const segments = [
-    { count: studentsFullyPaid, color: "#10b981", label: "Fully Paid" },
-    { count: studentsNormal, color: "#f59e0b", label: "Pending" },
-    { count: studentsOverdue, color: "#ef4444", label: "Overdue" },
+    { count: studentsFullyPaid, color: "hsl(var(--success))", label: "Fully Paid" },
+    { count: studentsNormal, color: "hsl(var(--warning))", label: "Pending" },
+    { count: studentsOverdue, color: "hsl(var(--destructive))", label: "Overdue" },
   ].filter((segment) => segment.count > 0);
 
   let offset = 0;
@@ -1991,16 +1410,22 @@ async function DashboardBelowFold({
   sessionLabel,
   canAutoPrepareDues,
   kpis,
+  view,
 }: {
   staffRole: Awaited<ReturnType<typeof requireStaffPermission>>["appRole"];
   sessionLabel: string;
   canAutoPrepareDues: boolean;
   kpis: DashboardKpis;
+  view: DashboardView;
 }) {
   const t = await getTranslations("Dashboard");
-  const [data, routeSummary] = await Promise.all([
+  // Analytics joins the same Promise.all rather than awaiting after it: it is
+  // an independent round trip and serialising it would put the slowest board a
+  // full query behind the money band for no reason.
+  const [data, routeSummary, analytics] = await Promise.all([
     getDashboardPageData({ staffRole, sessionLabel }),
     getRouteCollectionSummary(sessionLabel),
+    getDashboardAnalytics(sessionLabel),
   ]);
   scheduleDashboardAutoPrepare({
     canAutoPrepareDues,
@@ -2060,6 +1485,42 @@ async function DashboardBelowFold({
 
       {visibleAlerts.length > 0 ? <AlertsPanel alerts={visibleAlerts} t={t} /> : null}
 
+      {/* The four analytical boards. Each is a grid of tiles and nothing else --
+          the sections that used to stack below the fold on every view now live
+          on the one board they belong to. */}
+      {view === "collection" ? <CollectionBoard analytics={analytics} /> : null}
+      {view === "recovery" ? (
+        <RecoveryBoard
+          analytics={analytics}
+          oldBalance={{
+            original: kpis.previousYearOriginal ?? 0,
+            recovered: kpis.previousYearCollected ?? 0,
+            pending: kpis.previousYearPending ?? 0,
+          }}
+        />
+      ) : null}
+      {view === "classes" ? (
+        <ClassesBoard analytics={analytics} sessionLabel={sessionLabel} />
+      ) : null}
+      {view === "latefee" ? (
+        <LateFeeBoard analytics={analytics} sessionLabel={sessionLabel} />
+      ) : null}
+
+      {view === "overview" ? (
+      <>
+      <OverviewBoard
+        installmentSummary={data.installmentSummary}
+        followUpQueue={data.followUpQueue}
+        todayModes={data.todayPaymentModeBreakdown}
+        sessionLabel={sessionLabel}
+        studentCounts={{
+          paid: data.paidStudents,
+          partly: data.partlyPaidStudents,
+          overdue: data.overdueStudents,
+          notStarted: data.notStartedStudents,
+        }}
+      />
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <TodayBreakdown kpis={kpis} paymentModeBreakdown={data.todayPaymentModeBreakdown} />
         <StudentStatusRing classSummary={data.classSummary} totalStudents={kpis.totalStudents} />
@@ -2116,6 +1577,8 @@ async function DashboardBelowFold({
         classSummary={data.classSummary}
         sessionLabel={sessionLabel}
       />
+      </>
+      ) : null}
 
       </div>
     </>
@@ -2127,7 +1590,7 @@ async function DashboardBelowFold({
    --------------------------------------------------------------------------- */
 
 type DashboardPageProps = {
-  searchParams?: Promise<{ notice?: string; prepared?: string; session?: string }>;
+  searchParams?: Promise<{ notice?: string; prepared?: string; session?: string; view?: string | string[] }>;
 };
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
@@ -2158,8 +1621,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // chaining one after the other.
   // sessionSwitcher preloaded so Home's pill opens with rows in hand rather
   // than firing a request on tap. TTL-cached, so this costs nothing.
-  const canViewImports = hasStaffPermission(staff, "imports:view");
-  const [aboveFold, todayActivityCounts, sessionSwitcher, pendingImportCount] = await Promise.all([
+  const [aboveFold, todayActivityCounts, sessionSwitcher] = await Promise.all([
     timer.measure("aboveFold", () =>
       getDashboardAboveFoldData({
         staffRole: staff.appRole,
@@ -2170,16 +1632,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? timer.measure("todayActivityCounts", () => getTodayActivityCounts(staff.id))
       : Promise.resolve({}),
     getSessionSwitcherData(),
-    canViewImports
-      ? timer.measure("pendingImportCount", () =>
-          getPendingImportBatchCount(viewSession.sessionLabel),
-        )
-      : Promise.resolve(0),
   ]);
   const canWriteStudents = hasStaffPermission(staff, "students:write");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canAutoPrepareDues = hasStaffPermission(staff, "fees:write");
   const preparedCount = Number.parseInt(resolvedSearchParams?.prepared ?? "", 10);
+  const view = resolveDashboardView(resolvedSearchParams?.view);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const todayIsoForDelta = new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Kolkata",
@@ -2401,84 +1859,56 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           />
         </div>
 
+        {/* Desk view. The band carries the four numbers that are true on every
+            board; the switcher picks which board sits under it. This replaces a
+            fourteen-section vertical stack in which every section had a title
+            AND a paragraph, and three of them restated the same KPIs. */}
         <div className="hidden space-y-4 md:block">
-        <RoleFocusActions
-          role={staff.appRole}
-          sessionLabel={viewSession.sessionLabel}
-          todaysCollection={aboveFold.kpis.todaysCollection}
-          receiptsToday={aboveFold.kpis.receiptsToday}
-          urgentFollowUps={aboveFold.studentsWithPending}
-          pendingImports={pendingImportCount}
-          canPostPayments={canPostPayments}
-        />
-        <HeroKpis
-          collected={aboveFold.kpis.todaysCollection}
-          collectionRate={thisYearCollectionRate}
-          receiptsToday={aboveFold.kpis.receiptsToday}
-          followUpCount={aboveFold.studentsWithPending}
-          overdueAmount={aboveFold.kpis.overdueAmount}
-          currentYearExpected={currentYearExpected}
-          currentYearCollected={currentYearCollected}
-          currentYearPending={currentYearPending}
-          previousYearPending={previousYearPending}
-          previousYearCollected={previousYearCollected}
-          lateFeePending={lateFeePending}
-          todayDelta={todayDelta}
-          canPostPayments={canPostPayments}
-          sessionLabel={viewSession.sessionLabel}
-          t={t}
-        />
-
-        <DesktopSecondaryKpis
-          kpis={aboveFold.kpis}
-          sessionLabel={viewSession.sessionLabel}
-          t={t}
-        />
-
-        {/* Previous-year carry-forward gets its own card on every breakpoint —
-            this is the single place old balance numbers live, so the hero
-            cards above stay strictly this-year. */}
-        <OldBalanceRecoveryCard
-          originalAmount={previousYearOriginal}
-          recoveredAmount={previousYearCollected}
-          pendingAmount={previousYearPending}
-          lateFeePending={lateFeePending}
-          totalCollected={aboveFold.kpis.totalCollected}
-          currentYearCollected={currentYearCollected}
-          sessionLabel={viewSession.sessionLabel}
-          t={t}
-        />
-
-        {/* This-year collection progress. Phones get the same three-way split
-            in the v2 home card above; the funnel bar's labels need horizontal
-            room, so it stays tablet+. */}
-        <div className="hidden sm:block anim-fade-in">
-          <CollectionFunnelBar
-            expected={currentYearExpected}
-            collected={currentYearCollected}
-            pending={currentYearPending}
-            overdue={aboveFold.kpis.overdueAmount}
+          <MoneyBand
+            collectedToday={aboveFold.kpis.todaysCollection}
+            collectedThisYear={currentYearCollected}
+            feesPending={currentYearPending}
+            lateFeePending={lateFeePending}
+            receiptsToday={aboveFold.kpis.receiptsToday}
+            todayDelta={todayDelta}
+            sessionLabel={viewSession.sessionLabel}
+            labels={{
+              today: t("todayCollection"),
+              thisYear: t("thisYearCollected"),
+              feesPending: t("feesPendingLabel"),
+              lateFeePending: t("lateFeePendingLabel"),
+              receipts: t("receiptsWord"),
+              lateFeeHint: t("lateFeeNotDuesHint"),
+            }}
           />
-        </div>
-        <InstallmentPulse
-          installment={aboveFold.currentInstallment}
-          pending={aboveFold.kpis.totalPending}
-          currentYearPending={aboveFold.kpis.currentYearPending ?? aboveFold.kpis.totalPending}
-          previousYearPending={aboveFold.kpis.previousYearPending ?? 0}
-          lateFeePending={aboveFold.kpis.lateFeePending ?? 0}
-          followUpCount={aboveFold.studentsWithPending}
-          t={t}
-        />
-        <CriticalAlerts syncError={aboveFold.syncError} appRole={staff.appRole} sessionLabel={viewSession.sessionLabel} t={t} />
 
-        <div className="anim-fade-in [animation-delay:60ms]">
-          <QuickActions
-            canWriteStudents={canWriteStudents}
-            canPostPayments={canPostPayments}
+          <ViewSwitcher
+            current={view}
+            sessionLabel={viewSession.sessionLabel}
+            labels={{
+              overview: t("viewOverview"),
+              collection: t("viewCollection"),
+              recovery: t("viewRecovery"),
+              classes: t("viewClasses"),
+              latefee: t("viewLateFee"),
+            }}
+          />
+
+          <CriticalAlerts
+            syncError={aboveFold.syncError}
+            appRole={staff.appRole}
             sessionLabel={viewSession.sessionLabel}
             t={t}
           />
-        </div>
+
+          <div className="anim-fade-in [animation-delay:60ms]">
+            <QuickActions
+              canWriteStudents={canWriteStudents}
+              canPostPayments={canPostPayments}
+              sessionLabel={viewSession.sessionLabel}
+              t={t}
+            />
+          </div>
         </div>
         <Suspense fallback={<DashboardBelowFoldSkeleton />}>
           <DashboardBelowFold
@@ -2486,6 +1916,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             sessionLabel={viewSession.sessionLabel}
             canAutoPrepareDues={canAutoPrepareDues}
             kpis={aboveFold.kpis}
+            view={view}
           />
         </Suspense>
       </div>

@@ -934,7 +934,15 @@
     "topDefaultersTitle": "Top defaulters",
     "topDefaultersDescription": "Highest risk first — overdue, then by amount.",
     "openWorklist": "Open worklist",
-    "cashCollectedToday": "Cash collected today"
+    "cashCollectedToday": "Cash collected today",
+    "feesPendingLabel": "Fees pending",
+    "receiptsWord": "receipts",
+    "lateFeeNotDuesHint": "Tracked separately — never part of fees",
+    "viewOverview": "Overview",
+    "viewCollection": "Collection",
+    "viewRecovery": "Recovery",
+    "viewClasses": "Classes",
+    "viewLateFee": "Late fee"
   },
   "Payments": {
     "eyebrow": "Payments",

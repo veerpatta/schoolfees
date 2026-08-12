@@ -934,7 +934,15 @@
     "topDefaultersTitle": "Top defaulters",
     "topDefaultersDescription": "Sabse zyada risk pehle — pehle overdue, phir amount ke hisaab se.",
     "openWorklist": "Worklist kholein",
-    "cashCollectedToday": "Aaj cash mila"
+    "cashCollectedToday": "Aaj cash mila",
+    "feesPendingLabel": "Fees pending",
+    "receiptsWord": "receipts",
+    "lateFeeNotDuesHint": "Alag se track hota hai — fees mein nahi",
+    "viewOverview": "Overview",
+    "viewCollection": "Collection",
+    "viewRecovery": "Recovery",
+    "viewClasses": "Classes",
+    "viewLateFee": "Late fee"
   },
   "Payments": {
     "eyebrow": "Payments",

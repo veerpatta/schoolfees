@@ -29,8 +29,10 @@ describe("office performance guardrails", () => {
     expect(dashboardData).not.toContain("getSystemSyncHealth(sessionLabel)");
     expect(dashboardData).toContain('row.recordStatus === "active"');
     expect(dashboardPage).toContain("CriticalAlerts");
-    expect(dashboardPage).toContain("getCollectionRateHealth");
-    expect(dashboardPage).toContain("CollectionFunnelBar");
+    // The hero KPI stack and the funnel bar were folded into <MoneyBand> and
+    // the boards when the dashboard moved from one long scroll to five views.
+    expect(dashboardPage).toContain("MoneyBand");
+    expect(dashboardPage).toContain("ViewSwitcher");
     expect(dashboardPage).toContain("QuickJumpLinks");
     expect(dashboardPage).not.toContain("FollowUpQueue");
     expect(dashboardPage).not.toContain("RecentReceipts");

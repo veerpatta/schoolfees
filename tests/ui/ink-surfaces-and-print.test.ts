@@ -52,12 +52,14 @@ describe("ink surfaces stay legible", () => {
   it("does not put a light chip on the dashboard ink hero", () => {
     const dashboard = read("app/protected/dashboard/page.tsx");
 
-    // The ink hero must pass onInk so the chip uses nav tokens; in dark mode
-    // bg-surface-2 is the same lightness as --nav and disappears.
-    expect(dashboard).toContain("<KpiDeltaLine delta={todayDelta} onInk />");
-    expect(dashboard).toContain("onInk?: boolean");
+    // The ink surface is <MoneyBand> now, so the recipe lives there. Its delta
+    // line and captions read nav-muted rather than a light chip: in dark mode
+    // bg-surface-2 is the same lightness as --nav and disappears against it.
+    const moneyBand = read("components/dashboard/money-band.tsx");
+    expect(dashboard).toContain("<MoneyBand");
+    expect(moneyBand).toContain("text-nav-muted");
     // And the ink hero must not try to print.
-    expect(dashboard).toContain("bg-nav px-5 py-5 text-nav-foreground shadow-md print:hidden");
+    expect(moneyBand).toContain("bg-nav px-5 py-5 text-nav-foreground shadow-md print:hidden");
   });
 
   it("uses an ink-appropriate focus ring on the sidebar", () => {

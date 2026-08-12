@@ -498,21 +498,31 @@ describe("dashboard summary", () => {
 
   it("dashboard labels make overdue amount distinct from late fee", () => {
     const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
+    const moneyBand = readRepoFile("components/dashboard/money-band.tsx");
 
-    expect(dashboardPage).toContain("Overdue without late fee");
+    // The band gives the two their own slots rather than captioning one
+    // combined number, and the class table keeps saying which one it means.
+    expect(dashboardPage).toContain("Overdue no late fee");
+    expect(moneyBand).toContain("feesPending");
+    expect(moneyBand).toContain("lateFeePending");
+    expect(moneyBand).toContain("labels.lateFeeHint");
   });
 
   it("dashboard hero keeps this-year collection separate from previous-year recovery", () => {
     const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
 
-    // Hero cards must read the current-year split, and previous-year dues get
-    // their own dedicated card instead of blending into the headline totals.
-    expect(dashboardPage).toContain("OldBalanceRecoveryCard");
-    expect(dashboardPage).toContain('t("thisYearCollected")');
-    expect(dashboardPage).toContain('t("thisYearPending")');
-    expect(dashboardPage).toContain("thisYearCollectionRate");
-    expect(dashboardPage).toContain("expected={currentYearExpected}");
-    expect(dashboardPage).toContain("collected={currentYearCollected}");
+    // The money band carries the current-year split and nothing else.
+    // Previous-year recovery lives on its own board, so the two can never blend
+    // into one headline the way they did before the boards existed.
+    expect(dashboardPage).toContain("<MoneyBand");
+    expect(dashboardPage).toContain("collectedThisYear={currentYearCollected}");
+    expect(dashboardPage).toContain("feesPending={currentYearPending}");
+    expect(dashboardPage).toContain("<RecoveryBoard");
+    expect(dashboardPage).toContain("original: kpis.previousYearOriginal");
+    expect(dashboardPage).toContain("recovered: kpis.previousYearCollected");
+
+    // And the late fee is its own band slot -- never added into fees pending.
+    expect(dashboardPage).toContain("lateFeePending={lateFeePending}");
   });
 
   it("dashboard wires collection heatmap and class collection progress data", () => {

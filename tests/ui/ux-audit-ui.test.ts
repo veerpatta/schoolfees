@@ -246,7 +246,7 @@ describe("read-only UX audit implementation", () => {
       "Call queue for",
     );
     expect(englishMessages.Dashboard.todayCollection).toBe("Today collection");
-    expect(dashboard).toContain("HeroKpis");
+    expect(dashboard).toContain("MoneyBand");
   });
 
   it("write actions still revalidate finance surfaces", () => {

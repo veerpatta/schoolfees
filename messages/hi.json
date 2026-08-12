@@ -934,7 +934,15 @@
     "topDefaultersTitle": "प्रमुख बकायेदार",
     "topDefaultersDescription": "सबसे अधिक जोखिम पहले — पहले अतिदेय, फिर राशि के अनुसार।",
     "openWorklist": "सूची खोलें",
-    "cashCollectedToday": "आज नकद प्राप्त"
+    "cashCollectedToday": "आज नकद प्राप्त",
+    "feesPendingLabel": "फीस बकाया",
+    "receiptsWord": "रसीदें",
+    "lateFeeNotDuesHint": "अलग से दर्ज — फीस में शामिल नहीं",
+    "viewOverview": "सारांश",
+    "viewCollection": "वसूली",
+    "viewRecovery": "बकाया वसूली",
+    "viewClasses": "कक्षाएँ",
+    "viewLateFee": "लेट फीस"
   },
   "Payments": {
     "eyebrow": "भुगतान",
