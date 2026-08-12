@@ -104,6 +104,7 @@ function installment(
     lastPaymentDate: null,
     baseCharge: 1500,
     paidAmount: 0,
+    appliedAmount: 0,
     discountCloseoutAmount: 0,
     adjustmentAmount: 0,
     rawLateFee: 0,

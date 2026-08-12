@@ -231,9 +231,23 @@ export type WorkbookInstallmentBalance = {
   transportRouteCode: string | null;
   lastPaymentDate: string | null;
   baseCharge: number;
+  /**
+   * Raw cash receipted against this installment, BEFORE adjustments.
+   *
+   * Almost never the figure to show a user: it still counts a reversed
+   * receipt. Use `appliedAmount` for "how much has this student actually
+   * paid".
+   */
   paidAmount: number;
+  /**
+   * Cash that actually stuck: `paidAmount` net of cash adjustments, floored at
+   * zero. This is what the ledger treats as collected, and what
+   * `base + late fee − applied − discountCloseout = pending` balances against.
+   */
+  appliedAmount: number;
   /** Balance cleared by a discount-mode write-off. Not cash. */
   discountCloseoutAmount: number;
+  /** Every adjustment on the row — cash reversals AND discount write-offs. */
   adjustmentAmount: number;
   rawLateFee: number;
   waiverApplied: number;
@@ -431,6 +445,7 @@ function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallm
     lastPaymentDate: row.last_payment_date,
     baseCharge: row.base_charge,
     paidAmount: row.paid_amount,
+    appliedAmount: row.applied_amount ?? row.paid_amount,
     discountCloseoutAmount: row.discount_closeout_amount ?? 0,
     adjustmentAmount: row.adjustment_amount,
     rawLateFee: row.raw_late_fee,

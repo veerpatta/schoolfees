@@ -43,6 +43,7 @@ export function StudentMoneyBand({
   installmentsPaid,
   installmentsTotal,
   installmentsPending,
+  receiptCount,
   nextDue,
   lastReceipt,
   emiPlan,
@@ -61,6 +62,8 @@ export function StudentMoneyBand({
   installmentsPaid: number;
   installmentsTotal: number;
   installmentsPending: number;
+  /** Receipts on file, for the Paid strip's hint. */
+  receiptCount: number;
   nextDue: { label: string; amount: number; dueDate: string } | null;
   lastReceipt: {
     id: string;
@@ -197,7 +200,10 @@ export function StudentMoneyBand({
                 plus <Money value={discountClosedAmount} size="xs" /> closed as discount
               </>
             ) : (
-              `${installmentsPaid} of ${installmentsTotal} installments settled`
+              // Not the installment count — that is Session fee's hint, and two
+              // strips repeating one sentence is exactly the noise this band
+              // exists to remove.
+              `across ${receiptCount} receipt${receiptCount === 1 ? "" : "s"}`
             )
           }
         />

@@ -387,20 +387,25 @@ export default async function StudentDetailPage({
 
   // Four hand-rolled tonal spans, replaced by the primitive that already
   // renders exactly these tones everywhere else in the app.
+  // Every status the workbook projection can return. The map used to cover
+  // three of five, so `pending` and `waived` fell through to a raw lowercase
+  // database string sitting next to three title-cased badges.
   const INSTALLMENT_STATUS_BADGE: Record<
     string,
-    { label: string; variant: "success" | "danger" | "warning" }
+    { label: string; variant: "success" | "danger" | "warning" | "neutral" }
   > = {
     paid: { label: "Paid", variant: "success" },
     overdue: { label: "Overdue", variant: "danger" },
     partial: { label: "Partial", variant: "warning" },
+    pending: { label: "Not due yet", variant: "neutral" },
+    waived: { label: "Waived", variant: "neutral" },
   };
 
   const getInstallmentStatusPill = (status: string) => {
     const badge = INSTALLMENT_STATUS_BADGE[status];
 
     return badge ? (
-      <Badge variant={badge.variant} dot>
+      <Badge variant={badge.variant} dot={badge.variant !== "neutral"}>
         {badge.label}
       </Badge>
     ) : (
@@ -412,13 +417,21 @@ export default async function StudentDetailPage({
   // splits out discount-mode receipts into a separate column). Sum it
   // directly for "Paid till now"; "Closed as discount" is sourced from
   // discount-mode receipts on the receipts list.
+  // `appliedAmount`, NOT `paidAmount`. The latter is raw cash receipted and
+  // still counts a reversed receipt: a student with one Rs 6,000 reversal read
+  // Rs 15,650 paid against a ledger that had applied Rs 9,650. Only
+  // `appliedAmount` satisfies base + late fee − applied − discountCloseout =
+  // pending, which is the arithmetic done out loud at the counter.
   const cashPaidAllInstallments = installmentBalances.reduce(
-    (sum, b) => sum + b.paidAmount,
+    (sum, b) => sum + b.appliedAmount,
     0,
   );
-  const discountClosedAmount = receipts
-    .filter((r) => r.paymentMode === "discount")
-    .reduce((sum, r) => sum + r.totalAmount, 0);
+  // Same trap on the other side: summing discount-mode receipts counts one that
+  // has since been reversed. The projection nets it.
+  const discountClosedAmount = installmentBalances.reduce(
+    (sum, b) => sum + b.discountCloseoutAmount,
+    0,
+  );
   // Build the snapshot rows from the same source as the Fee plan tab so the
   // tuition row shows the gross amount and the discount line subtracts it
   // cleanly — otherwise the resolver's post-conventional-discount tuition
@@ -544,8 +557,14 @@ export default async function StudentDetailPage({
                       </div>
                     ) : null}
                   </td>
+                  {/* `appliedAmount`, so the row adds up on screen: Charged −
+                      Paid = Outstanding, exactly. `paidAmount` is cash
+                      receipted before adjustments, so on a row with a reversal
+                      it left the three figures visibly failing to reconcile.
+                      The adjustment chip explains the gap between what was
+                      handed over and what stuck. */}
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-success-soft-foreground">
-                    <Money value={item.paidAmount} size="sm" />
+                    <Money value={item.appliedAmount} size="sm" />
                     {item.adjustmentAmount !== 0 ? (
                       <div className="mt-0.5 text-[10px] font-medium text-muted-foreground">
                         {formatInr(item.adjustmentAmount)} adjusted
@@ -1121,6 +1140,7 @@ export default async function StudentDetailPage({
         installmentsPaid={paidInstallments}
         installmentsTotal={installmentBalances.length}
         installmentsPending={installmentBalances.filter((row) => row.pendingAmount > 0).length}
+        receiptCount={receipts.length}
         nextDue={
           firstPendingInstallment
             ? {

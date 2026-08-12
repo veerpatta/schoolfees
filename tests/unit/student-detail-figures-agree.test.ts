@@ -43,6 +43,29 @@ describe("student detail: figures that share a label share a source", () => {
     );
   });
 
+  it("reports Paid net of reversals, not raw cash receipted", () => {
+    /**
+     * Found by walking the live app, not by a test — which is why it is pinned
+     * now. `paidAmount` on a workbook row is cash receipted BEFORE adjustments,
+     * so it still counts a reversed receipt. A TEST student with one Rs 6,000
+     * reversal and one Rs 5,000 reversed discount write-off showed
+     * "Paid this session Rs 15,650" against a ledger that had applied Rs 9,650.
+     *
+     * That is the same defect this file's "Paid" test was written to prevent —
+     * the figure was moved off `ledger.totalPayments` onto a column that has
+     * the identical flaw. Only `appliedAmount` balances
+     * base + late fee − applied − discountCloseout = pending.
+     */
+    const page = read(PAGE);
+
+    expect(page).toContain("sum + b.appliedAmount");
+    expect(page).not.toMatch(/cashPaidAllInstallments[\s\S]{0,120}sum \+ b\.paidAmount/);
+    // Discount close-outs have the same trap: summing discount-mode receipts
+    // counts one that was later reversed.
+    expect(page).toContain("sum + b.discountCloseoutAmount");
+    expect(page).not.toContain('r.paymentMode === "discount"');
+  });
+
   it("reports Paid from the workbook projection, not the raw ledger sum", () => {
     // `ledger.totalPayments` is every payment row for the student: all
     // sessions, all modes including discount close-outs, and it ignores

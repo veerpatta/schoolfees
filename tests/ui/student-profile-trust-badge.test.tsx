@@ -20,6 +20,7 @@ const BASE_PROPS = {
   installmentsPaid: 1,
   installmentsTotal: 4,
   installmentsPending: 3,
+  receiptCount: 2,
   nextDue: { label: "Installment 2", amount: 6000, dueDate: "2026-07-20" },
   lastReceipt: null,
   emiPlan: null,
