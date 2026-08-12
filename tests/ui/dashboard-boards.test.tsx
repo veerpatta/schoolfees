@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -235,6 +238,26 @@ describe("dashboard boards", () => {
         />,
       ),
     ).not.toThrow();
+  });
+
+  it("switching boards does not throw the page to the top", () => {
+    const switcher = readFileSync(
+      join(process.cwd(), "components/dashboard/view-switcher.tsx"),
+      "utf8",
+    );
+    const page = readFileSync(
+      join(process.cwd(), "app/protected/dashboard/page.tsx"),
+      "utf8",
+    );
+
+    // Link scrolls to top by default. The switcher and the board under it both
+    // sit below the money band, so that threw the reader off what they were
+    // looking at on every click. These are tabs, not page navigations.
+    expect(switcher).toContain("scroll={false}");
+
+    // And the board area keeps a floor, so swapping a full board for the
+    // loading skeleton cannot collapse the page and then push it back down.
+    expect(page).toContain('min-h-[32rem]');
   });
 
   it("charts use design-system tokens, never raw hex", () => {
