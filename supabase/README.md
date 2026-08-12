@@ -6,8 +6,8 @@
 |---|---|
 | **Active project** | `vgqyilgstjvgohrsiwkb` — Supabase ap-south-1 (Mumbai) |
 | **Project URL** | `https://vgqyilgstjvgohrsiwkb.supabase.co` |
-| **Migrations applied** | 151 |
-| **Schema objects** | 53 tables, 17 views, 4 materialized views |
+| **Migrations applied** | 181 |
+| **Schema objects** | 58 tables, 17 views, 3 materialized views, 33 public + 23 private functions |
 | **Backend status** | Mumbai-only; legacy regional project deleted after migration |
 
 The MCP server `supabase` in `.mcp.json` points to the Mumbai project.
@@ -21,7 +21,7 @@ produce — it never edits the database structure directly.
 | Path | What it is | Edit it? |
 |---|---|---|
 | `config.toml` | Supabase CLI project config (ports, auth, storage). | Only when changing local CLI behavior. |
-| `schema.sql` | Full snapshot of the current schema, regenerated 2026-08-09 from the live catalog at migration `20260809110000`. | **Generated artifact.** Do not hand-edit. Regenerate with `supabase db dump` (needs Docker), or by re-running the pg_catalog introspection described in the file header. |
+| `schema.sql` | Readable snapshot, last regenerated 2026-08-10 at migration `20260810090000` — and **stale since**: its own header lists the objects the late-fee split and dashboard analytics have moved. 427 KB. | **Generated artifact, not the source of truth.** Do not hand-edit. `supabase db dump` needs Docker and **truncates this file to zero bytes without it** — it has done so once. Prefer re-running the pg_catalog introspection described in the file header. |
 | `migrations/` | Ordered, append-only schema history. Each file is one migration applied to production. | **Add new files only.** Never rename or rewrite an applied migration — see `migrations/README.md`. |
 | `migrations/README.md` | Index of every migration grouped by feature, with one-line summaries. Start here when locating where a feature landed. | Update when adding a new migration so the index stays accurate. |
 | `schema/` | Reserved for future modular schema reference docs. Currently just a README. | Add notes when something complex needs explaining outside a migration. |

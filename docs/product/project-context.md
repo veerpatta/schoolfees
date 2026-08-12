@@ -224,3 +224,22 @@ Use these labels in docs/tasks:
 - **Implemented in current branch**: confirmed by code/schema/migration presence
 - **Pending browser/production verification**: implemented but needs environment run-through
 - **Planned next**: not shipped yet
+
+## Since this file was last updated (2026-05-30)
+
+The database has roughly tripled — 58 tables against the 23 objects listed above — and the
+app gained several surfaces this document does not describe. In rough order of weight:
+
+- **EMI repayment plans**, **previous-year dues carry-forward**, and **the late fee
+  becoming a separate charge** — the three that changed what the fee engine means. See
+  `docs/product/school-rules.md`.
+- **The dashboard rebuilt** into five boards — `docs/modules/dashboard.md`.
+- **Segment facets**, the students page rebuild, the recovery desk, refunds and undo,
+  bulk payment entry, automatic day close, and a full i18n port to three locales.
+- **Suspected-sibling detection removed**; confirmed family groups stay.
+
+For the current object inventory read `docs/maps/database-map.md`, which is generated from
+the live catalog, rather than the list above.
+
+The posting RPC named above is superseded: it is
+`post_student_payment_with_adjustments`.

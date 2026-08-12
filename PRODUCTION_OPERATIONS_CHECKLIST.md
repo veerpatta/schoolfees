@@ -58,3 +58,20 @@ UAT is complete. The app is live with real 2026-27 data.
 
 If you ever need to check DB health, migrations, or logs: Supabase dashboard
 → project `vgqyilgstjvgohrsiwkb` → Database / Logs / Advisors.
+
+## Nightly automation
+
+Two Vercel crons, both authenticating on `CRON_SECRET`:
+
+- `/api/cron/auto-day-close` — **day close is automatic.** The Finance Controls close view
+  is read-only; manual approval and cash/bank reconciliation were removed.
+- `/api/cron/nightly-backup`
+
+Inside Postgres, pg_cron additionally refreshes the workbook matviews every 2 minutes,
+enqueues a daily refresh just after midnight IST (a late fee appears because *a date
+passed*, and a date passing enqueues nothing on its own), and charges EMI late fees nightly.
+
+**pg_cron has no request context**, so `has_permission()` returns false inside a cron job.
+A job that calls a permission-gated function must be guarded differently — the EMI late-fee
+job silently never fired once for exactly this reason.
+

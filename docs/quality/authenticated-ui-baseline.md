@@ -1,5 +1,13 @@
 # Authenticated UI baseline
 
+> **Status: never filled in.** Every row in the matrix below still reads "Pending /
+> Blocked on local admin state", and it covers 8 of the 24 workspaces. It records an
+> intention, not a baseline. The checks that actually run are
+> `tests/smoke-readiness/visual-a11y.spec.ts` — zero serious/critical axe violations, zero
+> console errors, zero horizontal overflow, first Tab focus-visible. See
+> `docs/qa/readiness-smoke.md`.
+
+
 This baseline covers only the `TEST-2026-27` session. Authentication state and run artifacts are gitignored because they may contain credentials or student information.
 
 ## Capture

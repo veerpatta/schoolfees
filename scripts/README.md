@@ -39,3 +39,18 @@ Completed one-time helpers, kept for reference only:
   `_post-vpps-apply-via-edge`, `dedupe-installment-labels`).
 - `scripts/_archive/design-tokens-migration/` — completed design-token migration.
 - `scripts/_revamp/` — May 2026 revamp helpers; output is gitignored (real PII).
+
+## Not listed above
+
+Added since this index was written:
+
+- `verify-late-fee-health.mjs` — 8 late-fee invariants (both engines agree, the split adds
+  up, no chargeable installment is stuck at a zero rate). Exits 1, so it can gate a deploy.
+- `measure-route-bundles.mjs` — route JS against `quality/route-bundle-baseline.json`.
+  `--check` fails CI. Ceilings ratchet **down**.
+- `audit-money-formatting.mjs` — fails on raw `toLocaleString('en-IN')` / `Intl` /
+  hand-written `₹` outside `lib/helpers/currency.ts`. Run via `quality:budgets`.
+- `capture-readiness-auth.mjs` — captures the Playwright auth state.
+- `prev-year-dues-core.mjs` + `prev-year-dues-dry-run.mjs` — carry-forward matching, no writes.
+- `schoolfees-mcp-server.mjs` — the local stdio MCP server. Its Cloudflare twin is in
+  `workers/schoolfees-mcp/`, and **the two must stay in sync**.

@@ -202,3 +202,20 @@ When requested to validate, run:
 
 If environment constraints block a command, report exactly what blocked it and
 what was run successfully.
+
+## Paths and surfaces added since this file was written
+
+- `/protected/payments/bulk` — the admin bulk-entry sub-surface. It is not an alternate
+  posting path: every row goes through `post_student_payment_with_adjustments`.
+- `lib/repayment-plans/` — EMI plans. A plan is never edited in place.
+- `lib/prev-year-dues/` — previous-year carry-forward.
+- `lib/segments/` — the shared filter vocabulary (outside `lib/students`, which is
+  `server-only`).
+- `lib/money/glossary.ts` — one canonical definition per money label. Update it first and
+  let the code follow; that is how the late-fee split was sequenced.
+- `lib/dashboard/analytics.ts` — the five dashboard boards and their cache contract.
+- `lib/recovery/` — students who have left and still owe.
+
+**The late fee is a separate charge.** It is never part of fees pending, expected fees,
+overdue, or defaulter status. The rule lives in two engines that must be edited together.
+See `docs/product/school-rules.md`.

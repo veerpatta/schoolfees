@@ -8,6 +8,7 @@ These files back workbook-style dues views and the transactions/exports download
 Files:
 - `workbook.ts` - view metadata, aliases, hrefs, and export hrefs.
 - `dues.ts` - read-only workbook data loader for Transactions views.
+- `payment-modes.ts` - payment-mode labels and grouping.
 
 Shared libs used alongside:
 - `lib/ledger`

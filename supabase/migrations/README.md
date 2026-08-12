@@ -268,6 +268,105 @@ migration *does*. Filenames are listed without the `.sql` extension.
   rides along on the `public.users` select that `lib/supabase/session.ts` and
   the login action already perform. The setter stays; it is the write path.
 
+### Financial surfaces hardened (July)
+
+- `20260726172238_dashboard_excludes_reversed_receipts` — a receipt reversed to
+  zero was still counted as collection everywhere.
+- `20260727113603_secure_financial_surfaces_and_repair_receipt_allocations`
+- `20260727184500_freeze_payment_snapshot_without_temp_table`
+
+### Family, bulk update, left students (early August)
+
+- `20260805031500_one_family_per_student` — unique index on
+  `student_family_members (student_id, academic_session_label)`.
+- `20260805064509_student_fee_override_head_labels`
+- `20260805092228_repair_bulk_update_session_repoint` — repairs the 372 students
+  a bulk update repointed into `TEST-2026-27` through an unscoped class lookup.
+- `20260805120000_left_student_outstanding_uses_ledger` and
+  `20260808210000_left_students_with_payments_stay_collectable` — a student who
+  left having paid something still owes the rest, and must stay chaseable.
+- `20260805140000_bulk_payment_duplicate_scopes`
+- `20260807120000_workbook_financials_conventional_discount`
+
+### Late fee, part 1 — one rule in both engines (2026-08-08/09)
+
+- `20260808130401_late_fee_rule_change_snapshot` — immutable pre-change record.
+- `20260808131348_student_late_fee_waivers` — waivers become per-installment rows.
+- `20260808140000_unify_late_fee_rule_and_grandfather` — **the rule unification**,
+  with the whole increase grandfathered in the same transaction. The school
+  approved the rule but not back-charging families.
+- `20260808150000_waive_late_fee_per_installment`
+- `20260808160000_dashboard_fee_split_rpc`
+- `20260808170000_expected_fees_exclude_late_fee` +
+  `20260808180000_installment_expected_excludes_late_fee`
+- `20260808190000_cannot_waive_a_paid_late_fee` — waivable capped at what is owed.
+- `20260808200000_reversing_a_writeoff_restores_the_debt`
+- `20260809110000_late_fee_waived_means_manually_waived`
+
+### Segment facets
+
+- `20260809100000_student_segment_facets` — `v_student_directory` +
+  `get_student_segment_counts`; the 24 filter chips.
+- `20260810090000_money_segments_read_money_not_status_label`
+- `20260811080026_student_directory_emi_segments`
+
+### EMI / repayment plans (2026-08-11/12)
+
+- `20260811072807_student_repayment_plans_schema`
+- `20260811073129_student_repayment_plans_engine`
+- `20260811073333_repayment_plan_remaining_reads_live` — price from the live
+  snapshot, not the matview; the matview refreshes asynchronously and
+  rescheduling off it re-committed a family to their pre-payment balance.
+- `20260811073515_repayment_plan_schedule_pins_search_path`
+- `20260811091928_repayment_plan_custom_due_dates`
+- `20260811092751_fix_repayment_preview_error_array_append`
+- `20260811235922_repayment_plan_current_year_only_scope` +
+  `20260811235943_repayment_rpcs_accept_current_year_only` — the third scope.
+- `20260811155310_waive_late_fee_respects_active_emi_plan` +
+  `20260811155513_waive_late_fee_temp_table_reentrant`
+- `20260811090730_emi_collected_excludes_reversed_receipts`
+
+**The EMI late fee, designed twice.** The release-a-waiver approach could not
+express the school's rule and never fired once:
+
+- `20260811232632_emi_missed_instalment_releases_a_late_fee`,
+  `20260811232703_..._clean_implementation`,
+  `20260811232956_..._only_where_it_bites` — the first design.
+- `20260812001114_installments_carry_an_emi_late_fee_flag` — **patched only the
+  function, not the matview.** EMI late fees were visible to the Payment Desk and
+  invisible to the dashboard for four days. The cautionary tale for the shared rule.
+- `20260812001420_emi_late_fee_is_a_real_charge_not_a_released_waiver` — the final
+  design: a missed EMI inserts its own real installment.
+- `20260812001455_sync_repayment_plan_late_fees_charges_uncapped`
+- `20260812001610_emi_late_fee_job_runs_under_cron` — pg_cron has no request
+  context, so `has_permission()` returns false inside it.
+- `20260812001647_emi_late_fee_insert_omits_generated_amount_due`
+- `20260812001905_waive_late_fee_message_matches_the_new_emi_rule`
+
+### Auth and status
+
+- `20260811224107_deny_access_without_an_active_staff_record` — `current_staff_role()`
+  used to COALESCE a missing staff row to `view_only`, so deactivating someone
+  demoted them instead of removing them.
+- `20260811090000_drop_suspected_sibling_detection` — phone-derived families were
+  wrong and the slowest read in the app. Confirmed groups stay.
+- `20260812022558_overdue_outranks_partial_in_the_engine_too`
+
+### Late fee, part 2 — a separate charge (2026-08-12)
+
+- `20260812120000_late_fee_is_a_separate_charge` — `pending_amount` becomes fees
+  only; `late_fee_pending` and `total_pending` get their own columns in both
+  engines; `balance_status` reads `paid` once fees are clear.
+- `20260812130000_every_chargeable_installment_carries_a_rate` — 385 installments
+  carried a rate of 0 while their class said ₹1,000 and could never accrue.
+- `20260812140000_a_corrected_rate_is_not_a_rule_change`
+
+### Dashboard analytics
+
+- `20260812150000_dashboard_analytics` — one query for everything below the money band.
+- `20260812170000_dashboard_analytics_carries_route_recovery` — folds route recovery in,
+  deleting a 507-row transfer that was grouped in Node.
+
 ## When you add a new migration
 
 1. Create the file via `supabase migration new <name>` so the timestamp is

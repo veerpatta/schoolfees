@@ -1,13 +1,13 @@
 # Office Components
 
-Routes served: `/protected/transactions`, `/protected/defaulters`, and
-`/protected/exports`.
+**The split this file used to describe as upcoming has happened.** Transactions,
+Defaulters and Receipts have their own folders now; Exports renders from
+`app/protected/exports/page.tsx` and never needed one.
 
-Paired domain libs include `lib/office`, `lib/reports`, `lib/ledger`,
-`lib/defaulters`, and `lib/exports` where present.
+What remains here is shared office chrome — `office-ui.tsx` and `auto-submit-form.tsx`.
 
-This folder currently holds Transactions, Defaulters, and Exports UI. Tier 2
-will split those into more precise module folders.
+Paired domain libs: `lib/office`, `lib/reports`, `lib/ledger`, `lib/defaulters`.
+(There is no `lib/exports`; earlier versions of this file named one.)
 
 Keep these surfaces read-only unless the owning workflow explicitly allows a
 safe action such as export/download.
