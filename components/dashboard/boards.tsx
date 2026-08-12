@@ -105,6 +105,7 @@ export function OverviewBoard({
       <Tile label="Where the roll stands">
         <MiniDonut
           ariaLabel="Students by payment state"
+          format="count"
           centreValue={String(rosterTotal)}
           centreLabel="students"
           segments={[
@@ -348,6 +349,7 @@ export function RecoveryBoard({
         value={concentration.studentsWithDues}
         tone="warning"
         size="md"
+        format="count"
       />
       <StatTile label="Old balance brought forward" value={oldBalance.original} size="md" />
       <StatTile
@@ -406,12 +408,13 @@ export function ClassesBoard({
       </Tile>
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-1">
-        <StatTile label="Classes above 75%" value={ahead} tone="success" size="md" />
-        <StatTile label="Classes below 50%" value={behind} tone="danger" size="md" />
+        <StatTile label="Classes above 75%" value={ahead} tone="success" size="md" format="count" />
+        <StatTile label="Classes below 50%" value={behind} tone="danger" size="md" format="count" />
         <StatTile
           label="Classes tracked"
           value={rows.length}
           size="md"
+          format="count"
           className="col-span-2 xl:col-span-1"
         />
       </div>

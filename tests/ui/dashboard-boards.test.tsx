@@ -12,6 +12,7 @@ import {
   RecoveryBoard,
 } from "@/components/dashboard/boards";
 import { MoneyBand } from "@/components/dashboard/money-band";
+import { StatTile } from "@/components/dashboard/tiles";
 import type { DashboardAnalytics } from "@/lib/dashboard/analytics";
 
 /**
@@ -258,6 +259,40 @@ describe("dashboard boards", () => {
     // And the board area keeps a floor, so swapping a full board for the
     // loading skeleton cannot collapse the page and then push it back down.
     expect(page).toContain('min-h-[32rem]');
+  });
+
+  it("counts are not dressed up as rupees", () => {
+    // Seen in the browser on the live dashboard: "Classes tracked Rs 19",
+    // "Families with fees due Rs 73", and a roster donut reading "Overdue
+    // Rs 416". Those are people and classes, not money. Rendering a count
+    // through <Money> is not a smaller version of the truth -- it is a
+    // different fact, on a screen whose whole job is money.
+    // The primitive, precisely: a count tile renders a bare grouped number.
+    const countTile = renderToStaticMarkup(
+      <StatTile label="Classes tracked" value={19} format="count" />,
+    );
+    expect(countTile).toContain("19");
+    expect(countTile).not.toContain("₹");
+
+    // And a money tile still renders money, so the opt-out did not leak.
+    const moneyTile = renderToStaticMarkup(<StatTile label="Fees pending" value={1234} />);
+    expect(moneyTile).toContain("₹");
+
+    const classes = renderToStaticMarkup(
+      <ClassesBoard analytics={ANALYTICS} sessionLabel="2026-27" />,
+    );
+    expect(classes).toContain("Classes tracked");
+
+    const recovery = renderToStaticMarkup(
+      <RecoveryBoard
+        analytics={ANALYTICS}
+        oldBalance={{ original: 0, recovered: 0, pending: 0 }}
+      />,
+    );
+    expect(recovery).toContain("Families with fees due");
+    // 484 families, rendered as a plain grouped number.
+    expect(recovery).toContain("484");
+    expect(recovery).not.toContain("₹484");
   });
 
   it("charts use design-system tokens, never raw hex", () => {

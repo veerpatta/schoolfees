@@ -69,12 +69,21 @@ export function Tile({
 }
 
 /** A number with its label. The workhorse. */
+const TONE_TEXT = {
+  neutral: "text-foreground",
+  success: "text-success",
+  danger: "text-destructive",
+  warning: "text-warning",
+  muted: "text-muted-foreground",
+} as const;
+
 export function StatTile({
   label,
   value,
   footnote,
   tone = "neutral",
   size = "lg",
+  format = "money",
   className,
 }: {
   label: string;
@@ -82,21 +91,30 @@ export function StatTile({
   footnote?: string;
   tone?: "neutral" | "success" | "danger" | "warning" | "muted";
   size?: "md" | "lg" | "xl";
+  /**
+   * Not every tile holds rupees. "19 classes tracked" rendered through <Money>
+   * reads "Rs 19", which is not a smaller version of the truth -- it is a
+   * different fact. Counts opt out.
+   */
+  format?: "money" | "count";
   className?: string;
 }) {
+  const sizeClass = cn(
+    "mt-1.5 block font-display-money",
+    size === "md" && "text-xl",
+    size === "lg" && "text-2xl",
+    size === "xl" && "text-3xl",
+  );
   return (
     <div className={cn("rounded-xl border border-border bg-card p-4", className)}>
       <TileLabel>{label}</TileLabel>
-      <Money
-        value={value}
-        tone={tone}
-        className={cn(
-          "mt-1.5 block font-display-money",
-          size === "md" && "text-xl",
-          size === "lg" && "text-2xl",
-          size === "xl" && "text-3xl",
-        )}
-      />
+      {format === "count" ? (
+        <span className={cn(sizeClass, "tabular", TONE_TEXT[tone])}>
+          {value.toLocaleString("en-IN")}
+        </span>
+      ) : (
+        <Money value={value} tone={tone} className={sizeClass} />
+      )}
       {footnote ? (
         <p className="mt-1 text-xs leading-snug text-muted-foreground">{footnote}</p>
       ) : null}
@@ -314,12 +332,15 @@ export function MiniDonut({
   centreLabel,
   ariaLabel,
   size = 112,
+  format = "money",
 }: {
   segments: BarSegment[];
   centreValue: string;
   centreLabel: string;
   ariaLabel: string;
   size?: number;
+  /** See StatTile: a roster split is people, not rupees. */
+  format?: "money" | "count";
 }) {
   const total = segments.reduce((sum, segment) => sum + Math.max(segment.value, 0), 0);
   const radius = size / 2 - 10;
@@ -384,7 +405,13 @@ export function MiniDonut({
               style={{ backgroundColor: segment.color }}
             />
             <span className="min-w-0 flex-1 truncate text-muted-foreground">{segment.label}</span>
-            <Money value={segment.value} size="xs" className="shrink-0 font-medium" />
+            {format === "count" ? (
+              <span className="shrink-0 tabular text-xs font-medium">
+                {segment.value.toLocaleString("en-IN")}
+              </span>
+            ) : (
+              <Money value={segment.value} size="xs" className="shrink-0 font-medium" />
+            )}
           </li>
         ))}
       </ul>
