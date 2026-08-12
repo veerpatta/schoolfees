@@ -76,22 +76,13 @@ export function StudentQuickReference({ student, financialSnapshot }: StudentQui
           </div>
         ) : null}
 
-        {/* `creditBalance`, `overpaidAmount` and `refundableAmount` are three
-            names for one expression in v_student_financial_state:
-            GREATEST(total_paid - revised_total_due, 0). This block used to gate
-            on the first and print the third under a different label, 200px
-            from where the finance glance prints the first — inventing a
-            distinction that does not exist and inviting someone to add them.
-            One figure, one name. */}
-        {financialSnapshot && financialSnapshot.creditBalance > 0 ? (
-          <div className="rounded-lg bg-warning-soft px-3 py-3 text-sm text-warning-soft-foreground">
-            <p className="font-semibold">Credit balance</p>
-            <p className="mt-1">
-              <Money value={financialSnapshot.creditBalance} size="sm" tone="warning" /> to refund
-              or adjust on the next receipt.
-            </p>
-          </div>
-        ) : null}
+        {/* No credit balance here. `creditBalance`, `overpaidAmount` and
+            `refundableAmount` are three names for one expression in
+            v_student_financial_state — GREATEST(total_paid - revised_total_due,
+            0) — and this panel used to gate on the first while printing the
+            third under a different heading. That is fixed; the figure now has
+            exactly one home, the money band's status ribbon. Putting it back
+            here would recreate the same duplicate a tab away. */}
 
         {financialSnapshot && financialSnapshot.rowsKeptForReview > 0 ? (
           <div className="rounded-lg border border-border bg-surface-2 px-3 py-3 text-sm text-foreground">

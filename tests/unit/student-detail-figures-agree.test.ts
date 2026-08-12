@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
  */
 const PAGE = join(process.cwd(), "app/protected/students/[studentId]/page.tsx");
 const QUICK_REFERENCE = join(process.cwd(), "components/students/student-quick-reference.tsx");
+const MONEY_BAND = join(process.cwd(), "components/students/student-money-band.tsx");
 
 function read(path: string) {
   return readFileSync(path, "utf8");
@@ -66,15 +67,21 @@ describe("student detail: figures that share a label share a source", () => {
     expect(page).toContain("currentWaiverAmount: lateFeeWaivedTotal");
   });
 
-  it("shows one name for credit, not credit next to refundable", () => {
+  it("shows credit in exactly one place", () => {
     // v_student_financial_state aliases credit_balance, overpaid_amount and
     // refundable_amount to the identical expression
     // GREATEST(total_paid - revised_total_due, 0). Verified against the live
     // view on 2026-08-12: zero rows where any two differ.
+    //
+    // The desktop redesign briefly reintroduced this duplicate — the money
+    // band's ribbon and Quick Reference both printed it, in near-identical
+    // words, one tab apart. The band is the canonical home.
     const quickReference = read(QUICK_REFERENCE);
+    const moneyBand = read(MONEY_BAND);
 
     expect(quickReference).not.toContain("financialSnapshot.refundableAmount");
-    expect(quickReference).toContain("financialSnapshot.creditBalance");
+    expect(quickReference).not.toContain("financialSnapshot.creditBalance");
+    expect(moneyBand).toContain("creditBalance");
   });
 
   it("declares the shared totals before feePlanContent reads them", () => {
