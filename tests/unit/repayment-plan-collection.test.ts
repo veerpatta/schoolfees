@@ -6,6 +6,12 @@ import {
   resolvePlanAwareOverdue,
   splitPaymentAcrossPlan,
 } from "@/lib/repayment-plans/defaulter-view";
+import {
+  getDuesOutsidePlan,
+  isRepaymentPlanScope,
+  REPAYMENT_PLAN_SCOPE_LABELS,
+  REPAYMENT_PLAN_SCOPES,
+} from "@/lib/repayment-plans/types";
 import type {
   RepaymentPlanCollectionContext,
   RepaymentPlanSummary,
@@ -26,7 +32,7 @@ function planContext(
     missedInstallmentCount: 0,
     planReviewNeeded: false,
     coveredInstallmentIds: [],
-    currentYearRemainsUnpaid: false,
+    duesOutsidePlan: null,
     ...overrides,
   };
 }
@@ -67,6 +73,39 @@ function planSummary(overrides: Partial<RepaymentPlanSummary> = {}): RepaymentPl
     ...overrides,
   };
 }
+
+describe("repayment plan scopes", () => {
+  /**
+   * Families arrange EMI three ways, not two. The third — this year monthly
+   * with last year settled separately — was missing.
+   */
+  it("accepts exactly the three shapes the school offers", () => {
+    expect(REPAYMENT_PLAN_SCOPES).toEqual([
+      "old_balance_only",
+      "current_year_only",
+      "old_and_current",
+    ]);
+
+    REPAYMENT_PLAN_SCOPES.forEach((scope) => {
+      expect(isRepaymentPlanScope(scope)).toBe(true);
+      expect(REPAYMENT_PLAN_SCOPE_LABELS[scope]).toBeTruthy();
+    });
+
+    expect(isRepaymentPlanScope("everything")).toBe(false);
+    expect(isRepaymentPlanScope(null)).toBe(false);
+  });
+
+  /**
+   * The cashier has to be told what a plan deliberately leaves out, or they
+   * will read "on an EMI plan" as "all dues are handled". Each partial scope
+   * excludes the half the other one covers.
+   */
+  it("names the dues each scope leaves outside itself", () => {
+    expect(getDuesOutsidePlan("old_balance_only")).toBe("current_year");
+    expect(getDuesOutsidePlan("current_year_only")).toBe("previous_year");
+    expect(getDuesOutsidePlan("old_and_current")).toBeNull();
+  });
+});
 
 describe("suggestRepaymentPlanAmount", () => {
   it("asks for the catch-up figure when the family is behind", () => {

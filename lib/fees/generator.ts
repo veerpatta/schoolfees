@@ -49,6 +49,7 @@ type ExistingInstallmentRow = {
   late_fee_flat_amount: number;
   status: "scheduled" | "waived" | "cancelled";
   is_carry_forward: boolean;
+  is_emi_late_fee: boolean;
 };
 
 type InstallmentAmountRow = {
@@ -621,7 +622,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
     const { data: installmentsRaw, error: installmentsError } = await supabase
       .from("installments")
       .select(
-        "id, student_id, class_id, fee_setting_id, student_fee_override_id, installment_no, installment_label, due_date, base_amount, transport_amount, discount_amount, amount_due, late_fee_flat_amount, status, is_carry_forward",
+        "id, student_id, class_id, fee_setting_id, student_fee_override_id, installment_no, installment_label, due_date, base_amount, transport_amount, discount_amount, amount_due, late_fee_flat_amount, status, is_carry_forward, is_emi_late_fee",
       )
       .in("student_id", studentIds);
 
@@ -726,8 +727,9 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
         .filter((row) => row.student_id === student.id)
         // Carry-forward (previous-year dues) lines are never auto-cancelled by
         // ledger regeneration — they represent a real prior balance, not a
-        // current-policy installment.
-        .filter((row) => !row.is_carry_forward)
+        // current-policy installment. A missed-EMI late fee is the same kind of
+        // thing: a charge the school levied, not something fee policy produces.
+        .filter((row) => !row.is_carry_forward && !row.is_emi_late_fee)
         .forEach((row) => {
           if (row.status === "cancelled") {
             return;
@@ -1032,7 +1034,8 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
       // Carry-forward (previous-year dues) lines use a sentinel installment_no
       // (>= 90) so they sort ahead of real dues, but they must NOT be swept up
       // by the "extra installment" cancel pass — they are a deliberate balance.
-      .filter((row) => !row.is_carry_forward)
+      // EMI late fees sit in the 101-199 band for the same reason.
+      .filter((row) => !row.is_carry_forward && !row.is_emi_late_fee)
       .forEach((row) => {
         if (row.status === "cancelled") {
           return;

@@ -88,6 +88,7 @@ function policyInstallments() {
     late_fee_flat_amount: 1000,
     status: "scheduled" as const,
     is_carry_forward: false,
+    is_emi_late_fee: false,
   }));
 }
 
@@ -108,6 +109,7 @@ function carryForwardRow(overrides: Record<string, unknown> = {}) {
     late_fee_flat_amount: 0,
     status: "scheduled" as const,
     is_carry_forward: true,
+    is_emi_late_fee: false,
     ...overrides,
   };
 }
@@ -183,6 +185,38 @@ describe("ledger regeneration preserves carry-forward dues", () => {
     expect(result.installmentsToUpdate).toBe(0);
     expect(result.installmentsToCancel).toBe(0);
     expect(cancelledIds).not.toContain("inst-cf");
+    expect(cancelledIds).toHaveLength(0);
+  });
+
+  /**
+   * A missed-EMI late fee is backed by a real installment in the 101-199 band,
+   * carrying a flat Rs1,000 on a zero base. To the "cancel every extra unpaid
+   * installment" sweep it looks exactly like a stray row — and cancelling it
+   * would silently drop a charge the school levied. Same category as
+   * carry-forward: money the school decided on, not something fee policy
+   * produces.
+   */
+  it("never cancels a missed-EMI late fee line", async () => {
+    const cancelledIds: string[] = [];
+    const emiLateFee = carryForwardRow({
+      id: "inst-emi-late",
+      installment_no: 101,
+      installment_label: "EMI 1 late fee (15-03-2026)",
+      base_amount: 0,
+      amount_due: 0,
+      late_fee_flat_amount: 1000,
+      is_carry_forward: false,
+      is_emi_late_fee: true,
+    });
+    createClient.mockResolvedValue(
+      buildClient([...policyInstallments(), emiLateFee], cancelledIds),
+    );
+
+    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
+
+    expect(result.installmentsToCancel).toBe(0);
+    expect(cancelledIds).not.toContain("inst-emi-late");
     expect(cancelledIds).toHaveLength(0);
   });
 

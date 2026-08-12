@@ -14,7 +14,7 @@ import {
   getActiveRepaymentPlan,
   previewRepaymentPlan,
 } from "@/lib/repayment-plans/data";
-import type { RepaymentPlanScope } from "@/lib/repayment-plans/types";
+import { REPAYMENT_PLAN_SCOPES } from "@/lib/repayment-plans/types";
 import { getStudentDetail, getStudentFormOptions } from "@/lib/students/data";
 import {
   hasStaffPermission,
@@ -23,10 +23,10 @@ import {
 
 import { updateStudentAction } from "../../actions";
 
-const REPAYMENT_SCOPES: RepaymentPlanScope[] = ["old_balance_only", "old_and_current"];
+const REPAYMENT_SCOPES = REPAYMENT_PLAN_SCOPES;
 
 /**
- * Price both scopes server-side so the admin sees real balances before typing
+ * Price every scope server-side so the admin sees real balances before typing
  * anything, and so the number they agree to is the number sent back as
  * `expectedOpeningBalance`. If dues move in between, the RPC refuses rather
  * than silently building the plan on a different figure.

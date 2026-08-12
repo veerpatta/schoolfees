@@ -1030,6 +1030,7 @@ export default async function StudentDetailPage({
       {repaymentPlanDetail ? (
         <StudentRepaymentPlanCard
           detail={repaymentPlanDetail}
+          canWaiveLateFees={canManageRepaymentPlans}
           editHref={
             canManageRepaymentPlans
               ? `/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}#repayment-plan`
@@ -1207,6 +1208,7 @@ export default async function StudentDetailPage({
       {repaymentPlanDetail ? (
         <StudentRepaymentPlanCard
           detail={repaymentPlanDetail}
+          canWaiveLateFees={canManageRepaymentPlans}
           editHref={
             canManageRepaymentPlans
               ? `/protected/students/${student.id}/edit?returnTo=${encodedReturnTo}#repayment-plan`

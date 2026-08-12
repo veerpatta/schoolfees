@@ -352,27 +352,129 @@ describe("migration guards", () => {
   });
 });
 
-describe("EMI late-fee release", () => {
+describe("EMI late fee", () => {
   /**
-   * Policy reversal from the original spec, which said "interest-free, with no
-   * new EMI penalty". A plan now DEFERS late fees rather than forgiving them:
-   * each missed monthly EMI releases one previously-waived late fee.
+   * Second policy reversal. The original spec said "interest-free, with no new
+   * EMI penalty"; the first revision made a missed EMI RELEASE one of the late
+   * fees waived at activation. That mechanism could not express the rule the
+   * school actually wants, and the failure was structural, not a bug:
    *
-   * Two defects the first cut had, both pinned here because neither is visible
-   * without real fixtures:
-   *  - it released waivers on installments not yet past their own due date,
-   *    arming a charge months ahead for a month the family may have caught up
-   *  - it "used up" a release on an installment a grandfather waiver already
-   *    covered, charging nobody
+   *  - releasing is capped at one fee per covered installment, so a plan
+   *    covering a single installment charged Rs1,000 however many months were
+   *    missed;
+   *  - all 77 carry-forward rows carry late_fee_flat_amount = 0, so a
+   *    previous-year-only plan had nothing to release and could never charge.
+   *
+   * Now each missed EMI inserts its own zero-base installment carrying a flat
+   * Rs1,000. Verified live on TEST-2026-27: a previous-year-only plan covering
+   * ONE installment across five missed EMIs charged Rs5,000, where the old
+   * design's ceiling was Rs0.
    */
+  function migrationsDefining(needle: string) {
+    const dir = join(process.cwd(), "supabase/migrations");
+    const defining = readdirSync(dir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
+      .filter((file) => readFileSync(join(dir, file), "utf8").includes(needle));
+
+    expect(defining.length, `no migration contains ${needle}`).toBeGreaterThan(0);
+    return readFileSync(join(dir, defining[defining.length - 1]), "utf8");
+  }
+
   function currentSyncDefinition() {
+    return migrationsDefining("function public.sync_repayment_plan_late_fees");
+  }
+
+  it("charges a real installment rather than releasing a waiver", () => {
+    const sql = currentSyncDefinition();
+
+    expect(sql).toContain("insert into public.installments");
+    expect(sql).toContain("is_emi_late_fee");
+    // The old mechanism worked by voiding waivers. Nothing should void now.
+    expect(sql).not.toContain("voided_at");
+  });
+
+  it("is uncapped: one charge per missed EMI, not per covered installment", () => {
+    const sql = currentSyncDefinition();
+
+    // Driven off the agreed calendar, not off the set of waivers available.
+    expect(sql).toContain("from public.student_repayment_schedule");
+    expect(sql).toContain("running_total");
+    expect(sql).not.toContain("greatest(v_missed - v_already, 0)");
+  });
+
+  it("is idempotent on (plan, EMI) so re-running charges nothing more", () => {
+    expect(currentSyncDefinition()).toContain(
+      "where f.plan_id = v_plan.pid and f.sequence_no = v_emi.sequence_no",
+    );
+    expect(
+      migrationsDefining("create table if not exists public.student_repayment_emi_late_fees"),
+    ).toContain("unique (plan_id, sequence_no)");
+  });
+
+  it("takes a free installment number rather than 100 + sequence_no", () => {
+    // A reschedule mints a new plan whose EMI 1 can also be missed; a fixed
+    // 100 + sequence_no would collide with the retired plan's backing row on
+    // the (student_id, class_id, installment_no) unique index.
+    const sql = currentSyncDefinition();
+
+    expect(sql).toContain("from generate_series(101, 199)");
+    expect(sql).toContain("and i.installment_no = n");
+  });
+
+  it("never writes the generated amount_due column", () => {
+    // installments.amount_due is GENERATED; assigning it raises 428C9. The
+    // first cut assigned it, so the guarantee lives in the migration that
+    // strips it back out — and that migration asserts its own success.
+    const sql = migrationsDefining("amount_due still assigned in the insert");
+
+    expect(sql).toContain(
+      "'due_date, base_amount, transport_amount, discount_amount,'",
+    );
+  });
+
+  it("runs under pg_cron, which has no request context", () => {
+    // has_permission() returns false with no JWT, so the original guard raised
+    // on every nightly fire. An absent request.jwt.claims means the call did
+    // not arrive through PostgREST at all.
+    const sql = migrationsDefining("cron guard patch did not apply");
+
+    expect(sql).toContain("request.jwt.claims");
+    expect(sql).toContain("sync_repayment_plan_late_fees");
+    expect(sql).toContain("charge-emi-late-fees-daily");
+  });
+
+  it("still requires the plan permission for API callers", () => {
+    const sql = currentSyncDefinition();
+
+    expect(sql).toContain("fees:repayment_plan");
+    expect(sql).toContain("service_role");
+  });
+
+  it("keeps EMI late fees out of any plan's principal", () => {
+    // Folding the penalty back in as debt would then waive it at activation.
+    expect(migrationsDefining("function private.repayment_plan_candidates")).toContain(
+      "and not coalesce(inst.is_emi_late_fee, false)",
+    );
+  });
+});
+
+describe("the fee engine's EMI late-fee carve-out", () => {
+  /**
+   * The one change to the core engine. A zero-base row is refused a late fee by
+   * two guards; the flag branches past exactly those two and nothing else.
+   * Verified inert on all 2,425 live installments: raw_late_fee,
+   * final_late_fee, pending_amount and total_charge were byte-identical before
+   * and after.
+   */
+  function engineMigration() {
     const dir = join(process.cwd(), "supabase/migrations");
     const defining = readdirSync(dir)
       .filter((file) => file.endsWith(".sql"))
       .sort()
       .filter((file) =>
         readFileSync(join(dir, file), "utf8").includes(
-          "function public.sync_repayment_plan_late_fees",
+          "add column if not exists is_emi_late_fee",
         ),
       );
 
@@ -380,25 +482,21 @@ describe("EMI late-fee release", () => {
     return readFileSync(join(dir, defining[defining.length - 1]), "utf8");
   }
 
-  it("only releases on installments already past their due date", () => {
-    expect(currentSyncDefinition()).toContain(
-      "inst.due_date < (now() at time zone 'Asia/Kolkata')::date",
-    );
+  it("defaults the flag to false so existing rows are untouched", () => {
+    expect(engineMigration()).toContain("boolean not null default false");
   });
 
-  it("skips installments another waiver already covers", () => {
-    const sql = currentSyncDefinition();
-    expect(sql).toContain("other.source <> 'repayment_plan'");
-    expect(sql).toContain("coalesce(inst.late_fee_flat_amount, 0) > 0");
+  it("charges only once the EMI's own due date has passed", () => {
+    expect(engineMigration()).toContain("when rolled.is_emi_late_fee then");
+    expect(engineMigration()).toContain("case when current_date > rolled.due_date");
   });
 
-  it("charges only the shortfall, so re-running releases nothing more", () => {
-    expect(currentSyncDefinition()).toContain("greatest(v_missed - v_already, 0)");
-  });
+  it("asserts its own branch ordering rather than trusting a text replace", () => {
+    const sql = engineMigration();
 
-  it("requires the plan permission unless it is the nightly job", () => {
-    const sql = currentSyncDefinition();
-    expect(sql).toContain("fees:repayment_plan");
-    expect(sql).toContain("service_role");
+    // Above the flat-amount guard it would charge a waived row; below the
+    // base-charge guard it would never be reached.
+    expect(sql).toContain("snapshot patch landed in the wrong branch order");
+    expect(sql).toContain("snapshot patch did not apply");
   });
 });

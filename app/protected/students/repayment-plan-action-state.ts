@@ -9,8 +9,8 @@ export type RepaymentPlanActionState = {
   message: string | null;
   /** Set on success so the caller can deep-link to the plan it just created. */
   planId: string | null;
-  /** Which action produced this state, so one banner can serve all three forms. */
-  action: "activate" | "reschedule" | "cancel" | null;
+  /** Which action produced this state, so one banner can serve every form. */
+  action: "activate" | "reschedule" | "cancel" | "waive_late_fee" | null;
 };
 
 export const INITIAL_REPAYMENT_PLAN_ACTION_STATE: RepaymentPlanActionState = {

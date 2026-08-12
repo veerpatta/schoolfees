@@ -1,8 +1,16 @@
+import { randomUUID } from "node:crypto";
+
 import Link from "next/link";
 
+import { EmiLateFeeWaiveButton } from "@/components/students/emi-late-fee-waive-button";
 import { Notice } from "@/components/ui/notice";
 import { formatInr } from "@/lib/helpers/currency";
+import {
+  getDuesOutsidePlan,
+  REPAYMENT_PLAN_SCOPE_LABELS,
+} from "@/lib/repayment-plans/types";
 import type {
+  RepaymentEmiLateFee,
   RepaymentPlanDetail,
   RepaymentPlanPaymentStatus,
   RepaymentScheduleRow,
@@ -48,11 +56,6 @@ const ROW_STATUS_COPY: Record<RepaymentScheduleRow["status"], { label: string; t
   upcoming: { label: "Upcoming", tone: "text-muted-foreground" },
 };
 
-const SCOPE_LABELS = {
-  old_balance_only: "Previous-year balance only",
-  old_and_current: "Previous year + full current year",
-} as const;
-
 function formatDate(value: string | null) {
   if (!value) return "—";
 
@@ -80,14 +83,69 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
+/**
+ * The flat late fee a missed EMI attracts, and what has become of it.
+ *
+ * Rendered beside the month it belongs to so an admin waiving it can see which
+ * month they are forgiving without cross-referencing the dues table.
+ */
+function EmiLateFeeCell({
+  lateFee,
+  sequenceNo,
+  planId,
+  studentId,
+  sessionLabel,
+  canWaive,
+}: {
+  lateFee: RepaymentEmiLateFee | null;
+  sequenceNo: number;
+  planId: string;
+  studentId: string;
+  sessionLabel: string;
+  canWaive: boolean;
+}) {
+  if (!lateFee) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  if (lateFee.waivedAmount >= lateFee.amount) {
+    return <span className="text-muted-foreground">Waived</span>;
+  }
+
+  if (lateFee.outstandingAmount <= 0) {
+    return <span className="text-success-soft-foreground">Paid</span>;
+  }
+
+  return (
+    <span className="inline-flex items-center justify-end gap-1">
+      <span className="font-semibold text-destructive">
+        {formatInr(lateFee.outstandingAmount)}
+      </span>
+      {canWaive ? (
+        <EmiLateFeeWaiveButton
+          planId={planId}
+          studentId={studentId}
+          sessionLabel={sessionLabel}
+          sequenceNo={sequenceNo}
+          lateFee={lateFee}
+          clientRequestId={randomUUID()}
+        />
+      ) : null}
+    </span>
+  );
+}
+
 export function StudentRepaymentPlanCard({
   detail,
   editHref,
+  canWaiveLateFees = false,
   className,
 }: {
   detail: RepaymentPlanDetail;
   /** Admin-only link to the manage section. Omitted for non-admins. */
   editHref?: string;
+  /** True for `fees:repayment_plan`. Only admins forgive an EMI late fee. */
+  canWaiveLateFees?: boolean;
   className?: string;
 }) {
   const { summary, schedule } = detail;
@@ -108,7 +166,8 @@ export function StudentRepaymentPlanCard({
             Monthly EMI plan
           </h2>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
-            {SCOPE_LABELS[summary.scope]} · {formatInr(summary.monthlyAmount)} a month ·{" "}
+            {REPAYMENT_PLAN_SCOPE_LABELS[summary.scope]} · {formatInr(summary.monthlyAmount)} a
+            month ·{" "}
             {summary.termMonths} instalment{summary.termMonths === 1 ? "" : "s"}
           </p>
         </div>
@@ -165,10 +224,17 @@ export function StudentRepaymentPlanCard({
         </Notice>
       ) : null}
 
-      {summary.scope === "old_balance_only" ? (
+      {getDuesOutsidePlan(summary.scope) === "current_year" ? (
         <Notice tone="info" className="mt-4">
           Only the previous-year balance is on EMI. Current-year fees keep their own due dates, and
           payments clear this plan first.
+        </Notice>
+      ) : null}
+
+      {getDuesOutsidePlan(summary.scope) === "previous_year" ? (
+        <Notice tone="info" className="mt-4">
+          Only this year&rsquo;s fees are on EMI. The previous-year balance keeps its own due date,
+          and payments clear this plan first.
         </Notice>
       ) : null}
 
@@ -185,6 +251,9 @@ export function StudentRepaymentPlanCard({
               </th>
               <th scope="col" className="px-3 py-2 text-right font-semibold">
                 Amount
+              </th>
+              <th scope="col" className="px-3 py-2 text-right font-semibold">
+                Late fee
               </th>
               <th scope="col" className="px-3 py-2 text-right font-semibold">
                 Status
@@ -207,6 +276,16 @@ export function StudentRepaymentPlanCard({
                       </span>
                     ) : null}
                   </td>
+                  <td className="px-3 py-1.5 text-right tabular-nums">
+                    <EmiLateFeeCell
+                      lateFee={row.lateFee}
+                      sequenceNo={row.sequenceNo}
+                      planId={summary.planId}
+                      studentId={summary.studentId}
+                      sessionLabel={summary.sessionLabel}
+                      canWaive={canWaiveLateFees}
+                    />
+                  </td>
                   <td className={cn("px-3 py-1.5 text-right font-semibold", rowStatus.tone)}>
                     {rowStatus.label}
                   </td>
@@ -218,9 +297,11 @@ export function StudentRepaymentPlanCard({
       </div>
 
       <p className="mt-3 text-[11px] text-muted-foreground">
-        {formatInr(summary.waivedLateFeeTotal)} of late fees was permanently waived when this plan
-        started on {formatDate(summary.activatedAt.slice(0, 10))}
-        {summary.activatedByLabel ? ` by ${summary.activatedByLabel}` : ""}.
+        {formatInr(summary.waivedLateFeeTotal)} of late fees on the covered installments was
+        waived when this plan started on {formatDate(summary.activatedAt.slice(0, 10))}
+        {summary.activatedByLabel ? ` by ${summary.activatedByLabel}` : ""}. From then on the
+        calendar above carries the only penalty: every EMI that passes its due date unpaid
+        attracts a flat {formatInr(1000)}, which an admin can waive once the family settles.
       </p>
 
       {editHref ? (

@@ -17,7 +17,9 @@ import {
   validateRepaymentPlanDraft,
 } from "@/lib/repayment-plans/schedule";
 import {
+  getDuesOutsidePlan,
   REPAYMENT_PLAN_MAX_TERM_MONTHS,
+  REPAYMENT_PLAN_SCOPE_LABELS as SCOPE_LABELS,
   type RepaymentPlanScope,
   type RepaymentPlanSummary,
 } from "@/lib/repayment-plans/types";
@@ -53,11 +55,6 @@ type StudentRepaymentPlanSectionProps = {
   creationEnabled: boolean;
   /** Stable id minted on the server so a double-submit is idempotent. */
   clientRequestId: string;
-};
-
-const SCOPE_LABELS: Record<RepaymentPlanScope, string> = {
-  old_balance_only: "Previous-year balance only",
-  old_and_current: "Previous year + full current year",
 };
 
 function formatDate(value: string | null) {
@@ -269,6 +266,17 @@ function ActivationForm({
           <legend className="text-sm font-medium">What should the plan cover?</legend>
           {scopeOptions.map((option) => {
             const disabled = option.openingBalance <= 0;
+            // What this shape leaves out, priced from its sibling option so the
+            // admin sees the trade-off before choosing.
+            const excludes = getDuesOutsidePlan(option.scope);
+            const excludedAmount =
+              excludes === "current_year"
+                ? (scopeOptions.find((other) => other.scope === "current_year_only")
+                    ?.openingBalance ?? 0)
+                : excludes === "previous_year"
+                  ? (scopeOptions.find((other) => other.scope === "old_balance_only")
+                      ?.openingBalance ?? 0)
+                  : 0;
 
             return (
               <label
@@ -291,10 +299,17 @@ function ActivationForm({
                   <span className="block text-sm text-muted-foreground">
                     {formatInr(option.openingBalance)} across {option.installmentCount}{" "}
                     installment{option.installmentCount === 1 ? "" : "s"}
-                    {option.scope === "old_and_current" && option.currentYearIncluded > 0
+                    {option.currentYearIncluded > 0
                       ? ` — includes ${formatInr(option.currentYearIncluded)} of current-year fees not yet due`
                       : ""}
                   </span>
+                  {excludedAmount > 0 ? (
+                    <span className="block text-sm text-muted-foreground">
+                      Leaves {formatInr(excludedAmount)} of{" "}
+                      {excludes === "current_year" ? "current-year" : "previous-year"} dues outside
+                      the plan.
+                    </span>
+                  ) : null}
                 </span>
               </label>
             );
@@ -528,10 +543,17 @@ function ActivePlanControls({
         </Notice>
       ) : null}
 
-      {plan.scope === "old_balance_only" ? (
+      {getDuesOutsidePlan(plan.scope) === "current_year" ? (
         <Notice tone="info" title="Current-year fees are outside this plan">
           Only the previous-year balance is on EMI. Current-year installments keep their own due
           dates and stay collectable, but payments clear the EMI balance first.
+        </Notice>
+      ) : null}
+
+      {getDuesOutsidePlan(plan.scope) === "previous_year" ? (
+        <Notice tone="info" title="Previous-year dues are outside this plan">
+          Only this year&rsquo;s fees are on EMI. The previous-year balance keeps its own due date
+          and stays collectable, but payments clear the EMI balance first.
         </Notice>
       ) : null}
 

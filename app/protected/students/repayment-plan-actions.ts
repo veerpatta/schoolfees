@@ -324,3 +324,80 @@ export async function cancelRepaymentPlanAction(
     );
   }
 }
+
+/**
+ * Forgive the flat late fee charged for one missed EMI.
+ *
+ * The routine case: the family has since paid, so the penalty for that month is
+ * dropped. It runs through `waive_late_fee` like every other late fee — the
+ * charge is a real installment, so there is no separate forgiveness mechanism
+ * to keep in step.
+ */
+export async function waiveEmiLateFeeAction(
+  _previous: RepaymentPlanActionState,
+  formData: FormData,
+): Promise<RepaymentPlanActionState> {
+  try {
+    const staff = await requireStaffPermission("fees:repayment_plan");
+
+    const planId = readText(formData, "planId");
+    const studentId = readText(formData, "studentId");
+    const sessionLabel = readText(formData, "sessionLabel");
+    const installmentId = readText(formData, "installmentId");
+    const sequenceNo = readInteger(formData, "sequenceNo");
+    const amount = readInteger(formData, "amount");
+    const reason = readText(formData, "reason");
+
+    if (!studentId) return fail("Student is required.", "waive_late_fee");
+    if (!installmentId) return fail("Late fee row is required.", "waive_late_fee");
+    if (amount === null || amount <= 0) {
+      return fail("Nothing left to waive on this EMI late fee.", "waive_late_fee");
+    }
+
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("waive_late_fee", {
+      p_student_id: studentId,
+      p_amount: amount,
+      p_remarks:
+        reason ||
+        `EMI ${sequenceNo ?? ""} late fee waived by an admin.`.trim(),
+      p_session_label: sessionLabel || null,
+      p_client_request_id: readText(formData, "clientRequestId") || null,
+      p_installment_id: installmentId,
+    });
+
+    if (error) {
+      return fail(error.message, "waive_late_fee");
+    }
+
+    // The RPC reports a refusal in its result rather than throwing, so an
+    // unchecked call would report success while nothing was waived.
+    const result = (Array.isArray(data) ? data[0] : data) as
+      | { ok?: boolean; message?: string }
+      | null;
+
+    if (result && result.ok === false) {
+      return fail(result.message ?? "The late fee could not be waived.", "waive_late_fee");
+    }
+
+    scheduleSideEffects({
+      staffId: (staff.id as string | undefined) ?? null,
+      studentId,
+      sessionLabel,
+      action: "repayment_plan_late_fee_waived",
+      metadata: { planId, sequenceNo, installmentId, amount },
+    });
+
+    return {
+      status: "success",
+      message: `Late fee waived for EMI ${sequenceNo ?? ""}.`.replace(/\s+\./, "."),
+      planId: planId || null,
+      action: "waive_late_fee",
+    };
+  } catch (error) {
+    return fail(
+      error instanceof Error ? error.message : "Unable to waive the EMI late fee right now.",
+      "waive_late_fee",
+    );
+  }
+}

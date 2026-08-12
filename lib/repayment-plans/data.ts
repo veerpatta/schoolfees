@@ -2,7 +2,13 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 
+import {
+  getDuesOutsidePlan,
+  isRepaymentPlanScope,
+  REPAYMENT_PLAN_SCOPE_LABELS,
+} from "./types";
 import type {
+  RepaymentEmiLateFee,
   RepaymentPlanCollectionContext,
   RepaymentPlanDetail,
   RepaymentPlanItem,
@@ -58,7 +64,9 @@ function mapPlanSummary(row: PlanStatusRow): RepaymentPlanSummary {
     planId: String(row.plan_id),
     studentId: String(row.student_id),
     sessionLabel: String(row.session_label ?? ""),
-    scope: row.scope === "old_balance_only" ? "old_balance_only" : "old_and_current",
+    // Validate rather than coerce: a two-way ternary here silently relabelled
+    // every scope it did not recognise as `old_and_current`.
+    scope: isRepaymentPlanScope(row.scope) ? row.scope : "old_and_current",
     lifecycle:
       row.lifecycle === "cancelled" || row.lifecycle === "superseded"
         ? row.lifecycle
@@ -144,8 +152,23 @@ export function buildScheduleRows(payload: {
         status = "upcoming";
       }
 
-      return { ...row, paidAmount, status };
+      return { ...row, paidAmount, status, lateFee: null };
     });
+}
+
+/**
+ * Attach the flat late fee charged for each missed EMI, priced against the live
+ * ledger so a fee that has since been paid or waived reads as such.
+ */
+function attachEmiLateFees(
+  rows: RepaymentScheduleRow[],
+  lateFees: Map<number, RepaymentEmiLateFee>,
+): RepaymentScheduleRow[] {
+  if (lateFees.size === 0) {
+    return rows;
+  }
+
+  return rows.map((row) => ({ ...row, lateFee: lateFees.get(row.sequenceNo) ?? null }));
 }
 
 /**
@@ -189,6 +212,54 @@ function refineLatePayments(
       status: settlingReceipt.paymentDate > row.dueDate ? "paid_late" : "paid_on_time",
     } satisfies RepaymentScheduleRow;
   });
+}
+
+/**
+ * Price each charged EMI late fee against the live ledger.
+ *
+ * The charge row records what was levied; only the balances view knows whether
+ * it has since been paid or waived. Kept as a separate read because the charge
+ * points at `installments`, and PostgREST cannot embed a materialized view
+ * across that foreign key.
+ */
+async function priceEmiLateFees(
+  supabase: SupabaseServerClient,
+  charges: Array<Record<string, unknown>>,
+): Promise<Map<number, RepaymentEmiLateFee>> {
+  const priced = new Map<number, RepaymentEmiLateFee>();
+
+  if (charges.length === 0) {
+    return priced;
+  }
+
+  const { data } = await supabase
+    .from("v_workbook_installment_balances")
+    .select("installment_id, waiver_applied, applied_amount, pending_amount")
+    .in(
+      "installment_id",
+      charges.map((row) => String(row.backing_installment_id)),
+    );
+
+  const balances = new Map(
+    (data ?? []).map((row) => [String(row.installment_id), row] as const),
+  );
+
+  charges.forEach((row) => {
+    const installmentId = String(row.backing_installment_id);
+    const balance = balances.get(installmentId);
+
+    priced.set(toInt(row.sequence_no), {
+      installmentId,
+      amount: toInt(row.amount),
+      waivedAmount: toInt(balance?.waiver_applied),
+      paidAmount: toInt(balance?.applied_amount),
+      // Fall back to the full charge when the view has not caught up yet:
+      // reporting an unsettled fee as settled is the worse error.
+      outstandingAmount: balance ? toInt(balance.pending_amount) : toInt(row.amount),
+    });
+  });
+
+  return priced;
 }
 
 async function fetchPlanSummary(
@@ -329,7 +400,7 @@ export async function getRepaymentPlanDetail(payload: {
     return null;
   }
 
-  const [scheduleResult, itemsResult, receiptsResult] = await Promise.all([
+  const [scheduleResult, itemsResult, receiptsResult, lateFeeResult] = await Promise.all([
     supabase
       .from("student_repayment_schedule")
       .select("sequence_no, due_date, amount")
@@ -346,7 +417,13 @@ export async function getRepaymentPlanDetail(payload: {
       .from("student_repayment_receipt_links")
       .select("contribution_amount, receipts!inner(payment_date)")
       .eq("plan_id", summary.planId),
+    supabase
+      .from("student_repayment_emi_late_fees")
+      .select("sequence_no, amount, backing_installment_id")
+      .eq("plan_id", summary.planId),
   ]);
+
+  const lateFees = await priceEmiLateFees(supabase, lateFeeResult.data ?? []);
 
   const schedule = (scheduleResult.data ?? []).map((row) => ({
     sequenceNo: toInt(row.sequence_no),
@@ -378,13 +455,16 @@ export async function getRepaymentPlanDetail(payload: {
 
   return {
     summary,
-    schedule: refineLatePayments(
-      buildScheduleRows({
-        schedule,
-        paidToDate: summary.paidToDate,
-        today: payload.today,
-      }),
-      receipts,
+    schedule: attachEmiLateFees(
+      refineLatePayments(
+        buildScheduleRows({
+          schedule,
+          paidToDate: summary.paidToDate,
+          today: payload.today,
+        }),
+        receipts,
+      ),
+      lateFees,
     ),
     items,
   };
@@ -418,7 +498,7 @@ export async function getRepaymentPlanCollectionContext(
     missedInstallmentCount: summary.missedInstallmentCount,
     planReviewNeeded: summary.planReviewNeeded,
     coveredInstallmentIds: (data ?? []).map((row) => String(row.installment_id)),
-    currentYearRemainsUnpaid: summary.scope === "old_balance_only",
+    duesOutsidePlan: getDuesOutsidePlan(summary.scope),
   };
 }
 
@@ -463,11 +543,6 @@ export async function previewRepaymentPlan(payload: {
   return { ok: true, preview: data as unknown as RepaymentPlanPreview };
 }
 
-const SCOPE_EXPORT_LABEL: Record<string, string> = {
-  old_balance_only: "Previous-year balance only",
-  old_and_current: "Previous year + full current year",
-};
-
 const STATUS_EXPORT_LABEL: Record<string, string> = {
   upcoming: "Starts soon",
   on_track: "On track",
@@ -503,7 +578,7 @@ export async function getRepaymentPlanExportRows(sessionLabel: string) {
     return {
       "SR no": student?.admission_no ?? "",
       "Student": student?.full_name ?? "",
-      "Scope": SCOPE_EXPORT_LABEL[summary.scope] ?? summary.scope,
+      "Scope": REPAYMENT_PLAN_SCOPE_LABELS[summary.scope] ?? summary.scope,
       "Lifecycle": summary.lifecycle,
       "Payment standing": STATUS_EXPORT_LABEL[summary.paymentStatus] ?? summary.paymentStatus,
       "Opening balance": summary.openingBalance,
@@ -549,14 +624,27 @@ export async function getRepaymentScheduleExportRows(sessionLabel: string, today
     student: row.students as unknown as { admission_no?: string; full_name?: string } | null,
   }));
 
-  const { data: scheduleRows } = await supabase
-    .from("student_repayment_schedule")
-    .select("plan_id, sequence_no, due_date, amount")
-    .in(
-      "plan_id",
-      plans.map((plan) => plan.summary.planId),
-    )
-    .order("sequence_no", { ascending: true });
+  const planIds = plans.map((plan) => plan.summary.planId);
+
+  const [{ data: scheduleRows }, { data: lateFeeRows }] = await Promise.all([
+    supabase
+      .from("student_repayment_schedule")
+      .select("plan_id, sequence_no, due_date, amount")
+      .in("plan_id", planIds)
+      .order("sequence_no", { ascending: true }),
+    supabase
+      .from("student_repayment_emi_late_fees")
+      .select("plan_id, sequence_no, amount")
+      .in("plan_id", planIds),
+  ]);
+
+  // Keyed by plan + EMI: an export that hides the penalty understates what the
+  // family owes.
+  const lateFeeByEmi = new Map<string, number>(
+    (lateFeeRows ?? []).map(
+      (row) => [`${row.plan_id}:${row.sequence_no}`, toInt(row.amount)] as const,
+    ),
+  );
 
   const byPlan = new Map<string, Array<{ sequenceNo: number; dueDate: string; amount: number }>>();
 
@@ -585,6 +673,7 @@ export async function getRepaymentScheduleExportRows(sessionLabel: string, today
       "Due date": row.dueDate,
       "Amount": row.amount,
       "Paid": row.paidAmount,
+      "Late fee": lateFeeByEmi.get(`${summary.planId}:${row.sequenceNo}`) ?? 0,
       "Status": row.status.replace(/_/g, " "),
       "Plan id": summary.planId,
     })),

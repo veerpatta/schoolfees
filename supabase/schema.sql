@@ -496,7 +496,10 @@ create table if not exists public.installments (
   carry_forward_balance_id uuid,
   source_session_label text,
   target_session_label text,
-  carry_forward_fee_head text
+  carry_forward_fee_head text,
+  -- Synthetic zero-base rows carrying a missed-EMI late fee. Written only by
+  -- sync_repayment_plan_late_fees, never by fee generation.
+  is_emi_late_fee boolean default false not null
 );
 
 create table if not exists public.late_fee_rule_change_snapshot (
@@ -2238,7 +2241,8 @@ AS $function$
       coalesce(c.section, '') as section, coalesce(c.stream_name, '') as stream_name,
       i.installment_no, i.installment_label, i.due_date,
       i.amount_due as base_charge, i.status as installment_status,
-      i.late_fee_flat_amount, s.transport_route_id,
+      i.late_fee_flat_amount, coalesce(i.is_emi_late_fee, false) as is_emi_late_fee,
+      s.transport_route_id,
       route_row.route_name as transport_route_name,
       route_row.route_code as transport_route_code
     from public.installments as i
@@ -2313,6 +2317,13 @@ AS $function$
       case
         when rolled.installment_status = 'waived' then 0
         when coalesce(rolled.late_fee_flat_amount, 0) <= 0 then 0
+        -- A missed-EMI late fee is a zero-base row that exists ONLY to carry a
+        -- flat charge, so it must skip the two guards below — both of which
+        -- would read "no fee charged, so no fee to be late on" and return 0.
+        -- Every other row is unaffected: the flag is false everywhere else.
+        when rolled.is_emi_late_fee then
+          case when current_date > rolled.due_date
+               then rolled.late_fee_flat_amount else 0 end
         when rolled.base_charge <= 0 then 0
         when rolled.settled_by_due_amount >= rolled.base_charge then 0
         when current_date > rolled.due_date then rolled.late_fee_flat_amount
