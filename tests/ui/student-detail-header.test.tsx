@@ -27,7 +27,6 @@ const BASE_PROPS = {
   canPostPayments: true,
   canEditStudent: true,
   canPrintReceipts: true,
-  canViewLedger: true,
   latestReceiptId: null,
   returnTo: "/protected/students",
   encodedReturnTo: "%2Fprotected%2Fstudents",
@@ -71,14 +70,22 @@ describe("StudentDetailHeader", () => {
     expect(html).not.toContain("Collect ");
   });
 
-  it("hides Edit and Ledger from staff without the permission", () => {
+  it("hides Edit from staff without the permission", () => {
     const html = renderToStaticMarkup(
-      <StudentDetailHeader {...BASE_PROPS} canEditStudent={false} canViewLedger={false} />,
+      <StudentDetailHeader {...BASE_PROPS} canEditStudent={false} />,
     );
 
     expect(html).not.toContain(">Edit<");
-    expect(html).not.toContain(">Ledger<");
     // Statement stays: it is a read of data they can already see.
     expect(html).toContain("Statement");
+  });
+
+  it("no longer offers a Ledger button", () => {
+    // Removed by owner decision: the student page already carries the dues
+    // table, the receipt history and the statement, so the ledger view was a
+    // fourth way to read the same rows.
+    const html = renderToStaticMarkup(<StudentDetailHeader {...BASE_PROPS} />);
+    expect(html).not.toContain(">Ledger<");
+    expect(html).not.toContain("/reports/ledger/");
   });
 });

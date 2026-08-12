@@ -171,7 +171,6 @@ export default async function StudentDetailPage({
   const emiCoveredInstallmentIds = new Set(
     (repaymentPlanDetail?.items ?? []).map((item) => item.installmentId),
   );
-  const canViewLedger = hasStaffPermission(staff, "ledger:view");
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
 
@@ -1140,7 +1139,6 @@ export default async function StudentDetailPage({
         canPostPayments={canPostPayments}
         canEditStudent={canEditStudent}
         canPrintReceipts={canPrintReceipts}
-        canViewLedger={canViewLedger}
         latestReceiptId={receipts[0]?.id ?? null}
         returnTo={returnTo}
         encodedReturnTo={encodedReturnTo}

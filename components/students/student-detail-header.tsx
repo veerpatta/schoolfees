@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Edit2, FileText, Printer, Receipt } from "lucide-react";
+import { ArrowLeft, Edit2, FileText, Printer } from "lucide-react";
 
 import { OldBalanceChip } from "@/components/shared/old-balance-chip";
 import { StudentAvatar } from "@/components/students/student-avatar";
@@ -31,7 +31,6 @@ export function StudentDetailHeader({
   canPostPayments,
   canEditStudent,
   canPrintReceipts,
-  canViewLedger,
   latestReceiptId,
   returnTo,
   encodedReturnTo,
@@ -53,7 +52,6 @@ export function StudentDetailHeader({
   canPostPayments: boolean;
   canEditStudent: boolean;
   canPrintReceipts: boolean;
-  canViewLedger: boolean;
   latestReceiptId: string | null;
   returnTo: string;
   encodedReturnTo: string;
@@ -130,15 +128,6 @@ export function StudentDetailHeader({
               <Link href={`/protected/receipts/${latestReceiptId}?returnTo=${encodedReturnTo}`}>
                 <Printer className="h-3.5 w-3.5" />
                 <span>{canPrintReceipts ? "Print last receipt" : "Last receipt"}</span>
-              </Link>
-            </Button>
-          ) : null}
-
-          {canViewLedger ? (
-            <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 px-2.5 text-xs">
-              <Link href={`/protected/reports/ledger/${student.id}?returnTo=${encodedReturnTo}`}>
-                <Receipt className="h-3.5 w-3.5" />
-                <span>Ledger</span>
               </Link>
             </Button>
           ) : null}

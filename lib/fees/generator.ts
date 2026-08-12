@@ -1,5 +1,6 @@
 import "server-only";
 
+import { fetchInChunks } from "@/lib/helpers/chunk";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getFeeSetupPageData } from "@/lib/fees/data";
@@ -619,18 +620,33 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
   const repaymentPlanInstallmentIds = new Set<string>();
 
   if (studentIds.length > 0) {
-    const { data: installmentsRaw, error: installmentsError } = await supabase
-      .from("installments")
-      .select(
-        "id, student_id, class_id, fee_setting_id, student_fee_override_id, installment_no, installment_label, due_date, base_amount, transport_amount, discount_amount, amount_due, late_fee_flat_amount, status, is_carry_forward, is_emi_late_fee",
-      )
-      .in("student_id", studentIds);
+    // Chunked for the same reason the installment-id queries below are: this
+    // filter carries one UUID per student, and the live 2026-27 session has
+    // 507 of them -- about 19 KB of URL against a PostgREST limit nearer 8 KB.
+    // Unchunked it did not return an error, it failed at the transport with
+    // `TypeError: fetch failed`, which surfaced as a blank panel on Reports
+    // after a ten-second wait.
+    const { data: installmentsRaw, error: installmentsError } = await fetchInChunks<ExistingInstallmentRow>(
+      studentIds,
+      200,
+      (chunk) =>
+        supabase
+          .from("installments")
+          .select(
+            "id, student_id, class_id, fee_setting_id, student_fee_override_id, installment_no, installment_label, due_date, base_amount, transport_amount, discount_amount, amount_due, late_fee_flat_amount, status, is_carry_forward, is_emi_late_fee",
+          )
+          .in("student_id", chunk),
+    );
 
     if (installmentsError) {
-      throw new Error(installmentsError.message);
+      throw new Error(
+        installmentsError instanceof Error
+          ? installmentsError.message
+          : String((installmentsError as { message?: string })?.message ?? installmentsError),
+      );
     }
 
-    existingInstallments = (installmentsRaw ?? []) as ExistingInstallmentRow[];
+    existingInstallments = installmentsRaw as ExistingInstallmentRow[];
     const installmentIds = existingInstallments.map((row) => row.id);
 
     if (installmentIds.length > 0) {

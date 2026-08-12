@@ -588,9 +588,10 @@ function SVGTrendBarChart({
                 aria-label={`${formatLabel(point.date)} · ${formatInr(point.amount)} · ${point.receiptCount} receipts`}
                 className="cursor-pointer [&:hover>rect]:opacity-80"
               >
-                <title>
-                  {formatLabel(point.date)} · {formatInr(point.amount)}
-                </title>
+                {/* One template string, not three children. React cannot
+                    flatten an array into a <title>, and warned on every
+                    dashboard render that carried a trend chart. */}
+                <title>{`${formatLabel(point.date)} · ${formatInr(point.amount)}`}</title>
                 {/* Full-slot hit area so the whole column is clickable, not
                     just a 4px bar on a quiet day. */}
                 <rect

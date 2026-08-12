@@ -1,4 +1,5 @@
 import "server-only";
+import { fetchAllPages } from "@/lib/helpers/chunk";
 
 import { formatExportName } from "@/lib/helpers/export";
 import { createClient } from "@/lib/supabase/server";
@@ -658,19 +659,42 @@ async function getOutstandingReportData(
   classOptions: StudentClassOption[],
 ): Promise<OutstandingReportData> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("v_workbook_installment_balances")
-    .select(
-      "installment_id, student_id, transport_route_id, transport_route_name, transport_route_code, admission_no, student_name, session_label, class_id, class_name, class_label, section, stream_name, installment_no, installment_label, due_date, base_charge, final_late_fee, total_charge, paid_amount, adjustment_amount, applied_amount, pending_amount, balance_status",
-    )
-    .gt("pending_amount", 0)
-    .in("balance_status", ["partial", "overdue", "pending"]);
+
+  // Paged, and scoped to the session when one is chosen.
+  //
+  // This was a single unpaged select across every session. PostgREST caps a
+  // request at 1,000 rows, and the live database has 1,970 matching this
+  // filter -- so the Outstanding report was silently missing about 970 rows,
+  // with nothing on screen to say so. Paging fixes the truncation; the session
+  // filter means the common case stops shipping other sessions' rows to throw
+  // them away in Node afterwards.
+  const { data, error } = await fetchAllPages<WorkbookInstallmentBalanceReportRow>(
+    (from, to) => {
+      let query = supabase
+        .from("v_workbook_installment_balances")
+        .select(
+          "installment_id, student_id, transport_route_id, transport_route_name, transport_route_code, admission_no, student_name, session_label, class_id, class_name, class_label, section, stream_name, installment_no, installment_label, due_date, base_charge, final_late_fee, total_charge, paid_amount, adjustment_amount, applied_amount, pending_amount, balance_status",
+        )
+        .gt("pending_amount", 0)
+        .in("balance_status", ["partial", "overdue", "pending"]);
+
+      if (filters.sessionLabel) {
+        query = query.eq("session_label", filters.sessionLabel);
+      }
+
+      return query.order("installment_id", { ascending: true }).range(from, to);
+    },
+  );
 
   if (error) {
-    throw new Error(`Unable to load outstanding report: ${error.message}`);
+    throw new Error(
+      `Unable to load outstanding report: ${
+        error instanceof Error ? error.message : String((error as { message?: string })?.message ?? error)
+      }`,
+    );
   }
 
-  const generatedRows = ((data ?? []) as WorkbookInstallmentBalanceReportRow[])
+  const generatedRows = (data as WorkbookInstallmentBalanceReportRow[])
     .flatMap((row) => {
       if (
         row.balance_status !== "partial" &&

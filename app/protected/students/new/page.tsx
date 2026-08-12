@@ -3,7 +3,7 @@ import { SectionCard } from "@/components/admin/section-card";
 import { WorkflowGuard } from "@/components/office/office-ui";
 import { StudentForm } from "@/components/students/student-form";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
-import { getSetupWizardData } from "@/lib/setup/data";
+import { getSetupWizardDataLight } from "@/lib/setup/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -26,7 +26,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
     setup,
   ] = await Promise.all([
     getStudentFormOptions({ sessionLabel: requestedSessionLabel }),
-    getSetupWizardData(),
+    getSetupWizardDataLight(),
   ]);
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
 

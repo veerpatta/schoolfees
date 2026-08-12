@@ -31,7 +31,7 @@ import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
 import { getFeePolicySummary } from "@/lib/fees/data";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
-import { getSetupWizardData } from "@/lib/setup/data";
+import { getSetupWizardDataLight } from "@/lib/setup/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 type ReportsPageProps = {
@@ -1274,8 +1274,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const [data, policy, setup] = await Promise.all([
     getReportsPageData(filters),
     getFeePolicySummary(),
-    getSetupWizardData(),
+    getSetupWizardDataLight(),
   ]);
+  // Light, not the full wizard load: this page wants one readiness chip, and
+  // the heavy variant runs previewLedgerGeneration -- a whole dry-run of the
+  // fee engine over every student in the session. Measured at 28s on this
+  // page. Transactions already reads the light one for the same call.
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
   const activeDefinition = reportDefinitions[data.report.key];
   const exportHref = `/protected/reports/export${buildReportHref(filters).replace("/protected/reports", "")}`;

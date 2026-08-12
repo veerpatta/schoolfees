@@ -58,7 +58,11 @@ export function BatchUploadCard({
         </Button>
       }
     >
-      <form ref={formRef} action={handleSubmit} encType="multipart/form-data" className="space-y-4">
+      {/* No encType: React sets multipart itself for a function action, and
+          specifying it warned on every render that it would be overridden.
+          The file still uploads as multipart -- that is React's default here,
+          not something this attribute was buying. */}
+      <form ref={formRef} action={handleSubmit} className="space-y-4">
         <input type="hidden" name="importMode" value={mode} />
         <div className="grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
           <div>
