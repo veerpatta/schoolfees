@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DownloadAnchor } from "@/components/ui/download-anchor";
@@ -139,5 +140,41 @@ describe("DownloadAnchor", () => {
 
     expect(link).not.toHaveAttribute("aria-busy");
     expect(screen.getByText("Still preparing")).toBeInTheDocument();
+  });
+});
+
+describe("DownloadAnchor server/client agreement", () => {
+  /**
+   * The nonce used to be minted inside `watch()`, which runs during render on
+   * BOTH the server and the client. Each produced a different `?dl=`, so every
+   * page carrying a download button — Exports, Defaulters, Transactions, bulk
+   * entry — logged a React hydration mismatch, reported as "this won't be
+   * patched up".
+   *
+   * The consequence was not cosmetic. The DOM kept the server's href while the
+   * click handler closed over the client's token, so the spinner waited for a
+   * nonce the server was never asked to echo back and only stopped on the
+   * 90-second timeout.
+   */
+  it("renders the plain href on the server, with no nonce to disagree about", () => {
+    const html = renderToStaticMarkup(
+      <DownloadAnchor href="/protected/exports/defaulters?session=TEST-2026-27">
+        Export
+      </DownloadAnchor>,
+    );
+
+    expect(html).toContain('href="/protected/exports/defaulters?session=TEST-2026-27"');
+    expect(html).not.toContain(DOWNLOAD_TOKEN_PARAM);
+  });
+
+  it("produces the same markup twice, so two renders cannot disagree", () => {
+    const once = renderToStaticMarkup(
+      <DownloadAnchor href="/protected/exports/emi-plans">Export</DownloadAnchor>,
+    );
+    const twice = renderToStaticMarkup(
+      <DownloadAnchor href="/protected/exports/emi-plans">Export</DownloadAnchor>,
+    );
+
+    expect(once).toBe(twice);
   });
 });

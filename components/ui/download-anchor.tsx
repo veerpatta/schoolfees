@@ -68,14 +68,44 @@ export function useDownloadFeedback(options: UseDownloadFeedbackOptions = {}) {
   const [pending, setPending] = useState(false);
   const timers = useRef<{ poll?: number; timeout?: number }>({});
 
+  /**
+   * The nonce is minted AFTER mount, never during render.
+   *
+   * It used to be generated inside `watch()`, which runs on both the server and
+   * the client — producing a different `?dl=` on each and a hydration mismatch
+   * on every page carrying a download button (Exports, Defaulters,
+   * Transactions, bulk entry). React reports those as "this won't be patched
+   * up": the DOM keeps the server's href while the click handler closes over
+   * the client's token, so the spinner waits for a nonce the server was never
+   * asked to echo, and only ever stops on the 90-second timeout.
+   *
+   * Rendering `null` first also keeps the no-JS path honest: the server emits
+   * the plain href, which downloads exactly as it always did, just without a
+   * spinner.
+   */
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setToken(newToken());
+  }, []);
+
   const stop = useCallback(() => {
     window.clearInterval(timers.current.poll);
     window.clearTimeout(timers.current.timeout);
     timers.current = {};
     setPending(false);
+    // Fresh nonce for the next download, minted while idle so the href is
+    // already updated by the time anyone clicks again.
+    setToken(newToken());
   }, []);
 
-  useEffect(() => stop, [stop]);
+  useEffect(
+    () => () => {
+      window.clearInterval(timers.current.poll);
+      window.clearTimeout(timers.current.timeout);
+    },
+    [],
+  );
 
   const start = useCallback(
     (token: string) => {
@@ -107,17 +137,17 @@ export function useDownloadFeedback(options: UseDownloadFeedbackOptions = {}) {
   );
 
   const watch = useCallback(
-    (href: string) => {
-      const token = newToken();
-
-      return {
-        href: withToken(href, token),
-        // No event argument on purpose: there is nothing here that could
-        // accidentally call preventDefault.
-        onClick: () => start(token),
-      };
-    },
-    [start],
+    (href: string) => ({
+      // Before mount there is no nonce, so the href is the plain one. The
+      // download still works; only the spinner is unavailable.
+      href: token ? withToken(href, token) : href,
+      // No event argument on purpose: there is nothing here that could
+      // accidentally call preventDefault.
+      onClick: () => {
+        if (token) start(token);
+      },
+    }),
+    [start, token],
   );
 
   return { pending, watch };
