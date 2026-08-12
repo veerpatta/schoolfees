@@ -76,12 +76,19 @@ export function StudentQuickReference({ student, financialSnapshot }: StudentQui
           </div>
         ) : null}
 
+        {/* `creditBalance`, `overpaidAmount` and `refundableAmount` are three
+            names for one expression in v_student_financial_state:
+            GREATEST(total_paid - revised_total_due, 0). This block used to gate
+            on the first and print the third under a different label, 200px
+            from where the finance glance prints the first — inventing a
+            distinction that does not exist and inviting someone to add them.
+            One figure, one name. */}
         {financialSnapshot && financialSnapshot.creditBalance > 0 ? (
           <div className="rounded-lg bg-warning-soft px-3 py-3 text-sm text-warning-soft-foreground">
-            <p className="font-semibold">Credit / refund</p>
+            <p className="font-semibold">Credit balance</p>
             <p className="mt-1">
-              Amount to refund or adjust:{" "}
-              <Money value={financialSnapshot.refundableAmount} size="sm" tone="warning" />.
+              <Money value={financialSnapshot.creditBalance} size="sm" tone="warning" /> to refund
+              or adjust on the next receipt.
             </p>
           </div>
         ) : null}

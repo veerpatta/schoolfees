@@ -174,6 +174,22 @@ export default async function StudentDetailPage({
   const canViewLedger = hasStaffPermission(staff, "ledger:view");
   const canShowDangerZone = staff.appRole === "admin" && canEditStudent && deletionSafety;
   const outstandingAmount = installmentBalances.reduce((sum, row) => sum + row.pendingAmount, 0);
+
+  // What the ledger actually charged this session, and what has actually been
+  // forgiven. Both are canonical per the source-of-truth rule, and both are
+  // declared here rather than beside their first use because `feePlanContent`
+  // below is an eagerly-evaluated JSX const, not a function.
+  //
+  // Waived late fee is deliberately NOT folded into the fee total: it is
+  // forgiven LATE FEE, not fee. Since 20260809110000 almost every waiver in the
+  // database is an automatic grandfather row, so adding it inflated the
+  // "annual fee" of most of the school by an amount nobody granted.
+  const sessionFeeTotal = installmentBalances.reduce((sum, b) => sum + b.baseCharge, 0);
+  const lateFeeWaivedTotal = installmentBalances.reduce(
+    (sum, b) => sum + b.waiverApplied,
+    0,
+  );
+
   const prevYearDuesAmount = installmentBalances.reduce(
     (sum, row) => (isCarryForwardInstallment(row) && row.pendingAmount > 0 ? sum + row.pendingAmount : sum),
     0,
@@ -329,9 +345,13 @@ export default async function StudentDetailPage({
                 <p className="mt-1 text-[11px] text-muted-foreground">{conventionalDiscountLabels.join(", ")}</p>
               ) : null}
             </div>
+            {/* Sits among editable fee exceptions, so it must not read as one.
+                The value is the live sum of per-installment waivers, NOT the
+                retired student_fee_overrides.late_fee_waiver_amount pool
+                column that used to be shown here. */}
             <div className="rounded-lg border border-border bg-surface-2/60 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Late fee waiver</p>
-              <p className="mt-2 font-semibold text-foreground"><Money value={student.lateFeeWaiverAmount} /></p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Late fee waived so far</p>
+              <p className="mt-2 font-semibold text-foreground"><Money value={lateFeeWaivedTotal} /></p>
             </div>
           </div>
 
@@ -428,14 +448,6 @@ export default async function StudentDetailPage({
   const discountClosedAmount = receipts
     .filter((r) => r.paymentMode === "discount")
     .reduce((sum, r) => sum + r.totalAmount, 0);
-  const totalAnnualForGlance = installmentBalances.reduce(
-    (sum, b) => sum + b.baseCharge,
-    0,
-  );
-  const lateFeeWaivedTotal = installmentBalances.reduce(
-    (sum, b) => sum + b.waiverApplied,
-    0,
-  );
   // Build the snapshot rows from the same source as the Fee plan tab so the
   // tuition row shows the gross amount and the discount line subtracts it
   // cleanly — otherwise the resolver's post-conventional-discount tuition
@@ -765,7 +777,7 @@ export default async function StudentDetailPage({
         stats={[
           {
             label: tm("studentStatTotal"),
-            value: formatInr(totalAnnualForGlance + lateFeeWaivedTotal),
+            value: formatInr(sessionFeeTotal),
           },
           {
             label: tm("studentStatPaid"),
@@ -1148,7 +1160,12 @@ export default async function StudentDetailPage({
         canPostPayments={canPostPayments}
         canEditStudent={canEditStudent}
         canWaiveLateFee={canWaiveLateFee}
-        lateFeeWaiverAmount={student.lateFeeWaiverAmount ?? 0}
+        // Live sum of what is actually forgiven, not the retired
+        // student_fee_overrides.late_fee_waiver_amount pool column (DEPRECATED
+        // 2026-08-08 — no engine reads it). The waive dialog shows this as
+        // "previously waived", so a stale figure misleads the person granting
+        // the next waiver.
+        lateFeeWaiverAmount={lateFeeWaivedTotal}
         sessionLabel={financialSnapshot?.policy.academicSessionLabel ?? ""}
         canPrintReceipts={canPrintReceipts}
         canViewLedger={canViewLedger}
@@ -1161,7 +1178,7 @@ export default async function StudentDetailPage({
         annualHeads={glanceAnnualHeads}
         discountAmount={glanceDiscountAmount}
         discountLabels={glanceDiscountLabels}
-        totalAnnual={totalAnnualForGlance + lateFeeWaivedTotal}
+        totalAnnual={sessionFeeTotal}
         totalPaid={cashPaidAllInstallments}
         discountClosedAmount={discountClosedAmount}
         totalPending={outstandingAmount}
@@ -1196,8 +1213,15 @@ export default async function StudentDetailPage({
           partial: partialInstallments,
           total: installmentBalances.length,
         }}
-        totalCollected={ledger?.totalPayments ?? 0}
-        annualTotal={financialSnapshot?.resolvedBreakdown.annualTotal ?? 0}
+        // `ledger.totalPayments` is every payment row for the student: all
+        // sessions, all modes INCLUDING discount close-outs, and it ignores
+        // payment_adjustments. So it reads HIGHER than reality for exactly the
+        // students most likely to be under review — the ones with a reversed
+        // receipt or a write-off. The workbook projection is session-scoped,
+        // cash-only and nets adjustments, and it is what every other figure on
+        // this page already uses.
+        totalCollected={cashPaidAllInstallments}
+        annualTotal={sessionFeeTotal}
         lastPayment={lastPaymentInfo}
         reliability={paymentReliability}
         nextPending={nextPendingInfo}
