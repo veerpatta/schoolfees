@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2, Mic, Pause, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 
 const MAX_RECORDING_MS = 60_000;
 const BUCKET = "defaulter-voice-notes";
@@ -71,6 +70,13 @@ export function VoiceNoteRecorder({ studentId, inputName }: Props) {
   }
 
   async function uploadBlob(blob: Blob) {
+    // Imported here, not at module scope. This recorder is reachable from the
+    // Defaulters contact popover, and a static import put the whole
+    // `@supabase/supabase-js` client — realtime included — into the eager
+    // Defaulters route chunk: ~60 KB gzip, paid by every follow-up call, to
+    // upload a voice note that most calls never record. Nobody reaches this
+    // function without first holding down the mic button.
+    const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     const extension = fileExtension(blob.type);
     const objectName = `${studentId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;

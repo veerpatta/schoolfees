@@ -59,8 +59,39 @@ async function measure(route) {
   };
 }
 
+/**
+ * The chunks every route loads before its own.
+ *
+ * These were invisible to this gate for its whole life, which is how the Sentry
+ * browser SDK sat in the shared bundle at 151.6 KB gzip while all eight route
+ * ceilings stayed green. Half of first-load JS was outside the budget.
+ */
+async function measureShared() {
+  const manifest = JSON.parse(await readFile(".next/build-manifest.json", "utf8"));
+  const files = [...new Set(manifest.rootMainFiles ?? [])].filter((file) =>
+    file.endsWith(".js"),
+  );
+
+  if (files.length === 0) {
+    throw new Error("No rootMainFiles in .next/build-manifest.json.");
+  }
+
+  let rawBytes = 0;
+  let gzipBytes = 0;
+
+  for (const file of files) {
+    const filePath = path.resolve(".next", file);
+    const [fileStat, contents] = await Promise.all([stat(filePath), readFile(filePath)]);
+    rawBytes += fileStat.size;
+    gzipBytes += gzipSync(contents).length;
+  }
+
+  return { route: "(shared) rootMainFiles", chunks: files.length, rawBytes, gzipBytes };
+}
+
 const measurements = [];
 for (const route of routes) measurements.push(await measure(route));
+const shared = await measureShared();
 
 if (process.argv.includes("--check")) {
   const baseline = JSON.parse(await readFile("quality/route-bundle-baseline.json", "utf8"));
@@ -72,6 +103,16 @@ if (process.argv.includes("--check")) {
       ? [`${item.route}: ${current?.gzipBytes ?? "missing"} gzip bytes; ceiling is ${ceiling}.`]
       : [];
   });
+
+  const sharedCeiling = baseline.shared?.targetGzipBytes ?? baseline.shared?.gzipBytes;
+
+  if (typeof sharedCeiling === "number" && shared.gzipBytes > sharedCeiling) {
+    failures.push(
+      `${shared.route}: ${shared.gzipBytes} gzip bytes; ceiling is ${sharedCeiling}. ` +
+        "Every route pays this one — check for a static import of a heavy SDK.",
+    );
+  }
+
   if (failures.length > 0) {
     console.error(failures.join("\n"));
     process.exit(1);
@@ -83,7 +124,12 @@ console.log(
     {
       generatedFrom: "next-build",
       metric: "initial entry JS, unique chunks",
+      shared,
       measurements,
+      // What a browser actually downloads before a route can render.
+      firstLoadGzipBytes: Object.fromEntries(
+        measurements.map((item) => [item.route, item.gzipBytes + shared.gzipBytes]),
+      ),
     },
     null,
     2,

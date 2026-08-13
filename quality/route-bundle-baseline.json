@@ -1,64 +1,72 @@
 {
   "generatedAt": "2026-07-18",
-  "currentGeneratedAt": "2026-08-11T00:00:00.000Z",
-  "generatedFrom": "Re-measured after the filter-toolbar work, the Recently-opened removal and the suspected-sibling removal. Route entry JS is essentially flat: fee-setup -840, students -271, defaulters -165, dashboard/payments/exports/admin-tools -28 to -35, and transactions +1569. Transactions is the only rise and it is paid for: that screen had no active-filter pill row at all, which is exactly why its 24 segment chips had to stay expanded to be legible, so it gained ActiveFilterSummary and FilterDrawerButton (~1.5 KB) to shed ~270px of permanent chrome. Ceilings are NOT raised for it -- 208200 still stands and the new figure is under it. The real win this round is not in these numbers: rootMainFiles, which every one of these routes loads on top of its own entry, went 254.0 -> 217.6 KB gzip because the Sentry session-replay recorder (rrweb, 37.2 KB gzip, sampled at 10%) stopped being a static import and moved to lazyLoadIntegration. Verified by grepping the built rootMainFiles for recordCanvas/rrweb/MutationObserver: previously 20+ hits in 4a7b0c69-*.js, now zero in every chunk. Ceilings retain the usual ~1.5% runner variance.",
+  "currentGeneratedAt": "2026-08-13T00:00:00.000Z",
+  "generatedFrom": "Re-measured after taking the Sentry browser SDK and the Supabase realtime client off the critical path. Two static imports were doing almost all of the damage. (1) `instrumentation-client.ts` imported @sentry/nextjs at module scope, which put core+tracing+logs into rootMainFiles: every route paid 151.6 KB gzip before it could render, the login screen as much as the Payment Desk. It now loads on requestIdleCallback after `load`, with a synchronous window.onerror/unhandledrejection buffer so errors thrown during boot are still captured and replayed into the SDK when it arrives; `app/global-error.tsx` imports it inside the effect for the same reason. The cost is the pageload transaction, which tracing no longer sees. (2) `office-sync-listener.tsx` imported @/lib/supabase/client at module scope for one listener that renders null, dragging supabase-js WITH realtime (~60 KB gzip) into the eager chunk of every protected route; `voice-note-recorder.tsx` did the same to Defaulters. Both now import inside the handler that needs them. rootMainFiles: 217.6 -> 129.2 KB gzip. Route entry JS: -60 KB on every route. First-load JS (shared + route) is down ~144 KB gzip, about 35%, on all eight. Ceilings ratchet DOWN to the new figures with the usual ~1.5% runner variance, and `shared` is now gated too -- it never was, which is how half of first-load JS stayed outside the budget for the gate's whole life.",
   "metric": "initial entry JS, unique chunks",
+  "shared": {
+    "route": "(shared) rootMainFiles",
+    "note": "Loaded by every route before its own entry JS. Was invisible to --check until 2026-08-13.",
+    "chunks": 4,
+    "rawBytes": 437011,
+    "gzipBytes": 131000,
+    "currentGzipBytes": 129230
+  },
   "measurements": [
     {
       "route": "/protected/dashboard",
-      "chunks": 20,
-      "rawBytes": 586256,
-      "gzipBytes": 185901,
-      "currentGzipBytes": 183125
+      "chunks": 17,
+      "rawBytes": 359157,
+      "gzipBytes": 124400,
+      "currentGzipBytes": 122541
     },
     {
       "route": "/protected/students",
-      "chunks": 22,
-      "rawBytes": 643454,
-      "gzipBytes": 201782,
-      "currentGzipBytes": 198529
+      "chunks": 19,
+      "rawBytes": 417769,
+      "gzipBytes": 140100,
+      "currentGzipBytes": 138059
     },
     {
       "route": "/protected/fee-setup",
-      "chunks": 20,
-      "rawBytes": 624294,
-      "gzipBytes": 191039,
-      "currentGzipBytes": 187375
+      "chunks": 19,
+      "rawBytes": 398512,
+      "gzipBytes": 130200,
+      "currentGzipBytes": 128294
     },
     {
       "route": "/protected/payments",
-      "chunks": 18,
-      "rawBytes": 562612,
-      "gzipBytes": 176921,
-      "currentGzipBytes": 174277
+      "chunks": 16,
+      "rawBytes": 336605,
+      "gzipBytes": 116100,
+      "currentGzipBytes": 114408
     },
     {
       "route": "/protected/transactions",
-      "chunks": 24,
-      "rawBytes": 666422,
-      "gzipBytes": 208200,
-      "currentGzipBytes": 206692
+      "chunks": 21,
+      "rawBytes": 440815,
+      "gzipBytes": 148300,
+      "currentGzipBytes": 146079
     },
     {
       "route": "/protected/defaulters",
-      "chunks": 22,
-      "rawBytes": 651945,
-      "gzipBytes": 204423,
-      "currentGzipBytes": 201236
+      "chunks": 19,
+      "rawBytes": 428641,
+      "gzipBytes": 143500,
+      "currentGzipBytes": 141408
     },
     {
       "route": "/protected/exports",
-      "chunks": 19,
-      "rawBytes": 565231,
-      "gzipBytes": 178120,
-      "currentGzipBytes": 175452
+      "chunks": 17,
+      "rawBytes": 339395,
+      "gzipBytes": 117300,
+      "currentGzipBytes": 115585
     },
     {
       "route": "/protected/admin-tools",
-      "chunks": 19,
-      "rawBytes": 568300,
-      "gzipBytes": 179652,
-      "currentGzipBytes": 176965
+      "chunks": 17,
+      "rawBytes": 342286,
+      "gzipBytes": 118800,
+      "currentGzipBytes": 117085
     }
   ]
 }

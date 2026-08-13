@@ -2,7 +2,6 @@
 // Catches React render errors at the App Router root and reports them.
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import NextError from "next/error";
 import { useEffect } from "react";
 
@@ -12,7 +11,17 @@ export default function GlobalError({
   error: Error & { digest?: string };
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    // Imported here rather than at module scope. A static import of the Sentry
+    // SDK in the root error boundary pins the whole browser SDK into the shared
+    // chunk that every route loads, to report an error that almost never
+    // happens. By the time this component renders we can afford to fetch it.
+    void import("@sentry/nextjs")
+      .then((Sentry) => {
+        Sentry.captureException(error);
+      })
+      .catch(() => {
+        // The app has already crashed; a failed reporter must not crash it again.
+      });
   }, [error]);
 
   return (
