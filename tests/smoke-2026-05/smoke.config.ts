@@ -60,7 +60,7 @@ export default defineConfig({
     },
     {
       name: "desktop-chrome",
-      testMatch: /(deep-smoke|special-flows)\.spec\.ts/,
+      testMatch: /(deep-smoke|special-flows|i18n-navigation)\.spec\.ts/,
       dependencies: ["setup"],
       use: {
         ...devices["Desktop Chrome"],
