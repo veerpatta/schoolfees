@@ -110,7 +110,7 @@ export function StatTile({
       <TileLabel>{label}</TileLabel>
       {format === "count" ? (
         <span className={cn(sizeClass, "tabular", TONE_TEXT[tone])}>
-          {value.toLocaleString("en-IN")}
+          {value.toLocaleString("en-IN") /* @allow-raw-money-format — a count, not rupees. Indian digit grouping is still right for "1,20,000 receipts"; formatInr would print "Rs". */}
         </span>
       ) : (
         <Money value={value} tone={tone} className={sizeClass} />
@@ -407,7 +407,7 @@ export function MiniDonut({
             <span className="min-w-0 flex-1 truncate text-muted-foreground">{segment.label}</span>
             {format === "count" ? (
               <span className="shrink-0 tabular text-xs font-medium">
-                {segment.value.toLocaleString("en-IN")}
+                {segment.value.toLocaleString("en-IN") /* @allow-raw-money-format — a count, not rupees; same reason as StatTile above. */}
               </span>
             ) : (
               <Money value={segment.value} size="xs" className="shrink-0 font-medium" />
