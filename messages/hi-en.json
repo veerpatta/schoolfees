@@ -489,6 +489,8 @@
     "groupAnalysis": "Vishleshan ke liye",
     "itemAllStudents": "Sabhi vidyarthi",
     "itemAllStudentsDetail": "Office jaanch ke liye poorn vidyarthi soochi.",
+    "itemStudentMaster": "Student master (विद्यार्थी मास्टर)",
+    "itemStudentMasterDetail": "Aadhaar, house, address aur guardian details ke saath poora student record.",
     "itemDiscountStudents": "Chhoot praapt vidyarthi",
     "itemDiscountStudentsDetail": "RTE, staff bachcha, aur bhai-behan neeti.",
     "itemClassWiseDues": "Kakshavaar bakaya",

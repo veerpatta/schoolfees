@@ -5,6 +5,7 @@ import {
   type RawImportRowPayload,
   type StudentImportColumnMapping,
 } from "@/lib/import/types";
+import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
 
 export const studentImportFieldDefinitions: readonly ImportFieldDefinition[] = [
   {
@@ -221,7 +222,52 @@ export const studentImportFieldDefinitions: readonly ImportFieldDefinition[] = [
   // See docs/modules/import.md and audit finding 1.2 — sheet columns must never
   // silently apply policies that zero out tuition. Policies are assigned
   // exclusively through the dedicated Conventional Discount workflow.
+  //
+  // The student information fields, by contrast, are safe to import: they are
+  // optional, they carry no fee impact, and an office moving off a register has
+  // them in a spreadsheet already. Generated from the one catalogue so a column
+  // cannot be named one thing here and another in the template.
+  ...STUDENT_INFO_FIELDS.map((field) => ({
+    key: field.name,
+    label: field.header,
+    description: field.options
+      ? `Optional. One of: ${field.options.join(", ")}.`
+      : field.digits
+        ? `Optional. ${field.digits} digits.`
+        : "Optional.",
+    required: false,
+    aliases: buildInfoAliases(field.name, field.header),
+  })),
 ] as const;
+
+/**
+ * What an office spreadsheet is likely to call this column.
+ *
+ * The header itself and a lowercase/spaced form always match through
+ * `normalizeImportKey`; these are the extra spellings seen in real registers,
+ * where "Aadhaar" is also "Aadhar" and a pincode is a "PIN code".
+ */
+function buildInfoAliases(name: string, header: string): string[] {
+  const extras: Record<string, string[]> = {
+    aadhaarNo: ["aadhaar", "aadhar", "aadhar no", "aadhar number", "aadhaar number", "uid"],
+    janAadhaarNo: ["jan aadhaar", "jan aadhar", "janaadhaar", "family id"],
+    apaarId: ["apaar", "pen", "pen id", "pen no", "apaar no"],
+    bloodGroup: ["blood", "blood grp"],
+    motherTongue: ["mother tounge", "language"],
+    villageCity: ["village", "city", "town", "village city"],
+    pincode: ["pin code", "pin", "postal code", "zip"],
+    rollNo: ["roll", "roll number"],
+    previousSchool: ["last school", "prev school"],
+    tcNumber: ["tc no", "tc", "transfer certificate"],
+    boardRegistrationNo: ["board reg no", "board roll no", "registration no"],
+    guardianRelation: ["relation", "guardian relationship"],
+    emergencyContactName: ["emergency contact", "emergency name"],
+    emergencyContactPhone: ["emergency phone", "emergency number", "emergency contact no"],
+    category: ["caste category", "reservation category"],
+  };
+
+  return [header, ...(extras[name] ?? [])];
+}
 
 export function normalizeImportKey(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");

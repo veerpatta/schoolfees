@@ -1095,6 +1095,72 @@ export async function getAllStudents(filters: StudentListFilters) {
   return all;
 }
 
+export type StudentMasterFields = StudentInfoFields & {
+  fatherName: string | null;
+  motherName: string | null;
+  email: string | null;
+  address: string | null;
+  joinedOn: string | null;
+};
+
+/**
+ * The record columns the student list does not carry, keyed by student id.
+ *
+ * A separate round trip on purpose. The obvious alternative — adding these to
+ * the student list select — would put 30 extra columns on the hottest read in
+ * the app, `/protected/students`, to serve an export the office runs a few
+ * times a term. This way the list query is untouched and only the export pays.
+ */
+export async function getStudentMasterFieldsByIds(
+  studentIds: readonly string[],
+): Promise<Map<string, StudentMasterFields>> {
+  const byId = new Map<string, StudentMasterFields>();
+
+  if (studentIds.length === 0) {
+    return byId;
+  }
+
+  const supabase = await getCacheSafeClient();
+  // Chunked so a whole-school export does not build one enormous `in` list.
+  const chunkSize = 500;
+
+  for (let start = 0; start < studentIds.length; start += chunkSize) {
+    const chunk = studentIds.slice(start, start + chunkSize);
+    const { data, error } = await supabase
+      .from("students")
+      .select(
+        `id, father_name, mother_name, email, address, joined_on, ${STUDENT_INFO_SELECT_COLUMNS}`,
+      )
+      .in("id", chunk);
+
+    if (error) {
+      throw new Error(`Unable to load student records: ${error.message}`);
+    }
+
+    const rows = (data ?? []) as unknown as (StudentInfoRow & {
+      id: string;
+      father_name: string | null;
+      mother_name: string | null;
+      email: string | null;
+      address: string | null;
+      joined_on: string | null;
+    })[];
+
+    for (const row of rows) {
+      byId.set(row.id, {
+        ...mapStudentInfoRow(row),
+        fatherName: row.father_name,
+        motherName: row.mother_name,
+        email: row.email,
+        address: row.address,
+        joinedOn: row.joined_on,
+      });
+    }
+  }
+
+  return byId;
+}
+
 async function getStudentDetailUncached(studentId: string): Promise<StudentDetail | null> {
   const supabase = await getCacheSafeClient();
   const policy = await getFeePolicySummary();

@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download, Sparkles, FileText, CalendarClock } from "lucide-react";
+import { UsersRound, BadgePercent, Layers, CircleAlert, Receipt, Download, Sparkles, FileText, CalendarClock, IdCard } from "lucide-react";
 
 import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { PageHeader } from "@/components/admin/page-header";
@@ -21,6 +21,13 @@ const exportGroups = [
         labelKey: "itemAllStudents",
         detailKey: "itemAllStudentsDetail",
         icon: UsersRound,
+        tone: "neutral" as const,
+      },
+      {
+        key: "student-master",
+        labelKey: "itemStudentMaster",
+        detailKey: "itemStudentMasterDetail",
+        icon: IdCard,
         tone: "neutral" as const,
       },
       {

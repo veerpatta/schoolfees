@@ -8,7 +8,8 @@ import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
 import { createStudent, getStudentDetail, updateStudent } from "@/lib/students/data";
-import { EMPTY_STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+import type { StudentInfoFields } from "@/lib/students/info-fields";
 import { shouldSyncStudentDuesForChange } from "@/lib/students/dues-sync";
 import { buildAutoColumnMapping, validateColumnMapping } from "@/lib/import/mapping";
 import { parseStudentImportFile } from "@/lib/import/parser";
@@ -371,6 +372,22 @@ function toNormalizedPayload(value: unknown): NormalizedStudentImportRow | null 
     fatherPhone: typeof value.fatherPhone === "string" ? value.fatherPhone : null,
     motherPhone: typeof value.motherPhone === "string" ? value.motherPhone : null,
     address: typeof value.address === "string" ? value.address : null,
+    /*
+     * Rows staged before the information fields existed have no `info` key at
+     * all, and a half-uploaded batch must still commit after a deploy. Missing
+     * reads as "all blank", which is also what an unmapped column means, so the
+     * update path leaves the record's values alone either way.
+     */
+    info: (() => {
+      const stored = isRecord(value.info) ? value.info : {};
+
+      return Object.fromEntries(
+        STUDENT_INFO_FIELDS.map((field) => [
+          field.name,
+          typeof stored[field.name] === "string" ? stored[field.name] : null,
+        ]),
+      ) as StudentInfoFields;
+    })(),
     transportRouteId:
       typeof value.transportRouteId === "string" ? value.transportRouteId : null,
     transportRouteLabel:
@@ -1275,11 +1292,21 @@ function buildImportStudentInput(
   // exclusively in the Conventional Discount workflow.
 
   return {
-    // The importer does not carry student information fields (Aadhaar, house,
-    // district, …) — those are entered in the student record, not uploaded.
-    // Blank here means "write nothing", the same stance the importer already
-    // takes on conventional discounts just above.
-    ...EMPTY_STUDENT_INFO_FIELDS,
+    /*
+     * Information fields follow the same rule as Class: a column the sheet
+     * never mapped must not blank what is on the record. An office uploading a
+     * phone-number correction has no Aadhaar column in that file, and reading
+     * its absence as "clear it" would quietly empty the register they just
+     * spent a term filling in.
+     */
+    ...Object.fromEntries(
+      STUDENT_INFO_FIELDS.map((field) => [
+        field.name,
+        useExisting && !hasMappedValue(row, mapping, field.name)
+          ? existing?.[field.name] ?? null
+          : payload.info[field.name],
+      ]),
+    ) as StudentInfoFields,
     fullName: payload.fullName,
     // Never rewrite a student's class from a blank/unmapped Class cell — an
     // update row that leaves Class empty must keep the student where they are.

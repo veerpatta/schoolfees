@@ -6,6 +6,11 @@ import {
   type BulkUpdateSnapshotStudent,
 } from "@/lib/students/bulk-update/diff";
 import type { BulkUpdateField } from "@/lib/students/bulk-update/fields";
+import {
+  STUDENT_INFO_SELECT_COLUMNS,
+  mapStudentInfoRow,
+} from "@/lib/students/info-fields";
+import type { StudentInfoRow } from "@/lib/students/info-fields";
 import { compareStudentRowsByName } from "@/lib/students/sort";
 import { createClient } from "@/lib/supabase/server";
 
@@ -123,10 +128,11 @@ type StudentSnapshotRow = {
   transport_route_id: string | null;
   status: string;
   notes: string | null;
-};
+} & StudentInfoRow;
 
 const SNAPSHOT_COLUMNS =
-  "id, admission_no, full_name, primary_phone, secondary_phone, father_name, mother_name, email, date_of_birth, address, class_id, transport_route_id, status, notes";
+  "id, admission_no, full_name, primary_phone, secondary_phone, father_name, mother_name, email, date_of_birth, address, class_id, transport_route_id, status, notes, " +
+  STUDENT_INFO_SELECT_COLUMNS;
 
 function toSnapshotStudent(
   row: StudentSnapshotRow,
@@ -137,6 +143,9 @@ function toSnapshotStudent(
     admissionNo: row.admission_no,
     fullName: row.full_name,
     values: {
+      // Pre-fills the downloaded sheet, so an office correcting one Aadhaar
+      // does not blank the other 24 columns by leaving them empty.
+      ...mapStudentInfoRow(row),
       fatherPhone: row.primary_phone,
       motherPhone: row.secondary_phone,
       fatherName: row.father_name,
@@ -185,7 +194,12 @@ export async function loadBulkUpdateSnapshot(classIds: readonly string[]) {
   }
 
   // Re-sorted in JS so the order does not depend on the database collation.
-  const rows = ((data ?? []) as StudentSnapshotRow[]).sort(compareStudentRowsByName);
+  // Cast through `unknown`: SNAPSHOT_COLUMNS is assembled from
+  // STUDENT_INFO_SELECT_COLUMNS, so postgrest-js cannot parse the select at the
+  // type level. StudentSnapshotRow was always the hand-declared shape here.
+  const rows = ((data ?? []) as unknown as StudentSnapshotRow[]).sort(
+    compareStudentRowsByName,
+  );
 
   if (rows.length === 0) {
     return [] as BulkUpdateSnapshotStudent[];

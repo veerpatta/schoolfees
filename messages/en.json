@@ -489,6 +489,8 @@
     "groupAnalysis": "For analysis",
     "itemAllStudents": "All students",
     "itemAllStudentsDetail": "Complete student list for office checking.",
+    "itemStudentMaster": "Student master",
+    "itemStudentMasterDetail": "Full student record with Aadhaar, house, address and guardian details.",
     "itemDiscountStudents": "Discount students",
     "itemDiscountStudentsDetail": "RTE, staff child, and sibling policy.",
     "itemClassWiseDues": "Class-wise dues",

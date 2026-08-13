@@ -88,6 +88,36 @@ Three things to know before touching it:
 Aadhaar. The `23505` is mapped to a field-level message via `isDuplicateAadhaarError`,
 matched on the index name so a duplicate SR no does not point at the wrong field.
 
+### The three spreadsheet surfaces
+
+The fields also cross the **Student Master export**, the **import template** and the
+**bulk-update sheet**, and the only thing joining those three is the column header string.
+That makes `field.header` load-bearing in a way a UI label never was: an export writing
+"Aadhaar no" against an importer that only knows "Aadhaar number" looks like a working
+round trip until the re-upload drops the column, which reads to the office as data loss.
+
+So `header` lives in the descriptor next to `labelKey`, and is deliberately **not**
+translated — an uploaded sheet is matched back on it, and a header that changed with the
+operator's locale would read as "column not recognised". `tests/unit/student-info-round-trip.test.ts`
+downloads the Update template's headers, feeds them to `buildAutoColumnMapping`, and
+asserts every field maps back to itself.
+
+Two rules that carry money-shaped risk:
+
+- **The import template appends, never inserts.** `buildStudentTemplateValidations` pins
+  the class, route, New/Old and policy dropdowns to fixed column *numbers*, so a column
+  added ahead of them silently attaches a dropdown to the wrong column. The test asserts
+  those indexes.
+- **An unmapped column must not blank a saved value.** The commit path applies the same
+  `hasMappedValue` guard the importer already used for Class: an office uploading a
+  phone-number correction has no Aadhaar column in that file, and reading its absence as
+  "clear it" would empty a register they spent a term filling in. Rows staged before these
+  fields existed have no `info` key at all, so the deserializer defaults it — a
+  half-uploaded batch still commits after a deploy.
+
+Bulk update generates its entries from the same catalogue, all with `affectsFees: false`:
+correcting an Aadhaar never regenerates dues.
+
 ## Editing from a phone
 
 `/protected/students/[id]/edit` always rendered fine on a phone; until `20260813` it was

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+import { EMPTY_STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+
 const insertPayloads: Array<Array<Record<string, unknown>>> = [];
 const updateCalls: Array<{
   payload: Record<string, unknown>;
@@ -86,6 +88,7 @@ describe("import row persistence", () => {
       {
         id: "row-1",
         normalizedPayload: {
+          info: EMPTY_STUDENT_INFO_FIELDS,
           studentId: null,
           fullName: "Asha Sharma",
           classId: "class-1",

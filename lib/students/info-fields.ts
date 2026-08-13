@@ -81,6 +81,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "identity",
     control: "select",
     labelKey: "infoGender",
+    header: "Gender",
     maxLength: 20,
     options: GENDER_OPTIONS,
   },
@@ -90,6 +91,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "identity",
     control: "select",
     labelKey: "infoBloodGroup",
+    header: "Blood group",
     maxLength: 5,
     options: BLOOD_GROUP_OPTIONS,
     // "O+" reads the same in every language this app speaks.
@@ -101,6 +103,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "identity",
     control: "select",
     labelKey: "infoCategory",
+    header: "Category",
     maxLength: 20,
     options: CATEGORY_OPTIONS,
   },
@@ -110,6 +113,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "identity",
     control: "text",
     labelKey: "infoReligion",
+    header: "Religion",
     maxLength: 60,
   },
   {
@@ -118,6 +122,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "identity",
     control: "text",
     labelKey: "infoCaste",
+    header: "Caste",
     maxLength: 60,
   },
   {
@@ -126,6 +131,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "identity",
     control: "text",
     labelKey: "infoNationality",
+    header: "Nationality",
     maxLength: 60,
   },
   {
@@ -134,6 +140,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "identity",
     control: "text",
     labelKey: "infoMotherTongue",
+    header: "Mother tongue",
     maxLength: 60,
   },
 
@@ -144,6 +151,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "ids",
     control: "text",
     labelKey: "infoAadhaarNo",
+    header: "Aadhaar no",
     maxLength: 12,
     digitsOnly: true,
     digits: 12,
@@ -154,6 +162,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "ids",
     control: "text",
     labelKey: "infoJanAadhaarNo",
+    header: "Jan Aadhaar no",
     // Shared by siblings, and issued in more than one format — no digit count.
     maxLength: 20,
   },
@@ -163,6 +172,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "ids",
     control: "text",
     labelKey: "infoApaarId",
+    header: "APAAR / PEN ID",
     maxLength: 12,
     digitsOnly: true,
     digits: 12,
@@ -175,6 +185,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "school",
     control: "text",
     labelKey: "infoHouse",
+    header: "House",
     maxLength: 40,
   },
   {
@@ -183,6 +194,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "school",
     control: "text",
     labelKey: "infoRollNo",
+    header: "Roll no",
     maxLength: 20,
   },
   {
@@ -191,6 +203,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "school",
     control: "text",
     labelKey: "infoPreviousSchool",
+    header: "Previous school",
     maxLength: 180,
   },
   {
@@ -199,6 +212,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "school",
     control: "text",
     labelKey: "infoTcNumber",
+    header: "TC number",
     maxLength: 60,
   },
   {
@@ -207,6 +221,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "school",
     control: "text",
     labelKey: "infoBoardRegistrationNo",
+    header: "Board registration no",
     maxLength: 60,
   },
 
@@ -217,6 +232,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "address",
     control: "text",
     labelKey: "infoVillageCity",
+    header: "Village / city",
     maxLength: 120,
     autoComplete: "address-level2",
   },
@@ -226,6 +242,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "address",
     control: "text",
     labelKey: "infoTehsil",
+    header: "Tehsil",
     maxLength: 120,
   },
   {
@@ -234,6 +251,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "address",
     control: "text",
     labelKey: "infoDistrict",
+    header: "District",
     maxLength: 120,
   },
   {
@@ -242,6 +260,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "address",
     control: "text",
     labelKey: "infoState",
+    header: "State",
     maxLength: 120,
     autoComplete: "address-level1",
   },
@@ -251,6 +270,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "address",
     control: "text",
     labelKey: "infoPincode",
+    header: "Pincode",
     maxLength: 6,
     digitsOnly: true,
     digits: 6,
@@ -264,6 +284,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "guardian",
     control: "text",
     labelKey: "infoGuardianName",
+    header: "Guardian name",
     maxLength: 150,
   },
   {
@@ -272,6 +293,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "guardian",
     control: "select",
     labelKey: "infoGuardianRelation",
+    header: "Guardian relation",
     maxLength: 40,
     options: GUARDIAN_RELATION_OPTIONS,
   },
@@ -281,6 +303,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "guardian",
     control: "tel",
     labelKey: "infoGuardianPhone",
+    header: "Guardian phone",
     maxLength: 40,
   },
   {
@@ -289,6 +312,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "guardian",
     control: "text",
     labelKey: "infoEmergencyContactName",
+    header: "Emergency contact name",
     maxLength: 150,
   },
   {
@@ -297,6 +321,7 @@ const RAW_STUDENT_INFO_FIELDS = [
     group: "guardian",
     control: "tel",
     labelKey: "infoEmergencyContactPhone",
+    header: "Emergency phone",
     maxLength: 40,
   },
 ] as const;
@@ -311,8 +336,17 @@ export type StudentInfoFieldDescriptor = {
   readonly column: string;
   readonly group: StudentInfoGroupId;
   readonly control: StudentInfoControl;
-  /** Key in the `Students` message namespace. */
+  /** Key in the `Students` message namespace. Used on screen. */
   readonly labelKey: string;
+  /**
+   * Stable English spreadsheet column name, used by the export, the import
+   * template and the bulk-update sheet.
+   *
+   * Deliberately not the translated label: an uploaded sheet is matched back on
+   * this string, so a header that changed with the operator's locale would read
+   * as "column not recognised" rather than as a bug.
+   */
+  readonly header: string;
   readonly maxLength: number;
   /** Choice values, stored verbatim. Translated for display unless noted. */
   readonly options?: readonly string[];
@@ -358,6 +392,11 @@ export const EMPTY_STUDENT_INFO_FORM_INPUT: StudentInfoFormInput =
   Object.fromEntries(
     STUDENT_INFO_FIELDS.map((field) => [field.name, ""]),
   ) as StudentInfoFormInput;
+
+/** Just the names, for callers that need a literal tuple (the import keys). */
+export const STUDENT_INFO_FIELD_NAMES = RAW_STUDENT_INFO_FIELDS.map(
+  (field) => field.name,
+) as unknown as readonly StudentInfoFieldName[];
 
 /** Appended to the students select in getStudentDetailUncached. */
 export const STUDENT_INFO_SELECT_COLUMNS = STUDENT_INFO_FIELDS.map(

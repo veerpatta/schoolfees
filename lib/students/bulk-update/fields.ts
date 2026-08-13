@@ -9,6 +9,8 @@
 // office uses to fix phone numbers.
 
 import { STUDENT_STATUSES } from "@/lib/students/constants";
+import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+import type { StudentInfoFieldName } from "@/lib/students/info-fields";
 
 export type BulkUpdateFieldKey =
   | "fatherPhone"
@@ -22,9 +24,16 @@ export type BulkUpdateFieldKey =
   | "route"
   | "status"
   | "studentType"
-  | "notes";
+  | "notes"
+  // The 25 information fields, named once in lib/students/info-fields.ts.
+  | StudentInfoFieldName;
 
-export type BulkUpdateFieldGroup = "contact" | "placement" | "feeProfile" | "notes";
+export type BulkUpdateFieldGroup =
+  | "contact"
+  | "placement"
+  | "feeProfile"
+  | "notes"
+  | "info";
 
 /** Which table a field's column belongs to. */
 export type BulkUpdateFieldTarget = "students" | "feeOverride";
@@ -37,7 +46,21 @@ export type BulkUpdateField = {
   /** The column this field writes to, on the table named by `target`. */
   column: string;
   target: BulkUpdateFieldTarget;
-  kind: "text" | "phone" | "email" | "date" | "class" | "route" | "status" | "studentType";
+  kind:
+    | "text"
+    | "phone"
+    | "email"
+    | "date"
+    | "class"
+    | "route"
+    | "status"
+    | "studentType"
+    /** Free text constrained to a fixed list — gender, category, blood group. */
+    | "choice";
+  /** Allowed values for `kind: "choice"`, matched case-insensitively. */
+  options?: readonly string[];
+  /** Digits-only, exact length. Aadhaar and pincode. */
+  digits?: number;
   /** `false` for NOT NULL columns — CLEAR is refused rather than crashing. */
   clearable: boolean;
   /** Dues are regenerated for students whose value actually changed. */
@@ -54,6 +77,42 @@ export const STUDENT_TYPE_OPTIONS = [
 
 /** Typed into any cell to blank a value on purpose. Blank means "leave alone". */
 export const CLEAR_KEYWORD = "CLEAR";
+
+/**
+ * The 25 information fields, generated from the one place they are declared.
+ *
+ * Hand-listing them here would be a second catalogue to keep in step with
+ * `lib/students/info-fields.ts`, and the first thing to drift would be the
+ * column header — which is also the key the uploaded sheet is matched on, so a
+ * drifted header reads as "column not recognised" rather than as a bug.
+ *
+ * None of them touch money, so `affectsFees` is false throughout and no dues
+ * are regenerated for an Aadhaar correction.
+ */
+const INFO_BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = STUDENT_INFO_FIELDS.map(
+  (field) => ({
+    key: field.name,
+    header: field.header,
+    group: "info" as const,
+    column: field.column,
+    target: "students" as const,
+    kind:
+      field.options ? ("choice" as const)
+      : field.control === "tel" ? ("phone" as const)
+      : ("text" as const),
+    options: field.options,
+    digits: field.digits,
+    // Every information field is optional, so every one of them can be cleared.
+    clearable: true,
+    affectsFees: false,
+    maxLength: field.maxLength,
+    hint: field.options
+      ? field.options.join(" / ")
+      : field.digits
+        ? `${field.digits} digits`
+        : undefined,
+  }),
+);
 
 export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
   {
@@ -193,6 +252,7 @@ export const BULK_UPDATE_FIELDS: readonly BulkUpdateField[] = [
     affectsFees: false,
     maxLength: 1000,
   },
+  ...INFO_BULK_UPDATE_FIELDS,
 ];
 
 export const BULK_UPDATE_FIELD_GROUPS: ReadonlyArray<{
@@ -217,6 +277,12 @@ export const BULK_UPDATE_FIELD_GROUPS: ReadonlyArray<{
       "Sets the academic fee: ₹1,100 for a new admission, ₹500 for a continuing student. Changes here move money.",
   },
   { group: "notes", label: "Notes", description: "Free-text office notes." },
+  {
+    group: "info",
+    label: "Student information",
+    description:
+      "Aadhaar, house, category, address and guardian details. No fee impact — correcting these never regenerates dues.",
+  },
 ];
 
 const FIELD_BY_KEY = new Map(BULK_UPDATE_FIELDS.map((field) => [field.key, field]));

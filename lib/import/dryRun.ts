@@ -1,5 +1,9 @@
 import { validateStudentInput } from "@/lib/students/validation";
-import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
+import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+import type {
+  StudentInfoFields,
+  StudentInfoFormInput,
+} from "@/lib/students/info-fields";
 import {
   detectDuplicateRows,
   type ExistingStudentDuplicateRecord,
@@ -169,6 +173,15 @@ export function executeStudentImportDryRun({
     const fatherPhone = stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "fatherPhone"));
     const motherPhone = stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "motherPhone"));
     const address = stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, "address"));
+    // The 25 information fields, read the same way as every other cell. An
+    // unmapped column reads as "", which validates as "not provided" — the
+    // fields are all optional, so a sheet without them is not an error.
+    const infoInput = Object.fromEntries(
+      STUDENT_INFO_FIELDS.map((field) => [
+        field.name,
+        stringifyImportCell(getMappedCellValue(row.rawPayload, mapping, field.name)),
+      ]),
+    ) as StudentInfoFormInput;
     const routeLabel = stringifyImportCell(
       getMappedCellValue(row.rawPayload, mapping, "transportRouteLabel"),
     );
@@ -495,9 +508,7 @@ export function executeStudentImportDryRun({
 
     const studentValidation = validateStudentInput(
       {
-        // Import never supplies student information fields; blank passes
-        // validation because every one of them is optional.
-        ...EMPTY_STUDENT_INFO_FORM_INPUT,
+        ...infoInput,
         fullName: effectiveFullName,
         classId: matchedClass?.id ?? fallbackClass?.id ?? (classLabel ? "__invalid__" : ""),
         admissionNo: effectiveAdmissionNo,
@@ -573,6 +584,12 @@ export function executeStudentImportDryRun({
       fatherPhone: studentValidation.data.fatherPhone,
       motherPhone: studentValidation.data.motherPhone,
       address: studentValidation.data.address,
+      info: Object.fromEntries(
+        STUDENT_INFO_FIELDS.map((field) => [
+          field.name,
+          studentValidation.data[field.name],
+        ]),
+      ) as StudentInfoFields,
       transportRouteId: studentValidation.data.transportRouteId,
       transportRouteLabel: matchedRoute?.label ?? null,
       status: studentValidation.data.status,

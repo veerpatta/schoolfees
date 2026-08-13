@@ -19,7 +19,12 @@ import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters,
 } from "@/lib/defaulters/types";
-import { getAllStudents, getStudentFormOptions } from "@/lib/students/data";
+import {
+  getAllStudents,
+  getStudentFormOptions,
+  getStudentMasterFieldsByIds,
+} from "@/lib/students/data";
+import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
 import {
   getConventionalDiscountPolicies,
   getFeePolicySummary,
@@ -1482,6 +1487,60 @@ async function handleExport(request: NextRequest, context: RouteContext) {
         "Late fee": row.pendingLateFeeAmount,
         "Conventional discounts": row.conventionalDiscountLabels.join(", "),
       })),
+    );
+  }
+
+  /**
+   * The full student record — identity, class, and all 25 information fields.
+   *
+   * Kept separate from `all-students`, which is the fee-facing sheet: the money
+   * columns and 25 demographic ones in one file is a worse answer to both
+   * questions. It also carries Aadhaar and Jan Aadhaar, so it is gated on
+   * `students:view` like the rest of this route and should be handled as the
+   * identity document it is once downloaded.
+   */
+  if (exportType === "student-master") {
+    const rows = await getAllStudents({
+      query: (request.nextUrl.searchParams.get("query") ?? "").trim(),
+      sessionLabel: resolvedSessionLabel,
+      classId: exportClassId,
+      transportRouteId: "",
+      status: exportStatus as StudentListFilters["status"],
+      segments: exportSegments,
+    });
+    const masterById = await getStudentMasterFieldsByIds(rows.map((row) => row.id));
+
+    return rowsResponse(
+      format,
+      filenameBase,
+      exportTitle,
+      rows.map((row) => {
+        const info = masterById.get(row.id);
+
+        return {
+          "SR no": row.admissionNo,
+          "Student": row.fullName,
+          "Class": row.classLabel,
+          "Date of birth": row.dateOfBirth ?? "",
+          "Admission date": info?.joinedOn ?? "",
+          "Father name": info?.fatherName ?? "",
+          "Mother name": info?.motherName ?? "",
+          "Father phone": row.fatherPhone ?? "",
+          "Mother phone": row.motherPhone ?? "",
+          "Email": info?.email ?? "",
+          "Address": info?.address ?? "",
+          "Route": row.transportRouteLabel,
+          "Record status": row.status,
+          // Headers come from the field catalogue, so this sheet, the import
+          // template and the bulk-update sheet all name a column the same way.
+          ...Object.fromEntries(
+            STUDENT_INFO_FIELDS.map((field) => [
+              field.header,
+              info?.[field.name] ?? "",
+            ]),
+          ),
+        };
+      }),
     );
   }
 

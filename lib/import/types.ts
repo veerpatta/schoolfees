@@ -1,3 +1,5 @@
+import { STUDENT_INFO_FIELD_NAMES } from "@/lib/students/info-fields";
+import type { StudentInfoFields } from "@/lib/students/info-fields";
 import type { StudentStatus } from "@/lib/db/types";
 import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
@@ -88,6 +90,10 @@ export const importFieldKeys = [
   "conventionalPolicy2",
   "conventionalFamilyGroup",
   "conventionalPolicyNotes",
+  // The 25 student information fields. Names match STUDENT_INFO_FIELDS in
+  // lib/students/info-fields.ts, so the mapping, the template and the export
+  // all agree on what a column is called.
+  ...STUDENT_INFO_FIELD_NAMES,
 ] as const;
 
 export type ImportFieldKey = (typeof importFieldKeys)[number];
@@ -130,6 +136,8 @@ export type NormalizedStudentImportRow = {
   fatherPhone: string | null;
   motherPhone: string | null;
   address: string | null;
+  /** The 25 optional information fields. Null means the sheet had no value. */
+  info: StudentInfoFields;
   transportRouteId: string | null;
   transportRouteLabel: string | null;
   status: StudentStatus;

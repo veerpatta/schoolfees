@@ -489,6 +489,8 @@
     "groupAnalysis": "विश्लेषण के लिए",
     "itemAllStudents": "सभी विद्यार्थी",
     "itemAllStudentsDetail": "कार्यालय जाँच के लिए पूर्ण विद्यार्थी सूची।",
+    "itemStudentMaster": "विद्यार्थी मास्टर",
+    "itemStudentMasterDetail": "आधार, हाउस, पता और अभिभावक विवरण सहित पूरा विद्यार्थी रिकॉर्ड।",
     "itemDiscountStudents": "छूट प्राप्त विद्यार्थी",
     "itemDiscountStudentsDetail": "RTE, स्टाफ़ बच्चा, और भाई-बहन नीति।",
     "itemClassWiseDues": "कक्षावार बकाया",

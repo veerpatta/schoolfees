@@ -1,4 +1,5 @@
 import { applyListValidations, type ListValidation } from "@/lib/excel/data-validation";
+import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
 
 export type ImportTemplateOption = {
   label: string;
@@ -32,6 +33,15 @@ export type UpdateTemplateStudent = {
   notes: string | null;
 };
 
+/**
+ * The information columns, in catalogue order.
+ *
+ * The same strings the Student Master export writes and the bulk-update sheet
+ * uses, because they all read `field.header`. A round trip — export, edit in
+ * Excel, re-upload — only works if those three agree.
+ */
+const STUDENT_INFO_HEADERS = STUDENT_INFO_FIELDS.map((field) => field.header);
+
 export const ADD_TEMPLATE_HEADERS = [
   "Student name",
   "Class",
@@ -45,6 +55,10 @@ export const ADD_TEMPLATE_HEADERS = [
   "Family Group / Sibling Group",
   "Policy Notes",
   "Notes",
+  // Appended, never inserted: buildStudentTemplateValidations pins the class,
+  // route, New/Old and policy dropdowns to fixed column numbers, so anything
+  // added ahead of them silently moves a dropdown onto the wrong column.
+  ...STUDENT_INFO_HEADERS,
 ] as const;
 
 export const UPDATE_TEMPLATE_HEADERS = [
@@ -68,6 +82,7 @@ export const UPDATE_TEMPLATE_HEADERS = [
   "Other adjustment head",
   "Other adjustment amount",
   "Notes",
+  ...STUDENT_INFO_HEADERS,
 ] as const;
 
 function buildExampleRows(classes: readonly ImportTemplateOption[], routes: readonly ImportTemplateOption[]) {

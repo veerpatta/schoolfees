@@ -208,9 +208,42 @@ export function parseCell(
       return { kind: "set", value: match.value };
     }
 
+    case "choice": {
+      // Matched case-insensitively so "obc" and "OBC" both land, then stored as
+      // the canonical spelling — the same value the Info tab's select writes.
+      const match = field.options?.find(
+        (option) => option.toLowerCase() === trimmed.toLowerCase(),
+      );
+
+      if (!match) {
+        return {
+          kind: "error",
+          message: `"${trimmed}" is not one of: ${field.options?.join(", ") ?? ""}.`,
+        };
+      }
+
+      return { kind: "set", value: match };
+    }
+
     case "text":
-    default:
+    default: {
+      if (field.digits) {
+        // Aadhaar and pincode arrive from spreadsheets spaced, hyphenated, or
+        // as a number that Excel has already stripped a leading zero from.
+        const digitsOnly = trimmed.replace(/\D/g, "");
+
+        if (digitsOnly.length !== field.digits) {
+          return {
+            kind: "error",
+            message: `${field.header} must be exactly ${field.digits} digits — "${trimmed}" has ${digitsOnly.length}.`,
+          };
+        }
+
+        return { kind: "set", value: digitsOnly };
+      }
+
       return { kind: "set", value: trimmed.slice(0, field.maxLength ?? 400) };
+    }
   }
 }
 
