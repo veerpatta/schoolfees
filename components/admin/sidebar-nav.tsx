@@ -5,6 +5,8 @@ import { NavLink } from "@/components/admin/nav-link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { useIdlePrefetch } from "@/hooks/use-idle-prefetch";
+
 import {
   getGroupedProtectedNavigation,
   getProtectedNavigationItem,
@@ -29,15 +31,24 @@ type SidebarNavProps = {
   className?: string;
 };
 
-// These three are always eagerly prefetched (the office's daily flow). Every
-// other nav item is prefetched only on hover/focus so we don't blast the
-// server with N speculative requests on every page load — see useHoverPrefetch
-// below.
-const eagerPrefetchHrefs = new Set([
+// These three are the office's daily flow, so they get warmed without waiting
+// for intent. Every other nav item is prefetched only on hover/focus so we
+// don't blast the server with N speculative requests on every page load — see
+// useHoverPrefetch below.
+//
+// They are warmed on idle rather than during render. `prefetch={true}` on a
+// `force-dynamic` route makes Link fetch the fully rendered page, so these
+// three were three complete server renders — auth, users lookup, fee policy,
+// shell pulse, page data — fired while the page the staffer was looking at was
+// still waiting on the same database. Handing them to useIdlePrefetch keeps the
+// warm cache and stops it competing with the visible page.
+const EAGER_PREFETCH_HREFS = [
   "/protected/payments",
   "/protected/dashboard",
   "/protected/students",
-]);
+] as const;
+
+const eagerPrefetchHrefs = new Set<string>(EAGER_PREFETCH_HREFS);
 
 /**
  * Idempotent hover-prefetch hook. On the first onMouseEnter / onFocus / onTouchStart
@@ -72,6 +83,8 @@ export function SidebarNav({
   const isInk = tone === "ink" && !isTopbar;
   const t = useTranslations("Navigation");
   const warmRoute = useHoverPrefetch();
+  // The daily three, warmed once the browser is idle instead of during render.
+  useIdlePrefetch(EAGER_PREFETCH_HREFS);
   const translateLabel = (item: { label: string; i18nKey?: string }) =>
     item.i18nKey ? t(item.i18nKey) : item.label;
 
@@ -88,7 +101,7 @@ export function SidebarNav({
         <NavLink
           key={item.href}
           href={href}
-          prefetch={isEager}
+          prefetch={false}
           onMouseEnter={onWarm}
           onFocus={onWarm}
           onTouchStart={onWarm}
@@ -112,7 +125,7 @@ export function SidebarNav({
       <NavLink
         key={item.href}
         href={href}
-        prefetch={isEager}
+        prefetch={false}
         onMouseEnter={onWarm}
         onFocus={onWarm}
         onTouchStart={onWarm}

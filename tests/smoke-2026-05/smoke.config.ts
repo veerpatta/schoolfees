@@ -2,8 +2,31 @@ import path from "node:path";
 
 import { defineConfig, devices } from "@playwright/test";
 
+import { availableRoles, storageStatePath, SMOKE_BASE_URL } from "./roles";
+
 const reportRoot = path.resolve(process.cwd(), "docs/smoke-reports/2026-05");
 const artifactRoot = path.join(reportRoot, "playwright-artifacts");
+
+// Headed and full-trace/HAR recording were the defaults. They are excellent for
+// debugging one flow and unusable for a sweep of 44 routes x 3 viewports x 5
+// roles: it needs a display, and embedded-content HAR runs to gigabytes. Both
+// are now opt-in, matching how tests/smoke-readiness already works.
+const headed = process.env.SMOKE_HEADED === "1";
+const recordHar = process.env.SMOKE_RECORD_HAR === "1";
+
+function harFor(name: string) {
+  return recordHar
+    ? {
+        recordHar: {
+          path: path.join(reportRoot, `har/${name}.har`),
+          mode: "full" as const,
+          content: "embed" as const,
+        },
+      }
+    : {};
+}
+
+const roles = availableRoles();
 
 export default defineConfig({
   testDir: path.resolve(process.cwd(), "tests/smoke-2026-05"),
@@ -15,15 +38,15 @@ export default defineConfig({
   outputDir: artifactRoot,
   reporter: [
     ["list"],
-    ["html", { outputFolder: path.join(reportRoot, "playwright-html") }],
+    ["html", { outputFolder: path.join(reportRoot, "playwright-html"), open: "never" }],
   ],
   use: {
-    baseURL: "https://schoolfees-two.vercel.app",
+    baseURL: SMOKE_BASE_URL,
     channel: "chrome",
-    headless: false,
+    headless: !headed,
     viewport: { width: 1440, height: 900 },
-    trace: "on",
-    screenshot: "on",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
     video: "retain-on-failure",
     acceptDownloads: true,
     actionTimeout: 15_000,
@@ -33,19 +56,7 @@ export default defineConfig({
     {
       name: "setup",
       testMatch: /auth\.setup\.ts/,
-      use: {
-        channel: "chrome",
-        headless: false,
-        viewport: { width: 1440, height: 900 },
-        trace: "on",
-        screenshot: "on",
-        video: "retain-on-failure",
-        recordHar: {
-          path: path.join(reportRoot, "har/setup.har"),
-          mode: "full",
-          content: "embed",
-        },
-      },
+      use: { ...harFor("setup") },
     },
     {
       name: "desktop-chrome",
@@ -54,14 +65,10 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         channel: "chrome",
-        headless: false,
+        headless: !headed,
         viewport: { width: 1440, height: 900 },
-        storageState: path.resolve(process.cwd(), "tests/smoke-2026-05/.auth/admin.json"),
-        recordHar: {
-          path: path.join(reportRoot, "har/desktop.har"),
-          mode: "full",
-          content: "embed",
-        },
+        storageState: storageStatePath("admin"),
+        ...harFor("desktop"),
       },
     },
     {
@@ -70,16 +77,12 @@ export default defineConfig({
       dependencies: ["setup"],
       use: {
         channel: "chrome",
-        headless: false,
+        headless: !headed,
         viewport: { width: 390, height: 844 },
         isMobile: true,
         hasTouch: true,
-        storageState: path.resolve(process.cwd(), "tests/smoke-2026-05/.auth/admin.json"),
-        recordHar: {
-          path: path.join(reportRoot, "har/mobile.har"),
-          mode: "full",
-          content: "embed",
-        },
+        storageState: storageStatePath("admin"),
+        ...harFor("mobile"),
       },
     },
     {
@@ -88,16 +91,26 @@ export default defineConfig({
       dependencies: ["setup"],
       use: {
         channel: "chrome",
-        headless: false,
+        headless: !headed,
         viewport: { width: 820, height: 1180 },
         hasTouch: true,
-        storageState: path.resolve(process.cwd(), "tests/smoke-2026-05/.auth/admin.json"),
-        recordHar: {
-          path: path.join(reportRoot, "har/tablet.har"),
-          mode: "full",
-          content: "embed",
-        },
+        storageState: storageStatePath("admin"),
+        ...harFor("tablet"),
       },
     },
+    // One project per role that has credentials. The RBAC spec reads its role
+    // from the project name, so each run of the same file is a different staff
+    // member looking at the same 44 routes.
+    ...roles.map((role) => ({
+      name: `rbac-${role.key}`,
+      testMatch: /rbac\.spec\.ts/,
+      dependencies: ["setup"],
+      use: {
+        channel: "chrome" as const,
+        headless: !headed,
+        viewport: { width: 1440, height: 900 },
+        storageState: storageStatePath(role.key),
+      },
+    })),
   ],
 });

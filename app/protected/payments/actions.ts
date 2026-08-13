@@ -16,6 +16,7 @@ import {
   undoRecentPayment,
 } from "@/lib/payments/data";
 import type { PaymentCollectionContext, PaymentEntryActionState } from "@/lib/payments/types";
+import { perfEnabled } from "@/lib/observability/timing";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { revalidateAfterPaymentPosting } from "@/lib/system-sync/finance-revalidation";
@@ -338,9 +339,13 @@ export async function submitPaymentEntryAction(
     // Coarse latency split so a slow post is attributable from the Vercel logs:
     // `pre` = auth + validation + student/policy reads before posting,
     // `post` = postStudentPayment (preflight reads + duplicate checks + RPC).
-    console.log(
-      `[payment-post] ok total=${_tAfterPost - _t0}ms pre=${_tBeforePost - _t0}ms post=${_tAfterPost - _tBeforePost}ms`,
-    );
+    // Gated like the rest of the perf instrumentation — this fired on every
+    // posted receipt in production, which is what `perfEnabled()` is for.
+    if (perfEnabled()) {
+      console.log(
+        `[payment-post] ok total=${_tAfterPost - _t0}ms pre=${_tBeforePost - _t0}ms post=${_tAfterPost - _tBeforePost}ms`,
+      );
+    }
     const resolvedSessionLabel = student.classSessionLabel || sessionLabel;
 
     revalidateSessionFinance(resolvedSessionLabel, [studentId]);
@@ -415,9 +420,11 @@ export async function submitPaymentEntryAction(
       syncOutcome,
     };
   } catch (error) {
-    console.log(
-      `[payment-post] fail total=${Date.now() - _t0}ms pre=${_tBeforePost - _t0}ms`,
-    );
+    if (perfEnabled()) {
+      console.log(
+        `[payment-post] fail total=${Date.now() - _t0}ms pre=${_tBeforePost - _t0}ms`,
+      );
+    }
     return toActionStateError(error, clientRequestId);
   }
 }

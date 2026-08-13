@@ -12,6 +12,7 @@ import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
 import { logError, logWarn } from "@/lib/observability/log";
+import { perfEnabled } from "@/lib/observability/timing";
 import {
   getRepaymentPlanCollectionContext,
   suggestRepaymentPlanAmount,
@@ -1365,7 +1366,12 @@ export async function getPaymentEntryPageData(payload: {
       : Promise.resolve(null),
   ]);
 
-  console.log(`[payment-entry-page-data] loaded in ${Date.now() - _t0}ms`);
+  // Behind the same gate as the rest of the perf instrumentation. This line
+  // was unconditional, so every Payment Desk load wrote to the production log
+  // stream — the thing `lib/observability/timing.ts` exists to prevent.
+  if (perfEnabled()) {
+    console.log(`[payment-entry-page-data] loaded in ${Date.now() - _t0}ms`);
+  }
 
   return {
     studentIndex,

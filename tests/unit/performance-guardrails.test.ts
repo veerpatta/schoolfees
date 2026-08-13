@@ -277,13 +277,14 @@ describe("office performance guardrails", () => {
     expect(sidebarNav).toContain('"/protected/payments"');
     expect(sidebarNav).toContain('"/protected/dashboard"');
     expect(sidebarNav).toContain('"/protected/students"');
-    // eagerPrefetchHrefs.has(item.href) is now bound to the local `isEager`
-    // const and reused for the prefetch prop. Either form keeps the eager set
-    // wired up.
-    expect(sidebarNav).toMatch(
-      /prefetch=\{(?:eagerPrefetchHrefs\.has\(item\.href\)|isEager)\}/,
-    );
+    // The eager set is no longer wired to Link's `prefetch` prop. On a
+    // force-dynamic route `prefetch={true}` makes Link fetch the fully rendered
+    // page, so the three daily routes were three complete server renders fired
+    // during every page load. They are warmed on idle instead; `isEager` still
+    // decides which links skip hover-warming because they are already covered.
+    expect(sidebarNav).toContain("useIdlePrefetch(EAGER_PREFETCH_HREFS)");
     expect(sidebarNav).toContain("eagerPrefetchHrefs.has(item.href)");
+    expect(sidebarNav).not.toMatch(/prefetch=\{(?:eagerPrefetchHrefs\.has\(item\.href\)|isEager)\}/);
 
     expect(paymentsData).toContain("const [policy, hasActiveClass] = await Promise.all");
     expect(paymentsData).toContain("[payment-entry-page-data] loaded in");
@@ -317,10 +318,27 @@ describe("office performance guardrails", () => {
     expect(paymentClient).toContain('url.searchParams.set("studentId", studentId)');
     expect(paymentClient).toContain("/protected/payments/student-summary");
 
+    // The dashboard still warms the two screens the office reaches for next,
+    // but `router.prefetch` moved into useIdlePrefetch: both targets are
+    // force-dynamic, so prefetching them from a mount effect meant two extra
+    // full server renders competing with the dashboard's own read.
     expect(dashboardPage).toContain("<DashboardPrefetcher");
-    expect(dashboardPrefetcher).toContain("router.prefetch");
+    expect(dashboardPrefetcher).toContain("useIdlePrefetch");
     expect(dashboardPrefetcher).toContain('"/protected/payments"');
     expect(dashboardPrefetcher).toContain('"/protected/defaulters"');
+
+    const idlePrefetch = readRepoFile("hooks/use-idle-prefetch.ts");
+    expect(idlePrefetch).toContain("router.prefetch");
+    // Waiting for idle is the whole point; so is not firing N at once.
+    expect(idlePrefetch).toContain("requestIdleCallback");
+    expect(idlePrefetch).toContain("STAGGER_MS");
+
+    // The sidebar's three daily routes are warmed the same way. `prefetch` on a
+    // force-dynamic Link fetches the fully rendered page, so leaving it true
+    // put three complete server renders on every page load.
+    const sidebarNav = readRepoFile("components/admin/sidebar-nav.tsx");
+    expect(sidebarNav).toContain("useIdlePrefetch(EAGER_PREFETCH_HREFS)");
+    expect(sidebarNav).not.toContain("prefetch={isEager}");
   });
 
   it("keeps payment desk student index privately cacheable within the staff session", () => {
