@@ -18,18 +18,28 @@ node scripts/bootstrap-test-staff.mjs
 
 That creates (or re-points) `qa.admin@`, `qa.accountant@`, `qa.teacher@`,
 `qa.collector@` and `qa.viewonly@qa.vpps.local` using the `TEST_STAFF_PASSWORD`
-you set. Pick a password you are willing to keep in your shell for the run.
-`--disable` deactivates all five without deleting them.
+you set. `--disable` deactivates all five without deleting them.
 
 ## Running it
 
 ```bash
-$env:SMOKE_TEST_STAFF_PASSWORD = "<the password you just used>"
 npm run smoke:deep:auth
 ```
 
-That captures one storage state per role into `tests/smoke-2026-05/.auth/`
-(gitignored). Then:
+**No password needed.** With `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` — which
+it already is for every other script here — the setup mints a session per role:
+`auth.admin.generateLink` issues a one-time magic-link token, and the app's own
+`/auth/confirm` route exchanges it for a session, exactly as it would for a
+staff member clicking an emailed link. Nothing types a password, nothing is
+created, and no account's credentials change. This is the default because a
+password that never enters the flow cannot be typed into the wrong box, logged,
+or committed.
+
+Set `SMOKE_TEST_STAFF_PASSWORD` instead if you would rather it sign in through
+the login form.
+
+Either way it writes one storage state per role into
+`tests/smoke-2026-05/.auth/` (gitignored). Then:
 
 ```bash
 npm run smoke:rbac
@@ -51,7 +61,8 @@ across desktop / mobile / tablet.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `SMOKE_TEST_STAFF_PASSWORD` | — | One password for all five QA logins. `TEST_STAFF_PASSWORD` also works, so one export covers bootstrap and smoke. |
+| `SUPABASE_SERVICE_ROLE_KEY` | from `.env.local` | Present ⇒ sessions are minted, no password needed. This is the default path. |
+| `SMOKE_TEST_STAFF_PASSWORD` | — | Sign in through the login form instead. `TEST_STAFF_PASSWORD` also works, so one export covers bootstrap and smoke. |
 | `SMOKE_PASSWORD_<ROLE>` | — | Per-role override, e.g. `SMOKE_PASSWORD_ADMIN`. |
 | `SMOKE_ROLES` | all five | Comma-separated subset, e.g. `admin,teacher`. |
 | `SCHOOLFEES_SMOKE_BASE_URL` | `https://schoolfees-two.vercel.app` | Target. Set `http://localhost:3000` to sweep a dev server. |

@@ -1,4 +1,31 @@
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
+/**
+ * Playwright does not read `.env.local`, and the smoke setup needs what is in
+ * it. Same loader the operational scripts use — first file to define a key
+ * wins, and anything already in the real environment beats both.
+ */
+function loadEnvFile(file: string) {
+  if (!existsSync(file)) return;
+
+  for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+
+    const at = trimmed.indexOf("=");
+    const key = trimmed.slice(0, at).trim();
+    if (!key || process.env[key]) continue;
+
+    process.env[key] = trimmed
+      .slice(at + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, "");
+  }
+}
+
+loadEnvFile(".env.local");
+loadEnvFile(".env");
 
 /**
  * The five QA staff logins, one per role.
@@ -96,15 +123,35 @@ export function passwordFor(role: SmokeRole): string | null {
   return null;
 }
 
-/** Roles this run has credentials for. */
+/**
+ * Whether a session can be minted without a password at all.
+ *
+ * With the service-role key, `auth.admin.generateLink` issues a one-time
+ * magic-link token for an existing account, and the app's own `/auth/confirm`
+ * route exchanges it for a session exactly as it would for a real staff member
+ * clicking an emailed link. Nothing types a password, nothing is created, and
+ * no account's credentials change — this is how CI signs in.
+ *
+ * Only ever used for the `qa.*@qa.vpps.local` accounts below.
+ */
+export function canMintSessions(): boolean {
+  return Boolean(
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() &&
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),
+  );
+}
+
+/** Roles this run can sign in as, by password or by minted session. */
 export function availableRoles(): SmokeRole[] {
   const only = process.env.SMOKE_ROLES?.trim();
   const wanted = only
     ? new Set(only.split(",").map((value) => value.trim().toLowerCase()))
     : null;
 
+  const mintable = canMintSessions();
+
   return SMOKE_ROLES.filter(
-    (role) => (!wanted || wanted.has(role.key)) && passwordFor(role) !== null,
+    (role) => (!wanted || wanted.has(role.key)) && (mintable || passwordFor(role) !== null),
   );
 }
 
