@@ -568,7 +568,15 @@ export async function getOfficeWorkbookData(
         filters.view === "defaulters"
           ? students.filter((row) => row.statusLabel === "OVERDUE")
           : filters.view === "student_dues"
-            ? sourceAwareStudents.filter((row) => row.outstandingAmount > 0)
+            ? // Everything the family still owes, not fees alone. On
+              // `outstandingAmount` a student clear of fees but carrying a late
+              // fee vanished from the dues view and the class-wise-dues export
+              // entirely — their money was missing from the rows AND from the
+              // class subtotals, so the sheet under-reported what was
+              // collectable. This is a DUES list; the defaulter list is the
+              // branch above, filtered on OVERDUE, and stays fees-only because
+              // a late fee never makes anyone a defaulter.
+              sourceAwareStudents.filter((row) => row.totalOwedAmount > 0)
             : sourceAwareStudents;
       const visibleRows = filterStudentRows(filteredRows, filters);
       const pageRows = filters.exportAll

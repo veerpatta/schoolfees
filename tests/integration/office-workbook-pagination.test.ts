@@ -63,7 +63,13 @@ function studentFixture(index: number) {
     transportRouteId: null,
     transportRouteName: null,
     statusLabel: "OVERDUE",
+    // Fees only, as the column has meant since the late-fee split.
     outstandingAmount: 1000,
+    lateFeeOutstandingAmount: 0,
+    // What the family actually owes, and what the dues view filters on. The
+    // fixture predates the split and carried only the fees figure, so every
+    // row read as "owes nothing" once the filter started asking for the total.
+    totalOwedAmount: 1000,
     totalPaid: 0,
   };
 }

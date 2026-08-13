@@ -103,10 +103,13 @@ describe("ai context bundle", () => {
       // Renamed by the late-fee split: "Outstanding" still means everything the
       // family owes, and the two lines below it are the fees/late-fee split.
       '"Fees pending"',
-      '"Late fee pending (student)"',
+      // Two columns carry a pending late fee, from two different reads. They
+      // used to be "Late fee pending (student)" and "Late fee pending", which
+      // is indistinguishable once the sheet is open — now named by source.
+      '"Late fee pending (fee engine)"',
       '"Old balance (carry forward)"',
       '"Overdue amount"',
-      '"Late fee pending"',
+      '"Late fee pending (student list)"',
       '"Installment 1 pending"',
       '"Has fee override"',
       '"Custom transport amount"',

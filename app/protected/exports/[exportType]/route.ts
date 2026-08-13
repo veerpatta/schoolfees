@@ -24,7 +24,12 @@ import {
   getStudentFormOptions,
   getStudentMasterFieldsByIds,
 } from "@/lib/students/data";
-import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+import {
+  STUDENT_INFO_FIELDS,
+  STUDENT_INFO_SELECT_COLUMNS,
+  mapStudentInfoRow,
+} from "@/lib/students/info-fields";
+import type { StudentInfoFields, StudentInfoRow } from "@/lib/students/info-fields";
 import {
   getConventionalDiscountPolicies,
   getFeePolicySummary,
@@ -177,6 +182,36 @@ function printableHtmlResponse(
   });
 }
 
+/**
+ * Appends the 25 information columns to a row, renaming any that would collide
+ * with a column already on it.
+ *
+ * The bundle's Students sheet already carries "Guardian name" and "Guardian
+ * phone" — but those come from `student_family_groups`: a different guardian,
+ * on a different table, belonging to the family rather than the child.
+ * Spreading the student's own guardian over them replaced one fact with the
+ * other and silently dropped two columns from the sheet, so a student with no
+ * family group still showed a family guardian.
+ *
+ * Generic rather than a two-name special case: the next information field that
+ * happens to share a header would fail the same way and just as quietly.
+ */
+function withStudentInfoColumns(
+  base: Record<string, unknown>,
+  info: StudentInfoFields | undefined,
+) {
+  const row: Record<string, unknown> = { ...base };
+
+  for (const field of STUDENT_INFO_FIELDS) {
+    const key = Object.hasOwn(row, field.header)
+      ? `${field.header} (student record)`
+      : field.header;
+    row[key] = info?.[field.name] ?? "";
+  }
+
+  return row;
+}
+
 async function rowsResponse(
   format: "xlsx" | "pdf",
   filenameBase: string,
@@ -280,7 +315,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       supabase
         .from("students")
         .select(
-          "id, address, email, joined_on, left_on, notes, photo_path, created_at, updated_at",
+          `id, address, email, joined_on, left_on, notes, photo_path, created_at, updated_at, ${STUDENT_INFO_SELECT_COLUMNS}`,
         )
         .in("id", chunk),
     ),
@@ -295,8 +330,11 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     ),
   ]);
 
+  // Through `unknown`: the select is assembled with STUDENT_INFO_SELECT_COLUMNS,
+  // so postgrest-js cannot parse it at the type level. These row shapes were
+  // always hand-declared here.
   const studentDetailById = new Map(
-    ((studentDetailResult.data ?? []) as Array<{
+    ((studentDetailResult.data ?? []) as unknown as Array<{
       id: string;
       address: string | null;
       email: string | null;
@@ -307,6 +345,14 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       created_at: string | null;
       updated_at: string | null;
     }>).map((row) => [row.id, row]),
+  );
+
+  // The 25 information columns, camelCased off the same rows. Keyed separately
+  // so the Students sheet and the Recovery Follow-Up sheet read one shape.
+  const masterFieldsById = new Map(
+    ((studentDetailResult.data ?? []) as unknown as Array<
+      StudentInfoRow & { id: string }
+    >).map((row) => [row.id, mapStudentInfoRow(row)]),
   );
 
   // Everything the app knows that the financials projection does not carry.
@@ -592,6 +638,26 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `                      Overdue is a TIMING flag and overlaps all three.`,
     `* Sessions          — session metadata (current, fee plan summary).`,
     ``,
+    `STUDENT INFORMATION COLUMNS (on the Students sheet)`,
+    `The last ${STUDENT_INFO_FIELDS.length} columns of the Students sheet are the school's own record of`,
+    `the child, all optional and often blank: ${STUDENT_INFO_FIELDS.map((field) => field.header).join(", ")}.`,
+    `A blank means "not collected yet", never "none" — an office fills these in`,
+    `over months, so do not read an empty Category or Aadhaar as a fact about`,
+    `the student. "Guardian phone" here is the student's own guardian record and`,
+    `is a DIFFERENT column from the Siblings sheet's guardian, which belongs to`,
+    `the family group.`,
+    ``,
+    `THE TWO KINDS OF MONEY`,
+    `Fees and late fees are separate charges and are never added together into a`,
+    `single "pending" figure. On the Students sheet: "Fees pending" decides`,
+    `whether a family is overdue or a defaulter, "Late fee pending (fee engine)"`,
+    `is the late fee still owed after waivers, and "Outstanding" is the two`,
+    `added — what a cashier can actually collect. A family whose only debt is a`,
+    `late fee is NOT a defaulter and will not appear on the Defaulters or`,
+    `Recovery Follow-Up sheets, though their late fee is shown on Students.`,
+    `"Late fee pending (student list)" is the same quantity as read by the`,
+    `student-list projection rather than the fee engine; they should agree.`,
+    ``,
     `HOW TO INTERPRET THIS WORKBOOK`,
     `Join every sheet by "SR no" (admission number) — it is the stable student`,
     `key and appears on Students, Installments, Payments, Adjustments, Refunds,`,
@@ -651,7 +717,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
           customTransportFeeAmount: override?.custom_transport_fee_amount ?? null,
           transportFeeAmount: row.transportFee,
         });
-        return {
+        return withStudentInfoColumns({
         "Student ID": row.studentId,
         "SR no": row.admissionNo,
         "Student": row.studentName,
@@ -700,10 +766,13 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         // this column stay correct. The two lines under it are the split.
         "Outstanding": row.totalOwedAmount,
         "Fees pending": row.outstandingAmount,
-        "Late fee pending (student)": row.lateFeeOutstandingAmount,
+        // Two columns, two sources, and until now they were called "Late fee
+        // pending (student)" and "Late fee pending" — indistinguishable in a
+        // spreadsheet. Named by where the number comes from instead.
+        "Late fee pending (fee engine)": row.lateFeeOutstandingAmount,
         "Old balance (carry forward)": Number(facets?.old_balance_amount ?? 0),
         "Overdue amount": Number(facets?.overdue_base_amount ?? 0),
-        "Late fee pending": Number(facets?.pending_late_fee_amount ?? 0),
+        "Late fee pending (student list)": Number(facets?.pending_late_fee_amount ?? 0),
         "Installment 1 pending": row.inst1Pending,
         "Installment 2 pending": row.inst2Pending,
         "Installment 3 pending": row.inst3Pending,
@@ -734,7 +803,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         "Has photo": detail?.photo_path ? "yes" : "no",
         "Record created at": detail?.created_at ?? "",
         "Record updated at": detail?.updated_at ?? "",
-        };
+        }, masterFieldsById.get(row.studentId));
       }),
     ),
     "Students",
@@ -1237,9 +1306,13 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   });
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(discountRows), "Discounts");
 
+  // The filter stays on fees: a late fee never makes a student a defaulter
+  // (hard rule 8), so a late-fee-only family belongs on the Students sheet and
+  // not here. What was wrong was the money — "Outstanding" is fees-only since
+  // 20260812120000, so this sheet showed a family's late fee nowhere at all.
   const defaulterRows = financials
     .filter((row) => row.outstandingAmount > 0)
-    .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
+    .sort((a, b) => b.totalOwedAmount - a.totalOwedAmount)
     .map((row) => ({
       "SR no": row.admissionNo,
       "Student": row.studentName,
@@ -1247,7 +1320,9 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       "Phone": row.fatherPhone ?? "",
       "Total due": row.baseChargeTotal,
       "Total paid": row.totalPaid,
-      "Outstanding": row.outstandingAmount,
+      "Fees pending": row.outstandingAmount,
+      "Late fee pending": row.lateFeeOutstandingAmount,
+      "Total owed": row.totalOwedAmount,
       "Next due label": row.nextDueLabel ?? "",
       "Next due date": row.nextDueDate ?? "",
       "Next due amount": row.nextDueAmount ?? 0,
@@ -1260,18 +1335,29 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     XLSX.utils.json_to_sheet(
       financials
         .filter((row) => row.recordStatus === "active" && row.outstandingAmount > 0)
-        .sort((a, b) => b.outstandingAmount - a.outstandingAmount)
+        .sort((a, b) => b.totalOwedAmount - a.totalOwedAmount)
         .map((row) => {
           const summary = contactSummaries.get(row.studentId);
           const noCall = noCallFlags.get(row.studentId);
           const reliability = promiseReliability.get(row.studentId);
+          const master = masterFieldsById.get(row.studentId);
           return {
             "SR no": row.admissionNo,
             "Student": row.studentName,
             "Class": row.classLabel,
             "Father phone": row.fatherPhone ?? "",
             "Mother phone": row.motherPhone ?? "",
-            "Outstanding": row.outstandingAmount,
+            // The two numbers a caller actually needs, kept apart. Asking a
+            // family for "total owed" when the late fee is waivable is a
+            // different conversation from asking for the fees.
+            "Fees pending": row.outstandingAmount,
+            "Late fee pending": row.lateFeeOutstandingAmount,
+            "Total owed": row.totalOwedAmount,
+            // Follow-up numbers the recovery desk had to look up per student.
+            "Guardian phone (student record)": master?.guardianPhone ?? "",
+            "Emergency phone": master?.emergencyContactPhone ?? "",
+            "Village / city": master?.villageCity ?? "",
+            "District": master?.district ?? "",
             "Overdue installments": row.overdueInstallmentCount,
             "Next due label": row.nextDueLabel ?? "",
             "Next due date": row.nextDueDate ?? "",
@@ -1432,6 +1518,27 @@ async function handleExport(request: NextRequest, context: RouteContext) {
   }
 
   const { exportType } = await context.params;
+
+  /*
+   * Exports that carry Aadhaar and Jan Aadhaar need to read the student record,
+   * not just reports.
+   *
+   * Worth knowing: today this refuses nobody. `reports:view` is a strict subset
+   * of `students:view` — admin, accountant, teacher and fee_collector hold
+   * both, and view_only holds students:view but not reports:view, so it is
+   * already turned away above. This is here so the gate stays correct if the
+   * role matrix moves, and because the doc comment on `student-master` already
+   * claimed it. Restricting bulk Aadhaar downloads to admin/accountant would be
+   * a different, narrower check.
+   */
+  const AADHAAR_BEARING_EXPORTS = new Set(["student-master", "ai-context-bundle"]);
+
+  if (
+    AADHAAR_BEARING_EXPORTS.has(exportType) &&
+    !hasStaffPermission(staff, "students:view")
+  ) {
+    return new Response("Forbidden", { status: 403 });
+  }
   const requestedSessionLabel = (request.nextUrl.searchParams.get("session") ?? "").trim();
   // The export follows the filter. Downloading "all students" while the
   // Students page is filtered to "Never paid" and getting all 509 back is the
@@ -1495,9 +1602,9 @@ async function handleExport(request: NextRequest, context: RouteContext) {
    *
    * Kept separate from `all-students`, which is the fee-facing sheet: the money
    * columns and 25 demographic ones in one file is a worse answer to both
-   * questions. It also carries Aadhaar and Jan Aadhaar, so it is gated on
-   * `students:view` like the rest of this route and should be handled as the
-   * identity document it is once downloaded.
+   * questions. It carries Aadhaar and Jan Aadhaar, so it sits behind the extra
+   * `students:view` check at the top of handleExport, and should be handled as
+   * the identity document it is once downloaded.
    */
   if (exportType === "student-master") {
     const rows = await getAllStudents({
@@ -1564,6 +1671,11 @@ async function handleExport(request: NextRequest, context: RouteContext) {
 
   if (exportType === "previous-year-dues") {
     const rows = await getPrevYearDuesCollectionRows(resolvedSessionLabel);
+    // A carry-forward chase is a phone-call list, and the numbers worth having
+    // on it were sitting unexported on the student record.
+    const masterById = await getStudentMasterFieldsByIds(
+      rows.map((row) => row.studentId).filter(Boolean) as string[],
+    );
 
     return rowsResponse(
       format,
@@ -1575,6 +1687,11 @@ async function handleExport(request: NextRequest, context: RouteContext) {
         "Class": row.classLabel,
         "Student status": row.studentStatus ?? "",
         "Phone": row.fatherPhone ?? "",
+        "Guardian phone": masterById.get(row.studentId ?? "")?.guardianPhone ?? "",
+        "Emergency phone":
+          masterById.get(row.studentId ?? "")?.emergencyContactPhone ?? "",
+        "Village / city": masterById.get(row.studentId ?? "")?.villageCity ?? "",
+        "District": masterById.get(row.studentId ?? "")?.district ?? "",
         "Balance label": row.displayLabel,
         "Source session": row.sourceSessionLabel ?? "",
         "Target session": row.targetSessionLabel ?? "",
@@ -1588,6 +1705,12 @@ async function handleExport(request: NextRequest, context: RouteContext) {
 
   if (exportType === "left-student-dues") {
     const queue = await getRecoveryQueue();
+    // These families have already left, so the phone on the student record is
+    // the one that has most likely gone stale. Every alternative it holds is
+    // worth putting on the sheet.
+    const masterById = await getStudentMasterFieldsByIds(
+      queue.rows.map((row) => row.studentId),
+    );
 
     return rowsResponse(
       format,
@@ -1598,6 +1721,11 @@ async function handleExport(request: NextRequest, context: RouteContext) {
         "Student": row.fullName,
         "Father": row.fatherName ?? "",
         "Phone": row.phone ?? "",
+        "Guardian phone": masterById.get(row.studentId)?.guardianPhone ?? "",
+        "Emergency phone":
+          masterById.get(row.studentId)?.emergencyContactPhone ?? "",
+        "Village / city": masterById.get(row.studentId)?.villageCity ?? "",
+        "District": masterById.get(row.studentId)?.district ?? "",
         "Status": row.status,
         "Class": row.classLabel ?? "",
         "Source session": row.sourceSessionLabel ?? "",
@@ -1656,6 +1784,9 @@ async function handleExport(request: NextRequest, context: RouteContext) {
   if (exportType === "defaulters" && hasDefaulterFilterParams(request)) {
     const filters = parseDefaulterFiltersFromQuery(request);
     const rows = await getDefaulterExportRows(filters, resolvedSessionLabel);
+    const masterById = await getStudentMasterFieldsByIds(
+      rows.map((row) => row.studentId),
+    );
 
     return rowsResponse(
       format,
@@ -1668,10 +1799,20 @@ async function handleExport(request: NextRequest, context: RouteContext) {
         "Father": row.fatherName ?? "",
         "Phone": row.fatherPhone ?? "",
         "Alternate phone": row.motherPhone ?? "",
+        "Guardian phone": masterById.get(row.studentId)?.guardianPhone ?? "",
+        "Emergency phone":
+          masterById.get(row.studentId)?.emergencyContactPhone ?? "",
+        "Village / city": masterById.get(row.studentId)?.villageCity ?? "",
+        "District": masterById.get(row.studentId)?.district ?? "",
         "Route": row.transportRouteLabel,
-        "Total pending": row.totalPending,
+        // `totalPending` is fees-only and `lateFeeTotal` is really the pending
+        // late fee, so the old headers read as a total that excluded the late
+        // fee and a charge that was actually a balance. Named for what they are,
+        // with the sum a cashier can collect spelled out.
+        "Fees pending": row.totalPending,
         "Overdue base": row.overdueAmount,
-        "Late fee": row.lateFeeTotal,
+        "Late fee pending": row.lateFeeTotal,
+        "Total owed": row.totalPending + row.lateFeeTotal,
         "Next due date": row.nextDueDate ?? "",
         "Next due amount": row.nextDueAmount,
         "Status": row.statusLabel,
@@ -1715,12 +1856,126 @@ async function handleExport(request: NextRequest, context: RouteContext) {
   }
 
   if (workbook.view === "student_dues" || workbook.view === "defaulters") {
-    // Audit 1.26 — sort by outstanding desc so the spreadsheet matches the
-    // heat-ordered Defaulters page rather than the workbook's natural order.
+    const masterById = await getStudentMasterFieldsByIds(
+      workbook.rows.map((row) => row.studentId),
+    );
+
+    /**
+     * Class-wise dues, finally class-wise.
+     *
+     * The tile has promised this since it shipped, but there was no branch for
+     * it — it fell through to the flat student-dues list and its only
+     * "class-wise" quality was having a Class column. Rows now group by class
+     * in the master sort order, each class closing with its own subtotal and
+     * the sheet closing with a grand total.
+     *
+     * Every row carries the identical key set, subtotals included: json_to_sheet
+     * takes its headers from the FIRST row's keys only, so a subtotal row with
+     * fewer keys would silently drop columns from the whole sheet.
+     */
+    if (exportType === "class-wise-dues") {
+      const blankRow = {
+        "Class": "",
+        "Student": "",
+        "SR no": "",
+        "Father": "",
+        "Phone": "",
+        "Total due": "" as string | number,
+        "Paid": "" as string | number,
+        "Fees pending": "" as string | number,
+        "Late fee pending": "" as string | number,
+        "Total owed": "" as string | number,
+        "Next due date": "",
+        "Status": "",
+      };
+      const byClass = new Map<string, typeof workbook.rows>();
+
+      for (const row of workbook.rows) {
+        const key = `${String(row.sortOrder).padStart(6, "0")}|${row.classLabel}`;
+        const bucket = byClass.get(key);
+        if (bucket) {
+          bucket.push(row);
+        } else {
+          byClass.set(key, [row]);
+        }
+      }
+
+      const classWiseRows: (typeof blankRow)[] = [];
+      let grandDue = 0;
+      let grandPaid = 0;
+      let grandFees = 0;
+      let grandLateFee = 0;
+
+      for (const key of [...byClass.keys()].sort()) {
+        const classRows = [...(byClass.get(key) ?? [])].sort(
+          (left, right) =>
+            right.totalOwedAmount - left.totalOwedAmount ||
+            left.studentName.localeCompare(right.studentName),
+        );
+        const classLabel = classRows[0]?.classLabel ?? "";
+
+        for (const row of classRows) {
+          classWiseRows.push({
+            ...blankRow,
+            "Class": classLabel,
+            "Student": row.studentName,
+            "SR no": row.admissionNo,
+            "Father": row.fatherName ?? "",
+            "Phone": row.fatherPhone ?? "",
+            "Total due": row.baseChargeTotal,
+            "Paid": row.totalPaid,
+            "Fees pending": row.outstandingAmount,
+            "Late fee pending": row.lateFeeOutstandingAmount,
+            "Total owed": row.totalOwedAmount,
+            "Next due date": row.nextDueDate ?? "",
+            "Status": row.statusLabel,
+          });
+        }
+
+        const sum = (pick: (row: (typeof classRows)[number]) => number) =>
+          classRows.reduce((total, row) => total + pick(row), 0);
+        const classDue = sum((row) => row.baseChargeTotal);
+        const classPaid = sum((row) => row.totalPaid);
+        const classFees = sum((row) => row.outstandingAmount);
+        const classLateFee = sum((row) => row.lateFeeOutstandingAmount);
+
+        grandDue += classDue;
+        grandPaid += classPaid;
+        grandFees += classFees;
+        grandLateFee += classLateFee;
+
+        classWiseRows.push({
+          ...blankRow,
+          "Class": classLabel,
+          "Student": `${classLabel} total (${classRows.length} students)`,
+          "Total due": classDue,
+          "Paid": classPaid,
+          "Fees pending": classFees,
+          "Late fee pending": classLateFee,
+          "Total owed": classFees + classLateFee,
+        });
+      }
+
+      classWiseRows.push({
+        ...blankRow,
+        "Student": `All classes (${workbook.rows.length} students)`,
+        "Total due": grandDue,
+        "Paid": grandPaid,
+        "Fees pending": grandFees,
+        "Late fee pending": grandLateFee,
+        "Total owed": grandFees + grandLateFee,
+      });
+
+      return rowsResponse(format, filenameBase, exportTitle, classWiseRows);
+    }
+
+    // Sort by what the family actually owes, not by fees alone. On the old key
+    // a student clear of fees but carrying a late fee sorted to the very bottom
+    // of the sheet, under everyone owing nothing at all.
     // Fallback: alphabetical by name as the deterministic tiebreaker.
     const sortedRows = [...workbook.rows].sort((left, right) => {
-      if (right.outstandingAmount !== left.outstandingAmount) {
-        return right.outstandingAmount - left.outstandingAmount;
+      if (right.totalOwedAmount !== left.totalOwedAmount) {
+        return right.totalOwedAmount - left.totalOwedAmount;
       }
       return left.studentName.localeCompare(right.studentName);
     });
@@ -1728,23 +1983,35 @@ async function handleExport(request: NextRequest, context: RouteContext) {
       format,
       filenameBase,
       exportTitle,
-      sortedRows.map((row) => ({
-        "Student": row.studentName,
-        "SR no": row.admissionNo,
-        "Class": row.classLabel,
-        "Father": row.fatherName ?? "",
-        "Phone": row.fatherPhone ?? "",
-        "Route": buildTransportRouteLabel({
-          routeName: row.transportRouteName,
-          transportFeeAmount: row.transportFee,
-        }),
-        "Total due": row.baseChargeTotal,
-        "Paid": row.totalPaid,
-        "Outstanding": row.outstandingAmount,
-        "Next due date": row.nextDueDate ?? "",
-        "Next due amount": row.nextDueAmount ?? 0,
-        "Status": row.statusLabel,
-      })),
+      sortedRows.map((row) => {
+        const master = masterById.get(row.studentId);
+
+        return {
+          "Student": row.studentName,
+          "SR no": row.admissionNo,
+          "Class": row.classLabel,
+          "Father": row.fatherName ?? "",
+          "Phone": row.fatherPhone ?? "",
+          "Guardian phone": master?.guardianPhone ?? "",
+          "Emergency phone": master?.emergencyContactPhone ?? "",
+          "Village / city": master?.villageCity ?? "",
+          "District": master?.district ?? "",
+          "Route": buildTransportRouteLabel({
+            routeName: row.transportRouteName,
+            transportFeeAmount: row.transportFee,
+          }),
+          "Total due": row.baseChargeTotal,
+          "Paid": row.totalPaid,
+          // Was a single "Outstanding" reading row.outstandingAmount, which is
+          // fees-only — so a family owing nothing but a late fee showed as 0.
+          "Fees pending": row.outstandingAmount,
+          "Late fee pending": row.lateFeeOutstandingAmount,
+          "Total owed": row.totalOwedAmount,
+          "Next due date": row.nextDueDate ?? "",
+          "Next due amount": row.nextDueAmount ?? 0,
+          "Status": row.statusLabel,
+        };
+      }),
     );
   }
 
