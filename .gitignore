@@ -89,3 +89,6 @@ next-env.d.ts
 # Claude Code Superpowers plugin plans (ephemeral agent artefacts)
 /docs/superpowers/
 .codex/
+
+# QA credentials — never committed. See docs/qa/smoke-test-data.md.
+docs/qa/*.local.md
