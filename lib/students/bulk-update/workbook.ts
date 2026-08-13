@@ -81,6 +81,41 @@ const LIST_BACKED_FIELDS = {
   studentType: { column: 4, header: "New/Old", definedName: "VPPS_BU_Type", strict: true },
 } as const;
 
+/** Where the four fixed lists end and the per-field choice lists begin. */
+const FIXED_LIST_COLUMN_COUNT = 4;
+
+/**
+ * Lists-sheet columns for the ticked `kind: "choice"` fields — gender, blood
+ * group, category, guardian relation.
+ *
+ * These carry their allowed values on the field itself rather than coming from
+ * a session lookup, so unlike the four fixed lists their columns depend on
+ * which boxes were ticked. Both the workbook builder and the validation builder
+ * call this so they cannot disagree about which column a list landed in — the
+ * failure mode there is a dropdown silently offering another field's values.
+ */
+function getChoiceListColumns(fields: readonly BulkUpdateField[]) {
+  const columns = new Map<
+    string,
+    { column: number; header: string; definedName: string; values: readonly string[] }
+  >();
+
+  fields
+    .filter((field) => field.kind === "choice" && (field.options?.length ?? 0) > 0)
+    .forEach((field, index) => {
+      columns.set(field.key, {
+        column: FIXED_LIST_COLUMN_COUNT + index + 1,
+        header: field.header,
+        // Excel defined names allow letters, digits and underscore; the field
+        // keys are camelCase alphanumerics, so this is always valid.
+        definedName: `VPPS_BU_Choice_${field.key}`,
+        values: field.options ?? [],
+      });
+    });
+
+  return columns;
+}
+
 export async function buildBulkUpdateTemplateWorkbook(payload: {
   students: readonly BulkUpdateSnapshotStudent[];
   fields: readonly BulkUpdateField[];
@@ -138,11 +173,15 @@ export async function buildBulkUpdateTemplateWorkbook(payload: {
   const routeLabels = payload.allRouteLabels ?? [];
   const statusLabels = STUDENT_STATUSES.map((item) => item.label);
   const typeLabels = STUDENT_TYPE_OPTIONS.map((item) => item.label);
+  const choiceColumns = [...getChoiceListColumns(payload.fields).values()].sort(
+    (left, right) => left.column - right.column,
+  );
   const listRowCount = Math.max(
     classLabels.length,
     routeLabels.length,
     statusLabels.length,
     typeLabels.length,
+    ...choiceColumns.map((choice) => choice.values.length),
   );
   const listRows: string[][] = [
     [
@@ -150,6 +189,7 @@ export async function buildBulkUpdateTemplateWorkbook(payload: {
       LIST_BACKED_FIELDS.route.header,
       LIST_BACKED_FIELDS.status.header,
       LIST_BACKED_FIELDS.studentType.header,
+      ...choiceColumns.map((choice) => choice.header),
     ],
   ];
 
@@ -159,11 +199,18 @@ export async function buildBulkUpdateTemplateWorkbook(payload: {
       routeLabels[index] ?? "",
       statusLabels[index] ?? "",
       typeLabels[index] ?? "",
+      ...choiceColumns.map((choice) => choice.values[index] ?? ""),
     ]);
   }
 
   const listsSheet = XLSX.utils.aoa_to_sheet(listRows);
-  listsSheet["!cols"] = [{ wch: 26 }, { wch: 30 }, { wch: 18 }, { wch: 14 }];
+  listsSheet["!cols"] = [
+    { wch: 26 },
+    { wch: 30 },
+    { wch: 18 },
+    { wch: 14 },
+    ...choiceColumns.map((choice) => ({ wch: Math.max(14, choice.header.length + 4) })),
+  ];
   XLSX.utils.book_append_sheet(workbook, listsSheet, BULK_UPDATE_LISTS_SHEET_NAME);
 
   return workbook;
@@ -188,8 +235,34 @@ export function buildBulkUpdateValidations(payload: {
   };
 
   const validations: ListValidation[] = [];
+  const choiceColumns = getChoiceListColumns(payload.fields);
 
   payload.fields.forEach((field, index) => {
+    const choice = choiceColumns.get(field.key);
+
+    // Gender, blood group, category, guardian relation. Before this they were
+    // free text with the allowed values buried on the Instructions sheet, so
+    // "M" and "male" both reached the upload and failed validation there.
+    if (choice) {
+      validations.push({
+        sheetName: BULK_UPDATE_SHEET_NAME,
+        sourceSheetName: BULK_UPDATE_LISTS_SHEET_NAME,
+        sourceColumn: choice.column,
+        sourceFirstRow: 2,
+        sourceLastRow: choice.values.length + 1,
+        targetColumn: LOCKED_HEADERS.length + index + 1,
+        targetFirstRow: 2,
+        targetLastRow: Math.max(payload.rowCount + 1, BULK_UPDATE_DROPDOWN_LAST_ROW),
+        definedName: choice.definedName,
+        prompt: `Pick from the ${choice.header} list, or leave blank to keep the saved value.`,
+        error: `That value is not in the ${choice.header} list.`,
+        // Not strict: CLEAR has to remain typeable, and every information field
+        // is optional so emptying one is a legitimate edit.
+        strict: false,
+      });
+      return;
+    }
+
     const spec = LIST_BACKED_FIELDS[field.key as keyof typeof LIST_BACKED_FIELDS];
 
     if (!spec) {
