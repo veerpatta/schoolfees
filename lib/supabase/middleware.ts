@@ -3,29 +3,10 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { getRequiredEnvVar, hasRequiredEnvVars } from "@/lib/env";
 
-/** Header the root layout reads to decide which translations to ship. */
-export const PATHNAME_HEADER = "x-vpps-pathname";
-
-/**
- * `NextResponse.next()` carrying the request path forward to Server Components.
- *
- * A Server Component cannot see the request path, and the root layout needs it
- * to send one route's translation namespaces instead of the whole 100 KB
- * catalog. Middleware is the only place that knows both.
- *
- * Built fresh on every call rather than snapshotted once: `request.cookies.set`
- * writes through to the request's `cookie` header, so a snapshot taken before
- * Supabase refreshes the auth cookies would forward the stale ones and sign
- * everybody out.
- */
-function nextWithPathname(request: NextRequest) {
-  const headers = new Headers(request.headers);
-  headers.set(PATHNAME_HEADER, request.nextUrl.pathname);
-  return NextResponse.next({ request: { headers } });
-}
-
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = nextWithPathname(request);
+  let supabaseResponse = NextResponse.next({
+    request,
+  });
   const pathname = request.nextUrl.pathname;
   const isProtectedPath =
     pathname === "/protected" || pathname.startsWith("/protected/");
@@ -46,9 +27,9 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          // Rebuilt after the cookie writes above, so the forwarded headers
-          // carry the refreshed auth cookies.
-          supabaseResponse = nextWithPathname(request);
+          supabaseResponse = NextResponse.next({
+            request,
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );

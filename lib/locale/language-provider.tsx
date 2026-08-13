@@ -42,13 +42,6 @@ interface LanguageProviderProps {
   // (then memoized in component state). This keeps the initial JS payload
   // ~2/3 smaller per page load.
   catalogs: LanguageCatalogs;
-  /**
-   * The namespaces this route renders, decided server-side by
-   * `namespacesForPath`. Passed through so a locale switch loads the same slice
-   * the server sent, rather than silently gaining keys the first build did not
-   * have — a difference that would only show up after somebody changed language.
-   */
-  namespaces?: readonly string[];
   children: React.ReactNode;
 }
 
@@ -63,24 +56,9 @@ async function importCatalog(locale: AppLocale): Promise<MessageCatalog> {
   }
 }
 
-function pick(catalog: MessageCatalog, namespaces?: readonly string[]): MessageCatalog {
-  if (!namespaces || namespaces.length === 0) {
-    return catalog;
-  }
-
-  const picked: MessageCatalog = {};
-  for (const namespace of namespaces) {
-    if (namespace in catalog) {
-      picked[namespace] = catalog[namespace];
-    }
-  }
-  return picked;
-}
-
 export function LanguageProvider({
   initialLocale,
   catalogs,
-  namespaces,
   children,
 }: LanguageProviderProps) {
   const [locale, setLocaleState] = useState<AppLocale>(initialLocale);
@@ -118,12 +96,12 @@ export function LanguageProvider({
     let cancelled = false;
     void importCatalog(locale).then((catalog) => {
       if (cancelled) return;
-      setLoadedCatalogs((prev) => ({ ...prev, [locale]: pick(catalog, namespaces) }));
+      setLoadedCatalogs((prev) => ({ ...prev, [locale]: catalog }));
     });
     return () => {
       cancelled = true;
     };
-  }, [locale, loadedCatalogs, namespaces]);
+  }, [locale, loadedCatalogs]);
 
   const value = useMemo<LanguageContextValue>(
     () => ({ locale, setLocale, isSwitching }),

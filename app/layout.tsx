@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import { Inter, Noto_Sans_Devanagari, Source_Serif_4 } from "next/font/google";
 import { getLocale } from "next-intl/server";
 
@@ -9,12 +8,6 @@ import { ThemeProvider } from "@/components/system/theme-provider";
 import { ToastViewport } from "@/components/ui/toast";
 import { DensityProvider } from "@/lib/design/density-context";
 import { LanguageProvider, type LanguageCatalogs } from "@/lib/locale/language-provider";
-import {
-  namespacesForPath,
-  pickNamespaces,
-  type MessageNamespace,
-} from "@/lib/locale/message-namespaces";
-import { PATHNAME_HEADER } from "@/lib/supabase/middleware";
 import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
 import { type AppLocale, isSupportedLocale } from "@/i18n/locales";
@@ -46,20 +39,15 @@ const fontDevanagari = Noto_Sans_Devanagari({
 
 async function loadActiveCatalog(
   locale: AppLocale,
-  namespaces: readonly MessageNamespace[],
 ): Promise<LanguageCatalogs> {
-  const full = await (async (): Promise<Record<string, unknown>> => {
-    switch (locale) {
-      case "en":
-        return (await import("@/messages/en.json")).default as Record<string, unknown>;
-      case "hi":
-        return (await import("@/messages/hi.json")).default as Record<string, unknown>;
-      case "hi-en":
-        return (await import("@/messages/hi-en.json")).default as Record<string, unknown>;
-    }
-  })();
-
-  return { [locale]: pickNamespaces(full, namespaces) } as LanguageCatalogs;
+  switch (locale) {
+    case "en":
+      return { en: (await import("@/messages/en.json")).default as Record<string, unknown> };
+    case "hi":
+      return { hi: (await import("@/messages/hi.json")).default as Record<string, unknown> };
+    case "hi-en":
+      return { "hi-en": (await import("@/messages/hi-en.json")).default as Record<string, unknown> };
+  }
 }
 
 export const metadata: Metadata = {
@@ -117,16 +105,7 @@ export default async function RootLayout({
   const initialLocale: AppLocale = isSupportedLocale(resolvedLocale)
     ? resolvedLocale
     : "en";
-
-  // ...and only the namespaces this route renders. The whole catalog used to be
-  // serialized into the flight payload of every response — 100 KB of English on
-  // a login screen that needs about six strings. Server Components still read
-  // the full catalog through i18n/request.ts; this is only what reaches the
-  // browser. `namespacesForPath` falls back to everything for an unknown path,
-  // so a route added later is correct before anyone remembers to list it.
-  const pathname = (await headers()).get(PATHNAME_HEADER);
-  const namespaces = namespacesForPath(pathname);
-  const catalogs = await loadActiveCatalog(initialLocale, namespaces);
+  const catalogs = await loadActiveCatalog(initialLocale);
 
   return (
     <html
@@ -135,11 +114,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="antialiased">
-        <LanguageProvider
-          initialLocale={initialLocale}
-          catalogs={catalogs}
-          namespaces={namespaces}
-        >
+        <LanguageProvider initialLocale={initialLocale} catalogs={catalogs}>
           <ThemeProvider>
             <DensityProvider>
               {children}
