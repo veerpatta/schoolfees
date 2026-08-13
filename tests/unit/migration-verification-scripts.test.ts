@@ -104,7 +104,11 @@ describe("phase 1 migration verification scripts", () => {
     expect(existsSync(join(repoRoot, scriptPath))).toBe(true);
 
     const script = readRepoFile(scriptPath);
-    expect(script).toContain('"2025-26", "2026-27", "TEST-2026-27"');
+    // `2025-26` was required here and in the switcher but never existed, so
+    // this check failed permanently and could not gate a deploy. Last year's
+    // unpaid tuition lives on 2026-27 students as carry-forward rows instead.
+    expect(script).toContain('["2026-27", "TEST-2026-27"]');
+    expect(script).not.toContain('"2025-26"');
     expect(script).toContain("academic_sessions");
     expect(script).toContain("fee_policy_configs");
     expect(script).toContain("classes");

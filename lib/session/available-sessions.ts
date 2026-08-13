@@ -7,8 +7,30 @@ export type AvailableSessionRow = {
   is_current: boolean;
 };
 
+/**
+ * The session the office falls back to when the active session cannot be read.
+ *
+ * Named, not indexed. This used to be `REQUIRED_OFFICE_SESSION_LABELS[1]`, so
+ * removing an entry from the front of that list would have silently made the
+ * TEST session the production fallback.
+ */
+export const FALLBACK_OFFICE_SESSION_LABEL = "2026-27";
+
+/**
+ * Sessions the switcher always offers, even if the database read times out.
+ *
+ * A label listed here that has no `academic_sessions` row is synthesized below
+ * as a phantom entry — it appears in the switcher, and selecting it shows an
+ * empty workspace with no classes, fee settings or students, which reads as
+ * data loss rather than as a session that was never set up.
+ *
+ * `2025-26` was listed here and never existed. Last year's unpaid tuition lives
+ * on 2026-27 students as carry-forward rows (see `lib/prev-year-dues/`), not as
+ * its own session, so the label only ever produced an empty screen and a failing
+ * `scripts/verify-required-sessions.mjs`. Do not add a label here until the
+ * session actually exists.
+ */
 export const REQUIRED_OFFICE_SESSION_LABELS = [
-  "2025-26",
   "2026-27",
   "TEST-2026-27",
 ] as const;

@@ -1,8 +1,8 @@
 import "server-only";
 
 import {
+  FALLBACK_OFFICE_SESSION_LABEL,
   mergeRequiredOfficeSessions,
-  REQUIRED_OFFICE_SESSION_LABELS,
   type AvailableSessionRow,
 } from "@/lib/session/available-sessions";
 import { getActiveSessionLabel } from "@/lib/session/active";
@@ -50,7 +50,7 @@ export async function getSessionSwitcherData(): Promise<SessionSwitcherData> {
     return cachedSessionSwitcherData.data;
   }
 
-  const fallbackActiveSessionLabel = REQUIRED_OFFICE_SESSION_LABELS[1];
+  const fallbackActiveSessionLabel = FALLBACK_OFFICE_SESSION_LABEL;
   const activeSessionLabel = await Promise.race([
     getActiveSessionLabel().catch(() => fallbackActiveSessionLabel),
     timeoutAfter(fallbackActiveSessionLabel),

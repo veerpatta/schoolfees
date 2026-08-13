@@ -3,7 +3,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { existsSync, readFileSync } from "node:fs";
 
-const requiredSessions = ["2025-26", "2026-27", "TEST-2026-27"];
+// Must match REQUIRED_OFFICE_SESSION_LABELS in lib/session/available-sessions.ts.
+// `2025-26` was listed here and in the switcher but never existed: last year's
+// unpaid tuition is carried on 2026-27 students as carry-forward rows, not as
+// its own session. The label only produced an empty workspace and a permanently
+// failing check, which meant this script could not gate a deploy.
+const requiredSessions = ["2026-27", "TEST-2026-27"];
 
 function loadEnvFile(path) {
   if (!existsSync(path)) {
