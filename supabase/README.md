@@ -41,12 +41,29 @@ produce — it never edits the database structure directly.
    reset of a clean DB — do not patch it by hand.
 3. **No experimental writes against the `2026-27` session.** That is live
    school financial data. Use `TEST-2026-27` for everything else
-   (see `CLAUDE.md` § Hard Safety Rules).
+   (see `CLAUDE.md` § Hard Safety Rules). `scripts/bulk-apply.mjs` now enforces
+   this in code: it refuses `--session 2026-27` unless `--live` is also passed.
+   Nothing else does — every other path relies on you.
 4. **`SUPABASE_SERVICE_ROLE_KEY` is server-only.** Nothing in this folder or
    the app should expose it via `NEXT_PUBLIC_*`.
 5. **Posted `payments` / `receipts` rows are immutable.** Use the
    `payment_adjustments` audit-trail flow. Do not write migrations that
    `UPDATE` or `DELETE` directly against posted financial rows.
+   This is enforced, not just advised: `private.prevent_append_only_mutation()`
+   is a `before update or delete` trigger on `payments`, `receipts` and
+   `payment_adjustments`, and it raises for the service role too.
+
+### What a bulk change *may* do
+
+Rules 3 and 5 say what is forbidden. The sanctioned path for what is allowed —
+changing hundreds of rows at once when no screen in the app can — is
+`docs/workflows/agent-bulk-operations.md`, implemented by `scripts/bulk-apply.mjs`:
+dry run by default, per-column allowlists, a printed diff, a second opt-in for
+anything that changes what a family owes, and an `audit_logs` row per write.
+
+Prefer an existing screen first (`/protected/students/bulk-update`,
+`/protected/payments/bulk`, `/protected/imports`) — they already carry RBAC,
+session scoping, chunking and cache invalidation that a script has to reinvent.
 
 ## Common workflows
 

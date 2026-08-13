@@ -365,6 +365,7 @@ Test layout: `tests/unit` (pure/domain) · `tests/integration` (workflows) · `t
 4. 💵 No payment-posting path outside the Payment Desk.
 5. 🟥 **`2026-27` is live production data** — use `TEST-2026-27` for all testing; never post test payments against real students.
 6. 📋 Fee Setup publish must preview impact and protect paid/partial/adjusted rows.
+7. 🤖 Bulk changes by an agent follow [`docs/workflows/agent-bulk-operations.md`](docs/workflows/agent-bulk-operations.md) — existing screen first, then `scripts/bulk-apply.mjs` (dry run by default), then a migration.
 
 ---
 
@@ -375,7 +376,7 @@ Test layout: `tests/unit` (pure/domain) · `tests/integration` (workflows) · `t
 | [`docs/product/`](docs/product) | Project context, MVP scope, **school rules**, roadmap |
 | [`docs/modules/`](docs/modules) | Per-module guides (import, payment-desk, exports, …) |
 | [`docs/maps/`](docs/maps) | Folder map, database map, module map, danger zones |
-| [`docs/workflows/`](docs/workflows) | Test-data setup, production operations |
+| [`docs/workflows/`](docs/workflows) | Test-data setup, production operations, **agent bulk operations** |
 | [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) | Contributor + agent guide |
 | [`PRODUCTION_OPERATIONS_CHECKLIST.md`](PRODUCTION_OPERATIONS_CHECKLIST.md) · [`UAT_CHECKLIST.md`](UAT_CHECKLIST.md) | Go-live & UAT |
 

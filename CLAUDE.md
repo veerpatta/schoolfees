@@ -74,6 +74,21 @@ node scripts/repair-discount-drift.mjs --session 2026-27 --apply --only-decrease
 decisions. A negative drift is a discount that never landed — safe to repair.
 A positive drift RAISES what a family owes, so it is never applied in bulk.
 
+```bash
+# The general bulk-change harness. Dry run by default; --apply is opt-in;
+# --session 2026-27 is refused without --live; fee-moving operations need
+# --allow-fee-impact. Every write lands an audit_logs row with a reason.
+node scripts/bulk-apply.mjs --plan <file.json> --session TEST-2026-27
+node scripts/bulk-apply.mjs --plan <file.json> --session TEST-2026-27 --apply
+node scripts/bulk-apply.mjs --help   # lists the operations and their writable columns
+```
+
+**Bulk data work has a documented path: `docs/workflows/agent-bulk-operations.md`.**
+Prefer an existing screen (`/protected/students/bulk-update`, `/protected/payments/bulk`,
+`/protected/imports`) — they already carry RBAC, session scoping, server-side diff
+recomputation, chunking, idempotency and cache invalidation. Reach for the harness only
+when no screen covers the change.
+
 ### Headless callers must pass `useAdmin`
 
 Anything that runs the fee engine outside a staff request — a cron, a script,
@@ -268,6 +283,11 @@ Two traps:
 
 Read-only catalog inspection through the MCP is fine, and it honours
 `begin; … rollback;` — which makes it a good way to dry-run a migration before pushing it.
+
+`supabase/.temp/` is gitignored CLI scratch, so `--linked` fails on a fresh clone until you
+re-link: `npx supabase link --project-ref vgqyilgstjvgohrsiwkb`. After adding a migration,
+update the index in `supabase/migrations/README.md`. The full agent procedure — migrations,
+bulk data, and what is never scriptable — is `docs/workflows/agent-bulk-operations.md`.
 
 ### Fee Engine (Workbook Mode)
 

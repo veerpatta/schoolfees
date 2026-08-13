@@ -203,6 +203,51 @@ When requested to validate, run:
 If environment constraints block a command, report exactly what blocked it and
 what was run successfully.
 
+## Applying Migrations
+
+Use the Supabase CLI. It authenticates from `supabase/.temp/project-ref`, honours the
+filename's timestamp, and runs the migration in a transaction:
+
+```bash
+npx supabase db push --linked --yes
+npx supabase migration list --linked   # confirm local and remote agree
+```
+
+`supabase/.temp/` is gitignored scratch state, so a fresh clone has to re-link first:
+`npx supabase link --project-ref vgqyilgstjvgohrsiwkb`.
+
+- Migrations are **append-only**. Editing the body of an applied migration desyncs
+  production and breaks the next push. Fix a bad migration with a new one.
+- Wrap anything risky in explicit `begin; … commit;`.
+- Read-only inspection through the Supabase MCP is fine, and it honours
+  `begin; … rollback;` — a good way to dry-run a migration before pushing it.
+- **Do not** apply migrations through `mcp__supabase__apply_migration` unless there is no
+  CLI to hand: it stamps `schema_migrations.version` from the wall clock rather than the
+  filename, and the Supabase Preview check then fails. If you must, `git mv` the local file
+  afterwards so its timestamp matches what Postgres recorded.
+- After adding a migration, update the index in `supabase/migrations/README.md`.
+
+## Bulk Data Changes
+
+Changing hundreds of rows at once is normal office work, and there is a sanctioned path for
+it. Take the highest rung that does the job:
+
+1. **An existing screen** — `/protected/students/bulk-update`, `/protected/payments/bulk`,
+   `/protected/imports`. These already carry RBAC, session scoping, server-side diff
+   recomputation, chunking, idempotency and cache invalidation.
+2. **`scripts/bulk-apply.mjs`** when no screen covers it. Dry run by default; `--apply` is a
+   separate opt-in; `--session 2026-27` is refused without `--live`; anything that changes
+   what a family owes needs `--allow-fee-impact`; every write lands an `audit_logs` row.
+3. **A migration** when the shape of the data must change, not its contents.
+
+This is not rule 7's "hidden alternate edit path" — it is deliberately visible, allowlisted
+per column, and auditable. The full procedure is `docs/workflows/agent-bulk-operations.md`.
+
+Two things no path may do: posted `payments` and `receipts` rows cannot be updated or
+deleted (a Postgres trigger refuses the service role too — corrections go through
+`payment_adjustments`), and a headless caller must pass `useAdmin: true` into the fee engine
+or RLS returns nothing and the generator fails quiet.
+
 ## Paths and surfaces added since this file was written
 
 - `/protected/payments/bulk` — the admin bulk-entry sub-surface. It is not an alternate

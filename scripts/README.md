@@ -54,3 +54,11 @@ Added since this index was written:
 - `prev-year-dues-core.mjs` + `prev-year-dues-dry-run.mjs` — carry-forward matching, no writes.
 - `schoolfees-mcp-server.mjs` — the local stdio MCP server. Its Cloudflare twin is in
   `workers/schoolfees-mcp/`, and **the two must stay in sync**.
+- `bulk-apply.mjs` + `bulk-apply-operations.mjs` — the sanctioned harness for an agent to
+  change many rows at once when no screen in the app can. Dry run by default; `--apply` is
+  opt-in; `--session 2026-27` is refused without `--live`; fee-moving operations need
+  `--allow-fee-impact`; every write lands an `audit_logs` row with a reason and an actor,
+  because `recordActivity()` no-ops without a `userId`. Operations are a closed allowlist —
+  adding one is a small reviewable diff in `bulk-apply-operations.mjs`.
+  Read `docs/workflows/agent-bulk-operations.md` first.
+  `node scripts/bulk-apply.mjs --plan <file.json> --session TEST-2026-27 [--apply]`

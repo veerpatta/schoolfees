@@ -37,3 +37,16 @@ students, test payments, or experimental fee changes to `2026-27`.
   being served. Version the cache key and normalise on read.
 - **Class ids must be confined to the active session.** A bulk-update class lookup that was
   not session-scoped repointed 372 real students into `TEST-2026-27`.
+- **`recordActivity()` silently no-ops without a `userId`.** `lib/activity/events.ts` returns
+  early when there is no signed-in staff member, so anything a cron, a script or an agent
+  writes is invisible in the Activity feed. `audit_logs` has no TypeScript writer at all.
+  A headless write path has to lay its own trail — `scripts/bulk-apply.mjs` inserts into
+  `audit_logs` with a `_bulk_apply` block carrying the run id, reason and actor.
+- **Nothing in `lib/` or `app/` guards the live `2026-27` session.** There is no
+  `isProductionSession` check anywhere; the boundary is prose in `AGENTS.md`, `CLAUDE.md`,
+  `supabase/README.md` and this file, plus `scripts/audit-test-data-in-public.mjs`, which
+  only detects leakage after the fact. `scripts/bulk-apply.mjs` is the one path that refuses
+  the live session in code (`--live` required). Do not assume the others do.
+- **The whole app is `force-dynamic` from the root layout.** `app/layout.tsx` sets it, so it
+  propagates to every route, and `export const revalidate` anywhere below it is dead config.
+  Changing it changes the caching behaviour of every page at once.
