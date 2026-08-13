@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 
+import { MobileTabs } from "@/components/mobile-app/mobile-tabs";
 import { ValueStatePill } from "@/components/office/office-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,13 @@ import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { SelectNative } from "@/components/ui/select-native";
 import { Textarea } from "@/components/ui/textarea";
+import { StudentInfoFieldset } from "@/components/students/student-info-fieldset";
 import { StudentPhotoUpload } from "@/components/students/student-photo-upload";
 import type { ConventionalDiscountPolicy } from "@/lib/fees/types";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
+import type { StudentInfoFormInput } from "@/lib/students/info-fields";
+import { cn } from "@/lib/utils";
 import {
   buildTransportRouteLabel,
   isSentinelNoTransportRoute,
@@ -34,7 +38,7 @@ function selectedRouteIsReal(route: StudentRouteOption | null): boolean {
   return Boolean(route) && !isSentinelNoTransportRoute(route!.label);
 }
 
-type StudentFormValues = {
+type StudentFormValues = StudentInfoFormInput & {
   fullName: string;
   classId: string;
   admissionNo: string;
@@ -65,6 +69,8 @@ type StudentFormValues = {
 
 type StudentFormProps = {
   mode: "add" | "edit";
+  /** Edit mode only. Files a photo upload under the student, not under `new/`. */
+  studentId?: string;
   classOptions: StudentClassOption[];
   routeOptions: StudentRouteOption[];
   sessionLabel: string;
@@ -140,6 +146,7 @@ function FieldError({
 
 export function StudentForm({
   mode,
+  studentId,
   classOptions,
   routeOptions,
   sessionLabel,
@@ -200,6 +207,37 @@ export function StudentForm({
     (entry): entry is [keyof StudentFormValues, string] => Boolean(entry[1]),
   );
   const hasFieldErrors = state.status === "error" && fieldErrorEntries.length > 0;
+
+  /**
+   * Phone-only grouping.
+   *
+   * The form carries ~50 controls, which is fine on a desk and unusable in one
+   * phone scroll. Disclosure is not an option here — collapsing this form is
+   * what charged a student Rs 14,000 for transport they did not have — so the
+   * groups become tabs instead.
+   *
+   * Two rules make that safe:
+   *
+   *  - **Panels are always mounted**, hidden with `hidden md:block`. Every field
+   *    stays in the DOM and posts in FormData, so a save from the phone can
+   *    never look like "the form never offered this field" and wipe it.
+   *  - **`md:block` means the desk tree is untouched**: every group visible at
+   *    once, exactly as before.
+   */
+  const groups = [
+    { id: "student", label: "Student" },
+    { id: "parents", label: "Parents" },
+    { id: "info", label: "Info" },
+    ...(canEditFinance ? [{ id: "fees", label: "Fees" }] : []),
+    { id: "status", label: "Status" },
+  ];
+  const [activeGroup, setActiveGroup] = useState("student");
+  // A failed save drops the grouping and shows everything. The error summary
+  // scrolls to and focuses the offending control, and it cannot do either if
+  // the control is sitting in a `display:none` panel.
+  const showAllGroups = hasFieldErrors;
+  const groupPanel = (id: string) =>
+    cn(!showAllGroups && activeGroup !== id && "hidden md:block");
 
   return (
     <form action={formAction} className="space-y-6">
@@ -279,7 +317,18 @@ export function StudentForm({
         </Notice>
       ) : null}
 
-      <div className="space-y-4">
+      {showAllGroups ? null : (
+        <div className="sticky top-0 z-30 -mx-4 border-b border-border bg-background/95 px-4 backdrop-blur md:hidden">
+          <MobileTabs
+            ariaLabel="Student form sections"
+            activeId={activeGroup}
+            onSelect={setActiveGroup}
+            tabs={groups}
+          />
+        </div>
+      )}
+
+      <div className={cn("space-y-4", groupPanel("student"))}>
         <div>
           <h3 className="text-sm font-semibold text-foreground">Student details</h3>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -437,6 +486,7 @@ export function StudentForm({
         </div>
       </div>
 
+      <div className={cn("space-y-6", groupPanel("parents"))}>
       <Section
         title="Parent details and address"
         actions={<ValueStatePill tone="editable">Student Master</ValueStatePill>}
@@ -483,12 +533,25 @@ export function StudentForm({
           <div className="md:col-span-2">
             <Label>Student photo (optional)</Label>
             <div className="mt-2">
-              <StudentPhotoUpload inputName="photoPath" initialPath={values.photoPath || null} />
+              {/* studentId matters: without it every upload lands under the
+                  bucket's `new/` folder, even when editing an existing
+                  student. */}
+              <StudentPhotoUpload
+                inputName="photoPath"
+                studentId={studentId}
+                initialPath={values.photoPath || null}
+              />
             </div>
           </div>
         </div>
       </Section>
+      </div>
 
+      <div className={cn("space-y-6", groupPanel("info"))}>
+        <StudentInfoFieldset values={values} fieldErrors={state.fieldErrors} />
+      </div>
+
+      <div className={cn("space-y-6", groupPanel("fees"))}>
       {canEditFinance ? (
       <Section
         title="Conventional discounts"
@@ -702,7 +765,9 @@ export function StudentForm({
         </div>
       </Section>
       ) : null}
+      </div>
 
+      <div className={groupPanel("status")}>
       <Section
         title="Record status"
         actions={<ValueStatePill tone="editable">Student Master</ValueStatePill>}
@@ -728,6 +793,7 @@ export function StudentForm({
           </div>
         </div>
       </Section>
+      </div>
 
       {/* Clears the fixed mobile nav (z-40); at bottom-0/z-10 the Save button
           was underneath it on every phone add/edit. */}

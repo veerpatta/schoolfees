@@ -88,6 +88,15 @@ supersedes the old one.
   recovery desk.
 - `student_fee_overrides` — per-student exceptions. RLS here is **narrower than `students`**,
   so a role without `fees:view` gets a NULL join, not a `false`.
+- `students` also carries 25 optional information columns (gender, blood group, category,
+  religion, caste, nationality, mother tongue, `aadhaar_no`, `jan_aadhaar_no`, `apaar_id`,
+  house, roll no, previous school, TC number, board registration no, village/city, tehsil,
+  district, state, pincode, guardian name/relation/phone, emergency contact name/phone)
+  from `20260813090000`. All nullable text. The column list is mirrored in
+  `lib/students/info-fields.ts`, which is the only place a field is named — add to both.
+  `aadhaar_no` has a partial unique index (`idx_students_aadhaar_no_unique`); `jan_aadhaar_no`
+  deliberately does not, because siblings share a Jan Aadhaar. Section lives on `classes`,
+  not here, and admission date is the pre-existing `joined_on`.
 
 ## Imports, sessions, ops
 

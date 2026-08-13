@@ -69,6 +69,9 @@ describe("mobile primary actions stay reachable", () => {
     // keyboard is up the moment the sheet opens and a submit left at the end
     // of the scroll body sits under it.
     ["components/students/link-sibling-sheet.tsx", "linkSiblingConfirm"],
+    // The student information quick-edit is a form of text inputs, so on a
+    // phone the keyboard is up for most of the time the sheet is open.
+    ["components/students/student-info-sheet.tsx", "studentInfoSave"],
     ["components/whatsapp-templates/template-editor.tsx", "whatsappEditorCreate"],
   ])("%s pins its submit action outside the scroll body", (path, submitMarker) => {
     const source = read(path);

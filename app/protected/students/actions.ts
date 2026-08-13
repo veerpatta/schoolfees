@@ -16,7 +16,16 @@ import {
   getStudentFormOptions,
   getStudentDeletionSafety,
   updateStudent,
+  updateStudentInfo,
 } from "@/lib/students/data";
+import {
+  getStudentInfoInput,
+  getSubmittedStudentInfoFields,
+  isDuplicateAadhaarError,
+  validateStudentInfoInput,
+} from "@/lib/students/info-fields";
+import type { StudentInfoFields } from "@/lib/students/info-fields";
+import type { StudentInfoActionState } from "@/app/protected/students/student-info-action-state";
 import type { StudentStatus } from "@/lib/db/types";
 import { parseAcademicSessionLabel } from "@/lib/config/fee-rules";
 import { formatInr } from "@/lib/helpers/currency";
@@ -48,6 +57,9 @@ import {
 } from "@/lib/system-sync/office-sync";
 import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
 import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+
+const DUPLICATE_AADHAAR_MESSAGE =
+  "This Aadhaar number is already recorded against another student. Check the number, or open that student's record.";
 
 const STUDENT_SAVED_DUES_FAILED_MESSAGE =
   "Student record was saved, but dues could not be prepared automatically. Open Admin Tools \u2192 Session Health if this student does not appear in Payment Desk.";
@@ -99,6 +111,18 @@ function mapWriteErrorToState(
       message: "SR no already exists. Please use a unique SR no.",
       fieldErrors: {
         admissionNo: "SR no already exists.",
+      },
+      studentId: null,
+      submittedValues,
+    };
+  }
+
+  if (isDuplicateAadhaarError({ message })) {
+    return {
+      status: "error",
+      message: DUPLICATE_AADHAAR_MESSAGE,
+      fieldErrors: {
+        aadhaarNo: DUPLICATE_AADHAAR_MESSAGE,
       },
       studentId: null,
       submittedValues,
@@ -561,6 +585,91 @@ export async function updateStudentAction(
       input,
     );
   }
+}
+
+/**
+ * Saves one group of student information fields, and nothing else.
+ *
+ * Deliberately not a thin wrapper over `updateStudentAction`. That action reads
+ * the whole student form, so a partial post has to be padded back out of the
+ * saved record before it is safe — the absent-vs-empty restore above. The
+ * quick-edit sheets post one group at a time, which is exactly the shape that
+ * goes wrong there.
+ *
+ * Here the untouched columns are simply never in the UPDATE: only fields the
+ * form actually rendered are read, validated and written. Class, fees,
+ * discounts, record status and SR no cannot move through this path at all.
+ */
+export async function updateStudentInfoAction(
+  studentId: string,
+  _previous: StudentInfoActionState,
+  formData: FormData,
+): Promise<StudentInfoActionState> {
+  const staffSession = await requireAnyStaffPermission([
+    "students:write",
+    "students:edit_basic",
+  ]);
+
+  const offeredFields = getSubmittedStudentInfoFields(formData);
+
+  if (offeredFields.length === 0) {
+    return {
+      status: "error",
+      message: "Nothing to save.",
+      fieldErrors: {},
+    };
+  }
+
+  const validated = validateStudentInfoInput(getStudentInfoInput(formData));
+
+  if (!validated.ok) {
+    return {
+      status: "error",
+      message: "Please fix the highlighted fields and try again.",
+      fieldErrors: validated.fieldErrors,
+    };
+  }
+
+  // Narrow the validated set down to the fields this form offered. Everything
+  // else validated as blank simply because it was never on screen.
+  const columns: Partial<StudentInfoFields> = {};
+  for (const field of offeredFields) {
+    columns[field.name] = validated.data[field.name];
+  }
+
+  try {
+    await updateStudentInfo(studentId, columns);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to save student details.";
+
+    if (isDuplicateAadhaarError({ message })) {
+      return {
+        status: "error",
+        message: DUPLICATE_AADHAAR_MESSAGE,
+        fieldErrors: { aadhaarNo: DUPLICATE_AADHAAR_MESSAGE },
+      };
+    }
+
+    return { status: "error", message, fieldErrors: {} };
+  }
+
+  // No money moved, so no dues preparation and no financial view refresh —
+  // just the read surfaces that show a student record.
+  revalidateFinanceSurfaces({ studentIds: [studentId] });
+
+  await recordActivity({
+    userId: (staffSession?.id as string | undefined) ?? null,
+    kind: "student_edited",
+    refId: studentId,
+    payload: { fields: offeredFields.map((field) => field.name) },
+  });
+
+  return {
+    status: "success",
+    message: "Student details saved.",
+    fieldErrors: {},
+  };
 }
 
 type StudentDuesMessage = { status: "success" | "warning"; message: string };

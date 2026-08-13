@@ -61,6 +61,49 @@ Two constraints that are easy to break:
   `md:hidden` renders unchanged. A `md:hidden` block *inside* a `hidden md:block` tree can
   never render — two such dead blocks were found and deleted.
 
+## Student information (the Info tab)
+
+25 optional columns on `public.students` — identity, government IDs, school record,
+structured address, guardian and emergency contact — added in `20260813090000`. They are
+declared exactly once, in **`lib/students/info-fields.ts`**, and everything else maps over
+that table: the select list, the row mapper, the form reader, the validator, the labels,
+the desk panel, the phone cards and the edit inputs. Adding a 26th field is one entry
+there, one column in a migration, and one label key in each of the three catalogues.
+
+Three things to know before touching it:
+
+- **The tab key is still `about`.** Only the label changed to "Info", so existing links and
+  the legacy `?tab=profile|notes|history` mappings in `normalizeTab()` keep working.
+- **Desk shows every field including blanks; the phone shows only filled rows** plus an
+  "N not filled" line. On a desk the gaps are the point — they are the list of what still
+  has to be collected. On a phone they would be four screens of em dashes.
+- **`updateStudentInfoAction` is deliberately not `updateStudentAction`.** The quick-edit
+  sheets post one group at a time, which is the exact shape that goes wrong in the big
+  action's absent-vs-empty restore. The narrow action builds its `UPDATE` from the fields
+  the form actually rendered, so fees, class, discounts, status and SR no are never in the
+  statement. `toStudentInfoColumns` omits keys it was not given for the same reason;
+  `tests/ui/student-info-fields.test.ts` guards it.
+
+`students.aadhaar_no` carries a partial unique index — two students cannot share an
+Aadhaar. The `23505` is mapped to a field-level message via `isDuplicateAadhaarError`,
+matched on the index name so a duplicate SR no does not point at the wrong field.
+
+## Editing from a phone
+
+`/protected/students/[id]/edit` always rendered fine on a phone; until `20260813` it was
+simply unreachable from one — both entry points sat inside `hidden md:block` trees, and the
+list's row action was hover-only. `MobileStudentProfile` now carries a pencil in its sticky
+header (not the bottom bar, which owns Collect).
+
+The form itself is ~50 controls, so on a phone it groups into `MobileTabs`
+(Student · Parents · Info · Fees · Status). **Panels are hidden with `hidden md:block`, never
+conditionally rendered** — an unmounted panel drops its inputs from `FormData`, and the save
+then reads as "the form never offered this field". That is the wipe described above, arrived
+at from the other direction. `md:block` also means the desk tree is unchanged: every group
+visible at once, as the no-disclosure rule requires. A failed save drops the grouping
+entirely, because the error summary focuses the offending control and cannot reach one
+inside a `display:none` panel.
+
 ## Per-student exceptions
 
 - **`student_fee_overrides`** — custom tuition, transport, academic fee, other heads, a

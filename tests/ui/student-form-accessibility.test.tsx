@@ -1,8 +1,16 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
 import type { StudentFormActionState } from "@/lib/students/types";
+
+const messages = JSON.parse(
+  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+);
 
 const useActionState = vi.fn();
 
@@ -16,6 +24,7 @@ vi.mock("react", async () => {
 });
 
 const initialValues = {
+  ...EMPTY_STUDENT_INFO_FORM_INPUT,
   fullName: "",
   classId: "",
   admissionNo: "",
@@ -65,14 +74,18 @@ describe("student form accessibility", () => {
 
     const { StudentForm } = await import("@/components/students/student-form");
     const html = renderToStaticMarkup(
-      <StudentForm
-        mode="add"
-        classOptions={[{ id: "class-1", label: "Class 1", sessionLabel: "TEST-2026-27" }]}
-        routeOptions={[]}
-        sessionLabel="TEST-2026-27"
-        initialValues={initialValues}
-        action={vi.fn()}
-      />,
+      // The student information fieldset reads its labels from the `Students`
+      // namespace, so the form now needs the intl context.
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <StudentForm
+          mode="add"
+          classOptions={[{ id: "class-1", label: "Class 1", sessionLabel: "TEST-2026-27" }]}
+          routeOptions={[]}
+          sessionLabel="TEST-2026-27"
+          initialValues={initialValues}
+          action={vi.fn()}
+        />
+      </NextIntlClientProvider>,
     );
 
     expect(html).toContain('role="alert"');

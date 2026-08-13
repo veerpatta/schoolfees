@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { EMPTY_STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+
 const insertPayloads: Array<Record<string, unknown>> = [];
 const upsertStudentFeeOverride = vi.fn(async () => undefined);
 
@@ -71,6 +73,7 @@ describe("createStudent", () => {
     const { createStudent } = await import("@/lib/students/data");
 
     const studentId = await createStudent({
+      ...EMPTY_STUDENT_INFO_FIELDS,
       fullName: "Asha Sharma",
       classId: "class-1",
       admissionNo: "",
@@ -114,6 +117,7 @@ describe("createStudent", () => {
     const { createStudent } = await import("@/lib/students/data");
 
     await createStudent({
+      ...EMPTY_STUDENT_INFO_FIELDS,
       fullName: "New Student",
       classId: "class-1",
       admissionNo: "SR-NEW",

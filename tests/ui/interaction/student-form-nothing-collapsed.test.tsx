@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
+import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
 import { INITIAL_STUDENT_FORM_ACTION_STATE } from "@/lib/students/types";
 import type { StudentFormActionState } from "@/lib/students/types";
 
@@ -24,6 +28,7 @@ const ROUTE_OPTIONS = [
 ];
 
 const EMPTY_VALUES = {
+  ...EMPTY_STUDENT_INFO_FORM_INPUT,
   fullName: "TEST Student",
   classId: "class-5",
   admissionNo: "TEST-001",
@@ -56,17 +61,26 @@ const action = vi.fn(
   async (): Promise<StudentFormActionState> => INITIAL_STUDENT_FORM_ACTION_STATE,
 );
 
+// The student information fieldset reads its labels from the `Students`
+// namespace, so the form now needs the intl context the phone surfaces already
+// had.
+const messages = JSON.parse(
+  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+);
+
 function renderForm(overrides: Partial<typeof EMPTY_VALUES> = {}) {
   return render(
-    <StudentForm
-      mode="edit"
-      canEditFinance
-      initialValues={{ ...EMPTY_VALUES, ...overrides }}
-      classOptions={CLASS_OPTIONS}
-      routeOptions={ROUTE_OPTIONS}
-      sessionLabel="TEST-2026-27"
-      action={action}
-    />,
+    <NextIntlClientProvider locale="en" messages={messages}>
+      <StudentForm
+        mode="edit"
+        canEditFinance
+        initialValues={{ ...EMPTY_VALUES, ...overrides }}
+        classOptions={CLASS_OPTIONS}
+        routeOptions={ROUTE_OPTIONS}
+        sessionLabel="TEST-2026-27"
+        action={action}
+      />
+    </NextIntlClientProvider>,
   );
 }
 

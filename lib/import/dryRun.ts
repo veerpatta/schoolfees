@@ -1,4 +1,5 @@
 import { validateStudentInput } from "@/lib/students/validation";
+import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
 import {
   detectDuplicateRows,
   type ExistingStudentDuplicateRecord,
@@ -494,6 +495,9 @@ export function executeStudentImportDryRun({
 
     const studentValidation = validateStudentInput(
       {
+        // Import never supplies student information fields; blank passes
+        // validation because every one of them is optional.
+        ...EMPTY_STUDENT_INFO_FORM_INPUT,
         fullName: effectiveFullName,
         classId: matchedClass?.id ?? fallbackClass?.id ?? (classLabel ? "__invalid__" : ""),
         admissionNo: effectiveAdmissionNo,

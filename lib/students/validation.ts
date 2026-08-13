@@ -1,4 +1,8 @@
 import { STUDENT_STATUSES } from "@/lib/students/constants";
+import {
+  getStudentInfoInput,
+  validateStudentInfoInput,
+} from "@/lib/students/info-fields";
 import type {
   StudentFormFieldErrors,
   StudentFormInput,
@@ -57,6 +61,7 @@ function parseOptionalWholeNumber(value: string) {
 
 export function getStudentFormInput(formData: FormData): StudentFormInput {
   return {
+    ...getStudentInfoInput(formData),
     fullName: asTrimmedString(formData.get("fullName")),
     classId: asTrimmedString(formData.get("classId")),
     admissionNo: asTrimmedString(formData.get("admissionNo")),
@@ -113,6 +118,11 @@ export function validateStudentInput(
     } {
   const fieldErrors: StudentFormFieldErrors = {};
   const allowedStatuses = new Set(STUDENT_STATUSES.map((status) => status.value));
+  const info = validateStudentInfoInput(input);
+
+  if (!info.ok) {
+    Object.assign(fieldErrors, info.fieldErrors);
+  }
   const tuitionOverride = parseOptionalWholeNumber(input.tuitionOverride);
   const transportOverride = parseOptionalWholeNumber(input.transportOverride);
   const discountAmount = parseOptionalWholeNumber(input.discountAmount);
@@ -211,6 +221,9 @@ export function validateStudentInput(
   return {
     ok: true,
     data: {
+      // `info.ok` is guaranteed here: any info error was merged into
+      // fieldErrors above, and a non-empty fieldErrors returned already.
+      ...(info.ok ? info.data : ({} as never)),
       fullName: input.fullName,
       classId: input.classId,
       admissionNo: input.admissionNo,

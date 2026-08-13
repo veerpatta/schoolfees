@@ -125,6 +125,7 @@ function renderProfile({
       studentName="TEST Rahul Sharma"
       classLabel="Class 6-A"
       admissionNo="TEST-245"
+      canEditStudent={false}
       fatherPhone={canShare ? "8123456789" : null}
       motherPhone={null}
       canPostPayments={canPostPayments}

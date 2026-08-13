@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Phone } from "lucide-react";
+import { Pencil, Phone } from "lucide-react";
 
 import { MobileTabs } from "@/components/mobile-app/mobile-tabs";
 import {
@@ -36,6 +37,7 @@ export function MobileStudentProfile({
   motherPhone,
   canPostPayments,
   canShare,
+  canEditStudent,
   isActive,
   returnTo,
   initialTab,
@@ -54,6 +56,7 @@ export function MobileStudentProfile({
   motherPhone: string | null;
   canPostPayments: boolean;
   canShare: boolean;
+  canEditStudent: boolean;
   isActive: boolean;
   returnTo: string;
   initialTab: TabId;
@@ -91,6 +94,20 @@ export function MobileStudentProfile({
               {classLabel} · SR {admissionNo}
             </p>
           </div>
+          {/* Edit lives here, not in the bottom action bar. That bar carries
+              Collect, and shrinking the primary money action to make room for
+              a rarely-used one is the wrong trade. Until now there was no way
+              to reach the edit form from a phone at all — the only two entry
+              points were inside `hidden md:block` trees. */}
+          {canEditStudent ? (
+            <Link
+              href={`/protected/students/${studentId}/edit?returnTo=${encodeURIComponent(returnTo)}`}
+              aria-label={t("studentEditAria")}
+              className="focus-ring grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-surface-2 text-foreground active:scale-95"
+            >
+              <Pencil className="size-[16px]" aria-hidden="true" />
+            </Link>
+          ) : null}
           {phoneEntries.length > 0 ? (
             <PhoneActionMenu
               entries={phoneEntries}

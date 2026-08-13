@@ -8,6 +8,7 @@ import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
 import { createStudent, getStudentDetail, updateStudent } from "@/lib/students/data";
+import { EMPTY_STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
 import { shouldSyncStudentDuesForChange } from "@/lib/students/dues-sync";
 import { buildAutoColumnMapping, validateColumnMapping } from "@/lib/import/mapping";
 import { parseStudentImportFile } from "@/lib/import/parser";
@@ -1274,6 +1275,11 @@ function buildImportStudentInput(
   // exclusively in the Conventional Discount workflow.
 
   return {
+    // The importer does not carry student information fields (Aadhaar, house,
+    // district, …) — those are entered in the student record, not uploaded.
+    // Blank here means "write nothing", the same stance the importer already
+    // takes on conventional discounts just above.
+    ...EMPTY_STUDENT_INFO_FIELDS,
     fullName: payload.fullName,
     // Never rewrite a student's class from a blank/unmapped Class cell — an
     // update row that leaves Class empty must keep the student where they are.

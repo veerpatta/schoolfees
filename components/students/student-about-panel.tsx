@@ -1,7 +1,16 @@
+import { getTranslations } from "next-intl/server";
+
 import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import type { LedgerSelectedStudent } from "@/lib/ledger/types";
+import {
+  STUDENT_INFO_GROUPS,
+  getStudentInfoFieldsByGroup,
+  getStudentInfoOptionKey,
+} from "@/lib/students/info-fields";
 import type { StudentDetail } from "@/lib/students/types";
+import { DetailList, DetailRow } from "@/components/ui/detail-list";
 import { Section } from "@/components/ui/section";
+import { StudentInfoGroupEditButton } from "@/components/students/student-info-sheet";
 
 type StudentReceipt = {
   receiptNumber: string;
@@ -11,11 +20,13 @@ type StudentAboutPanelProps = {
   student: StudentDetail;
   ledger: LedgerSelectedStudent | null;
   receipts: StudentReceipt[];
+  /** Gates the per-group quick-edit buttons. */
+  canEditStudent?: boolean;
 };
 
 function formatDate(value: string | null) {
   if (!value) {
-    return "-";
+    return null;
   }
 
   return formatShortDate(value);
@@ -23,69 +34,90 @@ function formatDate(value: string | null) {
 
 const formatDateTime = (value: string) => formatDateTimeIst(value);
 
-function readValue(value: string | null) {
-  return value?.trim() || "-";
-}
+export async function StudentAboutPanel({
+  student,
+  ledger,
+  receipts,
+  canEditStudent = false,
+}: StudentAboutPanelProps) {
+  const t = await getTranslations("Students");
 
-export function StudentAboutPanel({ student, ledger, receipts }: StudentAboutPanelProps) {
   return (
     <div className="space-y-4">
       <Section title="Basic details" description="Identity, family, class, and route.">
         <div className="grid gap-5 lg:grid-cols-2">
-          <dl className="space-y-3 text-sm text-foreground">
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">Student name</dt>
-              <dd>{student.fullName}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">SR no</dt>
-              <dd>{student.admissionNo}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">DOB</dt>
-              <dd>{formatDate(student.dateOfBirth)}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">Address</dt>
-              <dd>{readValue(student.address)}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">Student status</dt>
-              <dd>{student.studentStatusLabel}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">Record status</dt>
-              <dd>{student.status}</dd>
-            </div>
-          </dl>
-          <dl className="space-y-3 text-sm text-foreground">
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">Father</dt>
-              <dd>{readValue(student.fatherName)}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">Mother</dt>
-              <dd>{readValue(student.motherName)}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">Father phone</dt>
-              <dd>{readValue(student.fatherPhone)}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">Mother phone</dt>
-              <dd>{readValue(student.motherPhone)}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <dt className="font-medium text-muted-foreground">Route</dt>
-              <dd>{student.transportRouteLabel}</dd>
-            </div>
-          </dl>
+          <DetailList>
+            <DetailRow label="Student name" value={student.fullName} />
+            <DetailRow label="SR no" value={student.admissionNo} />
+            {/* Roll no is not repeated here — it lives in School record, with
+                the TC number and the previous school. */}
+            <DetailRow label="DOB" value={formatDate(student.dateOfBirth)} />
+            <DetailRow label="Admission date" value={formatDate(student.joinedOn)} />
+            <DetailRow label="Address" value={student.address} />
+            <DetailRow label="Student status" value={student.studentStatusLabel} />
+            <DetailRow label="Record status" value={student.status} />
+          </DetailList>
+          <DetailList>
+            <DetailRow label="Father" value={student.fatherName} />
+            <DetailRow label="Mother" value={student.motherName} />
+            <DetailRow label="Father phone" value={student.fatherPhone} />
+            <DetailRow label="Mother phone" value={student.motherPhone} />
+            <DetailRow label="Email" value={student.email} />
+            <DetailRow label="Route" value={student.transportRouteLabel} />
+          </DetailList>
         </div>
       </Section>
 
+      {/*
+        The rest of the student record. Every row renders even when it is blank:
+        on a desk screen the gaps are the point — they are the office's list of
+        what still has to be collected from the family.
+      */}
+      {STUDENT_INFO_GROUPS.map((group) => {
+        const fields = getStudentInfoFieldsByGroup(group.id);
+
+        return (
+          <Section
+            key={group.id}
+            id={`student-info-${group.id}`}
+            title={t(group.labelKey)}
+            actions={
+              canEditStudent ? (
+                <StudentInfoGroupEditButton
+                  studentId={student.id}
+                  group={group.id}
+                  groupLabel={t(group.labelKey)}
+                  values={Object.fromEntries(
+                    fields.map((field) => [field.name, student[field.name] ?? ""]),
+                  )}
+                />
+              ) : null
+            }
+          >
+            <DetailList columns={2}>
+              {fields.map((field) => {
+                const value = student[field.name];
+                const display =
+                  value && field.options && field.translateOptions !== false
+                    ? t(getStudentInfoOptionKey(value))
+                    : value;
+
+                return (
+                  <DetailRow
+                    key={field.name}
+                    label={t(field.labelKey)}
+                    value={display}
+                  />
+                );
+              })}
+            </DetailList>
+          </Section>
+        );
+      })}
+
       <Section title="Notes" description="Office notes kept with the student record.">
         <div className="rounded-lg border border-border bg-surface-2 px-4 py-4 text-sm text-foreground">
-          {readValue(student.notes)}
+          {student.notes?.trim() || "—"}
         </div>
       </Section>
 

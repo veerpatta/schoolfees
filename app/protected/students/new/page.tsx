@@ -5,6 +5,7 @@ import { StudentForm } from "@/components/students/student-form";
 import { getOfficeWorkflowReadiness } from "@/lib/office/readiness";
 import { getSetupWizardDataLight } from "@/lib/setup/data";
 import { getStudentFormOptions } from "@/lib/students/data";
+import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
 import { createStudentAction } from "../actions";
@@ -59,6 +60,7 @@ export default async function NewStudentPage({ searchParams }: NewStudentPagePro
             sessionLabel={resolvedSessionLabel}
             conventionalDiscountPolicies={conventionalDiscountPolicies}
             initialValues={{
+              ...EMPTY_STUDENT_INFO_FORM_INPUT,
               fullName: "",
               classId: "",
               admissionNo: "",

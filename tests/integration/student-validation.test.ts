@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { validateStudentInput } from "@/lib/students/validation";
+import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
 
 const classIds = new Set(["class-1"]);
 const routeIds = new Set(["route-1"]);
 
 function baseInput(overrides: Record<string, string> = {}) {
   return {
+    ...EMPTY_STUDENT_INFO_FORM_INPUT,
     fullName: "Asha Sharma",
     classId: "class-1",
     admissionNo: "SR001",

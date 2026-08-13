@@ -15,6 +15,7 @@ import { MobileStudentProfile } from "@/components/students/mobile-student-profi
 import { StudentAboutPanel } from "@/components/students/student-about-panel";
 import { StudentDangerZone } from "@/components/students/student-danger-zone";
 import { StudentDetailHeader } from "@/components/students/student-detail-header";
+import { StudentInfoGroupEditButton } from "@/components/students/student-info-sheet";
 import { StudentFeePlanEditButton } from "@/components/students/student-fee-plan-edit-button";
 import { StudentMoneyBand } from "@/components/students/student-money-band";
 import { StudentQuickReference } from "@/components/students/student-quick-reference";
@@ -43,6 +44,11 @@ import { formatDateTimeIst, formatShortDate, partsToIso, todayPartsIst } from "@
 import { getRepaymentPlanDetail } from "@/lib/repayment-plans/data";
 import { recordActivity } from "@/lib/activity/events";
 import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
+import {
+  STUDENT_INFO_GROUPS,
+  getStudentInfoFieldsByGroup,
+  getStudentInfoOptionKey,
+} from "@/lib/students/info-fields";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
@@ -116,8 +122,14 @@ export default async function StudentDetailPage({
   // `tm` joins the batch rather than being awaited later: RSC renders both the
   // phone and desktop trees, so every desktop render was paying for a
   // sequential round trip it never displays.
-  const [workspaceResult, deletionSafetyResult, familyMembersDetail, repaymentPlanDetail, tm] =
-    await Promise.all([
+  const [
+    workspaceResult,
+    deletionSafetyResult,
+    familyMembersDetail,
+    repaymentPlanDetail,
+    tm,
+    ts,
+  ] = await Promise.all([
       getStudentWorkspaceData(resolvedParams.studentId),
       getStudentDeletionSafety(resolvedParams.studentId).catch(() => null),
       getStudentFamilyMembersDetail(resolvedParams.studentId).catch(
@@ -131,6 +143,9 @@ export default async function StudentDetailPage({
         today: partsToIso(todayPartsIst()),
       }).catch(() => null),
       getTranslations("MobileApp"),
+      // The info field labels are shared with the desk panel, so they live in
+      // `Students` rather than being duplicated into `MobileApp`.
+      getTranslations("Students"),
     ]);
   const { student, financialSnapshot, ledger, receipts, installmentBalances } =
     workspaceResult;
@@ -1028,6 +1043,63 @@ export default async function StudentDetailPage({
         </dl>
       </MobileCard>
 
+      {/* The rest of the student record, one card per group.
+          Unlike the desk panel, a phone shows only the rows that have a value
+          and closes with a count of what is still blank: a mostly-empty record
+          would otherwise be four screens of em dashes to scroll past. */}
+      {STUDENT_INFO_GROUPS.map((group) => {
+        const fields = getStudentInfoFieldsByGroup(group.id);
+        const filled = fields.filter((field) => student[field.name]);
+        const missingCount = fields.length - filled.length;
+
+        return (
+          <MobileSectionCard
+            key={group.id}
+            title={ts(group.labelKey)}
+            action={
+              canEditStudent ? (
+                <StudentInfoGroupEditButton
+                  studentId={student.id}
+                  group={group.id}
+                  groupLabel={ts(group.labelKey)}
+                  values={Object.fromEntries(
+                    fields.map((field) => [field.name, student[field.name] ?? ""]),
+                  )}
+                  className="h-8 gap-1.5 rounded-lg px-2.5 text-[11px]"
+                />
+              ) : null
+            }
+          >
+            <dl className="flex flex-col gap-2.5">
+              {filled.map((field) => {
+                const value = student[field.name] ?? "";
+
+                return (
+                  <div
+                    key={field.name}
+                    className="flex items-baseline justify-between gap-3"
+                  >
+                    <dt className="text-[12px] font-semibold text-muted-foreground">
+                      {ts(field.labelKey)}
+                    </dt>
+                    <dd className="text-right text-[12.5px] font-bold text-foreground">
+                      {field.options && field.translateOptions !== false
+                        ? ts(getStudentInfoOptionKey(value))
+                        : value}
+                    </dd>
+                  </div>
+                );
+              })}
+              {missingCount > 0 ? (
+                <p className="text-[11.5px] font-semibold text-muted-foreground">
+                  {tm("studentInfoNotFilled", { count: missingCount })}
+                </p>
+              ) : null}
+            </dl>
+          </MobileSectionCard>
+        );
+      })}
+
       {/* Phones get the same card, in the overview stack rather than a side
           rail — a plan is the first thing the office needs to see. */}
       {repaymentPlanDetail ? (
@@ -1093,6 +1165,7 @@ export default async function StudentDetailPage({
           motherPhone={student.motherPhone}
           canPostPayments={canPostPayments}
           canShare={Boolean(student.fatherPhone || student.motherPhone)}
+          canEditStudent={canEditStudent}
           isActive={student.status === "active"}
           returnTo={returnTo}
           initialTab={mobileTab}
@@ -1234,7 +1307,12 @@ export default async function StudentDetailPage({
         }
         aboutContent={
           <div className="space-y-6">
-            <StudentAboutPanel student={student} ledger={ledger} receipts={receipts} />
+            <StudentAboutPanel
+              student={student}
+              ledger={ledger}
+              receipts={receipts}
+              canEditStudent={canEditStudent}
+            />
             <StudentFamilyPanel
               studentId={student.id}
               familyGroupId={familyMembersDetail.familyGroupId}

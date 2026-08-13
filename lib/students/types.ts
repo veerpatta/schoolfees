@@ -1,6 +1,10 @@
 import type { RepaymentPlanPaymentStatus } from "@/lib/repayment-plans/types";
 import type { SegmentId } from "@/lib/segments/student-segments";
 import type { StudentStatus } from "@/lib/db/types";
+import type {
+  StudentInfoFields,
+  StudentInfoFormInput,
+} from "@/lib/students/info-fields";
 import type { OfficeSyncOutcome } from "@/lib/system-sync/office-sync";
 
 export type StudentClassOption = {
@@ -107,11 +111,21 @@ export type StudentSiblingPill = {
   href: string;
 };
 
-export type StudentDetail = {
+/**
+ * The student record as the detail page reads it.
+ *
+ * The 25 optional information fields (Aadhaar, house, district, guardian, …)
+ * are intersected in from `StudentInfoFields` rather than listed here, so their
+ * names are declared exactly once — see `lib/students/info-fields.ts`.
+ */
+export type StudentDetail = StudentInfoFields & {
   id: string;
   admissionNo: string;
   fullName: string;
   dateOfBirth: string | null;
+  /** Admission date. The column has always existed; nothing read it until now. */
+  joinedOn: string | null;
+  email: string | null;
   fatherName: string | null;
   motherName: string | null;
   fatherPhone: string | null;
@@ -180,7 +194,7 @@ export type StudentDetail = {
   fullName: string;
 };
 
-export type StudentFormInput = {
+export type StudentFormInput = StudentInfoFormInput & {
   fullName: string;
   classId: string;
   admissionNo: string;
@@ -209,7 +223,7 @@ export type StudentFormInput = {
   photoPath: string;
 };
 
-export type StudentValidatedInput = {
+export type StudentValidatedInput = StudentInfoFields & {
   fullName: string;
   classId: string;
   admissionNo: string;

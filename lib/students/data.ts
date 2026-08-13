@@ -23,6 +23,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { getStudentDeletePolicy } from "@/lib/students/delete-policy";
+import {
+  STUDENT_INFO_SELECT_COLUMNS,
+  mapStudentInfoRow,
+  toStudentInfoColumns,
+} from "@/lib/students/info-fields";
+import type {
+  StudentInfoFields,
+  StudentInfoRow,
+} from "@/lib/students/info-fields";
 import type {
   StudentClassOption,
   StudentDetail,
@@ -80,11 +89,13 @@ type StudentDetailRow = {
   status: StudentDetail["status"];
   notes: string | null;
   photo_path: string | null;
+  email: string | null;
+  joined_on: string | null;
   created_at: string;
   updated_at: string;
   class_ref: StudentJoinClass | StudentJoinClass[] | null;
   route_ref: StudentJoinRoute | StudentJoinRoute[] | null;
-};
+} & StudentInfoRow;
 
 type StudentWorkbookFinancialRow = {
   student_id: string;
@@ -1091,7 +1102,7 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
     supabase
       .from("students")
       .select(
-        "id, admission_no, full_name, date_of_birth, father_name, mother_name, primary_phone, secondary_phone, address, class_id, transport_route_id, status, notes, photo_path, created_at, updated_at, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+        `id, admission_no, full_name, date_of_birth, father_name, mother_name, primary_phone, secondary_phone, address, class_id, transport_route_id, status, notes, photo_path, email, joined_on, created_at, updated_at, ${STUDENT_INFO_SELECT_COLUMNS}, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)`,
       )
       .eq("id", studentId)
       .maybeSingle(),
@@ -1119,7 +1130,11 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
     return null;
   }
 
-  const row = studentResult.data as StudentDetailRow;
+  // Through `unknown`: the select list is built from STUDENT_INFO_SELECT_COLUMNS,
+  // so postgrest-js cannot parse it at the type level and infers a ParserError.
+  // StudentDetailRow was always the hand-maintained shape of this row — nothing
+  // is lost here that the plain cast was checking before.
+  const row = studentResult.data as unknown as StudentDetailRow;
   const classRef = toSingleRecord(row.class_ref);
   const routeRef = toSingleRecord(row.route_ref);
   const financial = (financialResult.data ?? null) as StudentWorkbookFinancialRow | null;
@@ -1135,10 +1150,13 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
       : tuitionBeforeConventionalDiscount;
 
   return {
+    ...mapStudentInfoRow(row),
     id: row.id,
     admissionNo: row.admission_no,
     fullName: row.full_name,
     dateOfBirth: row.date_of_birth,
+    joinedOn: row.joined_on,
+    email: row.email,
     fatherName: row.father_name,
     motherName: row.mother_name,
     fatherPhone: row.primary_phone,
@@ -1217,6 +1235,7 @@ export async function createStudent(payload: StudentValidatedInput) {
         status: payload.status,
         notes: payload.notes,
         photo_path: payload.photoPath,
+        ...toStudentInfoColumns(payload),
       })
       .select("id")
       .single();
@@ -1271,6 +1290,7 @@ export async function updateStudent(studentId: string, payload: StudentValidated
       status: payload.status,
       notes: payload.notes,
       photo_path: payload.photoPath,
+      ...toStudentInfoColumns(payload),
     })
     .eq("id", studentId)
     .select("id")
@@ -1284,6 +1304,39 @@ export async function updateStudent(studentId: string, payload: StudentValidated
   await saveStudentFeeProfile(updatedStudentId, payload, existingOverride);
   await saveStudentConventionalDiscountProfile(updatedStudentId, payload);
   return updatedStudentId;
+}
+
+/**
+ * Writes only the information columns it is handed, and nothing else.
+ *
+ * The quick-edit sheets post one group at a time, and `updateStudent` is the
+ * wrong tool for that: it writes the whole student row, so a partial post has
+ * to be padded back out from the saved record first — the absent-vs-empty
+ * dance in `updateStudentAction`. Here the columns simply are not in the
+ * statement, so class, fees, discounts, status and SR no cannot be touched by
+ * a sheet that never offered them.
+ */
+export async function updateStudentInfo(
+  studentId: string,
+  columns: Partial<StudentInfoFields>,
+) {
+  if (Object.keys(columns).length === 0) {
+    return studentId;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("students")
+    .update(toStudentInfoColumns(columns))
+    .eq("id", studentId)
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return studentId;
 }
 
 async function countRows(

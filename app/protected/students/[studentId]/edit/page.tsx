@@ -17,6 +17,7 @@ import {
 } from "@/lib/repayment-plans/data";
 import { REPAYMENT_PLAN_SCOPES } from "@/lib/repayment-plans/types";
 import { getStudentDetail, getStudentFormOptions } from "@/lib/students/data";
+import { toStudentInfoFormValues } from "@/lib/students/info-fields";
 import {
   hasStaffPermission,
   requireAnyStaffPermission,
@@ -141,6 +142,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
         ) : null}
         <StudentForm
           mode="edit"
+          studentId={student.id}
           canEditAdmissionNo={canEditAdmissionNo}
           canEditFinance={canEditFinance}
           classOptions={classOptions}
@@ -148,6 +150,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
           sessionLabel={resolvedSessionLabel}
           conventionalDiscountPolicies={conventionalDiscountPolicies}
           initialValues={{
+            ...toStudentInfoFormValues(student),
             fullName: student.fullName,
             classId: student.classId,
             admissionNo: student.admissionNo,
