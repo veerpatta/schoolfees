@@ -74,27 +74,19 @@ export type TransportRouteRecord = {
   updatedBy: string | null;
 };
 
-export type StudentRecord = {
-  id: string;
-  admissionNo: string;
-  fullName: string;
-  dateOfBirth: string | null;
-  fatherName: string | null;
-  motherName: string | null;
-  primaryPhone: string | null;
-  secondaryPhone: string | null;
-  address: string | null;
-  classId: string;
-  transportRouteId: string | null;
-  status: StudentStatus;
-  joinedOn: string | null;
-  leftOn: string | null;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string | null;
-  updatedBy: string | null;
-};
+/*
+ * `StudentRecord` was removed here.
+ *
+ * It was a hand-maintained mirror of public.students with no importers, and it
+ * had been wrong since `20260525123312` added `email` — it never grew that
+ * column, or `photo_path`, and it would now be missing the 25 information
+ * columns too. A stale type with no consumers is worse than no type: the next
+ * person to reach for it gets a shape the database stopped having months ago.
+ *
+ * The live shapes are `StudentDetail` and `StudentInfoFields`
+ * (`lib/students/types.ts`, `lib/students/info-fields.ts`), which are used, and
+ * therefore checked.
+ */
 
 export type FeeSettingRecord = {
   id: string;
