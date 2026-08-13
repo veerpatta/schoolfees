@@ -1166,6 +1166,7 @@ export default async function StudentDetailPage({
           canPostPayments={canPostPayments}
           canShare={Boolean(student.fatherPhone || student.motherPhone)}
           canEditStudent={canEditStudent}
+          photoPath={student.photoPath}
           isActive={student.status === "active"}
           returnTo={returnTo}
           initialTab={mobileTab}

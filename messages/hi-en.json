@@ -1926,7 +1926,15 @@
     "studentInfoSavedTitle": "Student details saved",
     "studentInfoNotSaved": "Not saved",
     "studentInfoSheetBody": "Sab optional hai. Jo nahi hai khaali chhod dein.",
-    "studentInfoNotFilled": "{count, plural, =1 {# aur detail baaki} other {# aur details baaki}}"
+    "studentInfoNotFilled": "{count, plural, =1 {# aur detail baaki} other {# aur details baaki}}",
+    "studentPhotoSheetTitle": "Student photo (विद्यार्थी फोटो)",
+    "studentPhotoSheetBody": "Photo lein ya is device se choose karein. Save karne se pehle resize hoti hai.",
+    "studentPhotoSave": "Save photo",
+    "studentPhotoSaving": "Saving…",
+    "studentPhotoCancel": "Cancel",
+    "studentPhotoSavedTitle": "Photo saved",
+    "studentPhotoNotSaved": "Photo save nahi hui",
+    "studentPhotoEditAria": "Change student photo"
   },
   "Segments": {
     "family": {

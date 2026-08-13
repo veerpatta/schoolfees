@@ -12,6 +12,7 @@ import {
 } from "@/components/students/phone-chooser";
 import { ShareFeeWhatsApp } from "@/components/students/share-fee-whatsapp";
 import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
+import { StudentPhotoAvatarButton } from "@/components/students/student-photo-sheet";
 
 type TabId = "fees" | "family" | "about";
 
@@ -38,6 +39,7 @@ export function MobileStudentProfile({
   canPostPayments,
   canShare,
   canEditStudent,
+  photoPath,
   isActive,
   returnTo,
   initialTab,
@@ -57,6 +59,7 @@ export function MobileStudentProfile({
   canPostPayments: boolean;
   canShare: boolean;
   canEditStudent: boolean;
+  photoPath: string | null;
   isActive: boolean;
   returnTo: string;
   initialTab: TabId;
@@ -86,6 +89,16 @@ export function MobileStudentProfile({
           the scroll region. */}
       <div className="sticky top-0 z-20 -mx-4 -mt-4 border-b border-border bg-background/95 px-4 pb-0 pt-3 backdrop-blur">
         <div className="flex items-center gap-2.5 pb-2.5">
+          {/* Leading, not trailing: the cluster on the right already carries
+              Pencil and Phone, and the bottom bar belongs to Collect. An avatar
+              is also the thing a photo control should look like. */}
+          <StudentPhotoAvatarButton
+            studentId={studentId}
+            studentName={studentName}
+            photoPath={photoPath}
+            canEditStudent={canEditStudent}
+            size="md"
+          />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[16.5px] font-extrabold leading-tight text-foreground">
               {studentName}

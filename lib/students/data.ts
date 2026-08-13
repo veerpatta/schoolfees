@@ -1405,6 +1405,46 @@ export async function updateStudentInfo(
   return studentId;
 }
 
+/** Writes only `photo_path`. See updateStudentPhotoAction for why. */
+export async function updateStudentPhoto(
+  studentId: string,
+  photoPath: string | null,
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("students")
+    .update({ photo_path: photoPath })
+    .eq("id", studentId)
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return studentId;
+}
+
+/**
+ * Removes one object from the student-photos bucket.
+ *
+ * Service-role, because the caller has already been permission-checked by the
+ * action and the browser client's own delete would depend on the staff member
+ * still holding write at the moment of cleanup.
+ */
+export async function deleteStudentPhotoObject(path: string) {
+  if (!path || path.includes("..")) {
+    return;
+  }
+
+  const adminClient = createAdminClient();
+  const { error } = await adminClient.storage.from("student-photos").remove([path]);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 async function countRows(
   tableName: string,
   studentId: string,

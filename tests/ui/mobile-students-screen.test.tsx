@@ -126,6 +126,7 @@ function renderProfile({
       classLabel="Class 6-A"
       admissionNo="TEST-245"
       canEditStudent={false}
+      photoPath={null}
       fatherPhone={canShare ? "8123456789" : null}
       motherPhone={null}
       canPostPayments={canPostPayments}

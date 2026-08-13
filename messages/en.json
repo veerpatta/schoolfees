@@ -1926,7 +1926,15 @@
     "studentInfoSavedTitle": "Student details saved",
     "studentInfoNotSaved": "Not saved",
     "studentInfoSheetBody": "Every field is optional. Leave anything you do not have blank.",
-    "studentInfoNotFilled": "{count, plural, =1 {# more detail not filled} other {# more details not filled}}"
+    "studentInfoNotFilled": "{count, plural, =1 {# more detail not filled} other {# more details not filled}}",
+    "studentPhotoSheetTitle": "Student photo",
+    "studentPhotoSheetBody": "Take a photo or choose one from this device. It is resized before it is saved.",
+    "studentPhotoSave": "Save photo",
+    "studentPhotoSaving": "Saving…",
+    "studentPhotoCancel": "Cancel",
+    "studentPhotoSavedTitle": "Photo saved",
+    "studentPhotoNotSaved": "Photo not saved",
+    "studentPhotoEditAria": "Change student photo"
   },
   "Segments": {
     "family": {

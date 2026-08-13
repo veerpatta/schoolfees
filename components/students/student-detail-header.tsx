@@ -2,8 +2,8 @@ import Link from "next/link";
 import { ArrowLeft, Edit2, FileText, Printer } from "lucide-react";
 
 import { OldBalanceChip } from "@/components/shared/old-balance-chip";
-import { StudentAvatar } from "@/components/students/student-avatar";
 import { StudentContactActions } from "@/components/students/student-contact-actions";
+import { StudentPhotoAvatarButton } from "@/components/students/student-photo-sheet";
 import { StudentRowCollectButton } from "@/components/students/student-row-collect-button";
 import { StudentStatusBadge } from "@/components/students/student-status-badge";
 import { Button } from "@/components/ui/button";
@@ -78,10 +78,16 @@ export function StudentDetailHeader({
     <header className="sticky top-14 z-20 -mx-1 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="flex min-w-0 items-center gap-3">
-          {student.photoPath ? (
-            <StudentAvatar
-              photoPath={student.photoPath}
-              fullName={student.fullName}
+          {/* Tappable when the staff member can edit, so a photo can be added
+              or replaced without opening the whole form. Falls back to the
+              initials tile when there is no photo and no permission — a
+              control that looks pressable and refuses is worse than a tile. */}
+          {student.photoPath || canEditStudent ? (
+            <StudentPhotoAvatarButton
+              studentId={student.id}
+              studentName={student.fullName}
+              photoPath={student.photoPath ?? null}
+              canEditStudent={canEditStudent}
               size="md"
               className="shrink-0 rounded-lg"
             />

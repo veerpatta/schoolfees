@@ -159,6 +159,52 @@ Aadhaar numbers on file: `TEST-CL6-004` = `123456789012`,
 
 ---
 
+## 3b. Exports
+
+| SR no | Fees pending | Late fee pending | Total owed |
+|---|---|---|---|
+| `TEST-CL10-002` | ₹0 | ₹1,000 | **₹1,000** |
+| `TEST-CL8-004` | ₹0 | ₹1,000 | **₹1,000** |
+
+Every dues export now carries all three columns. Under the old single
+`Outstanding` column both of these read **₹0** and sorted below families who
+owed nothing at all.
+
+1. **AI context bundle** — the Students sheet ends with the 25 information
+   columns. `TEST-CL7-002` fills all of them, `TEST-12S-002` none, so one sheet
+   shows both the full and the empty rendering. The `_README` sheet documents
+   the columns and the two kinds of money; it is the bundle's contract with
+   whatever reads it.
+2. **class-wise-dues** — rows grouped by class, a subtotal row per class
+   (`Class 6 total (n students)`), and an `All classes` grand total. Check the
+   columns line up: every row carries the same key set, because `json_to_sheet`
+   takes its headers from the first row only.
+3. **Defaulters / Recovery sheets** — `TEST-CL10-002` and `TEST-CL8-004` must
+   still be **absent**. A late fee never makes a student a defaulter; the fix
+   was to their money being invisible elsewhere, not to who counts as one.
+   They **do** appear on class-wise-dues, with Status `PAID` (their fees are
+   clear) and Total owed ₹1,000. The dues view used to filter on fees alone, so
+   both students — and their ₹2,000 — were missing from the sheet *and* from
+   every class subtotal. Same change applies to `/protected/dues`.
+4. **defaulters, previous-year-dues, left-student-dues** now carry Guardian
+   phone, Emergency phone, Village / city and District — the numbers a
+   follow-up call actually needs.
+
+## 3c. Bulk update
+
+Pick a class, tick **Gender + Blood group + Category + Aadhaar no + District**,
+download the template:
+
+- Values pre-fill, so an untouched re-upload previews zero changes.
+- Gender, Blood group and Category carry an Excel **dropdown**; Aadhaar and
+  District are free text. Each dropdown reads from its own column on the
+  `Current Lists` sheet — if Gender offers blood groups, the column mapping has
+  drifted.
+- Dropdowns are non-strict on purpose, so `CLEAR` stays typeable.
+- Type `4444 5555 6666` into Aadhaar; it must store as `444455556666`.
+- Type `Genral` into Category; the preview must reject the row and name the bad
+  value rather than saving it.
+
 ## 4. Mobile
 
 Resize to **390 × 844** (the `mobile-counter` viewport in
@@ -174,6 +220,35 @@ Resize to **390 × 844** (the `mobile-counter` viewport in
   because the error summary focuses the offending control and cannot reach one
   inside `display:none`.
 - Any sheet's Save must sit in the pinned footer and survive the keyboard.
+
+### Student photo
+
+Tap the **avatar** in the student header — leading position on a phone, and the
+same control on the desktop header. It opens a sheet (bottom on a phone, right
+drawer on a desk) with Take photo / Choose / Remove.
+
+- On a phone, **Take photo** must open the camera, not the gallery.
+- Save, then confirm the photo shows in the header, in the student list, and
+  after a reload.
+- Save a photo on `TEST-CL6-004` and then confirm their **₹15,000 tuition
+  override and their Aadhaar are untouched**. The photo action writes one
+  column; this is the same narrow-write property the information sheets hold.
+- Cancelling must not clear an existing photo. The full edit form clears a photo
+  by omission — the quick-edit sheet deliberately does not share that action.
+
+Storage permissions (verified 2026-08-13 against all five logins):
+
+| Role | Read photos | Upload / replace |
+|---|---|---|
+| admin | yes | **yes** |
+| teacher | yes | **yes** |
+| accountant | yes | no |
+| fee_collector | yes | no |
+| view_only | yes | no |
+
+Upload follows who may edit a student, so `qa.viewonly` sees avatars but its
+avatar is not tappable, and a direct Supabase storage upload is refused by RLS
+rather than only by the UI.
 
 ---
 

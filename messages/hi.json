@@ -1926,7 +1926,15 @@
     "studentInfoSavedTitle": "विद्यार्थी की जानकारी सहेजी गई",
     "studentInfoNotSaved": "सहेजा नहीं गया",
     "studentInfoSheetBody": "हर जानकारी वैकल्पिक है। जो नहीं है उसे खाली छोड़ दें।",
-    "studentInfoNotFilled": "{count, plural, =1 {# और जानकारी नहीं भरी} other {# और जानकारियाँ नहीं भरीं}}"
+    "studentInfoNotFilled": "{count, plural, =1 {# और जानकारी नहीं भरी} other {# और जानकारियाँ नहीं भरीं}}",
+    "studentPhotoSheetTitle": "विद्यार्थी फोटो",
+    "studentPhotoSheetBody": "फोटो लें या इस डिवाइस से चुनें। सहेजने से पहले आकार छोटा किया जाता है।",
+    "studentPhotoSave": "फोटो सहेजें",
+    "studentPhotoSaving": "सहेजा जा रहा है…",
+    "studentPhotoCancel": "रद्द करें",
+    "studentPhotoSavedTitle": "फोटो सहेजी गई",
+    "studentPhotoNotSaved": "फोटो सहेजी नहीं गई",
+    "studentPhotoEditAria": "विद्यार्थी फोटो बदलें"
   },
   "Segments": {
     "family": {

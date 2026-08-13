@@ -17,7 +17,10 @@ import {
   getStudentDeletionSafety,
   updateStudent,
   updateStudentInfo,
+  updateStudentPhoto,
+  deleteStudentPhotoObject,
 } from "@/lib/students/data";
+import type { StudentPhotoActionState } from "@/app/protected/students/student-photo-action-state";
 import {
   getStudentInfoInput,
   getSubmittedStudentInfoFields,
@@ -669,6 +672,93 @@ export async function updateStudentInfoAction(
     status: "success",
     message: "Student details saved.",
     fieldErrors: {},
+  };
+}
+
+/**
+ * Saves a student's photo, and nothing else.
+ *
+ * Narrow for the same reason `updateStudentInfoAction` is, plus one specific to
+ * photos: the edit form posts `photoPath` on every save, so submitting that
+ * form with the field blank CLEARS the stored photo. A quick-edit sheet that
+ * reused it would inherit that, and "I opened the photo sheet and cancelled"
+ * would be indistinguishable from "remove this photo".
+ *
+ * Here the only column in the statement is `photo_path`.
+ */
+export async function updateStudentPhotoAction(
+  studentId: string,
+  _previous: StudentPhotoActionState,
+  formData: FormData,
+): Promise<StudentPhotoActionState> {
+  const staffSession = await requireAnyStaffPermission([
+    "students:write",
+    "students:edit_basic",
+  ]);
+
+  if (!formData.has("photoPath")) {
+    return { status: "error", message: "Nothing to save.", photoPath: null };
+  }
+
+  const raw = formData.get("photoPath");
+  const nextPath =
+    typeof raw === "string" && raw.trim() ? raw.trim().slice(0, 500) : null;
+
+  // Reject anything that is not a path inside the bucket. The value comes from
+  // a hidden input, so it is client-supplied however the UI got it there.
+  if (nextPath && (nextPath.includes("..") || nextPath.startsWith("/"))) {
+    return {
+      status: "error",
+      message: "That photo could not be saved. Please try again.",
+      photoPath: null,
+    };
+  }
+
+  const existing = await getStudentDetail(studentId);
+
+  if (!existing) {
+    return { status: "error", message: "Student record was not found.", photoPath: null };
+  }
+
+  const previousPath = existing.photoPath;
+
+  try {
+    await updateStudentPhoto(studentId, nextPath);
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error ? error.message : "Unable to save the photo.",
+      photoPath: previousPath,
+    };
+  }
+
+  // Row first, cleanup second, and never the other way round: a failed delete
+  // leaves an orphaned object, while a failed update after a delete would leave
+  // a student pointing at a photo that no longer exists. Uploads are written
+  // under a fresh random name every time, so without this the bucket only grows.
+  if (previousPath && previousPath !== nextPath) {
+    try {
+      await deleteStudentPhotoObject(previousPath);
+    } catch {
+      // Orphan left behind. Not worth failing a save the office just watched
+      // succeed.
+    }
+  }
+
+  revalidateFinanceSurfaces({ studentIds: [studentId] });
+
+  await recordActivity({
+    userId: (staffSession?.id as string | undefined) ?? null,
+    kind: "student_edited",
+    refId: studentId,
+    payload: { photo: nextPath ? "updated" : "removed" },
+  });
+
+  return {
+    status: "success",
+    message: nextPath ? "Photo updated." : "Photo removed.",
+    photoPath: nextPath,
   };
 }
 

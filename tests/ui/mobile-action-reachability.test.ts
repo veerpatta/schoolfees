@@ -72,6 +72,9 @@ describe("mobile primary actions stay reachable", () => {
     // The student information quick-edit is a form of text inputs, so on a
     // phone the keyboard is up for most of the time the sheet is open.
     ["components/students/student-info-sheet.tsx", "studentInfoSave"],
+    // The photo sheet's body grows by a preview image once a picture is
+    // chosen, which is exactly when Save has to still be reachable.
+    ["components/students/student-photo-sheet.tsx", "studentPhotoSave"],
     ["components/whatsapp-templates/template-editor.tsx", "whatsappEditorCreate"],
   ])("%s pins its submit action outside the scroll body", (path, submitMarker) => {
     const source = read(path);
