@@ -45,6 +45,46 @@ function sanitiseError(value: unknown): SanitisedError | unknown {
   return value;
 }
 
+/**
+ * A readable message for anything thrown or returned as an error.
+ *
+ * Supabase does not reject with `Error` instances — it returns a plain object,
+ * `{ message, code, details, hint }`. So the obvious
+ * `error instanceof Error ? error.message : String(error)` renders every
+ * database failure as **"[object Object]"** and throws the cause away. A
+ * production issue arrived reading *"Unable to load workbook installment rows:
+ * [object Object]"*, which is unactionable; the real message was
+ * `invalid input syntax for type uuid: "families"`.
+ *
+ * The Postgres `code` is included because this string is used to build errors
+ * that reach Sentry and the server log, never the browser — Next redacts server
+ * errors in production before they leave the machine.
+ */
+export function describeError(value: unknown): string {
+  if (value instanceof Error) {
+    return value.message;
+  }
+
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const message = typeof obj.message === "string" ? obj.message.trim() : "";
+    const code = typeof obj.code === "string" ? obj.code.trim() : "";
+
+    if (message && code) return `${message} (${code})`;
+    if (message) return message;
+    if (code) return `database error ${code}`;
+
+    try {
+      // Better a JSON blob than "[object Object]".
+      return JSON.stringify(value);
+    } catch {
+      return "unserialisable error";
+    }
+  }
+
+  return String(value);
+}
+
 function sanitisePayload(payload: LogPayload): LogPayload {
   if (!payload) return payload;
   if (!IS_PRODUCTION) return payload;

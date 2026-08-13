@@ -70,36 +70,59 @@ export function ColumnMappingCard({
   );
   const headerSet = useMemo(() => new Set(batch.detectedHeaders), [batch.detectedHeaders]);
 
-  // Merge persisted-from-prior-import mapping into the form's initial values
-  // only for fields the current batch hasn't mapped yet AND where the stored
-  // column still exists in this file's headers.
-  const [mapping, setMapping] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = { ...(batch.columnMapping as Record<string, string>) };
-    if (!isLocked && typeof window !== "undefined") {
-      const stored = loadStoredMapping(batch.detectedHeaders);
-      if (stored) {
-        for (const [key, value] of Object.entries(stored)) {
-          if (!initial[key] && headerSet.has(value)) {
-            initial[key] = value;
-          }
-        }
-      }
-    }
-    return initial;
-  });
+  // Seeded from the server's mapping ONLY. The remembered mapping is merged in
+  // by the effect below, after mount.
+  //
+  // This used to read `window.localStorage` inside the initial state. `window`
+  // is fully available during hydration, so the first CLIENT render carried the
+  // batch's mapping *plus* whatever the last import remembered, while the
+  // server HTML had only the batch's mapping. React saw two different trees:
+  // Sentry SCHOOLFEES-6, 34 occurrences in three weeks, and only ever for staff
+  // who had imported before — which is why it looked intermittent.
+  //
+  // Same mistake, same fix as `hooks/use-stored-preference.ts` and
+  // `hooks/use-media-query.ts`: render what the server rendered, adopt the
+  // stored value after mount. This one merges rather than replaces, so it does
+  // not use the hook.
+  const [mapping, setMapping] = useState<Record<string, string>>(
+    () => ({ ...(batch.columnMapping as Record<string, string>) }),
+  );
 
   const [autoFilledFromMemory, setAutoFilledFromMemory] = useState(false);
 
+  // Merge the persisted-from-prior-import mapping into the form, but only for
+  // fields this batch has not mapped yet AND where the remembered column still
+  // exists in this file's headers.
   useEffect(() => {
     if (isLocked) return;
     const stored = loadStoredMapping(batch.detectedHeaders);
     if (!stored) return;
+
     const currentMapping = batch.columnMapping as Record<string, string>;
-    const applied = Object.entries(stored).some(
-      ([key, value]) =>
-        typeof value === "string" && headerSet.has(value) && !currentMapping[key],
-    );
-    setAutoFilledFromMemory(applied);
+    const additions: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(stored)) {
+      if (typeof value === "string" && headerSet.has(value) && !currentMapping[key]) {
+        additions[key] = value;
+      }
+    }
+
+    if (Object.keys(additions).length === 0) return;
+
+    setMapping((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const [key, value] of Object.entries(additions)) {
+        if (!next[key]) {
+          next[key] = value;
+          changed = true;
+        }
+      }
+      // Returning `current` unchanged keeps this idempotent, so a re-run (or
+      // StrictMode's double invoke) cannot clobber an edit the staffer made.
+      return changed ? next : current;
+    });
+    setAutoFilledFromMemory(true);
   }, [isLocked, batch.columnMapping, batch.detectedHeaders, headerSet]);
 
   const hasRequiredMappingGap = requiredFields.some((field) => !mapping[field.key]);

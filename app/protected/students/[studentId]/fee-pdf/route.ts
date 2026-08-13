@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 
+import { isUuid } from "@/lib/helpers/uuid";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -11,6 +12,13 @@ export async function GET(
   { params }: { params: Promise<{ studentId: string }> },
 ) {
   const { studentId } = await params;
+
+  // A non-UUID segment makes Postgres raise `invalid input syntax for type
+  // uuid`. Without this the catch below turns a mistyped URL into a 500 and a
+  // Sentry issue instead of a plain not-found.
+  if (!isUuid(studentId)) {
+    return new Response("Student not found.", { status: 404 });
+  }
   try {
     await requireStaffPermission("students:view");
 

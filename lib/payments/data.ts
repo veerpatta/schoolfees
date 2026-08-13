@@ -11,7 +11,7 @@ import { calculateOverdueBaseAmount } from "@/lib/fees/due-amounts";
 import {
   prepareDuesForStudentsAutomatically,
 } from "@/lib/system-sync/finance-sync";
-import { logError, logWarn } from "@/lib/observability/log";
+import { describeError, logError, logWarn } from "@/lib/observability/log";
 import { perfEnabled } from "@/lib/observability/timing";
 import {
   getRepaymentPlanCollectionContext,
@@ -389,7 +389,7 @@ function getRawDatabaseError(error: unknown) {
 
   return {
     code: null,
-    message: error instanceof Error ? error.message : String(error),
+    message: describeError(error),
   };
 }
 
@@ -1151,7 +1151,7 @@ export async function preflightPaymentPosting(payload: {
         installmentCount,
         autoPrepareAttempted,
         autoPrepareWorked,
-        rawRpcErrorMessage: error instanceof Error ? error.message : String(error),
+        rawRpcErrorMessage: describeError(error),
         reason: "preview_failed",
       }),
     );

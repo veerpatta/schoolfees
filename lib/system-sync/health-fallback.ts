@@ -1,9 +1,10 @@
+import { describeError } from "@/lib/observability/log";
 import type { SystemSyncHealth } from "@/lib/system-sync/finance-sync";
 
 type DatabaseObjectStatusKey = keyof SystemSyncHealth["requiredDatabaseObjectsStatus"];
 
 export function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return describeError(error);
 }
 
 function unavailableObjectStatus(

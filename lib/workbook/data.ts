@@ -3,6 +3,7 @@ import "server-only";
 import { WORKBOOK_CLASS_ORDER, normalizeWorkbookClassLabel } from "@/lib/fees/workbook";
 import type { PaymentMode } from "@/lib/db/types";
 import { fetchAllPages, fetchInChunks } from "@/lib/helpers/chunk";
+import { describeError } from "@/lib/observability/log";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
@@ -705,7 +706,7 @@ export async function getWorkbookStudentFinancials(filters?: {
   if (error) {
     throw new Error(
       `Unable to load workbook student financials: ${
-        error instanceof Error ? error.message : String(error)
+        describeError(error)
       }`,
     );
   }
@@ -778,7 +779,7 @@ export async function getWorkbookInstallmentRows(filters?: {
   if (error) {
     throw new Error(
       `Unable to load workbook installment rows: ${
-        error instanceof Error ? error.message : String(error)
+        describeError(error)
       }`,
     );
   }

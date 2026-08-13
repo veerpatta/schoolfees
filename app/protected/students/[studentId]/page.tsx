@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { isUuid } from "@/lib/helpers/uuid";
 import { after } from "next/server";
 import { getTranslations } from "next-intl/server";
 
@@ -107,6 +109,13 @@ export default async function StudentDetailPage({
 }: StudentDetailPageProps) {
   const staff = await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedParams = await params;
+
+  // Guard before the first query: a non-UUID segment makes Postgres raise
+  // `invalid input syntax for type uuid`, which is an unhandled 500, not a
+  // not-found. Checking the result afterwards is too late.
+  if (!isUuid(resolvedParams.studentId)) {
+    notFound();
+  }
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const activeTab = normalizeTab(resolvedSearchParams?.tab);
   const mobileTab = normalizeMobileTab(resolvedSearchParams?.tab);

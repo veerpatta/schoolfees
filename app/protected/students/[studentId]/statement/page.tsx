@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 
+import { isUuid } from "@/lib/helpers/uuid";
+
 import { PageHeader } from "@/components/admin/page-header";
 import { MasterStatementDocument } from "@/components/students/master-statement-document";
 import { MasterStatementPrintActions } from "@/components/students/master-statement-print-actions";
@@ -22,6 +24,13 @@ export default async function StudentStatementPage({
 }: StudentStatementPageProps) {
   await requireStaffPermission("students:view", { onDenied: "redirect" });
   const resolvedParams = await params;
+
+  // Guard before the first query: a non-UUID segment makes Postgres raise
+  // `invalid input syntax for type uuid`, which is an unhandled 500, not a
+  // not-found. Checking the result afterwards is too late.
+  if (!isUuid(resolvedParams.studentId)) {
+    notFound();
+  }
   const [workspace, repaymentPlan, repaymentPlanHistory] = await Promise.all([
     getStudentWorkspaceData(resolvedParams.studentId),
     getRepaymentPlanDetail({

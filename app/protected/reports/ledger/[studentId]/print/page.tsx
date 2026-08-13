@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { formatInr } from "@/lib/helpers/currency";
+import { isUuid } from "@/lib/helpers/uuid";
 import { formatDateTimeIst, formatShortDate } from "@/lib/helpers/date";
 import { getReportsPageData, normalizeReportFilters } from "@/lib/reports/data";
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
@@ -16,6 +17,14 @@ export default async function PrintLedgerPage({ params, searchParams }: PrintLed
   await requireStaffPermission("reports:view", { onDenied: "redirect" });
 
   const { studentId } = await params;
+
+  // Guard before the first query: a non-UUID segment makes Postgres raise
+  // `invalid input syntax for type uuid`, which is an unhandled 500, not a
+  // not-found. Checking the result afterwards is too late.
+  if (!isUuid(studentId)) {
+    notFound();
+  }
+
   const rawSearchParams = await searchParams;
 
   const filters = normalizeReportFilters({

@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+
+import { isUuid } from "@/lib/helpers/uuid";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -89,6 +91,13 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
   const canEditAdmissionNo = hasStaffPermission(staff, "students:edit_sr_no");
   const canEditFinance = hasStaffPermission(staff, "students:write");
   const resolvedParams = await params;
+
+  // Guard before the first query: a non-UUID segment makes Postgres raise
+  // `invalid input syntax for type uuid`, which is an unhandled 500, not a
+  // not-found. Checking the result afterwards is too late.
+  if (!isUuid(resolvedParams.studentId)) {
+    notFound();
+  }
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const returnTo = resolvedSearchParams?.returnTo?.startsWith("/protected/students")
     ? resolvedSearchParams.returnTo

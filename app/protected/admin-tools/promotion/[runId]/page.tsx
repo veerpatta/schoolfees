@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst } from "@/lib/helpers/date";
+import { isUuid } from "@/lib/helpers/uuid";
 import { getPromotionRun } from "@/lib/promotion/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import { getViewSessionCookie } from "@/lib/session/cookie";
@@ -59,6 +60,14 @@ export default async function PromotionDetailPage({ params, searchParams }: Prop
   const t = await getTranslations("AdminTools");
   await requireStaffPermission("students:write", { onDenied: "redirect" });
   const { runId } = await params;
+
+  // Guard before the first query: a non-UUID segment makes Postgres raise
+  // `invalid input syntax for type uuid`, which is an unhandled 500, not a
+  // not-found. Checking the result afterwards is too late.
+  if (!isUuid(runId)) {
+    notFound();
+  }
+
   const resolved = searchParams ? await searchParams : undefined;
   const viewSession = await resolveViewSession({
     searchParamSession: asString(resolved?.session),

@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 
+import { isUuid } from "@/lib/helpers/uuid";
+
 import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { FamilyReceiptsBatchActions } from "@/components/students/family-receipts-batch-actions";
@@ -25,6 +27,13 @@ export default async function FamilyReceiptsBatchPage({
   const t = createBilingualReceiptTranslator();
   await requireStaffPermission("receipts:print", { onDenied: "redirect" });
   const resolvedParams = await params;
+
+  // Guard before the first query: a non-UUID segment makes Postgres raise
+  // `invalid input syntax for type uuid`, which is an unhandled 500, not a
+  // not-found. Checking the result afterwards is too late.
+  if (!isUuid(resolvedParams.familyGroupId)) {
+    notFound();
+  }
   const resolvedSearch = searchParams ? await searchParams : undefined;
   const bundle = await getFamilyReceiptsBundle(resolvedParams.familyGroupId);
 

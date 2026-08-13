@@ -1,5 +1,6 @@
 import "server-only";
 
+import { describeError } from "@/lib/observability/log";
 import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
 import { setActiveSessionLabel } from "@/lib/session/set-active";
 import {
@@ -340,7 +341,7 @@ function toSessionCountRows(map: Map<string, number>) {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return describeError(error);
 }
 
 function normalizeDatabaseError(error: { message?: string; code?: string } | null | undefined) {
@@ -915,7 +916,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     studentRows = (studentRowsRaw ?? []) as StudentSessionRow[];
   } catch (error) {
     errors.push(
-      `Unable to load sync health students: ${error instanceof Error ? error.message : String(error)}`,
+      `Unable to load sync health students: ${describeError(error)}`,
     );
   }
 
@@ -1012,7 +1013,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     }
   } catch (error) {
     warnings.push(
-      `Unable to count workbook student rows: ${error instanceof Error ? error.message : String(error)}`,
+      `Unable to count workbook student rows: ${describeError(error)}`,
     );
   }
 
@@ -1037,7 +1038,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     });
   } catch (error) {
     warnings.push(
-      `Unable to load import batch session status: ${error instanceof Error ? error.message : String(error)}`,
+      `Unable to load import batch session status: ${describeError(error)}`,
     );
   }
 
@@ -1067,7 +1068,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     }
   } catch (error) {
     warnings.push(
-      `Unable to load installment rows for sync health: ${error instanceof Error ? error.message : String(error)}`,
+      `Unable to load installment rows for sync health: ${describeError(error)}`,
     );
   }
 
@@ -1087,7 +1088,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     }
   } catch (error) {
     warnings.push(
-      `Unable to load fee settings for sync health: ${error instanceof Error ? error.message : String(error)}`,
+      `Unable to load fee settings for sync health: ${describeError(error)}`,
     );
   }
 
@@ -1112,7 +1113,7 @@ export async function getSystemSyncHealth(sessionLabel?: string): Promise<System
     }
   } catch (error) {
     warnings.push(
-      `Unable to count routes without annual fees: ${error instanceof Error ? error.message : String(error)}`,
+      `Unable to count routes without annual fees: ${describeError(error)}`,
     );
   }
 

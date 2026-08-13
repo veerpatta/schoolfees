@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { describeError } from "@/lib/observability/log";
 import { generateSessionLedgersAction } from "@/lib/fees/generator";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -19,7 +20,7 @@ function sessionHealthUrl(params: Record<string, string | number>) {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return describeError(error);
 }
 
 export async function reconcileSessionAction(formData: FormData) {

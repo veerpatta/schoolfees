@@ -5,6 +5,7 @@ import { schoolProfile } from "@/lib/config/school";
 import { getSiteUrl } from "@/lib/env";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatMediumDate } from "@/lib/helpers/date";
+import { isUuid } from "@/lib/helpers/uuid";
 import { getReceiptDetail } from "@/lib/receipts/data";
 import { requireStaffPermission } from "@/lib/supabase/session";
 
@@ -23,12 +24,6 @@ const INK_MUTED = "#bcb7a9"; // --nav-muted 44 12% 70%
 const PAPER = "#f7f5ef";
 const SAFFRON = "#c2410c"; // accent
 const GREEN = "#2f9e63";
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
-}
 
 export async function GET(
   _request: Request,
