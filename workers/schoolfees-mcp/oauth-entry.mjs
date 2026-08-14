@@ -106,8 +106,9 @@ function loginPage({ query, clientName, error }) {
   <h1>Sign in to continue</h1>
   <p class="school">${escapeHtml(SCHOOL_NAME)}</p>
   <div class="ask"><strong>${escapeHtml(clientName)}</strong> wants to read fee
-  collection data - dues, defaulters, receipts and follow-up drafts. It cannot
-  post payments, change fees, edit students or send messages.</div>
+  data - dues, defaulters, receipts, student records and follow-up drafts. It
+  sees only what your staff role already lets you see, and it cannot post
+  payments, change fees, edit students or send messages.</div>
   ${error ? `<div class="error">${escapeHtml(error)}</div>` : ""}
   <form method="post" action="/authorize">
     <input type="hidden" name="oauth_query" value="${escapeHtml(query)}">

@@ -1,0 +1,193 @@
+/**
+ * Reference material as MCP resources.
+ *
+ * A definition should not cost a tool call. A client can pin these into context
+ * once and then read every number correctly for the rest of the conversation —
+ * which is cheaper and more reliable than hoping the model asks what
+ * "outstanding_amount" means before it quotes one.
+ */
+
+import { STUDENT_SCOPES } from "./scope.mjs";
+import { DOMAIN_RULES, MONEY_GLOSSARY } from "./tools/orientation.mjs";
+
+const MIME = "text/markdown";
+
+function bullets(entries) {
+  return entries.map(([term, meaning]) => `- **${term}** — ${meaning}`).join("\n");
+}
+
+const MONEY_GLOSSARY_DOC = `# Money vocabulary
+
+Shri Veer Patta Senior Secondary School fee system. Every term below has exactly
+one meaning; using them loosely is how a fee report goes wrong.
+
+${bullets(Object.entries(MONEY_GLOSSARY))}
+
+## The one rule to keep
+
+Fees and late fees are separate charges and are never added together and called
+"pending". A family whose only remaining debt is a late fee is **not** a
+defaulter. If you need the single number a cashier could collect today, that is
+\`totalCollectableAmount\`, and say that it includes both.
+`;
+
+const SCOPE_DOC = `# Which students count
+
+There are two rules, deliberately different, and conflating them is the single
+most common way to produce a wrong figure.
+
+| Question | Rule |
+|---|---|
+| **Headcount** — how many children the school teaches | \`record_status = 'active'\` |
+| **Money** — expected, collected, pending, defaulters | \`record_status = 'active' OR total_paid > 0\` |
+
+The school's rule, in the head's words: a student marked left who never paid has
+their dues cancelled, so nothing is expected and nothing is chased. But a student
+who **had** paid and then left still owes the rest, and that must still be
+collected.
+
+And, deliberately: a student who has left is not on the roll, however much they
+owe. Headcount and money are different questions.
+
+## The scopes every tool accepts
+
+${Object.values(STUDENT_SCOPES)
+  .map((scope) => `### \`${scope.name}\`\n\n\`${scope.rule}\`\n\n${scope.use}`)
+  .join("\n\n")}
+
+Every response carries a \`scope\` block naming the rule it used. If two answers
+disagree, compare their scopes before assuming one is wrong.
+`;
+
+const SCHOOL_RULES_DOC = `# School rules, AY 2026-27
+
+- **Late fee**: ₹1,000 flat, charged the day an installment passes its due date
+  with fees still unsettled, and kept until paid or explicitly waived. Never part
+  of fees pending. Never accrues on a carry-forward row.
+- **Installment due dates**: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027.
+- **Academic fee**: ₹1,100 for a new student, ₹500 for a returning one. Which
+  applies is the \`feeTier\` field (New / Old) — that field says nothing about
+  whether the student is still enrolled.
+- **Receipt prefix**: SVP.
+- **Payment modes**: cash, UPI, bank transfer, cheque. A reference number is
+  optional for all of them. A fifth mode, \`discount\`, is a write-off, not a
+  payment.
+- **Conventional discounts** (tuition only, at most two active per student per
+  year, lowest resulting tuition wins):
+  - RTE → tuition ₹0
+  - Staff Child → tuition 50%
+  - Third Child Policy → tuition ₹6,000
+
+## Previous-year dues
+
+2025-26 does not exist as a session. Unpaid tuition from it rides on the 2026-27
+student as carry-forward installments. Split current year from previous year on
+\`isCarryForward\`, never on the session label.
+
+## What cannot happen here
+
+This server is read-only. It cannot post a payment, edit a student, change fee
+setup, waive a late fee, or send a message. Payments are posted only at the
+Payment Desk, by a person, after office verification. Never tell anyone a message
+was sent or a payment recorded.
+`;
+
+const DOMAIN_RULES_DOC = `# Rules that decide whether an answer is right
+
+${DOMAIN_RULES.map((entry) => `## ${entry.rule}\n\n${entry.detail}`).join("\n\n")}
+`;
+
+const DATA_MODEL_DOC = `# Data model, and the traps in it
+
+## Where the numbers come from
+
+- \`v_workbook_student_financials\` — one row per student per session. The money
+  headline for a child.
+- \`v_workbook_installment_balances\` — one row per live installment. Cancelled
+  installments are excluded, which is why a student who left without paying has
+  no rows at all.
+- \`v_student_directory\` — the filter surface: every segment chip, search text,
+  EMI status. This is the right view for any active-vs-left question.
+- \`get_dashboard_summary\`, \`get_dashboard_analytics\`, \`get_dashboard_fee_split\`
+  — the same functions the office Dashboard reads, so figures match the screen.
+
+Both financial views are **materialized**. They are rebuilt off the payment path,
+by the payment action and by a two-minute cron, so a read taken immediately after
+a payment can predate it. Every money response carries
+\`provenance.dataFreshness\` — check it before calling a figure current.
+
+## Three columns called "status"
+
+| Column | Means | Values |
+|---|---|---|
+| \`record_status\` | enrollment | active, inactive, left, graduated |
+| \`student_status_label\` | academic-fee tier | New, Old |
+| \`status_label\` | payment state | PAID, OVERDUE, PARTLY PAID, NOT STARTED |
+
+This server exposes them as \`enrollment.status\`, \`feeTier\` and
+\`paymentStatus\` respectively, so they cannot be confused. If you see a field
+called \`studentStatus\` anywhere, it is from an old version and its value is the
+fee tier, not the enrollment status.
+
+## Other traps
+
+- \`outstanding_amount\` is **fees only**. Late fee is \`late_fee_outstanding_amount\`.
+- \`balance_status\` describes the base charge only, and \`overdue\` outranks
+  \`partial\` — a partly paid past-due installment reads \`overdue\`.
+- A student's session comes from their class, not from a column on the student.
+  Promoting a student re-points them; there is no per-session student history row.
+- \`TEST-2026-27\` is a real session label in the same tables. A query without a
+  session filter mixes test data into production numbers.
+- Transport can be charged with no route assigned, via a custom amount. Such a
+  student is labelled "Custom transport", not "No Transport".
+`;
+
+export const RESOURCES = [
+  {
+    uri: "schoolfees://glossary/money",
+    name: "Money vocabulary",
+    description:
+      "What every money field means. Read this before quoting any fee figure — most wrong answers are right queries read under the wrong definition.",
+    text: MONEY_GLOSSARY_DOC,
+  },
+  {
+    uri: "schoolfees://rules/student-scope",
+    name: "Which students count",
+    description:
+      "The two rules that decide who is included: headcount counts students on the roll, money counts students who are on the roll or have paid.",
+    text: SCOPE_DOC,
+  },
+  {
+    uri: "schoolfees://rules/school",
+    name: "School fee rules, AY 2026-27",
+    description:
+      "Late fee, installment due dates, academic fee tiers, payment modes, conventional discounts, and what this server is not allowed to do.",
+    text: SCHOOL_RULES_DOC,
+  },
+  {
+    uri: "schoolfees://rules/answering",
+    name: "Rules for a correct answer",
+    description: "The domain rules an assistant must respect to avoid a plausible but wrong figure.",
+    text: DOMAIN_RULES_DOC,
+  },
+  {
+    uri: "schoolfees://data-model",
+    name: "Data model and its traps",
+    description:
+      "The views behind every figure, the three different columns called 'status', and the mistakes they invite.",
+    text: DATA_MODEL_DOC,
+  },
+];
+
+export function registerResources(server) {
+  for (const resource of RESOURCES) {
+    server.registerResource(
+      resource.name,
+      resource.uri,
+      { title: resource.name, description: resource.description, mimeType: MIME },
+      async (uri) => ({
+        contents: [{ uri: uri.href, mimeType: MIME, text: resource.text }],
+      }),
+    );
+  }
+}

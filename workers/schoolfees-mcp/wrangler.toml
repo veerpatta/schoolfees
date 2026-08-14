@@ -6,7 +6,11 @@ preview_urls = false
 [vars]
 SCHOOLFEES_MCP_DEFAULT_SESSION = "2026-27"
 SCHOOLFEES_MCP_SUPABASE_SCHEMA = "public"
-SCHOOLFEES_MCP_ALLOWED_ROLES = "admin,accountant"
+# Who may sign in on the staff lane. Each role then sees only the tools its
+# permissions allow (src/permissions.mjs mirrors lib/auth/roles.ts), so widening
+# this no longer means widening what a person can read. Add teacher or view_only
+# here if they need it.
+SCHOOLFEES_MCP_ALLOWED_ROLES = "admin,accountant,fee_collector"
 
 # Stores OAuth clients, grants and tokens for the staff sign-in lane.
 [[kv_namespaces]]

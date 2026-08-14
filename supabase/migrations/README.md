@@ -371,6 +371,11 @@ express the school's rule and never fired once:
   publish that touched an EMI-covered installment; `discount_reduces_unpaid`
   failed the regeneration rows the discount fix exists to write. Adds both, plus
   `charge_rise_on_unsettled` for a rise written to an unsettled installment.
+- `20260814143056_route_recovery_uses_the_collectable_rule` — every board in
+  `get_dashboard_analytics` reads the `scoped` CTE's money rule (active OR has
+  paid) except `route_rows`, which filtered `record_status = 'active'`. Class and
+  route totals therefore disagreed inside one response, dropping the students who
+  left after paying. Only that predicate moves; headcount stays active-only.
 
 ## When you add a new migration
 

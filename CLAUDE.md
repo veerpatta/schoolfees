@@ -211,6 +211,9 @@ Session Health, Activity feed, WhatsApp templates.
 - Previous-year dues: `lib/prev-year-dues`, `app/protected/admin-tools/prev-year-dues`
 - Left students who still owe: `lib/recovery` (read model; the non-active complement to `lib/defaulters`)
 - System sync: `lib/system-sync` (finance revalidation, office sync, health checks)
+- MCP server: `workers/schoolfees-mcp` (read-only Cloudflare Worker; `src/scope.mjs` is the
+  student-scope rule, `src/permissions.mjs` mirrors `lib/auth/roles.ts`). See
+  `docs/modules/mcp-server.md`.
 - i18n: `i18n/` (locale config), `messages/` (en / hi / hi-en dictionaries), `hooks/` (shared client hooks)
 - Database: `supabase/schema.sql`, `supabase/migrations/`
 
@@ -416,6 +419,13 @@ Copy `.env.example` to `.env.local` for local development. Required values:
    silent rewrite. It must also leave carry-forward rows and EMI-covered installments alone.
 8. A late fee is never folded into a fees figure, and never makes a student a defaulter.
    The rule lives in two engines that must be edited together.
+8b. **Headcount and money count different students, on purpose.** Headcount is
+   `record_status = 'active'`. Money — expected, collected, pending, defaulters — is
+   `record_status = 'active' OR total_paid > 0`, because a student who left owing money
+   still owes it (`20260808210000`). Never let one rule drift onto the other's question:
+   that is what hid ₹17,250 of live collectable dues, and what made the MCP server and the
+   Dashboard disagree. `lib/workbook/data.ts:680` and `workers/schoolfees-mcp/src/scope.mjs`
+   are the two places the rule is written down.
 9. A plan is never edited in place. Rescheduling writes a replacement and supersedes the
    old one, so the schedule a parent was shown stays on file.
 

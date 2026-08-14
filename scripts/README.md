@@ -52,8 +52,10 @@ Added since this index was written:
   hand-written `₹` outside `lib/helpers/currency.ts`. Run via `quality:budgets`.
 - `capture-readiness-auth.mjs` — captures the Playwright auth state.
 - `prev-year-dues-core.mjs` + `prev-year-dues-dry-run.mjs` — carry-forward matching, no writes.
-- `schoolfees-mcp-server.mjs` — the local stdio MCP server. Its Cloudflare twin is in
-  `workers/schoolfees-mcp/`, and **the two must stay in sync**.
+- `verify-mcp-health.mjs` — cross-checks the deployed MCP server's totals against the
+  database's own rollups and fails on any delta. Read-only. The MCP server itself lives in
+  `workers/schoolfees-mcp/`; the local stdio twin that used to sit here was retired once
+  both transports came to share one core.
 - `bulk-apply.mjs` + `bulk-apply-operations.mjs` — the sanctioned harness for an agent to
   change many rows at once when no screen in the app can. Dry run by default; `--apply` is
   opt-in; `--session 2026-27` is refused without `--live`; fee-moving operations need

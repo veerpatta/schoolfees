@@ -53,6 +53,15 @@ draft_recovery_plan
 daily_recovery_digest
 ```
 
+Since v1.0.0 the server also publishes student search, receipt lookup, collection
+reporting, fee structure and a general-purpose student query. This task does not
+need them, but they will appear in the list. The full catalogue is in
+[`agent-mcp-connection.md`](agent-mcp-connection.md).
+
+One change matters to this task's output: the recovery tools now include families
+who paid part of the year and then left. They were previously invisible, and they
+still owe. Expect the queue to be slightly longer than before, for that reason.
+
 If tool calls return `Unauthorized`, the connector is on the OAuth lane
 (`/mcp`) with `No Auth`, or is using a stale token. Switch to the
 `/svc/mcp/YOUR_PRIVATE_TOKEN` URL with `No Auth`, confirm the token matches the
