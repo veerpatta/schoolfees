@@ -12,6 +12,8 @@ import { schoolProfile } from "@/lib/config/school";
 import { formatDateTimeIst } from "@/lib/helpers/date";
 import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
 import { getFeePolicyForSession } from "@/lib/fees/data";
+import { getLedgerPolicyHealth, type LedgerPolicyHealth } from "@/lib/fees/ledger-policy-health";
+import { formatInr } from "@/lib/helpers/currency";
 import {
   getRuntimeEnvironmentLabel,
   getOptionalEnvVar,
@@ -46,6 +48,74 @@ function formatDateTime(value: string | null) {
   return formatDateTimeIst(value, "Not applied");
 }
 
+function ledgerPolicyHealthValue(health: LedgerPolicyHealth) {
+  if (health.unavailableReason) {
+    return "Unavailable";
+  }
+
+  if (health.healthy) {
+    return `${health.activeStudents} in step`;
+  }
+
+  // Lead with the money. A stale class pointer matters, but it is not the
+  // number that decides whether the school billed what it meant to.
+  if (health.underBilledStudents > 0) {
+    return `${health.underBilledStudents} under-billed`;
+  }
+
+  if (health.overBilledStudents > 0) {
+    return `${health.overBilledStudents} over-billed`;
+  }
+
+  if (health.studentsWithoutLedger > 0) {
+    return `${health.studentsWithoutLedger} without dues`;
+  }
+
+  return "Needs attention";
+}
+
+function ledgerPolicyHealthDetail(health: LedgerPolicyHealth) {
+  if (health.unavailableReason) {
+    return `The ledger-vs-policy check could not run: ${health.unavailableReason}`;
+  }
+
+  if (health.healthy) {
+    return `Every active student's installments add up to their resolved fee policy in ${health.sessionLabel}.`;
+  }
+
+  const parts: string[] = [];
+
+  if (health.underBilledStudents > 0) {
+    parts.push(
+      `${health.underBilledStudents} student(s) are billed ${formatInr(health.underBilledAmount)} LESS than policy`,
+    );
+  }
+
+  if (health.overBilledStudents > 0) {
+    parts.push(
+      `${health.overBilledStudents} student(s) are billed ${formatInr(health.overBilledAmount)} more than policy`,
+    );
+  }
+
+  if (health.studentsWithoutLedger > 0) {
+    parts.push(`${health.studentsWithoutLedger} active student(s) have no dues prepared`);
+  }
+
+  if (health.studentsWithStaleLedgerClass > 0) {
+    parts.push(
+      `${health.studentsWithStaleLedgerClass} student(s) have installments filed under a class they have left`,
+    );
+  }
+
+  if (health.studentsWithStaleLockedClass > 0) {
+    parts.push(
+      `${health.studentsWithStaleLockedClass} student(s) have carry-forward or EMI rows under a former class, which no regeneration will move`,
+    );
+  }
+
+  return `${parts.join(". ")}. Run scripts/verify-ledger-policy-health.mjs for the student list.`;
+}
+
 type SettingsPageProps = {
   searchParams?: Promise<{
     session?: string | string[];
@@ -65,9 +135,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     cookieSession: await getViewSessionCookie(),
   });
 
-  const [policy, recentConfigChanges] = await Promise.all([
+  const [policy, recentConfigChanges, ledgerPolicyHealth] = await Promise.all([
     getFeePolicyForSession(viewSession.sessionLabel),
     getRecentConfigChangeLog(),
+    getLedgerPolicyHealth(viewSession.sessionLabel),
   ]);
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const serviceRoleConfigured = Boolean(getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY"));
@@ -133,6 +204,15 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       detail:
         "SUPABASE_SERVICE_ROLE_KEY must stay server-only and is required for bootstrap provisioning, admin staff creation, and staff password resets.",
       healthy: serviceRoleConfigured,
+    },
+    // The only DATA check on this panel. Everything above it is deployment
+    // config, which is wrong loudly; this one is wrong silently — a ledger
+    // below its own fee policy looks exactly like a ledger that is paid up.
+    {
+      label: "Ledger matches fee policy",
+      value: ledgerPolicyHealthValue(ledgerPolicyHealth),
+      detail: ledgerPolicyHealthDetail(ledgerPolicyHealth),
+      healthy: ledgerPolicyHealth.healthy,
     },
   ] as const;
 

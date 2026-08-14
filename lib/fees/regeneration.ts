@@ -98,7 +98,13 @@ type RegenerationRowPlan = PlannedInstallment & {
     | "existing_cancelled"
     | "extra_installment"
     | "missing_settings"
-    | "discount_reduces_unpaid";
+    // Both of these are written to ledger_regeneration_rows, so they must stay
+    // in step with ledger_regeneration_rows_reason_code_check. The constraint
+    // was never widened for `discount_reduces_unpaid`, which meant the insert
+    // threw on exactly the rows the discount fix was written to handle —
+    // migration 20260814090000 fixes both.
+    | "discount_reduces_unpaid"
+    | "charge_rise_on_unsettled";
   reason_label: string;
 };
 
@@ -400,6 +406,20 @@ async function loadPlan(): Promise<RegenerationPlan> {
   const classDefaultMap = new Map(setupData.classDefaults.map((item) => [item.classId, item]));
   const routeDefaultMap = new Map(setupData.transportDefaults.map((item) => [item.id, item]));
   const studentOverrideMap = new Map(setupData.studentOverrides.map((item) => [item.studentId, item]));
+  // The preview resolved policy WITHOUT these while the generator resolved it
+  // WITH them, so for every RTE / Staff Child / 3rd Child student the screen
+  // promised a higher tuition than the apply step went on to write. Same
+  // inputs, same answer — otherwise the number the office approves is not the
+  // number that lands.
+  const conventionalDiscountAssignmentMap = new Map<
+    string,
+    typeof setupData.conventionalDiscountAssignments
+  >();
+  (setupData.conventionalDiscountAssignments ?? []).forEach((assignment) => {
+    const existing = conventionalDiscountAssignmentMap.get(assignment.studentId) ?? [];
+    existing.push(assignment);
+    conventionalDiscountAssignmentMap.set(assignment.studentId, existing);
+  });
   const existingInstallmentMap = new Map(
     existingInstallments.map((item) => [`${item.student_id}::${item.installment_no}`, item]),
   );
@@ -431,6 +451,7 @@ async function loadPlan(): Promise<RegenerationPlan> {
       classDefault,
       routeDefault,
       studentOverride,
+      conventionalDiscountAssignments: conventionalDiscountAssignmentMap.get(student.id) ?? [],
       hasTransportRoute: Boolean(student.transport_route_id),
     });
 
@@ -611,8 +632,13 @@ async function loadPlan(): Promise<RegenerationPlan> {
       if (paidAmount > 0 || adjustmentAmount !== 0) {
         // A REDUCTION down to (never below) what has already been applied is
         // safe: no receipt changes, the row just stops asking for money the
-        // school has forgone. Everything else on a row carrying money — a moved
-        // due date, a new label, a higher charge — is still held for review.
+        // school has forgone.
+        //
+        // An INCREASE is safe on the same terms whenever the row is NOT yet
+        // settled — the receipt keeps saying what it said, only the remaining
+        // balance moves. Raising a settled row is the re-bill, and that alone
+        // is held for review. Mirrors classifyInstallmentLock in the generator;
+        // the two must agree or the preview promises something else.
         const plannedNet =
           plannedInstallment.base_amount +
           plannedInstallment.transport_amount -
@@ -622,9 +648,11 @@ async function loadPlan(): Promise<RegenerationPlan> {
           existingInstallment.due_date !== plannedInstallment.due_date ||
           existingInstallment.late_fee_flat_amount !== plannedInstallment.late_fee_flat_amount ||
           existingInstallment.status !== "scheduled";
-        const isSafeReduction = !structurallyDiffers && plannedNet <= amountDue;
+        const isSafeMove =
+          !structurallyDiffers &&
+          (plannedNet <= amountDue || appliedAmount < amountDue);
 
-        if (!isSafeReduction) {
+        if (!isSafeMove) {
           const reason = toReviewReason(balanceStatus as Exclude<RegenerationBalanceStatus, "waived" | "cancelled">);
 
           rows.push({
@@ -656,8 +684,15 @@ async function loadPlan(): Promise<RegenerationPlan> {
           outstanding_amount: Math.max(plannedNet - appliedAmount, 0),
           balance_status: balanceStatus,
           action_needed: "update",
-          reason_code: "discount_reduces_unpaid",
-          reason_label: "Discount applied to the unpaid balance",
+          ...(plannedNet > amountDue
+            ? {
+                reason_code: "charge_rise_on_unsettled" as const,
+                reason_label: "Higher charge applied to the unpaid balance",
+              }
+            : {
+                reason_code: "discount_reduces_unpaid" as const,
+                reason_label: "Discount applied to the unpaid balance",
+              }),
         });
         affectedStudentIds.add(student.id);
         return;

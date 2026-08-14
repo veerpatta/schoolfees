@@ -24,8 +24,15 @@ import { existsSync, readFileSync } from "node:fs";
  *
  *   node scripts/repair-discount-drift.mjs --session 2026-27
  *   node scripts/repair-discount-drift.mjs --session 2026-27 --apply
+ *   node scripts/repair-discount-drift.mjs --session 2026-27 --students 2608,2511 --apply
  *
  * `--apply` needs CRON_SECRET and, unless --url is given, NEXT_PUBLIC_SITE_URL.
+ *
+ * A third cause has since been found, and it runs the other way: a policy change
+ * that RAISES what a student owes could only be written to installments carrying
+ * no money at all. Where there were none, the rise was dropped silently and the
+ * ledger stayed below policy. `--students` is how those are repaired — by name,
+ * because raising a family's dues is never a bulk operation.
  */
 
 function loadEnvFile(path) {
@@ -68,6 +75,15 @@ const apply = process.argv.includes("--apply");
 // different decision — on this data they are hand-written settlements, not
 // stale ledgers — so they never ride along with a discount repair.
 const onlyDecreases = process.argv.includes("--only-decreases");
+// Comma-separated admission numbers. The only way to repair an INCREASE:
+// `--only-decreases` exists to withhold them wholesale, so raising a family's
+// dues has to be opted into by name, after a human has read the list.
+//
+//   node scripts/repair-discount-drift.mjs --session 2026-27 --students 2608,2511 --apply
+const studentAdmissionNos = (readFlag("students", "") ?? "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
 const baseUrl = readFlag("url", process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -168,14 +184,58 @@ async function findDrift() {
     .sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift));
 }
 
+/**
+ * Admission numbers -> student ids, refusing on anything that did not resolve.
+ *
+ * Silently dropping an unknown SR would be the worst outcome here: the run
+ * would report success having skipped the student somebody actually meant to
+ * repair.
+ */
+async function resolveStudentIds(admissionNos) {
+  const { data, error } = await supabase
+    .from("students")
+    .select("id, admission_no")
+    .in("admission_no", admissionNos);
+
+  if (error) {
+    throw new Error(`Unable to resolve --students: ${error.message}`);
+  }
+
+  const byAdmissionNo = new Map((data ?? []).map((row) => [row.admission_no, row.id]));
+  const unresolved = admissionNos.filter((value) => !byAdmissionNo.has(value));
+
+  if (unresolved.length > 0) {
+    throw new Error(`No student found for: ${unresolved.join(", ")}`);
+  }
+
+  return admissionNos.map((value) => byAdmissionNo.get(value));
+}
+
 async function main() {
   console.log(`\n## Discount drift — ${sessionLabel}${apply ? "" : " (dry run)"}\n`);
+
+  const scopedStudentIds =
+    studentAdmissionNos.length > 0 ? await resolveStudentIds(studentAdmissionNos) : null;
+
+  if (scopedStudentIds) {
+    console.log(`Scoped to ${scopedStudentIds.length} named student(s): ${studentAdmissionNos.join(", ")}\n`);
+  }
 
   const drifted = await findDrift();
 
   if (drifted.length === 0) {
     console.log("No drift. Every active student's ledger matches their resolved fee policy.\n");
-    return;
+
+    // …but a named run must still reach the engine. A ledger can be wrong
+    // without drifting a rupee: SR 2141 moved 12 Arts -> 12 Commerce with both
+    // classes at Rs 32,000, so the installments pointed at a class the student
+    // had left while the total matched policy exactly. Returning here made
+    // `--students 2141 --apply` a silent no-op that reported success.
+    if (!(scopedStudentIds && apply)) {
+      return;
+    }
+
+    console.log("Named students given — running the engine anyway to correct non-money drift.\n");
   }
 
   printTable(drifted, [
@@ -236,7 +296,12 @@ async function main() {
   const response = await fetch(`${baseUrl}/api/admin/repair-discount-drift`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${secret}` },
-    body: JSON.stringify({ sessionLabel, dryRun: false, onlyDecreases }),
+    body: JSON.stringify({
+      sessionLabel,
+      dryRun: false,
+      onlyDecreases,
+      ...(scopedStudentIds ? { studentIds: scopedStudentIds } : {}),
+    }),
   });
 
   const payload = await response.json();
@@ -249,6 +314,10 @@ async function main() {
   console.log(
     `Applied: ${payload.applied.installmentsToUpdate} updated, ` +
       `${payload.applied.installmentsToInsert} inserted, ` +
+      // Pointer-only fixes on rows held for review. Reported separately because
+      // "0 updated, 4 kept for review" read as "nothing happened" on the run
+      // that in fact re-pointed SR 2141's whole ledger to the right class.
+      `${payload.applied.installmentsToRepoint ?? 0} re-pointed, ` +
       `${payload.applied.lockedInstallments} kept for review.`,
   );
 

@@ -78,6 +78,20 @@ type PlannedInstallment = {
   status: "scheduled";
 };
 
+/**
+ * Bookkeeping pointers corrected on a row that is otherwise held for review.
+ *
+ * Deliberately not a `PlannedExistingUpdate` with the money copied across:
+ * nothing on this shape can change an amount, a label, a due date or a status,
+ * so a future edit cannot turn a pointer fix into a re-bill by accident.
+ */
+type InstallmentRepoint = {
+  id: string;
+  class_id: string;
+  fee_setting_id: string;
+  student_fee_override_id: string | null;
+};
+
 type PlannedExistingUpdate = PlannedInstallment & {
   id: string;
 };
@@ -148,6 +162,23 @@ export type ResidualCreditStudent = {
   residualCreditAmount: number;
 };
 
+/**
+ * A student the engine could not bill up to their fee policy, because every
+ * installment they have is already settled.
+ *
+ * The mirror of `ResidualCreditStudent`, and the half that used to be missing.
+ * There is no safe automatic move here — raising a finished bill is a decision
+ * — so the engine reports the amount and leaves the ledger alone. Silence was
+ * the bug: SR 2608 and SR 2511 went a whole year under-billed for transport
+ * and nothing anywhere said so.
+ */
+export type UnderBilledStudent = {
+  studentId: string;
+  admissionNo: string;
+  fullName: string;
+  unbilledIncreaseAmount: number;
+};
+
 type LedgerSyncPlan = {
   academicSessionLabel: string;
   totalActiveStudents: number;
@@ -158,9 +189,11 @@ type LedgerSyncPlan = {
   existingInstallments: number;
   installmentsToInsert: PlannedInstallment[];
   installmentsToUpdate: PlannedExistingUpdate[];
+  installmentsToRepoint: InstallmentRepoint[];
   installmentsToCancel: CancelPlan[];
   blockedInstallmentsForReview: BlockedInstallmentForReview[];
   residualCreditStudents: ResidualCreditStudent[];
+  underBilledStudents: UnderBilledStudent[];
   skippedStudents: LedgerSkippedStudent[];
   warnings: string[];
   errors: string[];
@@ -172,24 +205,31 @@ export type LedgerGenerationPreview = Omit<
   LedgerSyncPlan,
   | "installmentsToInsert"
   | "installmentsToUpdate"
+  | "installmentsToRepoint"
   | "installmentsToCancel"
   | "blockedInstallmentsForReview"
   | "residualCreditStudents"
+  | "underBilledStudents"
   | "skippedStudents"
   | "warnings"
   | "errors"
 > & {
   installmentsToInsert: number;
   installmentsToUpdate: number;
+  /** Rows whose class/fee-setting pointer was corrected without touching money. */
+  installmentsToRepoint: number;
   installmentsToCancel: number;
   lockedInstallments: number;
   /** Total rupees that became refundable because a discount exceeded the balance. */
   residualCreditTotal: number;
+  /** Total rupees the engine could not bill because every installment was settled. */
+  underBilledTotal: number;
 };
 
 export type LedgerGenerationResult = LedgerGenerationPreview & {
   blockedInstallmentsForReview: BlockedInstallmentForReview[];
   residualCreditStudents: ResidualCreditStudent[];
+  underBilledStudents: UnderBilledStudent[];
   skippedStudents: LedgerSkippedStudent[];
   warnings: string[];
   errors: string[];
@@ -230,6 +270,13 @@ function isMeaningfulResolvedConfig(payload: {
 
 function differs(existing: ExistingInstallmentRow, next: PlannedInstallment) {
   return (
+    // A class move leaves the ledger pointing at the class the student has
+    // left. `fee_setting_id` catches it whenever the two classes price
+    // differently, which is why SR 2448 (Class 4 -> Class 5, Rs 19,500 vs
+    // Rs 20,000) surfaced as drift — but SR 2141 (12 Arts -> 12 Commerce, both
+    // Rs 32,000) stayed stale and invisible. Compare the class itself so the
+    // pointer is corrected whether or not the money moved.
+    existing.class_id !== next.class_id ||
     existing.fee_setting_id !== next.fee_setting_id ||
     existing.student_fee_override_id !== next.student_fee_override_id ||
     existing.installment_label !== next.installment_label ||
@@ -342,6 +389,7 @@ function structurallyDiffers(existing: ExistingInstallmentRow, next: PlannedInst
 type InstallmentLockDecision =
   | { kind: "free" }
   | { kind: "safe_reduction" }
+  | { kind: "safe_increase" }
   | {
       kind: "locked";
       reasonCode: LockedInstallmentReasonCode;
@@ -408,8 +456,14 @@ function classifyCancelLock(payload: {
  *
  * The distinction that was missing: a REDUCTION down to — never below — what
  * has already been applied is safe. No receipt changes; the row simply stops
- * asking for money the school has decided to forgo. An INCREASE on a row
- * someone has already paid against is a re-bill and stays locked.
+ * asking for money the school has decided to forgo.
+ *
+ * An INCREASE splits the same way, on whether the row is SETTLED rather than
+ * on whether it has been touched. A settled row is a finished bill and stays
+ * locked. A row still short of its charge may rise: nothing a receipt reported
+ * changes, only what remains owed. Treating those two alike is what let a
+ * mid-year bus route go unbilled for a whole year on students who had paid
+ * every installment in part.
  */
 function classifyInstallmentLock(payload: {
   existingInstallment: ExistingInstallmentRow;
@@ -464,9 +518,24 @@ function classifyInstallmentLock(payload: {
     return locked("adjustment_posted", "Installment has adjustment entries");
   };
 
-  // A re-bill. Never automatic, whatever else is different.
+  // An increase. Whether it is a re-bill depends on whether the row is
+  // SETTLED, not on whether it has been paid against at all.
+  //
+  // Raising a settled installment asks a family for more against a bill they
+  // have finished — never automatic. Raising one that is still short is a
+  // different thing: the receipt said "Rs 3,100 received" and it goes on
+  // saying exactly that; only the amount still owed moves. Refusing both cases
+  // is what left SR 2608 and SR 2511 with a full year of transport unbilled —
+  // every installment carried money, so the rise had nowhere to go and was
+  // dropped without a word.
   if (plannedAmountDue(payload.plannedInstallment) > existing.amount_due) {
-    return lockedForMoney();
+    if (appliedAmount >= existing.amount_due) {
+      return lockedForMoney();
+    }
+
+    // The label, due date and late-fee amount still belong to the receipt —
+    // the caller writes only the money, exactly as for a safe reduction.
+    return { kind: "safe_increase" };
   }
 
   // Same charge, only the terms differ — a pure rewrite of what a receipt said.
@@ -503,10 +572,15 @@ function summarizePlan(plan: LedgerSyncPlan): LedgerGenerationPreview {
     existingInstallments: plan.existingInstallments,
     installmentsToInsert: plan.installmentsToInsert.length,
     installmentsToUpdate: plan.installmentsToUpdate.length,
+    installmentsToRepoint: plan.installmentsToRepoint.length,
     installmentsToCancel: plan.installmentsToCancel.length,
     lockedInstallments: plan.blockedInstallmentsForReview.length,
     residualCreditTotal: plan.residualCreditStudents.reduce(
       (total, row) => total + row.residualCreditAmount,
+      0,
+    ),
+    underBilledTotal: plan.underBilledStudents.reduce(
+      (total, row) => total + row.unbilledIncreaseAmount,
       0,
     ),
     expectedScheduledInstallments: plan.expectedScheduledInstallments,
@@ -722,9 +796,11 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
 
   const installmentsToInsert: PlannedInstallment[] = [];
   const installmentsToUpdate: PlannedExistingUpdate[] = [];
+  const installmentsToRepoint: InstallmentRepoint[] = [];
   const installmentsToCancel: CancelPlan[] = [];
   const blockedInstallmentsForReview: BlockedInstallmentForReview[] = [];
   const residualCreditStudents: ResidualCreditStudent[] = [];
+  const underBilledStudents: UnderBilledStudent[] = [];
   const affectedStudentIds = new Set<string>();
   let studentsWithResolvedSettings = 0;
   let expectedScheduledInstallments = 0;
@@ -961,6 +1037,16 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
       });
     }
 
+    if (allocation.unbilledIncreaseAmount > 0) {
+      underBilledStudents.push({
+        studentId: student.id,
+        admissionNo: student.admission_no,
+        fullName: student.full_name,
+        unbilledIncreaseAmount: allocation.unbilledIncreaseAmount,
+      });
+      affectedStudentIds.add(student.id);
+    }
+
     setupData.globalPolicy.installmentSchedule.forEach((schedule, index) => {
       // The allocator works in NET terms. Transport and per-row discount stay
       // as planned; the adjustment is taken on base_amount, which is where the
@@ -1022,18 +1108,51 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
           actionNeeded: "update",
         });
         affectedStudentIds.add(student.id);
+
+        // A block is about MONEY and about what a receipt said. It should not
+        // also freeze the bookkeeping pointers, which are neither.
+        //
+        // SR 2141 moved 12 Arts -> 12 Commerce with both classes at Rs 32,000.
+        // The amount was already right, so the only differences were the stale
+        // label and the class — and the label, correctly, holds the row for a
+        // human. That held the class pointer hostage too, so every per-class
+        // board kept billing this student's Rs 32,500 to a class they had left,
+        // and re-running the ledger could never fix it.
+        //
+        // Writing the pointers alongside the block changes no money: amount_due
+        // is generated from base/transport/discount, and none of those move.
+        const pointersDiffer =
+          existingInstallment.class_id !== plannedInstallment.class_id ||
+          existingInstallment.fee_setting_id !== plannedInstallment.fee_setting_id ||
+          existingInstallment.student_fee_override_id !==
+            plannedInstallment.student_fee_override_id;
+
+        if (pointersDiffer) {
+          // A separate list, not an `installmentsToUpdate` entry with the money
+          // fields copied across. The type then makes the guarantee instead of
+          // the author remembering it: there is no field on this row that can
+          // change an amount, a label, a due date or a status.
+          installmentsToRepoint.push({
+            id: existingInstallment.id,
+            class_id: plannedInstallment.class_id,
+            fee_setting_id: plannedInstallment.fee_setting_id,
+            student_fee_override_id: plannedInstallment.student_fee_override_id,
+          });
+        }
+
         return;
       }
 
-      // On a row that carries money, a reduction writes ONLY the money. The
-      // label, due date and late-fee amount are what the parent's receipt
+      // On a row that carries money, an amount change writes ONLY the money.
+      // The label, due date and late-fee amount are what the parent's receipt
       // reported and what the late-fee clock runs on, so they are preserved
       // verbatim — see classifyInstallmentLock.
       const carriesMoney = paidAmount > 0 || adjustmentAmount !== 0;
+      const moneyOnly = lock.kind === "safe_reduction" || lock.kind === "safe_increase";
       installmentsToUpdate.push({
         id: existingInstallment.id,
         ...plannedInstallment,
-        ...(lock.kind === "safe_reduction" && carriesMoney
+        ...(moneyOnly && carriesMoney
           ? {
               installment_label: existingInstallment.installment_label,
               due_date: existingInstallment.due_date,
@@ -1100,9 +1219,11 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
     existingInstallments: existingInstallments.length,
     installmentsToInsert,
     installmentsToUpdate,
+    installmentsToRepoint,
     installmentsToCancel,
     blockedInstallmentsForReview,
     residualCreditStudents,
+    underBilledStudents,
     skippedStudents: dedupeSkippedStudents(skippedStudents),
     warnings,
     errors,
@@ -1137,6 +1258,7 @@ export async function previewLedgerGenerationDetailed(
     ...summarizePlan(plan),
     blockedInstallmentsForReview: plan.blockedInstallmentsForReview,
     residualCreditStudents: plan.residualCreditStudents,
+    underBilledStudents: plan.underBilledStudents,
     skippedStudents: plan.skippedStudents,
     warnings: plan.warnings,
     errors: plan.errors,
@@ -1171,6 +1293,15 @@ export async function generateSessionLedgersAction(
     }
   });
 
+  await applyBatchedUpdates(plan.installmentsToRepoint, async (item) => {
+    const { id, ...values } = item;
+    const { error } = await supabase.from("installments").update(values).eq("id", id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  });
+
   await applyBatchedUpdates(plan.installmentsToCancel, async (item) => {
     const { error } = await supabase
       .from("installments")
@@ -1185,6 +1316,7 @@ export async function generateSessionLedgersAction(
     ...summarizePlan(plan),
     blockedInstallmentsForReview: plan.blockedInstallmentsForReview,
     residualCreditStudents: plan.residualCreditStudents,
+    underBilledStudents: plan.underBilledStudents,
     skippedStudents: plan.skippedStudents,
     warnings: plan.warnings,
     errors: plan.errors,

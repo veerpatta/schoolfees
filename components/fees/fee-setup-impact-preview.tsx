@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, Lock, ShieldCheck, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { formatInr } from "@/lib/helpers/currency";
 import type { ConfigChangeImpactPreview } from "@/lib/fees/types";
 
 /**
@@ -90,6 +91,32 @@ export function FeeSetupImpactPreview({
             {preview.blockedFullyPaidInstallments} paid ·{" "}
             {preview.blockedPartiallyPaidInstallments} partly paid ·{" "}
             {preview.blockedAdjustedInstallments} adjusted
+            {preview.blockedRepaymentPlanInstallments > 0
+              ? ` · ${preview.blockedRepaymentPlanInstallments} on an EMI plan`
+              : ""}
+          </span>
+        </p>
+      ) : null}
+
+      {/*
+        A frozen row is a promise kept; a student left below policy is money the
+        school silently stops asking for. They used to be reported as the same
+        reassuring "rows held for review" count, which is how eight students went
+        Rs 54,225 under-billed for three months without anyone seeing it. This one
+        is not a footnote.
+      */}
+      {preview.studentsLeftBelowPolicy > 0 ? (
+        <p
+          data-fee-setup-under-billed
+          role="alert"
+          className="mt-3 flex items-start gap-2 rounded-lg border border-warning/50 bg-warning-soft px-3 py-2 text-xs font-medium text-warning-soft-foreground"
+        >
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            {t("previewLeftBelowPolicy", {
+              count: preview.studentsLeftBelowPolicy,
+              amount: formatInr(preview.amountLeftBelowPolicy),
+            })}
           </span>
         </p>
       ) : null}

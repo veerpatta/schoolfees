@@ -771,7 +771,8 @@
     "stagePublished": "Published",
     "stageDraftEdited": "Draft edited",
     "tuitionDecrease": "Decrease annual tuition for {label}",
-    "tuitionIncrease": "Increase annual tuition for {label}"
+    "tuitionIncrease": "Increase annual tuition for {label}",
+    "previewLeftBelowPolicy": "{count, plural, one {# student would be left} other {# students would be left}} {amount} BELOW their fee policy — every installment they have is already settled, so this rise cannot be billed. Publishing will not fix them."
   },
   "Activity": {
     "kindPaymentPosted": "Payment posted",

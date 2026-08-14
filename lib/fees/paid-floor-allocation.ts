@@ -14,6 +14,15 @@
  * reduction where there is still headroom". That is an allocation problem, so
  * it lives here as a pure function shared by the generator and the Fee Setup
  * regeneration preview rather than being solved twice.
+ *
+ * The same argument runs the other way, and for a long time only half of it
+ * was implemented. A policy change that RAISES what a student owes — a bus
+ * route added mid-year, a discount withdrawn — could only land on installments
+ * carrying no money at all. When there were none, the rise silently evaporated:
+ * total below policy, nothing written, nothing reported. So an increase now
+ * also uses rows that carry money but are not yet settled, and anything that
+ * still cannot be placed comes back as `unbilledIncreaseAmount` instead of
+ * disappearing.
  */
 
 export type PaidFloorRow = {
@@ -36,6 +45,22 @@ export type PaidFloorAllocation = {
    * into the existing Finance Controls refund screen.
    */
   residualCreditAmount: number;
+  /**
+   * The part of an INCREASE that could not be placed — the mirror of
+   * `residualCreditAmount`, and the reason this field exists.
+   *
+   * A rise has to land on a row that is not already settled. When every
+   * installment is settled there is nowhere legitimate to put it, and the
+   * allocator returns the annual total BELOW `plannedTotal`. That used to
+   * happen silently: the generator saw no difference, wrote nothing, blocked
+   * nothing, and the school was left under-billing a family with no record of
+   * it. Live 2026-27 carried Rs 13,600 (SR 2608) and Rs 10,000 (SR 2511) of
+   * unbilled transport this way for months.
+   *
+   * Non-zero means a human has to decide: raise a settled installment
+   * deliberately, or accept the ledger and record a matching override.
+   */
+  unbilledIncreaseAmount: number;
   /** Rows whose final charge sits below what has been applied to them. */
   belowFloorIndexes: number[];
 };
@@ -87,21 +112,44 @@ export function allocateChargesRespectingPaidFloors(payload: {
 
   let excess = charges.reduce((sum, amount) => sum + amount, 0) - payload.plannedTotal;
 
-  // Under-target: only the rows carrying nothing may grow. Raising a paid row
-  // is a re-bill, and this function never proposes one.
+  // Under-target: the annual total went UP and the rise has to go somewhere.
+  //
+  // Two stages, in this order, because they are not equally safe:
+  //
+  //   1. Rows carrying nothing. Always fine.
+  //   2. Rows that carry money but are NOT settled — `appliedAmount` is short
+  //      of what the row charges. Raising one of these contradicts no receipt:
+  //      a receipt for Rs 3,100 stays true when the installment it paid
+  //      against goes on to ask for more. Only reached when stage 1 has run
+  //      out of rows, so ordinary students never notice the difference.
+  //
+  // A SETTLED row is never grown by either stage. That is the re-bill this
+  // function still refuses to propose, and `unbilledIncreaseAmount` is how the
+  // refusal gets reported instead of swallowed.
   if (excess < 0) {
-    const freeIndexes = charges
-      .map((_, index) => index)
-      .filter((index) => !carriesMoney[index]);
+    const growable = (indexes: number[]) => {
+      for (let position = indexes.length - 1; position >= 0 && excess < 0; position -= 1) {
+        const index = indexes[position]!;
+        const isFirst = position === 0;
+        const share = isFirst ? -excess : Math.min(-excess, Math.ceil(-excess / (position + 1)));
+        charges[index] = (charges[index] ?? 0) + share;
+        excess += share;
+      }
+    };
 
-    for (let position = freeIndexes.length - 1; position >= 0 && excess < 0; position -= 1) {
-      const index = freeIndexes[position]!;
-      const isFirst = position === 0;
-      const share = isFirst ? -excess : Math.min(-excess, Math.ceil(-excess / (position + 1)));
-      charges[index] = (charges[index] ?? 0) + share;
-      excess += share;
-    }
+    const allIndexes = charges.map((_, index) => index);
+
+    growable(allIndexes.filter((index) => !carriesMoney[index]));
+    growable(
+      allIndexes.filter((index) => {
+        const row = rowByIndex.get(index);
+        return Boolean(row) && carriesMoney[index] && row!.appliedAmount < row!.existingAmountDue;
+      }),
+    );
   }
+
+  // Whatever is still unplaced is a rise with no room left anywhere.
+  const unbilledIncreaseAmount = Math.max(-excess, 0);
 
   // Pass 1 — reclaim from unpaid headroom, LATEST installment first. Parents
   // pay the early installments, so the last row is normally the one still open;
@@ -133,5 +181,5 @@ export function allocateChargesRespectingPaidFloors(payload: {
     }
   }
 
-  return { charges, residualCreditAmount, belowFloorIndexes };
+  return { charges, residualCreditAmount, unbilledIncreaseAmount, belowFloorIndexes };
 }

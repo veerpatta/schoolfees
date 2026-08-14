@@ -209,7 +209,15 @@ export async function POST(request: Request) {
       ? allDrift.filter((row) => row.drift > 0)
       : [];
 
-    if (before.length === 0) {
+    // Naming students explicitly means "repair THESE", not "repair whichever of
+    // these happen to show a money difference". A ledger can be wrong without
+    // drifting a rupee — SR 2141 moved 12 Arts -> 12 Commerce with both classes
+    // at Rs 32,000, so the installments pointed at a class the student had left
+    // while the total matched policy exactly. Scoping to `before` silently
+    // dropped that student from a run that named them.
+    const explicitStudentIds = body.studentIds ?? null;
+
+    if (before.length === 0 && !explicitStudentIds) {
       return NextResponse.json({
         ok: true,
         sessionLabel,
@@ -223,7 +231,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const scopedStudentIds = before.map((row) => row.student_id);
+    const scopedStudentIds = explicitStudentIds ?? before.map((row) => row.student_id);
     const preview = await previewLedgerGenerationDetailed({
       scopedSessionLabel: sessionLabel,
       scopedStudentIds,
@@ -240,6 +248,7 @@ export async function POST(request: Request) {
         plan: {
           installmentsToInsert: preview.installmentsToInsert,
           installmentsToUpdate: preview.installmentsToUpdate,
+          installmentsToRepoint: preview.installmentsToRepoint,
           installmentsToCancel: preview.installmentsToCancel,
           lockedInstallments: preview.lockedInstallments,
           residualCreditTotal: preview.residualCreditTotal,
@@ -290,6 +299,7 @@ export async function POST(request: Request) {
       applied: {
         installmentsToInsert: result.installmentsToInsert,
         installmentsToUpdate: result.installmentsToUpdate,
+        installmentsToRepoint: result.installmentsToRepoint,
         installmentsToCancel: result.installmentsToCancel,
         lockedInstallments: result.lockedInstallments,
         residualCreditTotal: result.residualCreditTotal,

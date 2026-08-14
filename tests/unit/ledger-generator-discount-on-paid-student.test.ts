@@ -358,3 +358,111 @@ describe("a stale label must not block a real discount", () => {
     expect(result.blockedInstallmentsForReview.map((row) => row.installmentNo)).toContain(1);
   });
 });
+
+/**
+ * The mirror-image regression, found on live 2026-27 three months after it
+ * started: a policy change that RAISES what a student owes.
+ *
+ * Eight students carried Rs 54,225 of transport that was never billed. A bus
+ * route was added mid-year, the engine computed the higher total correctly, and
+ * then could not write it anywhere — every installment carried a payment, and
+ * ANY increase on a row carrying money was refused. The plan collapsed to no
+ * change at all, so nothing was written, nothing was blocked, and nothing was
+ * reported. The ledger simply asked for less than the policy, and every screen
+ * agreed with the ledger.
+ */
+describe("a fee rise on a student who has already paid", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getFeeSetupPageData.mockResolvedValue(setupData);
+  });
+
+  it("lands on a partly-paid installment rather than evaporating", async () => {
+    // SR 2608's shape: installments 1-3 settled, installment 4 carrying
+    // Rs 3,100 of its Rs 4,000. No empty row exists anywhere.
+    buildWorkbookInstallmentCharges.mockReturnValue({
+      installmentCharges: [7500, 7500, 7500, 7500],
+      grossBaseBeforeDiscount: 30000,
+      discountApplied: 0,
+      baseTotalDue: 30000,
+    });
+    const updates = mockDb({
+      installments: [installment(1, 5000), installment(2, 5000), installment(3, 5000), installment(4, 5000)],
+      payments: [
+        { installment_id: "inst-1", amount: 5000 },
+        { installment_id: "inst-2", amount: 5000 },
+        { installment_id: "inst-3", amount: 5000 },
+        { installment_id: "inst-4", amount: 4000 },
+      ],
+    });
+
+    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
+
+    const byId = new Map(updates.map((row) => [row.id, row.values]));
+
+    // The three settled rows are finished bills and do not move.
+    for (const id of ["inst-1", "inst-2", "inst-3"]) {
+      expect(byId.get(id)?.base_amount ?? 5000).toBe(5000);
+    }
+    // The whole Rs 10,000 rise (20,000 -> 30,000) lands on the one row still
+    // owing. The receipt for Rs 4,000 stays true; only what remains owed moves,
+    // from Rs 1,000 to Rs 11,000.
+    expect(byId.get("inst-4")?.base_amount).toBe(15000);
+    expect(result.underBilledStudents).toEqual([]);
+    expect(result.underBilledTotal).toBe(0);
+  });
+
+  it("reports the shortfall when every installment is settled", async () => {
+    // Nothing can absorb the rise without re-billing a finished installment,
+    // so the engine writes nothing — and says so, which is the entire point.
+    buildWorkbookInstallmentCharges.mockReturnValue({
+      installmentCharges: [7500, 7500, 7500, 7500],
+      grossBaseBeforeDiscount: 30000,
+      discountApplied: 0,
+      baseTotalDue: 30000,
+    });
+    mockDb({
+      installments: [installment(1, 5000), installment(2, 5000), installment(3, 5000), installment(4, 5000)],
+      payments: [
+        { installment_id: "inst-1", amount: 5000 },
+        { installment_id: "inst-2", amount: 5000 },
+        { installment_id: "inst-3", amount: 5000 },
+        { installment_id: "inst-4", amount: 5000 },
+      ],
+    });
+
+    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
+
+    expect(result.underBilledStudents).toHaveLength(1);
+    expect(result.underBilledStudents[0]?.admissionNo).toBe("2261");
+    expect(result.underBilledStudents[0]?.unbilledIncreaseAmount).toBe(10000);
+    expect(result.underBilledTotal).toBe(10000);
+  });
+
+  it("re-points a ledger left behind by a class move", async () => {
+    // SR 2141 moved 12 Arts -> 12 Commerce and the installments kept pointing
+    // at the old class. Both classes charged Rs 32,000, so no amount changed
+    // and `differs()` — which compared everything BUT class_id — saw nothing to
+    // do. Every per-class board billed the money to a class the student left.
+    buildWorkbookInstallmentCharges.mockReturnValue({
+      installmentCharges: [5000, 5000, 5000, 5000],
+      grossBaseBeforeDiscount: 20000,
+      discountApplied: 0,
+      baseTotalDue: 20000,
+    });
+    const stale = [installment(1, 5000), installment(2, 5000), installment(3, 5000), installment(4, 5000)].map(
+      (row) => ({ ...row, class_id: "class-old" }),
+    );
+    const updates = mockDb({ installments: stale, payments: [] });
+
+    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
+
+    expect(updates).not.toHaveLength(0);
+    for (const update of updates) {
+      expect(update.values.class_id).toBe("class-1");
+    }
+  });
+});

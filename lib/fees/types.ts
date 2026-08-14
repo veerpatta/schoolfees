@@ -31,6 +31,23 @@ export type ConfigChangeImpactPreview = {
   blockedFullyPaidInstallments: number;
   blockedPartiallyPaidInstallments: number;
   blockedAdjustedInstallments: number;
+  /**
+   * Blocked because an active EMI plan covers the row. Counted in
+   * `blockedInstallments` but in none of the three buckets above, so before
+   * this existed an EMI-blocked row was simply invisible in the breakdown.
+   */
+  blockedRepaymentPlanInstallments: number;
+  /**
+   * Students this change would leave BELOW their own fee policy, because every
+   * installment they have is already settled and the rise has nowhere to go.
+   *
+   * The preview used to report only "rows held for review", which reads as a
+   * safety guarantee. It is the opposite: those students are under-billed the
+   * moment the change is published, and nothing said so until a hand audit
+   * found Rs 54,225 across eight of them three months later.
+   */
+  studentsLeftBelowPolicy: number;
+  amountLeftBelowPolicy: number;
   updatesLimitedToFutureUnpaid: boolean;
   rowsMarkedForReview: number;
   classRowsUpdated?: number;

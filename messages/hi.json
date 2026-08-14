@@ -771,7 +771,8 @@
     "stagePublished": "प्रकाशित",
     "stageDraftEdited": "मसौदा संपादित",
     "tuitionDecrease": "{label} की वार्षिक ट्यूशन घटाएँ",
-    "tuitionIncrease": "{label} की वार्षिक ट्यूशन बढ़ाएँ"
+    "tuitionIncrease": "{label} की वार्षिक ट्यूशन बढ़ाएँ",
+    "previewLeftBelowPolicy": "{count, plural, one {# बच्चा} other {# बच्चे}} अपनी फीस पॉलिसी से {amount} कम पर रह जाएंगे — उनकी सारी किस्तें पहले ही चुक चुकी हैं, इसलिए यह बढ़ोतरी जोड़ी नहीं जा सकती। पब्लिश करने से यह ठीक नहीं होगा।"
   },
   "Activity": {
     "kindPaymentPosted": "भुगतान दर्ज हुआ",

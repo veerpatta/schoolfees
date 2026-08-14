@@ -366,6 +366,11 @@ express the school's rule and never fired once:
 - `20260812150000_dashboard_analytics` — one query for everything below the money band.
 - `20260812170000_dashboard_analytics_carries_route_recovery` — folds route recovery in,
   deleting a 507-row transfer that was grouped in Node.
+- `20260814090000_widen_blocked_installment_reason_codes` — the two reason-code
+  CHECKs never grew with the code. `in_repayment_plan` failed every Fee Setup
+  publish that touched an EMI-covered installment; `discount_reduces_unpaid`
+  failed the regeneration rows the discount fix exists to write. Adds both, plus
+  `charge_rise_on_unsettled` for a rise written to an unsettled installment.
 
 ## When you add a new migration
 

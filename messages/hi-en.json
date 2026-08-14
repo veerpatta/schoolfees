@@ -771,7 +771,8 @@
     "stagePublished": "Published",
     "stageDraftEdited": "Draft edited",
     "tuitionDecrease": "{label} ki varshik tuition ghatayein",
-    "tuitionIncrease": "{label} ki varshik tuition badhayein"
+    "tuitionIncrease": "{label} ki varshik tuition badhayein",
+    "previewLeftBelowPolicy": "{count, plural, one {# bachha} other {# bachhe}} apni fee policy se {amount} kam par reh jayenge — unki saari kisten pehle hi chuk chuki hain, isliye ye badhotri jodi nahi ja sakti. Publish karne se ye theek nahi hoga."
   },
   "Activity": {
     "kindPaymentPosted": "Payment darj hua",

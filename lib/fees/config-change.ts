@@ -987,6 +987,11 @@ function buildImpactPreview(payload: {
   const blockedAdjustedInstallments = payload.detailedPreview.blockedInstallmentsForReview.filter(
     (item) => item.reasonCode === "adjustment_posted",
   ).length;
+  const blockedRepaymentPlanInstallments =
+    payload.detailedPreview.blockedInstallmentsForReview.filter(
+      (item) => item.reasonCode === "in_repayment_plan",
+    ).length;
+  const underBilled = payload.detailedPreview.underBilledStudents;
 
   return {
     scope: payload.scope,
@@ -1002,6 +1007,12 @@ function buildImpactPreview(payload: {
     blockedFullyPaidInstallments,
     blockedPartiallyPaidInstallments,
     blockedAdjustedInstallments,
+    blockedRepaymentPlanInstallments,
+    studentsLeftBelowPolicy: underBilled.length,
+    amountLeftBelowPolicy: underBilled.reduce(
+      (total, row) => total + row.unbilledIncreaseAmount,
+      0,
+    ),
     updatesLimitedToFutureUnpaid: true,
     rowsMarkedForReview: payload.detailedPreview.lockedInstallments,
   };

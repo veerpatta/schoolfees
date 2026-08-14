@@ -248,7 +248,7 @@ describe("a reduction never has to raise a paid row to land", () => {
     expect(sum(result.charges.slice(1))).toBe(14250);
   });
 
-  it("still refuses to grow a paid row when there is nowhere else to put it", () => {
+  it("still refuses to grow a SETTLED row, and reports what it could not bill", () => {
     const result = allocateChargesRespectingPaidFloors({
       plannedCharges: [9000, 9000],
       plannedTotal: 18000,
@@ -258,9 +258,99 @@ describe("a reduction never has to raise a paid row to land", () => {
       ],
     });
 
-    // Both rows carry money, so the allocator leaves them where they are and
-    // lets classifyInstallmentLock report the shortfall for review.
+    // Both rows are settled — a finished bill — so the rise stays unwritten.
     expect(result.charges).toEqual([5000, 5000]);
     expect(result.residualCreditAmount).toBe(0);
+
+    // …but it is REPORTED. This is the half that was missing: the allocator used
+    // to return quietly here, the generator saw no difference, and Rs 8,000 of
+    // policy simply evaporated. Live 2026-27 lost Rs 13,600 on SR 2608 and
+    // Rs 10,000 on SR 2511 to exactly this silence.
+    expect(result.unbilledIncreaseAmount).toBe(8000);
+  });
+
+  it("grows a partly-paid row once the empty ones are used up", () => {
+    // SR 2608's shape: installments 1-3 settled, installment 4 carrying
+    // Rs 3,100 of its Rs 4,000, and a bus route added mid-year. There is no
+    // empty row anywhere, so the old rule dropped the whole Rs 13,600.
+    //
+    // Raising installment 4 contradicts nothing: the receipt still says
+    // Rs 3,100 was received. Only what remains owed moves.
+    const result = allocateChargesRespectingPaidFloors({
+      plannedCharges: [8350, 7250, 7250, 7250],
+      plannedTotal: 30100,
+      rows: [
+        { index: 0, existingAmountDue: 4500, appliedAmount: 4500 },
+        { index: 1, existingAmountDue: 4000, appliedAmount: 4000 },
+        { index: 2, existingAmountDue: 4000, appliedAmount: 4000 },
+        { index: 3, existingAmountDue: 4000, appliedAmount: 3100 },
+      ],
+    });
+
+    expect(sum(result.charges)).toBe(30100);
+    expect(result.charges.slice(0, 3)).toEqual([4500, 4000, 4000]); // settled, untouched
+    expect(result.charges[3]).toBe(17600);
+    expect(result.unbilledIncreaseAmount).toBe(0);
+  });
+
+  it("prefers the empty rows and leaves the partly-paid one alone when they suffice", () => {
+    // Stage 2 is a fallback, not a first choice. With an empty installment
+    // available the rise lands there and the row carrying money does not move,
+    // so the common case behaves exactly as it did before.
+    const result = allocateChargesRespectingPaidFloors({
+      plannedCharges: [7625, 7125, 7125, 7125],
+      plannedTotal: 29000,
+      rows: [
+        { index: 0, existingAmountDue: 4750, appliedAmount: 4750 },
+        { index: 1, existingAmountDue: 4250, appliedAmount: 4250 },
+        { index: 2, existingAmountDue: 7125, appliedAmount: 5750 },
+        { index: 3, existingAmountDue: 7125, appliedAmount: 0 },
+      ],
+    });
+
+    expect(sum(result.charges)).toBe(29000);
+    expect(result.charges[2]).toBe(7125); // partly paid, untouched — row 4 had room
+    expect(result.charges[3]).toBe(12875);
+    expect(result.unbilledIncreaseAmount).toBe(0);
+  });
+
+  it("bills what it can and reports only the remainder", () => {
+    // Partial success must not read as total success. One row has Rs 1,000 of
+    // headroom against a Rs 5,000 rise; Rs 4,000 stays unbillable.
+    const result = allocateChargesRespectingPaidFloors({
+      plannedCharges: [7500, 7500],
+      plannedTotal: 15000,
+      rows: [
+        { index: 0, existingAmountDue: 5000, appliedAmount: 5000 },
+        { index: 1, existingAmountDue: 5000, appliedAmount: 4000 },
+      ],
+    });
+
+    expect(result.charges[0]).toBe(5000);
+    expect(result.charges[1]).toBe(10000);
+    expect(sum(result.charges)).toBe(15000);
+    expect(result.unbilledIncreaseAmount).toBe(0);
+  });
+
+  it("leaves a reduction untouched by the increase rule", () => {
+    // The stage-2 path must never fire on a discount. A partly-paid row still
+    // falls only to its floor, and nothing goes up.
+    const rows: PaidFloorRow[] = [
+      { index: 0, existingAmountDue: 8000, appliedAmount: 8000 },
+      { index: 1, existingAmountDue: 7000, appliedAmount: 1000 },
+      { index: 2, existingAmountDue: 7000, appliedAmount: 0 },
+      { index: 3, existingAmountDue: 7000, appliedAmount: 0 },
+    ];
+    const result = allocateChargesRespectingPaidFloors({
+      plannedCharges: [6750, 6750, 6750, 6750],
+      plannedTotal: 27000,
+      rows,
+    });
+
+    expect(sum(result.charges)).toBe(27000);
+    for (const row of rows) {
+      expect(result.charges[row.index]!).toBeLessThanOrEqual(row.existingAmountDue);
+    }
+    expect(result.unbilledIncreaseAmount).toBe(0);
   });
 });
