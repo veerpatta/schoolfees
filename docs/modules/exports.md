@@ -14,9 +14,11 @@ Top-level office download center for XLSX files.
 
 ## Current Common Exports
 
-All ten `exportType` values, from `app/protected/exports/[exportType]/route.ts`:
+All eleven `exportType` values, from `app/protected/exports/[exportType]/route.ts`:
 
 - `all-students`
+- `student-master` — the full student record, including the 25 optional
+  information fields; treat the download as an identity document
 - `class-wise-dues`
 - `defaulters` (filtered exports match the on-screen Defaulters filters)
 - `receipt-register`
@@ -41,7 +43,11 @@ self-describing so a model needs no extra context:
   `Payments`, `Adjustments` (append-only corrections/reversals incl. refunds),
   `Refunds`, `Classes`, `Routes`, `Discounts`, `Defaulters`,
   `Recovery Follow-Up`, `Previous Year Dues`, `Left Student Recovery`,
-  `Sessions`.
+  `EMI Plans`, `EMI Schedule`, `Sessions`.
+
+The `Students` sheet carries the student-information fields and keeps fees
+pending separate from late fee pending. The EMI sheets are required to interpret
+whether a family is on track against an agreed monthly calendar.
 
 The recovery sheets use the same read models as Defaulters and Admin Tools:
 contact/promise/no-call context for active defaulters, carry-forward balances

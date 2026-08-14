@@ -33,6 +33,7 @@ today_fee_collection_brief
 list_defaulters_for_followup
 get_student_due_status
 get_class_due_summary
+get_dashboard_analytics
 get_ai_analysis_context
 get_student_financial_history
 get_recent_payments
@@ -62,6 +63,8 @@ Default to session 2026-27 unless the user explicitly asks for TEST-2026-27,
 UAT-2026-27, or DEMO-2026-27.
 
 Prefer daily_recovery_digest for the morning recovery run. Use
+get_dashboard_analytics when the user asks for the live Dashboard's collection,
+recovery, class, route, debt-age, or late-fee boards. Use
 get_ai_analysis_context when the user asks for full-app analysis, dashboard-like
 summaries, or the AI Excel export context. For follow-up questions, use
 get_recovery_queue, get_promise_due_list, get_parent_followup_context,
@@ -77,6 +80,10 @@ The tools are read-only. Draft WhatsApp/SMS messages only. Never claim a message
 was sent, never claim a payment was posted, and never write or change school fee
 records. If a parent pays by UPI, say that the office must verify the
 screenshot/UTR and post the receipt from Payment Desk.
+
+Respect active EMI plans. Do not ask an on-track family for the full underlying
+balance. Use only the recovery amount returned by the MCP, which follows the
+EMI calendar plus any uncovered overdue dues.
 ```
 
 ## 3. Scheduled Task Prompt

@@ -35,7 +35,8 @@ function okJson(data: unknown) {
   });
 }
 
-function installSupabaseMock() {
+function installSupabaseMock(options?: { repaymentPlan?: Record<string, unknown> | null; contacts?: unknown[] }) {
+  const repaymentPlan = options?.repaymentPlan ?? null;
   const financialRow = {
     student_id: "student-1",
     admission_no: "ADM1234",
@@ -90,7 +91,7 @@ function installSupabaseMock() {
       return okJson([financialRow]);
     }
     if (table === "defaulter_contacts") {
-      return okJson([
+      return okJson(options?.contacts ?? [
         {
           student_id: "student-1",
           contacted_at: "2026-06-01T04:30:00.000Z",
@@ -100,6 +101,41 @@ function installSupabaseMock() {
           phone_label: "father",
         },
       ]);
+    }
+    if (table === "v_student_repayment_plan_status") {
+      return okJson(repaymentPlan ? [repaymentPlan] : []);
+    }
+    if (table === "student_repayment_plan_items") {
+      return okJson(
+        repaymentPlan
+          ? [{ plan_id: "plan-1", student_id: "student-1", installment_id: "installment-1" }]
+          : [],
+      );
+    }
+    if (table === "get_dashboard_analytics") {
+      return okJson({
+        sessionLabel: "2026-27",
+        debtAge: [],
+        lateFee: {
+          charged: 0,
+          waived: 0,
+          pending: 0,
+          studentsWithPending: 0,
+          byWaiverSource: [],
+          nextAccrual: { dueDate: null, amount: 0, installments: 0 },
+        },
+        monthlyCollection: [],
+        classRecovery: [],
+        routeRecovery: [],
+        concentration: {
+          studentsWithDues: 1,
+          totalPending: 22000,
+          top10Amount: 22000,
+          top10Pct: 100,
+          top50Amount: 22000,
+          top50Pct: 100,
+        },
+      });
     }
     if (table === "student_collection_flags") {
       return okJson([]);
@@ -203,6 +239,9 @@ describe("schoolfees Worker MCP tools", () => {
     const financialHistoryTool = body.result.tools.find(
       (item: { name: string }) => item.name === "get_student_financial_history",
     );
+    const dashboardAnalyticsTool = body.result.tools.find(
+      (item: { name: string }) => item.name === "get_dashboard_analytics",
+    );
 
     expect(dailyDigestTool).toBeTruthy();
     expect(dailyDigestTool.annotations.readOnlyHint).toBe(true);
@@ -213,6 +252,8 @@ describe("schoolfees Worker MCP tools", () => {
     expect(financialHistoryTool).toBeTruthy();
     expect(financialHistoryTool.annotations.readOnlyHint).toBe(true);
     expect(financialHistoryTool.annotations.destructiveHint).toBe(false);
+    expect(dashboardAnalyticsTool).toBeTruthy();
+    expect(dashboardAnalyticsTool.annotations.readOnlyHint).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -314,7 +355,10 @@ describe("schoolfees Worker MCP tools", () => {
         "Left Student Recovery",
       ]),
     );
-    expect(context.aiWorkbookExport.sheetCoverage).toHaveLength(20);
+    expect(context.aiWorkbookExport.sheetCoverage).toEqual(
+      expect.arrayContaining(["EMI Plans", "EMI Schedule"]),
+    );
+    expect(context.aiWorkbookExport.sheetCoverage).toHaveLength(22);
     expect(context.summary.studentCount).toBe(1);
     expect(context.summary.moneySegments).toMatchObject({ partly_paid: 1 });
     expect(context.topOutstandingRows[0]).toMatchObject({
@@ -370,5 +414,71 @@ describe("schoolfees Worker MCP tools", () => {
       installmentLabel: "Installment 1",
       amount: 2500,
     });
+  });
+
+  it("does not chase an on-track EMI family for the full underlying balance", async () => {
+    installSupabaseMock({
+      contacts: [],
+      repaymentPlan: {
+        plan_id: "plan-1",
+        student_id: "student-1",
+        session_label: "2026-27",
+        scope: "old_and_current",
+        lifecycle: "active",
+        opening_balance: 22000,
+        monthly_amount: 5000,
+        first_due_date: "2026-09-20",
+        term_months: 5,
+        final_installment_amount: 2000,
+        waived_late_fee_total: 0,
+        reason: "Test plan",
+        activated_at: "2026-08-14T00:00:00.000Z",
+        item_count: 1,
+        remaining_balance: 22000,
+        paid_to_date: 0,
+        expected_to_date: 0,
+        expected_overdue: 0,
+        catch_up_amount: 0,
+        missed_installment_count: 0,
+        paid_installment_count: 0,
+        next_due_sequence_no: 1,
+        next_due_date: "2026-09-20",
+        next_due_amount: 5000,
+        end_date: "2027-01-20",
+        payment_status: "upcoming",
+        plan_review_needed: false,
+      },
+    });
+    const { default: worker } = await loadWorker();
+
+    const queueResponse = await worker.fetch(
+      mcpRequest({
+        jsonrpc: "2.0",
+        id: 5,
+        method: "tools/call",
+        params: {
+          name: "get_recovery_queue",
+          arguments: { sessionLabel: "2026-27", limit: 10 },
+        },
+      }),
+      env,
+    );
+    const queueBody = await queueResponse.json();
+    expect(queueBody.result.structuredContent.rows).toEqual([]);
+
+    const draftResponse = await worker.fetch(
+      mcpRequest({
+        jsonrpc: "2.0",
+        id: 6,
+        method: "tools/call",
+        params: {
+          name: "prepare_followup_messages",
+          arguments: { sessionLabel: "2026-27", limit: 10 },
+        },
+      }),
+      env,
+    );
+    const draftBody = await draftResponse.json();
+    expect(draftBody.result.structuredContent.drafts).toEqual([]);
   });
 });

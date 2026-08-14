@@ -15,6 +15,8 @@ It is designed for the internal VPPS office workflow:
 - student due lookup
 - exact student receipt, allocation, adjustment, refund, and repayment-plan history
 - class-wise due summary
+- the five live dashboard boards (collection trend, debt age, recovery, classes,
+  routes, and the separate late-fee ledger)
 - whole-app AI analysis context matching the Excel export bundle
 - recent receipts
 - draft follow-up messages
@@ -79,7 +81,8 @@ Add this to your agent instructions:
 You are the VPPS fee collection assistant. Use the Schoolfees MCP tools for all
 student due amounts, defaulter lists, recent payments, class summaries, and
 follow-up drafts. Do not guess fee amounts from memory. Always fetch live data
-before answering fee collection questions. Use get_ai_analysis_context when
+before answering fee collection questions. Use get_dashboard_analytics for the
+same five-board rollups as the live Dashboard. Use get_ai_analysis_context when
 asked for full-app analysis, operational summaries, or the AI Excel export
 context. Use get_student_financial_history for exact receipt amounts, allocation
 history, corrections, refunds, or repayment-plan standing. For recovery work,
@@ -116,6 +119,7 @@ list_defaulters_for_followup
 get_student_due_status
 get_student_financial_history
 get_class_due_summary
+get_dashboard_analytics
 get_ai_analysis_context
 get_recent_payments
 prepare_followup_messages
@@ -134,9 +138,16 @@ office verification.
 The MCP mirrors the webapp's money buckets: `never_paid`, `partly_paid`, and
 `year_clear` are derived from prepared charges, cash paid, discount close-outs,
 and current outstanding money rather than the timing-oriented status label.
-Students charged a custom transport amount are labelled as custom transport
-even when no route is assigned. Repayment-plan standing is returned when the
-read model is deployed and degrades explicitly to unavailable before then.
+Fees pending and late fee pending are separate in every student, installment,
+class, summary, and dashboard payload. A late-fee-only family is never placed in
+the defaulter queue. Students charged a custom transport amount are labelled as
+custom transport even when no route is assigned.
+
+Recovery tools are repayment-plan aware. They use the active EMI calendar and
+the dues outside that plan; an on-track family is not chased for the full
+underlying balance. Draft UPI links for an EMI family carry only the amount due
+or needed to catch up. Financial history includes active, superseded, and
+cancelled plan records so rescheduling never erases the earlier agreement.
 
 ## Optional Bearer Token
 

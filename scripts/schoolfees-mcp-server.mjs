@@ -25,7 +25,8 @@ const ALLOWED_HOSTS = (process.env.SCHOOLFEES_MCP_ALLOWED_HOSTS || "")
   .map((host) => host.trim())
   .filter(Boolean);
 const MAX_ROWS = 5000;
-const SERVER_VERSION = "0.4.0";
+const SUPABASE_PAGE_SIZE = 1000;
+const SERVER_VERSION = "0.5.0";
 
 const AI_WORKBOOK_SHEETS = [
   "_README",
@@ -38,6 +39,8 @@ const AI_WORKBOOK_SHEETS = [
   "Classes",
   "Routes",
   "Fee Overrides",
+  "EMI Plans",
+  "EMI Schedule",
   "Late Fee Waivers",
   "Class Fee Settings",
   "Siblings",
@@ -175,15 +178,60 @@ const installmentFields = [
   "student_id",
   "installment_no",
   "installment_label",
+  "is_carry_forward",
+  "source_session_label",
+  "is_emi_late_fee",
   "due_date",
   "base_charge",
   "paid_amount",
+  "applied_amount",
+  "discount_closeout_amount",
   "adjustment_amount",
+  "raw_late_fee",
+  "waiver_applied",
   "final_late_fee",
   "total_charge",
   "pending_amount",
+  "late_fee_pending",
+  "total_pending",
   "balance_status",
+  "late_fee_status",
   "last_payment_date",
+].join(", ");
+
+const repaymentPlanFields = [
+  "plan_id",
+  "student_id",
+  "session_label",
+  "scope",
+  "lifecycle",
+  "opening_balance",
+  "monthly_amount",
+  "first_due_date",
+  "term_months",
+  "final_installment_amount",
+  "waived_late_fee_total",
+  "reason",
+  "supersedes_plan_id",
+  "superseded_by_plan_id",
+  "activated_at",
+  "activated_by_label",
+  "cancelled_at",
+  "cancellation_reason",
+  "item_count",
+  "remaining_balance",
+  "paid_to_date",
+  "expected_to_date",
+  "expected_overdue",
+  "catch_up_amount",
+  "missed_installment_count",
+  "paid_installment_count",
+  "next_due_sequence_no",
+  "next_due_date",
+  "next_due_amount",
+  "end_date",
+  "payment_status",
+  "plan_review_needed",
 ].join(", ");
 
 const contactFields = [
@@ -261,6 +309,13 @@ function todayIst() {
   }).format(new Date());
 }
 
+function daysOverdue(dueDate, today = todayIst()) {
+  if (!dueDate || !today || dueDate >= today) return 0;
+  const due = new Date(`${dueDate}T00:00:00+05:30`).getTime();
+  const current = new Date(`${today}T00:00:00+05:30`).getTime();
+  return Math.max(0, Math.floor((current - due) / 86_400_000));
+}
+
 function dateDaysAgo(days) {
   const date = new Date();
   date.setDate(date.getDate() - days);
@@ -328,6 +383,7 @@ function mapFinancialRow(row) {
   const totalPaid = number(row.total_paid);
   const discountCloseoutAmount = number(row.total_discount_closeouts);
   const outstandingAmount = number(row.outstanding_amount);
+  const lateFeeOutstandingAmount = number(row.late_fee_outstanding_amount);
 
   return {
     studentId: row.student_id,
@@ -344,15 +400,21 @@ function mapFinancialRow(row) {
     studentStatus: row.student_status_label,
     grossBaseBeforeDiscount: number(row.gross_base_before_discount),
     baseChargeTotal,
+    feesExpectedAmount: baseChargeTotal,
     totalDue: number(row.total_due),
     totalPaid,
     discountCloseoutAmount,
     outstandingAmount,
+    feesPendingAmount: outstandingAmount,
     baseOutstandingAmount: number(row.base_outstanding_amount ?? row.outstanding_amount),
-    lateFeeOutstandingAmount: number(row.late_fee_outstanding_amount),
+    lateFeeOutstandingAmount,
+    lateFeePendingAmount: lateFeeOutstandingAmount,
+    totalCollectableAmount: outstandingAmount + lateFeeOutstandingAmount,
     lateFeeTotal: number(row.late_fee_total),
+    lateFeeChargedAmount: number(row.late_fee_total),
     discountAmount: number(row.discount_amount),
     lateFeeWaived: number(row.late_fee_waiver_amount),
+    lateFeeWaivedAmount: number(row.late_fee_waiver_amount),
     nextDueDate: row.next_due_date,
     nextDueAmount: row.next_due_amount == null ? null : number(row.next_due_amount),
     nextDueLabel: row.next_due_label,
@@ -384,9 +446,14 @@ function summarizeFinancialRows(rows) {
     (acc, row) => {
       acc.studentCount += 1;
       acc.totalDue += number(row.total_due);
+      acc.totalExpectedFees += number(row.base_charge_total ?? row.total_due);
       acc.totalPaid += number(row.total_paid);
       acc.totalOutstanding += number(row.outstanding_amount);
       acc.totalLateFee += number(row.late_fee_total);
+      acc.totalLateFeeWaived += number(row.late_fee_waiver_amount);
+      acc.totalLateFeePending += number(row.late_fee_outstanding_amount);
+      acc.totalCollectable +=
+        number(row.outstanding_amount) + number(row.late_fee_outstanding_amount);
       acc.totalDiscount += number(row.discount_amount);
       acc.moneySegments[moneySegment(row)] += 1;
       if (number(row.outstanding_amount) > 0) {
@@ -395,16 +462,24 @@ function summarizeFinancialRows(rows) {
       if (number(row.overdue_installment_count) > 0) {
         acc.overdueStudentCount += 1;
       }
+      if (number(row.late_fee_outstanding_amount) > 0) {
+        acc.lateFeePendingStudentCount += 1;
+      }
       return acc;
     },
     {
       studentCount: 0,
       pendingStudentCount: 0,
       overdueStudentCount: 0,
+      lateFeePendingStudentCount: 0,
       totalDue: 0,
+      totalExpectedFees: 0,
       totalPaid: 0,
       totalOutstanding: 0,
       totalLateFee: 0,
+      totalLateFeeWaived: 0,
+      totalLateFeePending: 0,
+      totalCollectable: 0,
       totalDiscount: 0,
       moneySegments: {
         never_paid: 0,
@@ -447,6 +522,37 @@ async function getFinancialRows({
   return data || [];
 }
 
+function mapInstallmentRow(row) {
+  return {
+    installmentId: row.installment_id,
+    studentId: row.student_id,
+    installmentNo: row.installment_no,
+    installmentLabel: row.installment_label,
+    isCarryForward: row.is_carry_forward === true,
+    sourceSessionLabel: row.source_session_label || null,
+    isEmiLateFee: row.is_emi_late_fee === true,
+    dueDate: row.due_date,
+    baseCharge: number(row.base_charge),
+    paidAmount: number(row.paid_amount),
+    appliedAmount: number(row.applied_amount ?? row.paid_amount),
+    discountCloseoutAmount: number(row.discount_closeout_amount),
+    adjustmentAmount: number(row.adjustment_amount),
+    rawLateFee: number(row.raw_late_fee),
+    lateFeeWaivedAmount: number(row.waiver_applied),
+    lateFee: number(row.final_late_fee),
+    totalCharge: number(row.total_charge),
+    pendingAmount: number(row.pending_amount),
+    feesPendingAmount: number(row.pending_amount),
+    lateFeePendingAmount: number(row.late_fee_pending),
+    totalCollectableAmount: number(
+      row.total_pending ?? number(row.pending_amount) + number(row.late_fee_pending),
+    ),
+    balanceStatus: row.balance_status,
+    lateFeeStatus: row.late_fee_status || "none",
+    lastPaymentDate: row.last_payment_date,
+  };
+}
+
 async function getInstallmentRows(studentId) {
   const { data, error } = await supabase
     .from("v_workbook_installment_balances")
@@ -459,20 +565,71 @@ async function getInstallmentRows(studentId) {
     throw new Error(`Unable to load installment data: ${error.message}`);
   }
 
-  return (data || []).map((row) => ({
-    installmentId: row.installment_id,
-    installmentNo: row.installment_no,
-    installmentLabel: row.installment_label,
-    dueDate: row.due_date,
-    baseCharge: number(row.base_charge),
-    paidAmount: number(row.paid_amount),
-    adjustmentAmount: number(row.adjustment_amount),
-    lateFee: number(row.final_late_fee),
-    totalCharge: number(row.total_charge),
-    pendingAmount: number(row.pending_amount),
-    balanceStatus: row.balance_status,
-    lastPaymentDate: row.last_payment_date,
-  }));
+  return (data || []).map(mapInstallmentRow);
+}
+
+async function getSessionInstallmentRows(sessionLabel) {
+  const rows = [];
+
+  while (rows.length < MAX_ROWS) {
+    const pageSize = Math.min(SUPABASE_PAGE_SIZE, MAX_ROWS - rows.length);
+    const { data, error } = await supabase
+      .from("v_workbook_installment_balances")
+      .select(installmentFields)
+      .eq("session_label", sessionLabel)
+      .order("due_date", { ascending: true })
+      .order("installment_no", { ascending: true })
+      .order("installment_id", { ascending: true })
+      .range(rows.length, rows.length + pageSize - 1);
+
+    if (error) {
+      throw new Error(`Unable to load session installment data: ${error.message}`);
+    }
+    rows.push(...(data || []));
+    if ((data || []).length < pageSize) break;
+  }
+
+  return rows.map(mapInstallmentRow);
+}
+
+async function getActiveRepaymentPlanCoverage(sessionLabel, wantedStudentIds) {
+  try {
+    const { data: planRows, error: planError } = await supabase
+      .from("v_student_repayment_plan_status")
+      .select(repaymentPlanFields)
+      .eq("session_label", sessionLabel)
+      .eq("lifecycle", "active")
+      .limit(MAX_ROWS);
+    if (planError) throw planError;
+
+    const wanted = new Set(wantedStudentIds);
+    const plans = (planRows || [])
+      .filter((row) => wanted.has(row.student_id))
+      .map(mapRepaymentPlanRow);
+    const coverage = new Map(
+      plans.map((plan) => [
+        plan.studentId,
+        { plan, coveredInstallmentIds: new Set() },
+      ]),
+    );
+
+    for (const chunk of chunkArray(plans.map((plan) => plan.planId), 100)) {
+      if (chunk.length === 0) continue;
+      const { data: items, error: itemError } = await supabase
+        .from("student_repayment_plan_items")
+        .select("plan_id, student_id, installment_id")
+        .in("plan_id", chunk)
+        .limit(MAX_ROWS);
+      if (itemError) throw itemError;
+      for (const item of items || []) {
+        coverage.get(item.student_id)?.coveredInstallmentIds.add(item.installment_id);
+      }
+    }
+    return coverage;
+  } catch (error) {
+    console.warn("[schoolfees-mcp] repayment-plan coverage unavailable", error?.message || error);
+    return new Map();
+  }
 }
 
 function rankDefaulters(rows) {
@@ -585,6 +742,43 @@ function promiseState(summary, todayKey) {
   return "scheduled";
 }
 
+function planAwareRecoveryState(row, installments, coverage, todayKey) {
+  const mapped = mapFinancialRow(row);
+  const covered = coverage?.coveredInstallmentIds || new Set();
+  const overdueOutsidePlan = installments.filter(
+    (installment) =>
+      installment.balanceStatus === "overdue" &&
+      installment.feesPendingAmount > 0 &&
+      !covered.has(installment.installmentId),
+  );
+  const outsidePlanOverdueAmount = overdueOutsidePlan.reduce(
+    (sum, installment) => sum + installment.feesPendingAmount,
+    0,
+  );
+  const outsidePlanDueDate =
+    overdueOutsidePlan.map((installment) => installment.dueDate).filter(Boolean).sort()[0] || null;
+  const plan = coverage?.plan || null;
+  const planCatchUpAmount = plan ? Math.max(plan.catchUpAmount, 0) : 0;
+  const candidateDates = [outsidePlanDueDate, plan?.nextDueDate].filter(Boolean).sort();
+  const overdueAmount = outsidePlanOverdueAmount + planCatchUpAmount;
+
+  return {
+    ...mapped,
+    repaymentPlan: plan,
+    planAware: Boolean(plan),
+    planIsBehind: Boolean(plan && plan.missedInstallmentCount > 0),
+    overdueAmount,
+    daysOverdue: Math.max(
+      daysOverdue(outsidePlanDueDate, todayKey),
+      planCatchUpAmount > 0 ? daysOverdue(plan?.nextDueDate, todayKey) : 0,
+    ),
+    recoveryAmount: plan ? overdueAmount : mapped.outstandingAmount,
+    recoveryDueDate: candidateDates[0] || mapped.nextDueDate,
+    effectiveOverdueInstallmentCount:
+      overdueOutsidePlan.length + (plan ? plan.missedInstallmentCount : 0),
+  };
+}
+
 function recoveryReasons(row, summary, noCall, todayKey) {
   const reasons = [];
   const promise = promiseState(summary, todayKey);
@@ -592,40 +786,62 @@ function recoveryReasons(row, summary, noCall, todayKey) {
   if (promise === "broken") reasons.push("Broken promise");
   if (promise === "due_today") reasons.push("Promise due today");
   if ((summary?.noAnswerStreak || 0) >= NOT_RESPONDING_STREAK) reasons.push("Repeated no-answer");
-  if (number(row.outstanding_amount) >= HIGH_EXPOSURE_AMOUNT) reasons.push("High exposure");
-  if (number(row.overdue_installment_count) > 0) reasons.push("Overdue balance");
+  if (row.outstandingAmount >= HIGH_EXPOSURE_AMOUNT) reasons.push("High exposure");
+  if (row.planIsBehind) reasons.push("EMI missed");
+  else if (row.repaymentPlan?.paymentStatus === "due") reasons.push("EMI due now");
+  if (row.overdueAmount > 0) reasons.push("Overdue balance");
   if (reasons.length === 0) reasons.push("Pending balance");
   return reasons;
 }
 
 function recoveryScore(row, summary, noCall, todayKey) {
   if (noCall) return -1;
-  let score = number(row.overdue_installment_count) * 25;
+  let score = number(row.effectiveOverdueInstallmentCount) * 25;
   const promise = promiseState(summary, todayKey);
   if (promise === "broken") score += 90;
   if (promise === "due_today") score += 60;
-  score += Math.min(35, Math.floor(number(row.outstanding_amount) / 5000));
+  score += Math.min(35, Math.floor(number(row.recoveryAmount) / 5000));
   if ((summary?.noAnswerStreak || 0) >= NOT_RESPONDING_STREAK) score += 25;
-  if (number(row.outstanding_amount) >= HIGH_EXPOSURE_AMOUNT) score += 20;
+  if (number(row.outstandingAmount) >= HIGH_EXPOSURE_AMOUNT) score += 20;
   return score;
 }
 
-function buildRecoveryRows(financialRows, contactSummaries, noCallIds, { includeNoCall = false } = {}) {
+function buildRecoveryRows(
+  financialRows,
+  contactSummaries,
+  noCallIds,
+  installmentRowsByStudent,
+  planCoverage,
+  { includeNoCall = false, includePlanOnTrack = false } = {},
+) {
   const todayKey = todayIst();
   return financialRows
     .filter((row) => number(row.outstanding_amount) > 0)
     .map((row) => {
       const summary = contactSummaries.get(row.student_id) || null;
       const noCall = noCallIds.has(row.student_id);
+      const planAware = planAwareRecoveryState(
+        row,
+        installmentRowsByStudent.get(row.student_id) || [],
+        planCoverage.get(row.student_id) || null,
+        todayKey,
+      );
       return {
-        ...mapFinancialRow(row),
+        ...planAware,
         noCall,
         contactSummary: summary,
         promiseState: promiseState(summary, todayKey),
-        recoveryReasons: recoveryReasons(row, summary, noCall, todayKey),
-        recoveryScore: recoveryScore(row, summary, noCall, todayKey),
+        recoveryReasons: recoveryReasons(planAware, summary, noCall, todayKey),
+        recoveryScore: recoveryScore(planAware, summary, noCall, todayKey),
       };
     })
+    .filter(
+      (row) =>
+        includePlanOnTrack ||
+        row.recoveryAmount > 0 ||
+        row.promiseState === "broken" ||
+        row.promiseState === "due_today",
+    )
     .filter((row) => includeNoCall || !row.noCall)
     .sort((left, right) => {
       if (right.recoveryScore !== left.recoveryScore) return right.recoveryScore - left.recoveryScore;
@@ -637,11 +853,19 @@ function buildRecoveryRows(financialRows, contactSummaries, noCallIds, { include
 async function getRecoveryContext(sessionLabel) {
   const financialRows = await getFinancialRows({ sessionLabel });
   const studentIds = financialRows.map((row) => row.student_id).filter(Boolean);
-  const [contactSummaries, noCallIds] = await Promise.all([
+  const [contactSummaries, noCallIds, installmentRows, planCoverage] = await Promise.all([
     getContactSummaries(sessionLabel, studentIds),
     getNoCallStudentIds(sessionLabel, studentIds),
+    getSessionInstallmentRows(sessionLabel),
+    getActiveRepaymentPlanCoverage(sessionLabel, studentIds),
   ]);
-  return { financialRows, contactSummaries, noCallIds };
+  const installmentRowsByStudent = new Map();
+  for (const installment of installmentRows) {
+    const bucket = installmentRowsByStudent.get(installment.studentId) || [];
+    bucket.push(installment);
+    installmentRowsByStudent.set(installment.studentId, bucket);
+  }
+  return { financialRows, contactSummaries, noCallIds, installmentRowsByStudent, planCoverage };
 }
 
 async function getStudentIdsForSession(sessionLabel) {
@@ -714,12 +938,48 @@ async function getRecentPayments({ sessionLabel, days = 7, limit = 20 }) {
   });
 }
 
+function mapRepaymentPlanRow(row) {
+  return {
+    planId: row.plan_id,
+    studentId: row.student_id,
+    sessionLabel: row.session_label,
+    scope: row.scope,
+    lifecycle: row.lifecycle,
+    openingBalance: number(row.opening_balance),
+    monthlyAmount: number(row.monthly_amount),
+    firstDueDate: row.first_due_date,
+    termMonths: number(row.term_months),
+    finalInstallmentAmount: number(row.final_installment_amount),
+    waivedLateFeeTotal: number(row.waived_late_fee_total),
+    reason: row.reason,
+    supersedesPlanId: row.supersedes_plan_id || null,
+    supersededByPlanId: row.superseded_by_plan_id || null,
+    activatedAt: row.activated_at,
+    activatedByLabel: row.activated_by_label || null,
+    cancelledAt: row.cancelled_at || null,
+    cancellationReason: row.cancellation_reason || null,
+    itemCount: number(row.item_count),
+    remainingBalance: number(row.remaining_balance),
+    paidToDate: number(row.paid_to_date),
+    expectedToDate: number(row.expected_to_date),
+    expectedOverdue: number(row.expected_overdue),
+    catchUpAmount: number(row.catch_up_amount),
+    missedInstallmentCount: number(row.missed_installment_count),
+    paidInstallmentCount: number(row.paid_installment_count),
+    nextDueSequenceNo:
+      row.next_due_sequence_no == null ? null : number(row.next_due_sequence_no),
+    nextDueDate: row.next_due_date,
+    nextDueAmount: row.next_due_amount == null ? null : number(row.next_due_amount),
+    endDate: row.end_date,
+    paymentStatus: row.payment_status,
+    planReviewNeeded: Boolean(row.plan_review_needed),
+  };
+}
+
 async function getRepaymentPlanStatus({ studentId, sessionLabel }) {
   const { data, error } = await supabase
     .from("v_student_repayment_plan_status")
-    .select(
-      "plan_id, student_id, session_label, scope, lifecycle, opening_balance, monthly_amount, first_due_date, term_months, final_installment_amount, waived_late_fee_total, reason, activated_at, remaining_balance, paid_to_date, expected_to_date, catch_up_amount, missed_installment_count, paid_installment_count, next_due_sequence_no, next_due_date, next_due_amount, end_date, payment_status, plan_review_needed",
-    )
+    .select(repaymentPlanFields)
     .eq("student_id", studentId)
     .eq("session_label", sessionLabel)
     .eq("lifecycle", "active")
@@ -739,39 +999,31 @@ async function getRepaymentPlanStatus({ studentId, sessionLabel }) {
   const row = data?.[0] || null;
   return {
     available: true,
-    plan: row
-      ? {
-          planId: row.plan_id,
-          scope: row.scope,
-          lifecycle: row.lifecycle,
-          openingBalance: number(row.opening_balance),
-          monthlyAmount: number(row.monthly_amount),
-          firstDueDate: row.first_due_date,
-          termMonths: number(row.term_months),
-          finalInstallmentAmount: number(row.final_installment_amount),
-          waivedLateFeeTotal: number(row.waived_late_fee_total),
-          reason: row.reason,
-          activatedAt: row.activated_at,
-          remainingBalance: number(row.remaining_balance),
-          paidToDate: number(row.paid_to_date),
-          expectedToDate: number(row.expected_to_date),
-          catchUpAmount: number(row.catch_up_amount),
-          missedInstallmentCount: number(row.missed_installment_count),
-          paidInstallmentCount: number(row.paid_installment_count),
-          nextDueSequenceNo:
-            row.next_due_sequence_no == null ? null : number(row.next_due_sequence_no),
-          nextDueDate: row.next_due_date,
-          nextDueAmount: row.next_due_amount == null ? null : number(row.next_due_amount),
-          endDate: row.end_date,
-          paymentStatus: row.payment_status,
-          planReviewNeeded: Boolean(row.plan_review_needed),
-        }
-      : null,
+    plan: row ? mapRepaymentPlanRow(row) : null,
   };
 }
 
+async function getRepaymentPlanHistory({ studentId, sessionLabel }) {
+  const { data, error } = await supabase
+    .from("v_student_repayment_plan_status")
+    .select(repaymentPlanFields)
+    .eq("student_id", studentId)
+    .eq("session_label", sessionLabel)
+    .order("activated_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    if (/v_student_repayment_plan_status|PGRST205|42P01|404/i.test(`${error.code || ""} ${error.message || ""}`)) {
+      return { available: false, plans: [], note: "Repayment-plan history is unavailable." };
+    }
+    throw new Error(`Unable to load repayment-plan history: ${error.message}`);
+  }
+
+  return { available: true, plans: (data || []).map(mapRepaymentPlanRow) };
+}
+
 async function getStudentFinancialHistory({ studentId, sessionLabel, receiptLimit = 25 }) {
-  const [receiptsResult, paymentsResult, adjustmentsResult, refundsResult, installments, repaymentPlan] =
+  const [receiptsResult, paymentsResult, adjustmentsResult, refundsResult, installments, repaymentPlan, repaymentPlanHistory] =
     await Promise.all([
       supabase
         .from("receipts")
@@ -806,6 +1058,7 @@ async function getStudentFinancialHistory({ studentId, sessionLabel, receiptLimi
         .limit(MAX_ROWS),
       getInstallmentRows(studentId),
       getRepaymentPlanStatus({ studentId, sessionLabel }),
+      getRepaymentPlanHistory({ studentId, sessionLabel }),
     ]);
 
   for (const [label, result] of [
@@ -898,6 +1151,7 @@ async function getStudentFinancialHistory({ studentId, sessionLabel, receiptLimi
   return {
     receiptHistory,
     repaymentPlan,
+    repaymentPlanHistory,
     truncation: {
       receiptLimit,
       receiptsReturned: receiptHistory.length,
@@ -907,16 +1161,23 @@ async function getStudentFinancialHistory({ studentId, sessionLabel, receiptLimi
 }
 
 async function buildCollectionBrief({ sessionLabel, topDefaultersLimit = 10, recentPaymentsLimit = 10 }) {
-  const [financialRows, recentPayments] = await Promise.all([
-    getFinancialRows({ sessionLabel }),
+  const [recoveryContext, recentPayments] = await Promise.all([
+    getRecoveryContext(sessionLabel),
     getRecentPayments({ sessionLabel, days: 7, limit: recentPaymentsLimit }),
   ]);
+  const { financialRows, contactSummaries, noCallIds, installmentRowsByStudent, planCoverage } =
+    recoveryContext;
   const summary = summarizeFinancialRows(financialRows);
-  const topDefaulters = rankDefaulters(
-    financialRows.filter((row) => number(row.outstanding_amount) > 0),
-  )
-    .slice(0, topDefaultersLimit)
-    .map(mapFinancialRow);
+  const planAwareRows = buildRecoveryRows(
+    financialRows,
+    contactSummaries,
+    noCallIds,
+    installmentRowsByStudent,
+    planCoverage,
+    { includeNoCall: true },
+  );
+  summary.overdueStudentCount = planAwareRows.filter((row) => row.overdueAmount > 0).length;
+  const topDefaulters = planAwareRows.slice(0, topDefaultersLimit);
 
   return {
     sessionLabel,
@@ -928,8 +1189,16 @@ async function buildCollectionBrief({ sessionLabel, topDefaultersLimit = 10, rec
 }
 
 async function buildRecoveryQueue({ sessionLabel, limit = 25, includeNoCall = false }) {
-  const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(sessionLabel);
-  const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds, { includeNoCall })
+  const { financialRows, contactSummaries, noCallIds, installmentRowsByStudent, planCoverage } =
+    await getRecoveryContext(sessionLabel);
+  const rows = buildRecoveryRows(
+    financialRows,
+    contactSummaries,
+    noCallIds,
+    installmentRowsByStudent,
+    planCoverage,
+    { includeNoCall },
+  )
     .slice(0, limit)
     .map((row, index) => ({ rank: index + 1, ...row }));
 
@@ -942,8 +1211,15 @@ async function buildRecoveryQueue({ sessionLabel, limit = 25, includeNoCall = fa
 }
 
 async function buildPromiseDueList({ sessionLabel, limit = 25 }) {
-  const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(sessionLabel);
-  const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds)
+  const { financialRows, contactSummaries, noCallIds, installmentRowsByStudent, planCoverage } =
+    await getRecoveryContext(sessionLabel);
+  const rows = buildRecoveryRows(
+    financialRows,
+    contactSummaries,
+    noCallIds,
+    installmentRowsByStudent,
+    planCoverage,
+  )
     .filter((row) => row.promiseState === "broken" || row.promiseState === "due_today")
     .slice(0, limit)
     .map((row, index) => ({ rank: index + 1, ...row }));
@@ -978,25 +1254,35 @@ function buildRecoveryPlanFromRows({ sessionLabel, rows, language }) {
 }
 
 async function buildRecoveryPlan({ sessionLabel, limit = 30, language = "hinglish" }) {
-  const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(sessionLabel);
-  const rows = buildRecoveryRows(financialRows, contactSummaries, noCallIds).slice(0, limit);
+  const { financialRows, contactSummaries, noCallIds, installmentRowsByStudent, planCoverage } =
+    await getRecoveryContext(sessionLabel);
+  const rows = buildRecoveryRows(
+    financialRows,
+    contactSummaries,
+    noCallIds,
+    installmentRowsByStudent,
+    planCoverage,
+  ).slice(0, limit);
   return buildRecoveryPlanFromRows({ sessionLabel, rows, language });
 }
 
 function buildFollowupDraft(row, language) {
+  const amountToRequest = row.repaymentPlan ? row.recoveryAmount : row.outstandingAmount;
   const payment = buildStudentFeeUpiPayment({
     admissionNo: row.admissionNo,
-    amount: row.outstandingAmount,
+    amount: amountToRequest,
   });
-  const amount = money(row.outstandingAmount);
-  const dueText = row.nextDueDate ? ` Next due date: ${row.nextDueDate}.` : "";
+  const amount = money(amountToRequest);
+  const dueDate = row.recoveryDueDate || row.nextDueDate;
+  const dueText = dueDate ? ` Due date: ${dueDate}.` : "";
   const upiText =
     ` UPI payment link: ${payment.uri}. UPI note/reference: ${payment.displayReference}. ` +
     "After payment, please share the UPI screenshot/UTR. Receipt will be posted from Payment Desk after office verification.";
+  const amountLabel = row.repaymentPlan ? "EMI due/catch-up amount" : "pending fee";
   const text =
     language === "english"
-      ? `Dear parent, this is a reminder from Shri Veer Patta Senior Secondary School. Pending fee for ${row.studentName} (${row.classLabel}) is ${amount}.${dueText}${upiText}`
-      : `Dear parent, Shri Veer Patta Senior Secondary School se fee reminder hai. ${row.studentName} (${row.classLabel}) ki pending fee ${amount} hai.${dueText}${upiText}`;
+      ? `Dear parent, this is a reminder from Shri Veer Patta Senior Secondary School. ${amountLabel} for ${row.studentName} (${row.classLabel}) is ${amount}.${dueText}${upiText}`
+      : `Dear parent, Shri Veer Patta Senior Secondary School se fee reminder hai. ${row.studentName} (${row.classLabel}) ka ${row.repaymentPlan ? "EMI due/catch-up" : "pending fee"} ${amount} hai.${dueText}${upiText}`;
 
   return {
     studentId: row.studentId,
@@ -1004,7 +1290,9 @@ function buildFollowupDraft(row, language) {
     admissionNo: row.admissionNo,
     fatherName: row.fatherName,
     phone: row.fatherPhone || row.motherPhone,
-    pendingAmount: row.outstandingAmount,
+    pendingAmount: amountToRequest,
+    totalFeesPendingAmount: row.outstandingAmount,
+    repaymentPlan: row.repaymentPlan,
     paymentLink: payment.uri,
     paymentReference: payment.displayReference,
     upi: payment,
@@ -1019,17 +1307,19 @@ async function buildFollowupDrafts({
   limit = 10,
   language = "hinglish",
 }) {
-  const financialRows = await getFinancialRows({ sessionLabel });
-  const rows = rankDefaulters(
-    financialRows.filter((row) => {
-      if (number(row.outstanding_amount) <= 0) return false;
-      if (number(row.outstanding_amount) < minPendingAmount) return false;
-      if (overdueOnly && number(row.overdue_installment_count) === 0) return false;
-      return true;
-    }),
+  const { financialRows, contactSummaries, noCallIds, installmentRowsByStudent, planCoverage } =
+    await getRecoveryContext(sessionLabel);
+  const rows = buildRecoveryRows(
+    financialRows,
+    contactSummaries,
+    noCallIds,
+    installmentRowsByStudent,
+    planCoverage,
   )
-    .slice(0, limit)
-    .map(mapFinancialRow);
+    .filter((row) => row.recoveryAmount > 0)
+    .filter((row) => row.recoveryAmount >= minPendingAmount)
+    .filter((row) => (overdueOnly ? row.overdueAmount > 0 : true))
+    .slice(0, limit);
 
   return {
     sessionLabel,
@@ -1121,6 +1411,39 @@ function groupFinancialRows(rows, keySelector, labelSelector) {
   });
 }
 
+async function getDashboardAnalytics(sessionLabel) {
+  const { data, error } = await supabase.rpc("get_dashboard_analytics", {
+    p_session_label: sessionLabel,
+  });
+  if (error) {
+    throw new Error(`Unable to load dashboard analytics: ${error.message}`);
+  }
+  const payload = data || {};
+  return {
+    sessionLabel,
+    debtAge: payload.debtAge || [],
+    lateFee: payload.lateFee || {
+      charged: 0,
+      waived: 0,
+      pending: 0,
+      studentsWithPending: 0,
+      byWaiverSource: [],
+      nextAccrual: { dueDate: null, amount: 0, installments: 0 },
+    },
+    monthlyCollection: payload.monthlyCollection || [],
+    classRecovery: payload.classRecovery || [],
+    routeRecovery: payload.routeRecovery || [],
+    concentration: payload.concentration || {
+      studentsWithDues: 0,
+      totalPending: 0,
+      top10Amount: 0,
+      top10Pct: 0,
+      top50Amount: 0,
+      top50Pct: 0,
+    },
+  };
+}
+
 async function buildAiAnalysisContext({
   sessionLabel,
   includeStudentRows = false,
@@ -1128,9 +1451,10 @@ async function buildAiAnalysisContext({
   topOutstandingLimit = 25,
   recentPaymentsLimit = 10,
 }) {
-  const [allFinancialRows, recentPayments] = await Promise.all([
+  const [allFinancialRows, recentPayments, dashboardAnalytics] = await Promise.all([
     getFinancialRows({ sessionLabel, onlyActive: false }),
     getRecentPayments({ sessionLabel, days: 14, limit: recentPaymentsLimit }),
+    getDashboardAnalytics(sessionLabel),
   ]);
   const summary = summarizeFinancialRows(allFinancialRows);
   const topOutstandingRows = rankDefaulters(
@@ -1166,6 +1490,7 @@ async function buildAiAnalysisContext({
       note: "Use the web app AI context bundle when a file with every row is needed for offline analysis.",
     },
     summary,
+    dashboardAnalytics,
     classSummaries: groupFinancialRows(
       allFinancialRows,
       (row) => row.class_id,
@@ -1256,27 +1581,33 @@ function createServer() {
       annotations: readOnly,
     },
     async ({ sessionLabel, classId, minPendingAmount, overdueOnly, limit }) => {
-      const financialRows = await getFinancialRows({ sessionLabel, classId });
-      const rows = rankDefaulters(
-        financialRows.filter((row) => {
-          if (number(row.outstanding_amount) <= 0) return false;
-          if (number(row.outstanding_amount) < minPendingAmount) return false;
-          if (overdueOnly && number(row.overdue_installment_count) === 0) return false;
-          return true;
-        }),
+      const { financialRows, contactSummaries, noCallIds, installmentRowsByStudent, planCoverage } =
+        await getRecoveryContext(sessionLabel);
+      const rows = buildRecoveryRows(
+        financialRows,
+        contactSummaries,
+        noCallIds,
+        installmentRowsByStudent,
+        planCoverage,
       )
+        .filter((row) => (classId ? row.classId === classId : true))
+        .filter((row) => row.recoveryAmount >= minPendingAmount)
+        .filter((row) => (overdueOnly ? row.overdueAmount > 0 : true))
         .slice(0, limit)
         .map((row, index) => ({
           rank: index + 1,
-          ...mapFinancialRow(row),
+          ...row,
         }));
 
       const totalPending = rows.reduce((sum, row) => sum + row.outstandingAmount, 0);
+      const totalRecoveryAmount = rows.reduce((sum, row) => sum + row.recoveryAmount, 0);
       return toolResult(
-        `Found ${rows.length} follow-up students for ${sessionLabel}; listed pending total ${money(totalPending)}.`,
+        `Found ${rows.length} plan-aware follow-up students for ${sessionLabel}; ${money(totalRecoveryAmount)} is due for recovery now across ${money(totalPending)} total fees pending.`,
         {
           sessionLabel,
           filters: { classId: classId || null, minPendingAmount, overdueOnly, limit },
+          totalFeesPending: totalPending,
+          totalRecoveryAmount,
           rows,
         },
       );
@@ -1450,10 +1781,16 @@ function createServer() {
     },
     async ({ sessionLabel, query, limit }) => {
       const normalizedQuery = normalizeQuery(query);
-      const { financialRows, contactSummaries, noCallIds } = await getRecoveryContext(sessionLabel);
-      const recoveryRows = buildRecoveryRows(financialRows, contactSummaries, noCallIds, {
-        includeNoCall: true,
-      });
+      const { financialRows, contactSummaries, noCallIds, installmentRowsByStudent, planCoverage } =
+        await getRecoveryContext(sessionLabel);
+      const recoveryRows = buildRecoveryRows(
+        financialRows,
+        contactSummaries,
+        noCallIds,
+        installmentRowsByStudent,
+        planCoverage,
+        { includeNoCall: true, includePlanOnTrack: true },
+      );
       const matches = recoveryRows
         .filter((row) =>
           [
@@ -1526,42 +1863,49 @@ function createServer() {
       annotations: readOnly,
     },
     async ({ sessionLabel }) => {
-      const financialRows = await getFinancialRows({ sessionLabel });
-      const classMap = new Map();
-
-      for (const row of financialRows) {
-        const key = row.class_id;
-        const current =
-          classMap.get(key) ||
-          {
-            classId: row.class_id,
-            classLabel: row.class_label || row.class_name,
-            studentCount: 0,
-            pendingStudentCount: 0,
-            overdueStudentCount: 0,
-            totalDue: 0,
-            totalPaid: 0,
-            totalOutstanding: 0,
-          };
-
-        current.studentCount += 1;
-        current.totalDue += number(row.total_due);
-        current.totalPaid += number(row.total_paid);
-        current.totalOutstanding += number(row.outstanding_amount);
-        if (number(row.outstanding_amount) > 0) current.pendingStudentCount += 1;
-        if (number(row.overdue_installment_count) > 0) current.overdueStudentCount += 1;
-        classMap.set(key, current);
-      }
-
-      const classes = [...classMap.values()].sort((a, b) =>
-        a.classLabel.localeCompare(b.classLabel, "en", { numeric: true }),
-      );
+      const analytics = await getDashboardAnalytics(sessionLabel);
+      const classes = analytics.classRecovery.map((row) => ({
+        ...row,
+        studentCount: row.students,
+        overdueStudentCount: row.studentsAtRisk,
+        totalDue: row.expected,
+        totalPaid: row.collected,
+        totalOutstanding: row.feesPending,
+        totalLateFeePending: row.lateFeePending,
+      }));
 
       return toolResult(
         `Loaded class-wise due summary for ${classes.length} classes in ${sessionLabel}.`,
         {
           sessionLabel,
           classes,
+        },
+      );
+    },
+  );
+
+  server.registerTool(
+    "get_dashboard_analytics",
+    {
+      title: "Get Dashboard Analytics",
+      description:
+        "Use this when the user wants the same five-board analytics as the live dashboard: collection trend, debt age, class and route recovery, concentration, and the separate late-fee ledger. This is read-only.",
+      inputSchema: {
+        sessionLabel: SessionLabel,
+      },
+      annotations: readOnly,
+    },
+    async ({ sessionLabel }) => {
+      const analytics = await getDashboardAnalytics(sessionLabel);
+      return toolResult(
+        `${sessionLabel}: dashboard analytics loaded with ${analytics.classRecovery.length} class row(s), ${money(analytics.concentration.totalPending)} fees pending, and ${money(analytics.lateFee.pending)} late fee pending.`,
+        {
+          ...analytics,
+          safety: {
+            readOnly: true,
+            recordsChanged: false,
+            note: "Fees and late fee remain separate, matching the live dashboard.",
+          },
         },
       );
     },
@@ -1726,6 +2070,7 @@ app.get("/health", (_req, res) => {
   res.json({
     ok: true,
     name: "schoolfees-collection-assistant",
+    version: SERVER_VERSION,
     defaultSession: DEFAULT_SESSION,
     schema: getSupabaseSchema(),
   });
