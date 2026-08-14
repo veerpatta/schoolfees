@@ -208,51 +208,29 @@ function unauthorized() {
   );
 }
 
-async function isPublicMetadataRequest(request) {
-  if (request.method !== "POST") {
-    return false;
-  }
-
-  try {
-    const body = await request.clone().json();
-    const messages = Array.isArray(body) ? body : [body];
-    const publicMethods = new Set([
-      "initialize",
-      "notifications/initialized",
-      "ping",
-      "tools/list",
-    ]);
-
-    return messages.every((message) => {
-      if (!message || typeof message !== "object") {
-        return false;
-      }
-      if (!("method" in message)) {
-        return true;
-      }
-      return publicMethods.has(message.method);
-    });
-  } catch {
-    return false;
-  }
-}
-
-async function checkAuth(request, env) {
+/**
+ * Service-lane auth for unattended automation (the morning defaulter task and
+ * Codex). Strict on purpose:
+ *
+ * - No unauthenticated method exemptions. Previously `initialize`, `ping` and
+ *   `tools/list` were allowed through without a token, which meant a
+ *   misconfigured client connected happily, listed every tool, and only failed
+ *   when someone actually asked for data. It now fails at connect time.
+ * - Fails closed. A missing SCHOOLFEES_MCP_TOKEN denies everything rather than
+ *   opening the whole database to the internet.
+ */
+function checkServiceToken(request, env) {
   const token = env.SCHOOLFEES_MCP_TOKEN;
   if (!token) {
-    return true;
+    return false;
   }
 
   const url = new URL(request.url);
-  if (url.pathname === `/mcp/${token}`) {
+  if (url.pathname === `/svc/mcp/${token}`) {
     return true;
   }
 
-  if (request.headers.get("authorization") === `Bearer ${token}`) {
-    return true;
-  }
-
-  return isPublicMetadataRequest(request);
+  return request.headers.get("authorization") === `Bearer ${token}`;
 }
 
 function getRequiredEnv(env, name) {
@@ -2039,11 +2017,7 @@ function createMcpServer(env) {
   return server;
 }
 
-async function handleMcp(request, env) {
-  if (!(await checkAuth(request, env))) {
-    return unauthorized();
-  }
-
+async function runMcpTransport(request, env) {
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
@@ -2053,30 +2027,37 @@ async function handleMcp(request, env) {
   return transport.handleRequest(request);
 }
 
-const worker = {
-  async fetch(request, env) {
-    const url = new URL(request.url);
+/**
+ * OAuth lane, used by staff through an AI client.
+ *
+ * The OAuth provider has already verified the access token before this runs,
+ * so `props` carries the signed-in staff member (set in oauth-entry.mjs).
+ */
+export async function handleOAuthMcp(request, env, props) {
+  if (!props || !props.userId) {
+    return unauthorized();
+  }
 
-    if (request.method === "OPTIONS") {
-      return json({ ok: true });
-    }
+  return runMcpTransport(request, env);
+}
 
-    if (url.pathname === "/health") {
-      return json({
-        ok: true,
-        name: "schoolfees-collection-assistant",
-        version: SERVER_VERSION,
-        defaultSession: getDefaultSession(env),
-        schema: getSupabaseSchema(env),
-      });
-    }
+/** Service lane, used by unattended automation with a shared service token. */
+export async function handleServiceMcp(request, env) {
+  if (!checkServiceToken(request, env)) {
+    return unauthorized();
+  }
 
-    if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) {
-      return handleMcp(request, env);
-    }
+  return runMcpTransport(request, env);
+}
 
-    return json({ error: "Not found" }, { status: 404 });
-  },
-};
+export function healthPayload(env) {
+  return {
+    ok: true,
+    name: "schoolfees-collection-assistant",
+    version: SERVER_VERSION,
+    defaultSession: getDefaultSession(env),
+    schema: getSupabaseSchema(env),
+  };
+}
 
-export default worker;
+export { json, unauthorized };

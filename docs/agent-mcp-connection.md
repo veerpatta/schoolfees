@@ -49,29 +49,66 @@ MCP endpoint:
 http://127.0.0.1:4317/mcp
 ```
 
-## Connect To ChatGPT Developer Mode
+## Two Connection Lanes
 
-Use the always-on Worker endpoint for ChatGPT. The plain `/mcp` endpoint accepts
-bearer-token clients, but ChatGPT custom MCP connectors do not reliably forward
-custom Authorization headers. For ChatGPT, use the token-in-path endpoint and
-set auth to `No Auth`:
+The Worker has two separate doors. Pick by who is on the other side.
+
+| Lane | Path | Who it is for | How it authenticates |
+| --- | --- | --- | --- |
+| Staff | `/mcp` | A person using Claude or ChatGPT | OAuth. Each staff member signs in with their own Schoolfees email and password. |
+| Automation | `/svc/mcp` | The morning defaulter task, Codex | Shared service token. No browser sign-in, so an unattended 8 AM run cannot stall on a login screen. |
+
+`/health` is public and returns no student or fee data.
+
+Why two: OAuth gives per-person access that can be revoked by deactivating a
+staff account, which a single shared token can never do. But OAuth assumes a
+human is present to click through a sign-in, which is wrong for a scheduled
+task. So humans use OAuth and machines use a service token.
+
+### Staff Lane (OAuth)
+
+Add the plain base URL as a custom connector. No token in the URL:
 
 ```text
-https://schoolfees-live-mcp.raj-39e.workers.dev/mcp/YOUR_PRIVATE_TOKEN
+https://schoolfees-live-mcp.raj-39e.workers.dev/mcp
 ```
 
-In ChatGPT:
+The client discovers the OAuth endpoints, registers itself, and sends the user
+to a Schoolfees sign-in page. Sign in with the same email and password used for
+the office app.
 
-1. Open Settings.
-2. Go to Apps & Connectors -> Advanced settings and enable Developer Mode.
-3. Create a custom MCP connector from a remote MCP server.
-4. Paste the token-in-path MCP URL above.
-5. Set authentication to `No Auth`.
-6. Save, then refresh/import tools.
+Access rules enforced at sign-in:
+
+- the staff account must be active (`app_metadata.is_active` is not `false`)
+- the role must be listed in the `SCHOOLFEES_MCP_ALLOWED_ROLES` Worker variable
+  (currently `admin,accountant`)
+
+The signed-in person's id, email, name, and role travel with every tool call,
+so MCP access is attributable to a person instead of an anonymous token.
+
+In Claude: Settings -> Connectors -> Add custom connector -> paste the URL ->
+Connect -> sign in.
+
+In ChatGPT: Settings -> Apps & Connectors -> Advanced settings -> Developer
+Mode -> add a remote MCP server -> paste the URL -> set authentication to
+OAuth.
 
 OpenAI's Apps SDK docs describe connecting remote MCP servers in ChatGPT
 Developer Mode:
 <https://developers.openai.com/apps-sdk/deploy/connect-chatgpt>.
+
+### Automation Lane (Service Token)
+
+For the scheduled defaulter task and any other unattended client, use the
+service path with the token either in the path or as a bearer header:
+
+```text
+https://schoolfees-live-mcp.raj-39e.workers.dev/svc/mcp/YOUR_PRIVATE_TOKEN
+https://schoolfees-live-mcp.raj-39e.workers.dev/svc/mcp   (+ Authorization: Bearer ...)
+```
+
+Use the token-in-path form with `No Auth` for ChatGPT, which does not reliably
+forward custom Authorization headers. Do not publish or share that full URL.
 
 ## Agent Instructions
 
@@ -149,22 +186,37 @@ underlying balance. Draft UPI links for an EMI family carry only the amount due
 or needed to catch up. Financial history includes active, superseded, and
 cancelled plan records so rescheduling never erases the earlier agreement.
 
-## Optional Bearer Token
+## Service Token
 
-For a private deployment or tunnel, set:
-
-```text
-SCHOOLFEES_MCP_TOKEN=change-this-long-random-value
-```
-
-The client must then send:
+The automation lane is guarded by a single Worker secret:
 
 ```text
-Authorization: Bearer change-this-long-random-value
+SCHOOLFEES_MCP_TOKEN=a-long-random-value
 ```
 
-Leave this blank only for local testing or when your MCP client cannot send a
-custom Authorization header.
+Rotate it with:
+
+```powershell
+npx wrangler secret put SCHOOLFEES_MCP_TOKEN --config workers/schoolfees-mcp/wrangler.toml
+```
+
+Rotating it breaks every automation client using the old value, so update them
+in the same sitting:
+
+- the ChatGPT connector URL for the daily defaulter task
+- the `SCHOOLFEES_WORKER_MCP_TOKEN` environment variable used by `.mcp.json`
+
+It does not affect the OAuth staff lane, which does not use this token at all.
+
+Two deliberate behaviours:
+
+- **Fails closed.** If `SCHOOLFEES_MCP_TOKEN` is missing, the service lane
+  refuses everything. An unset token must never mean "let everyone in", because
+  the Worker reads Supabase with the service role key and bypasses RLS.
+- **No unauthenticated method exemptions.** `initialize`, `ping`, and
+  `tools/list` all require the token. An earlier version exempted them, which
+  meant a misconfigured connector looked healthy, listed every tool, and only
+  failed when someone asked for real data. It now fails at connect time.
 
 ## Always-On Cloudflare Worker
 
@@ -176,28 +228,55 @@ Deploy it from this repo:
 npm run mcp:schoolfees:worker:deploy
 ```
 
+Entry point: `workers/schoolfees-mcp/oauth-entry.mjs`. It wraps the MCP handler
+in `@cloudflare/workers-oauth-provider`, serves the staff sign-in page, and
+routes the service lane. The tools themselves stay in `worker.mjs`.
+
 Required Cloudflare Worker secrets:
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_PUBLISHABLE_KEY
 SCHOOLFEES_MCP_TOKEN
+```
+
+`SUPABASE_PUBLISHABLE_KEY` is used only to verify staff sign-ins against
+Supabase Auth on the OAuth lane.
+
+Required bindings in `wrangler.toml`:
+
+```text
+OAUTH_KV                       KV namespace for OAuth clients, grants, tokens
+SCHOOLFEES_MCP_ALLOWED_ROLES   comma-separated staff roles allowed to sign in
 ```
 
 The Worker exposes:
 
 ```text
 https://YOUR-WORKER.workers.dev/health
-https://YOUR-WORKER.workers.dev/mcp
-https://YOUR-WORKER.workers.dev/mcp/YOUR_PRIVATE_TOKEN
+https://YOUR-WORKER.workers.dev/mcp                        staff lane, OAuth
+https://YOUR-WORKER.workers.dev/authorize                  staff sign-in page
+https://YOUR-WORKER.workers.dev/token
+https://YOUR-WORKER.workers.dev/register
+https://YOUR-WORKER.workers.dev/.well-known/oauth-authorization-server
+https://YOUR-WORKER.workers.dev/.well-known/oauth-protected-resource
+https://YOUR-WORKER.workers.dev/svc/mcp                    automation, bearer
+https://YOUR-WORKER.workers.dev/svc/mcp/YOUR_PRIVATE_TOKEN automation, no-auth
 ```
 
-For Codex and normal MCP clients, use the `/mcp` URL and configure the client
-to send `SCHOOLFEES_MCP_TOKEN` as a bearer token.
+## Troubleshooting
 
-For ChatGPT Custom MCP, use the private `/mcp/YOUR_PRIVATE_TOKEN` URL with
-`No Auth`. Do not publish or share that full URL.
+`Unauthorized` or a re-authorization prompt on the staff lane: the OAuth grant
+was revoked or the account no longer passes the active/role check. Reconnect the
+connector and sign in again.
 
-If a tool call returns `Unauthorized`, the connector is probably using the plain
-`/mcp` URL or an auth setting. Switch to the token-in-path URL and `No Auth`,
-then refresh tools.
+`Unauthorized` on the automation lane: the client is using the old `/mcp/TOKEN`
+path (now the OAuth lane) or a stale token. Move it to `/svc/mcp/TOKEN` and
+confirm the token matches the current Worker secret.
+
+Sign-in page says the role is not allowed: add the role to
+`SCHOOLFEES_MCP_ALLOWED_ROLES` in `wrangler.toml` and redeploy, or use an
+admin/accountant account.
+
+Tools not visible: refresh or re-import tools in the connector settings.

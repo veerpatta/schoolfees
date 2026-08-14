@@ -1,8 +1,14 @@
 name = "schoolfees-live-mcp"
-main = "worker.mjs"
+main = "oauth-entry.mjs"
 compatibility_date = "2026-06-11"
 preview_urls = false
 
 [vars]
 SCHOOLFEES_MCP_DEFAULT_SESSION = "2026-27"
 SCHOOLFEES_MCP_SUPABASE_SCHEMA = "public"
+SCHOOLFEES_MCP_ALLOWED_ROLES = "admin,accountant"
+
+# Stores OAuth clients, grants and tokens for the staff sign-in lane.
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "3d0b5684f9ff4356aacc50232abb3122"

@@ -8,11 +8,19 @@ or change fee setup. Notion is only a read-only mirror.
 
 ## 1. Connect The Schoolfees MCP In ChatGPT
 
-Use the always-on Worker MCP URL:
+The daily task runs at 8 AM with nobody watching, so it uses the automation
+lane and its service token rather than the staff OAuth lane. An OAuth sign-in
+needs a person at a browser, which a scheduled run cannot provide.
+
+Use the service-lane URL (note the `/svc/` prefix):
 
 ```text
-https://schoolfees-live-mcp.raj-39e.workers.dev/mcp/YOUR_PRIVATE_TOKEN
+https://schoolfees-live-mcp.raj-39e.workers.dev/svc/mcp/YOUR_PRIVATE_TOKEN
 ```
+
+If you would rather connect ChatGPT as yourself for interactive use, use
+`https://schoolfees-live-mcp.raj-39e.workers.dev/mcp` with authentication set
+to OAuth instead. Keep the scheduled task on the service lane either way.
 
 Steps:
 
@@ -45,9 +53,10 @@ draft_recovery_plan
 daily_recovery_digest
 ```
 
-If tool calls return `Unauthorized`, the connector is on the plain `/mcp` URL or
-has an auth setting. Switch to the token-in-path URL and `No Auth`, then refresh
-tools.
+If tool calls return `Unauthorized`, the connector is on the OAuth lane
+(`/mcp`) with `No Auth`, or is using a stale token. Switch to the
+`/svc/mcp/YOUR_PRIVATE_TOKEN` URL with `No Auth`, confirm the token matches the
+current Worker secret, then refresh tools.
 
 ## 2. Agent Instruction Block
 
@@ -118,8 +127,11 @@ OpenAI Tasks reference:
 
 ## 4. Troubleshooting
 
-- `Unauthorized`: use the token-in-path URL and `No Auth`; do not use the plain
-  `/mcp` URL in ChatGPT.
+- `Unauthorized`: use the `/svc/mcp/YOUR_PRIVATE_TOKEN` URL with `No Auth` for
+  the scheduled task. The plain `/mcp` URL is the OAuth staff lane and will
+  reject a `No Auth` connector.
+- Token was rotated: update this connector's URL in the same sitting, or the
+  8 AM run fails silently until someone notices the calls stopped.
 - Tool not visible: refresh/import tools in the connector settings.
 - Wrong session: ask for `sessionLabel: 2026-27`.
 - Missing task support: create the task from ChatGPT Web, iOS, Android, or

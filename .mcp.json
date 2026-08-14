@@ -2,7 +2,7 @@
   "mcpServers": {
     "schoolfees": {
       "type": "http",
-      "url": "https://schoolfees-live-mcp.raj-39e.workers.dev/mcp",
+      "url": "https://schoolfees-live-mcp.raj-39e.workers.dev/svc/mcp",
       "bearer_token_env_var": "SCHOOLFEES_WORKER_MCP_TOKEN"
     },
     "supabase": {
