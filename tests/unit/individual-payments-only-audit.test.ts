@@ -63,13 +63,16 @@ describe("individual student payment boundary", () => {
     );
 
     expect(lastDrop).toBeGreaterThan(lastCreate);
-    expect(readRepoFile("supabase/schema.sql")).not.toContain(
+    expect(readRepoFile("supabase/schema.sql").toLowerCase()).not.toContain(
       "create or replace function public.post_family_payment",
     );
   });
 
   it("keeps the student payment RPC signature free of family payment parameters", () => {
-    const schema = readRepoFile("supabase/schema.sql");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readRepoFile("supabase/schema.sql").toLowerCase();
     const paymentRpc = schema.slice(
       schema.indexOf("create or replace function public.post_student_payment_with_adjustments"),
       schema.indexOf("drop policy if exists \"authenticated can update students\""),

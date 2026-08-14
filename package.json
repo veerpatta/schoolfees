@@ -8,6 +8,8 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck",
     "quality:budgets": "node scripts/check-quality-budgets.mjs",
+    "schema:snapshot": "node scripts/generate-schema-snapshot.mjs",
+    "schema:snapshot:check": "node scripts/generate-schema-snapshot.mjs --check",
     "quality:bundles": "node scripts/measure-route-bundles.mjs",
     "quality:bundles:check": "node scripts/measure-route-bundles.mjs --check",
     "smoke:readiness": "playwright test -c tests/smoke-readiness/readiness.config.ts",

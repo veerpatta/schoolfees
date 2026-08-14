@@ -185,7 +185,10 @@ describe("source of truth audit fixes", () => {
   });
 
   it("workbook_financial_views_are_session_scoped_not_live_policy_only", () => {
-    const schema = readRepoFile("supabase/schema.sql");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readRepoFile("supabase/schema.sql").toLowerCase();
     const migration = readRepoFile(
       "supabase/migrations/20260517075735_session_scoped_workbook_financials.sql",
     );

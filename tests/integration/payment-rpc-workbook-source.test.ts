@@ -29,22 +29,37 @@ function readAdjustmentMigration() {
 
 describe("post_student_payment workbook source", () => {
   it("uses workbook balances for workbook_v1 payment validation and allocation", () => {
-    const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8").toLowerCase();
     const latestFunction = schema.slice(
       schema.lastIndexOf("create or replace function public.post_student_payment("),
     );
 
     expect(latestFunction).toContain("active_policy_model = 'workbook_v1'");
     expect(latestFunction).toContain("private.workbook_installment_snapshot");
-    expect(latestFunction).toMatch(/where (snapshot_row\.)?pending_amount > 0/);
+    // total_pending, NOT pending_amount. Since the late-fee split
+    // (20260812120000) `pending_amount` is FEES ONLY and `total_pending` is
+    // fees + late fee — so allocating on the former would refuse to let a
+    // cashier collect a late fee the ledger is still asking for.
+    //
+    // This assertion said `pending_amount` until 2026-08-14 and passed anyway,
+    // because it was reading a schema.sql frozen three days before the split.
+    // The snapshot is generated now, so it describes the live function.
+    expect(latestFunction).toMatch(/where (snapshot_row\.)?total_pending > 0/);
     expect(latestFunction).toMatch(
       /order by (snapshot_row\.)?due_date asc, (snapshot_row\.)?installment_no asc/,
     );
-    expect(latestFunction).toContain("Payment amount cannot exceed total pending amount.");
+    // Lowercase: `schema` is lowercased above, so the expectation must be too.
+    expect(latestFunction).toContain("payment amount cannot exceed total pending amount.");
   });
 
   it("payment_preview_pending_equals_posting_pending", () => {
-    const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8").toLowerCase();
     const previewFunction = schema.slice(
       schema.lastIndexOf("create or replace function public.preview_workbook_payment_allocation"),
     );
@@ -58,9 +73,14 @@ describe("post_student_payment workbook source", () => {
     expect(postFunction).toContain("from private.workbook_installment_snapshot(");
     expect(postFunction).toContain("p_payment_date");
     expect(postFunction).toContain("true");
-    expect(postFunction).toMatch(/where (snapshot_row\.)?pending_amount > 0/);
+    // total_pending, for the same reason as above: the preview and the posting
+    // must select the SAME installments, and since the late-fee split both do
+    // it on fees + late fee rather than fees alone.
+    expect(postFunction).toMatch(/where (snapshot_row\.)?total_pending > 0/);
+    // …and the allocation is capped by total_pending too, for the same reason:
+    // capping at fees alone would leave a late fee uncollectable at the desk.
     expect(postFunction).toMatch(
-      /allocation_amount := least\(remaining_amount, (balance_row|snapshot_row)\.pending_amount\)/,
+      /allocation_amount := least\(remaining_amount, (balance_row|snapshot_row)\.total_pending\)/,
     );
   });
 

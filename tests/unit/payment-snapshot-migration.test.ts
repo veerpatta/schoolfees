@@ -10,7 +10,9 @@ const migration = readFileSync(
   ),
   "utf8",
 );
-const schema = readFileSync(join(process.cwd(), "supabase/schema.sql"), "utf8");
+// Lowercased: schema.sql is generated from pg_catalog and carries Postgres's
+// own casing. These assertions describe the schema, not its capitalisation.
+const schema = readFileSync(join(process.cwd(), "supabase/schema.sql"), "utf8").toLowerCase();
 
 describe("payment snapshot lint hardening", () => {
   it("freezes the workbook snapshot once without a temporary table", () => {

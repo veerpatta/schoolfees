@@ -237,36 +237,60 @@ const describe = (row) =>
   );
 }
 
-// ── 5. NOTE: two row shapes coexist ────────────────────────────────────────
+// ── 5. One row shape: transport lives in base_amount ───────────────────────
 // Workbook mode folds transport into `base_amount` and writes
-// `transport_amount = 0` (lib/fees/generator.ts). Rows written before that
-// cut-over keep transport in its own column. Both produce the same `amount_due`
-// -- it is a generated column, `base + transport - discount` -- so no money is
-// wrong, and the next regeneration of an affected student silently converts the
-// shape without moving a rupee.
+// `transport_amount = 0` (lib/fees/generator.ts). Rows written before the
+// 20260423093000 cut-over kept transport in its own column, and 20260814100000
+// folded the last of them in.
 //
-// Reported because the column is a trap for anyone writing a report: it is
-// neither reliably zero nor reliably the transport fee, so `sum(transport_amount)`
-// returns a number that looks like transport income and is not.
+// No money rides on this — `amount_due` is generated from
+// `base + transport - discount`, so which column holds the transport cannot
+// change what a family owes. It is asserted because the column is a trap for
+// whoever writes the next report: when it is neither reliably zero nor reliably
+// the transport fee, `sum(transport_amount)` returns a number that looks like
+// transport income, is not, and would be believed.
+//
+// Scoped to workbook sessions. The legacy branch of the generator still exists
+// and would legitimately write a non-zero transport_amount on a session with
+// `calculation_model = 'standard'`, so failing that would be wrong.
 {
-  const rows = await fetchAll(
-    "installments",
-    "id, student_id, transport_amount, classes!inner(session_label)",
-    (query) =>
-      query.eq("classes.session_label", sessionLabel).neq("status", "cancelled").gt("transport_amount", 0),
-  );
-  const students = new Set(rows.map((row) => row.student_id));
-  const total = rows.reduce((sum, row) => sum + Number(row.transport_amount ?? 0), 0);
+  const { data: policy } = await supabase
+    .from("fee_policy_configs")
+    .select("calculation_model")
+    .eq("academic_session_label", sessionLabel)
+    .limit(1);
+  const isWorkbook = policy?.[0]?.calculation_model === "workbook_v1";
 
-  note(
-    "transport_amount column is consistently empty",
-    rows.length === 0,
-    rows.length === 0
-      ? "transport_amount is 0 throughout, matching the workbook shape"
-      : `${rows.length} row(s) across ${students.size} student(s) still carry transport in the legacy column (${rupees(
-          total,
-        )}). Totals are correct; only the column split is inconsistent.`,
-  );
+  if (!isWorkbook) {
+    note(
+      "transport lives in base_amount, not transport_amount",
+      true,
+      `${sessionLabel} is not a workbook session — the split column is expected here`,
+    );
+  } else {
+    const rows = await fetchAll(
+      "installments",
+      "id, student_id, transport_amount, classes!inner(session_label)",
+      (query) =>
+        query
+          .eq("classes.session_label", sessionLabel)
+          .neq("status", "cancelled")
+          .gt("transport_amount", 0),
+    );
+    const affected = new Set(rows.map((row) => row.student_id));
+    const total = rows.reduce((sum, row) => sum + Number(row.transport_amount ?? 0), 0);
+
+    record(
+      "transport lives in base_amount, not transport_amount",
+      rows.length === 0,
+      rows.length === 0
+        ? "transport_amount is 0 throughout, as workbook mode requires"
+        : `${rows.length} row(s) across ${affected.size} student(s) carry transport in the legacy column (${rupees(
+            total,
+          )}). Totals are unaffected; the column split is not.`,
+      rows.slice(0, 10).map((row) => `${row.id}: transport_amount ${row.transport_amount}`),
+    );
+  }
 }
 
 // ── Report ─────────────────────────────────────────────────────────────────

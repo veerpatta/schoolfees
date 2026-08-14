@@ -5,6 +5,7 @@ import {
   previewLedgerGenerationDetailed,
 } from "@/lib/fees/generator";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
 import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 
 /**
@@ -270,6 +271,22 @@ export async function POST(request: Request) {
     // The matview is what every screen reads. Drain before re-checking, or the
     // "remaining drift" figure below is measured against stale data.
     await drainFinancialViewRefresh();
+
+    // …and refreshing the matview is only half of it. `get_dashboard_summary`
+    // and `get_dashboard_analytics` are cached in Next on `session:{label}`,
+    // so a correct database still renders the OLD money until that tag is
+    // busted. This repair rewrites installment amounts — it moves money by
+    // definition — and it was the one money-moving path that never busted it.
+    //
+    // Observed: after repairing Rs 54,225 across eight students, the dashboard
+    // kept reporting the pre-repair expected figure, low by exactly that
+    // amount, while every database query returned the corrected one. Refunds
+    // had the identical bug before them.
+    //
+    // Unconditional on a non-dry run rather than "only if something changed":
+    // asking for a real run is the assertion that money may have moved, and a
+    // needless tag bust costs one recompute.
+    revalidateSessionFinance(sessionLabel, scopedStudentIds);
 
     const remaining = await findDrift(supabase, sessionLabel, scopedStudentIds);
 

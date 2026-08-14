@@ -56,7 +56,10 @@ describe("student financial state", () => {
   });
 
   it("exposes refund projection without mutating append-only payment history", () => {
-    const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8").toLowerCase();
     const viewIndex = schema.lastIndexOf(
       "create materialized view if not exists public.v_student_financial_state",
     );
@@ -74,7 +77,10 @@ describe("student financial state", () => {
   });
 
   it("receipts_payments_remain_append_only", () => {
-    const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8").toLowerCase();
 
     expect(schema).toContain("receipts_are_append_only");
     expect(schema).toContain("payments_are_append_only");

@@ -30,7 +30,10 @@ describe("phase 1 migration verification scripts", () => {
   });
 
   it("keeps phase 1 session-sync database objects in the canonical schema", () => {
-    const schema = readRepoFile("supabase/schema.sql");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readRepoFile("supabase/schema.sql").toLowerCase();
 
     expect(schema).toContain("create table if not exists public.app_settings");
     expect(schema).toContain("create or replace function public.active_session_label()");

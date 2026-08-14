@@ -43,7 +43,7 @@ function statusBranchOrder(sql: string, from: number) {
 
 describe("balance_status means the same thing in both definitions", () => {
   it("the engine function checks overdue before partial", () => {
-    const schema = readFileSync(SCHEMA, "utf8");
+    const schema = readFileSync(SCHEMA, "utf8").toLowerCase();
     const fnStart = schema.indexOf(
       "create or replace function private.workbook_installment_snapshot",
     );
@@ -53,7 +53,7 @@ describe("balance_status means the same thing in both definitions", () => {
   });
 
   it("the materialized view checks overdue before partial", () => {
-    const schema = readFileSync(SCHEMA, "utf8");
+    const schema = readFileSync(SCHEMA, "utf8").toLowerCase();
     const viewStart = schema.indexOf("v_workbook_installment_balances");
 
     expect(viewStart).toBeGreaterThan(-1);

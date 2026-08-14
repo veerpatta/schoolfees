@@ -12,7 +12,10 @@ function readRepoFile(path: string) {
 describe("office sync events", () => {
   it("has a schema-backed optional sync event stream for cross-tab refresh", () => {
     const migration = readRepoFile("supabase/migrations/20260516100000_office_sync_events.sql");
-    const schema = readRepoFile("supabase/schema.sql");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readRepoFile("supabase/schema.sql").toLowerCase();
     const publisher = readRepoFile("lib/system-sync/office-sync-events.ts");
     const subscriber = readRepoFile("components/admin/office-sync-listener.tsx");
     const shell = readRepoFile("components/admin/dashboard-shell.tsx");

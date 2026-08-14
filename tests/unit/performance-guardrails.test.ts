@@ -62,7 +62,10 @@ describe("office performance guardrails", () => {
 
   it("keeps Tier 3 database refreshes queued and indexed", () => {
     const migration = readRepoFile("supabase/migrations/20260523213000_tier3_finance_performance.sql");
-    const schema = readRepoFile("supabase/schema.sql");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readRepoFile("supabase/schema.sql").toLowerCase();
 
     for (const source of [migration, schema]) {
       expect(source).toContain("create extension if not exists pg_cron");
@@ -180,7 +183,10 @@ describe("office performance guardrails", () => {
     ]
       .map(readRepoFile)
       .join("\n");
-    const schema = readRepoFile("supabase/schema.sql");
+    // Lowercased: schema.sql is generated from pg_catalog, and Postgres emits
+  // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
+  // assertions describe the schema, not its capitalisation.
+  const schema = readRepoFile("supabase/schema.sql").toLowerCase();
     const expectedIndexes = [
       "idx_classes_session_status_sort",
       "idx_students_active_class_name",
