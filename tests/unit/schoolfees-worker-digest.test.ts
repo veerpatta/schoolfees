@@ -1,9 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+/**
+ * The Worker has no default export any more. `oauth-entry.mjs` owns the
+ * Cloudflare entry point (and needs the OAUTH_KV binding, which a unit test has
+ * not got), so these tests drive the service lane directly through the named
+ * `handleServiceMcp` export.
+ */
 type WorkerModule = {
-  default: {
-    fetch(request: Request, env: Record<string, string>): Promise<Response>;
-  };
+  handleServiceMcp(request: Request, env: Record<string, string>): Promise<Response>;
+  handleOAuthMcp(
+    request: Request,
+    env: Record<string, string>,
+    props: { userId?: string } | null | undefined,
+  ): Promise<Response>;
 };
 
 const env = {
@@ -12,8 +21,8 @@ const env = {
   SCHOOLFEES_MCP_TOKEN: "test-token",
 };
 
-function mcpRequest(payload: unknown) {
-  return new Request("https://schoolfees-worker.test/mcp/test-token", {
+function mcpRequest(payload: unknown, path = "/svc/mcp/test-token") {
+  return new Request(`https://schoolfees-worker.test${path}`, {
     method: "POST",
     headers: {
       accept: "application/json, text/event-stream",
@@ -221,9 +230,9 @@ afterEach(() => {
 describe("schoolfees Worker MCP tools", () => {
   it("lists recovery and AI context tools as read-only MCP tools", async () => {
     const fetchMock = installSupabaseMock();
-    const { default: worker } = await loadWorker();
+    const { handleServiceMcp } = await loadWorker();
 
-    const response = await worker.fetch(
+    const response = await handleServiceMcp(
       mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
       env,
     );
@@ -259,9 +268,9 @@ describe("schoolfees Worker MCP tools", () => {
 
   it("returns a bundled read-only recovery digest with UPI draft metadata", async () => {
     installSupabaseMock();
-    const { default: worker } = await loadWorker();
+    const { handleServiceMcp } = await loadWorker();
 
-    const response = await worker.fetch(
+    const response = await handleServiceMcp(
       mcpRequest({
         jsonrpc: "2.0",
         id: 2,
@@ -306,9 +315,9 @@ describe("schoolfees Worker MCP tools", () => {
 
   it("returns whole-app AI analysis context matching the AI export coverage", async () => {
     installSupabaseMock();
-    const { default: worker } = await loadWorker();
+    const { handleServiceMcp } = await loadWorker();
 
-    const response = await worker.fetch(
+    const response = await handleServiceMcp(
       mcpRequest({
         jsonrpc: "2.0",
         id: 3,
@@ -375,9 +384,9 @@ describe("schoolfees Worker MCP tools", () => {
 
   it("returns exact receipt totals and allocation history without writing", async () => {
     installSupabaseMock();
-    const { default: worker } = await loadWorker();
+    const { handleServiceMcp } = await loadWorker();
 
-    const response = await worker.fetch(
+    const response = await handleServiceMcp(
       mcpRequest({
         jsonrpc: "2.0",
         id: 4,
@@ -449,9 +458,9 @@ describe("schoolfees Worker MCP tools", () => {
         plan_review_needed: false,
       },
     });
-    const { default: worker } = await loadWorker();
+    const { handleServiceMcp } = await loadWorker();
 
-    const queueResponse = await worker.fetch(
+    const queueResponse = await handleServiceMcp(
       mcpRequest({
         jsonrpc: "2.0",
         id: 5,
@@ -466,7 +475,7 @@ describe("schoolfees Worker MCP tools", () => {
     const queueBody = await queueResponse.json();
     expect(queueBody.result.structuredContent.rows).toEqual([]);
 
-    const draftResponse = await worker.fetch(
+    const draftResponse = await handleServiceMcp(
       mcpRequest({
         jsonrpc: "2.0",
         id: 6,
@@ -480,5 +489,89 @@ describe("schoolfees Worker MCP tools", () => {
     );
     const draftBody = await draftResponse.json();
     expect(draftBody.result.structuredContent.drafts).toEqual([]);
+  });
+});
+
+/**
+ * The two-lane auth model landed without tests. These pin the three guarantees
+ * its commit message makes, because each one silently reverts to something
+ * dangerous: an open service-role database, or a connector that looks healthy
+ * until the first real question.
+ */
+describe("schoolfees Worker auth lanes", () => {
+  const listRequest = (path?: string) =>
+    mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }, path);
+
+  it("refuses tools/list on the service lane without a token", async () => {
+    const fetchMock = installSupabaseMock();
+    const { handleServiceMcp } = await loadWorker();
+
+    const response = await handleServiceMcp(listRequest("/svc/mcp"), env);
+
+    expect(response.status).toBe(401);
+    // The old server answered initialize/ping/tools/list unauthenticated, so a
+    // misconfigured client connected happily and only failed on real data.
+    expect((await response.json()).error.message).toBe("Unauthorized");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts the service lane via an Authorization bearer header", async () => {
+    installSupabaseMock();
+    const { handleServiceMcp } = await loadWorker();
+
+    const request = new Request("https://schoolfees-worker.test/svc/mcp", {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+        authorization: "Bearer test-token",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+    });
+
+    const response = await handleServiceMcp(request, env);
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).result.tools.length).toBeGreaterThan(0);
+  });
+
+  it("fails closed when no service token is configured", async () => {
+    const fetchMock = installSupabaseMock();
+    const { handleServiceMcp } = await loadWorker();
+    const envWithoutToken = {
+      NEXT_PUBLIC_SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY,
+    };
+
+    // A missing secret must deny everything. Defaulting to "open" would expose a
+    // service-role Supabase connection to anyone holding the URL.
+    const response = await handleServiceMcp(listRequest("/svc/mcp"), envWithoutToken);
+
+    expect(response.status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses the OAuth lane when no signed-in staff member travels with the request", async () => {
+    const fetchMock = installSupabaseMock();
+    const { handleOAuthMcp } = await loadWorker();
+
+    for (const props of [null, undefined, {} as { userId?: string }]) {
+      const response = await handleOAuthMcp(listRequest("/mcp"), env, props);
+      expect(response.status).toBe(401);
+    }
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("serves the OAuth lane once a staff member is attached", async () => {
+    installSupabaseMock();
+    const { handleOAuthMcp } = await loadWorker();
+
+    const response = await handleOAuthMcp(listRequest("/mcp"), env, {
+      userId: "staff-1",
+    });
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).result.tools.length).toBeGreaterThan(0);
   });
 });
