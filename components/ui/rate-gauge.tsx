@@ -8,10 +8,18 @@ import { cn } from "@/lib/utils";
 type RateGaugeProps = {
   value: number;
   size?: "sm" | "md";
+  /**
+   * `ink` for the dark nav band. The default palette draws the figure with
+   * `fill-foreground`, which on `bg-nav` is ink on ink — the phone hero showed
+   * an empty ring where the year rate should be. Track and arc move with it:
+   * `--surface-3` disappears against ink, and `--accent` is tuned for paper.
+   */
+  tone?: "default" | "ink";
   className?: string;
 };
 
-export function RateGauge({ value, size = "md", className }: RateGaugeProps) {
+export function RateGauge({ value, size = "md", tone = "default", className }: RateGaugeProps) {
+  const ink = tone === "ink";
   const arcRef = useRef<SVGCircleElement>(null);
   const clamped = Math.min(100, Math.max(0, value));
 
@@ -53,7 +61,7 @@ export function RateGauge({ value, size = "md", className }: RateGaugeProps) {
         cy={cy}
         r={r}
         strokeWidth={sw}
-        className="fill-none stroke-surface-3"
+        className={cn("fill-none", ink ? "stroke-nav-border" : "stroke-surface-3")}
       />
       <circle
         ref={arcRef}
@@ -62,7 +70,7 @@ export function RateGauge({ value, size = "md", className }: RateGaugeProps) {
         r={r}
         strokeWidth={sw}
         strokeLinecap="round"
-        className="fill-none stroke-accent"
+        className={cn("fill-none", ink ? "stroke-nav-accent" : "stroke-accent")}
         strokeDasharray={`${circumference} ${circumference}`}
         strokeDashoffset={circumference}
         transform={`rotate(-90 ${cx} ${cy})`}
@@ -71,8 +79,11 @@ export function RateGauge({ value, size = "md", className }: RateGaugeProps) {
         x={cx}
         y={cy + (size === "sm" ? 4 : 5)}
         textAnchor="middle"
-        className="fill-foreground font-sans tabular-nums"
-        style={{ fontSize: size === "sm" ? "11px" : "15px", fontWeight: 500 }}
+        className={cn(
+          "font-sans tabular-nums",
+          ink ? "fill-nav-foreground" : "fill-foreground",
+        )}
+        style={{ fontSize: size === "sm" ? "11px" : "15px", fontWeight: ink ? 700 : 500 }}
       >
         {clamped}%
       </text>

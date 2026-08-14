@@ -3,25 +3,24 @@ import { getTranslations } from "next-intl/server";
 import { ArrowRight, IndianRupee, Phone, Receipt } from "lucide-react";
 
 import { MobileSessionPill } from "@/components/admin/mobile-session-pill";
+import { ViewSwitcher } from "@/components/dashboard/view-switcher";
 import { ConnectionPill } from "@/components/mobile-app/connection-pill";
 import { RateGauge } from "@/components/ui/rate-gauge";
 import {
   HeroMoney,
   InkCard,
   IconTile,
-  MobileBar,
   MobileCard,
   MobileLabel,
-  MobileNote,
   MobileScreen,
   MobileSectionCard,
-  MobileSplitBar,
   MobileStatStrip,
 } from "@/components/mobile-app/mobile-kit";
 import type { AvailableSessionRow } from "@/lib/session/available-sessions";
+import type { DashboardView } from "@/lib/dashboard/analytics";
 import type { KpiDelta } from "@/lib/dashboard/kpi-delta";
+import { computePaceToYearEnd } from "@/lib/dashboard/mobile-derived";
 import type {
-  DashboardClassSummaryRow,
   DashboardFollowUpStudent,
   DashboardInstallmentSummaryRow,
   DashboardKpis,
@@ -33,9 +32,12 @@ import { appendSessionParam } from "@/lib/navigation/session-href";
  * Phone home screen — "VPPS Mobile App v2", screen 1.
  *
  * The ink band carries the one number the counter cares about at 9am (money
- * taken today); everything under it answers "what should I do next". Nothing
- * here is decorative: each figure comes straight from the dashboard summary
- * the desktop page already loads.
+ * taken today); under it, whether that is where the year should be; then what
+ * to do next; then the board switcher. Nothing here is decorative: each figure
+ * comes straight from the dashboard summary the desktop page already loads.
+ *
+ * The analytics themselves live in `mobile-boards.tsx`, below the switcher and
+ * inside the same Suspense boundary the desk boards use.
  */
 
 type MobileDashboardScreenProps = {
@@ -52,7 +54,6 @@ type MobileDashboardScreenProps = {
   sessionLabel: string;
   canPostPayments: boolean;
   canViewDefaulters: boolean;
-  currentInstallmentLabel?: string;
   /**
    * Home header. The design puts these here because the phone app has no
    * persistent app bar — Home is where identity and session live.
@@ -64,15 +65,15 @@ type MobileDashboardScreenProps = {
   sessionOptions: AvailableSessionRow[];
   staffInitials: string;
   settingsHref: string;
-  /** Per-installment collected/pending — powers the installment track card. */
+  /** Due dates and expected amounts — what "Pace to year end" is measured against. */
   installmentSummary: DashboardInstallmentSummaryRow[];
-  /** Recovery funnel counts. The four status labels partition the roster. */
-  paidStudents: number;
-  partlyPaidStudents: number;
-  overdueStudents: number;
-  notStartedStudents: number;
   /** Ranked overdue-first then by amount; the top three get a call button. */
   followUpQueue: DashboardFollowUpStudent[];
+  /** Which analytics board the switcher marks as current. */
+  view: DashboardView;
+  boardLabels: Record<DashboardView, string>;
+  /** School-timezone `YYYY-MM-DD`, resolved once by the page. */
+  todayIso: string;
 };
 
 export async function MobileDashboardScreen({
@@ -89,7 +90,6 @@ export async function MobileDashboardScreen({
   sessionLabel,
   canPostPayments,
   canViewDefaulters,
-  currentInstallmentLabel,
   greeting,
   dateLine,
   sessionIsTest,
@@ -97,11 +97,10 @@ export async function MobileDashboardScreen({
   staffInitials,
   settingsHref,
   installmentSummary,
-  paidStudents,
-  partlyPaidStudents,
-  overdueStudents,
-  notStartedStudents,
   followUpQueue,
+  view,
+  boardLabels,
+  todayIso,
 }: MobileDashboardScreenProps) {
   const t = await getTranslations("MobileApp");
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
@@ -110,27 +109,13 @@ export async function MobileDashboardScreen({
       ? Math.round((previousYearCollected / previousYearOriginal) * 100)
       : 0;
 
-  // Three-segment year bar. "Not due yet" is what is left once collected and
-  // pending are taken out — never a stored number, always the remainder, so
-  // the three segments always add to the expected total.
-  const notDueYet = Math.max(0, currentYearExpected - currentYearCollected - currentYearPending);
-  const pctOf = (value: number) =>
-    currentYearExpected > 0 ? (value / currentYearExpected) * 100 : 0;
+  const pace = computePaceToYearEnd({
+    installmentSummary,
+    currentYearExpected,
+    currentYearCollected,
+    todayIso,
+  });
 
-  // This year's installments only. Carry-forward rows arrive in the same list
-  // with a pseudo installment number in the 90s; they belong to the old-balance
-  // card, not to a track showing how this year is progressing.
-  const installmentTrack = installmentSummary
-    .filter((row) => !row.isCarryForward && row.installmentNo < 90 && row.expectedAmount > 0)
-    .slice(0, 6);
-
-  // All FOUR status labels, because they partition the roster and anything
-  // less lies about its size. Live 2026-27 is 17 paid / 24 part / 440 overdue
-  // / 0 not started = 481; leaving overdue out drew a near-empty bar over 41
-  // students and implied that was the school.
-  const rosterTotal =
-    paidStudents + partlyPaidStudents + overdueStudents + notStartedStudents;
-  const rosterPct = (value: number) => (rosterTotal > 0 ? (value / rosterTotal) * 100 : 0);
   const topCalls = followUpQueue.slice(0, 3);
 
   return (
@@ -198,11 +183,69 @@ export async function MobileDashboardScreen({
             </p>
           </div>
           <div className="shrink-0 text-center">
-            <RateGauge value={collectionRate} size="sm" />
+            <RateGauge value={collectionRate} size="sm" tone="ink" />
             <p className="text-[9px] uppercase tracking-[0.07em] text-nav-muted">{t("yearRate")}</p>
           </div>
         </div>
       </InkCard>
+
+      {/* ── Is that where the year should be? ─────────────────────────── */}
+      {pace ? (
+        <MobileCard>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-[13.5px] font-extrabold text-foreground">{t("paceTitle")}</h2>
+            <span
+              className={
+                pace.daysBehind > 0
+                  ? "shrink-0 rounded-full bg-warning-soft px-2.5 py-1 text-[10.5px] font-extrabold text-warning-soft-foreground"
+                  : "shrink-0 rounded-full bg-success-soft px-2.5 py-1 text-[10.5px] font-extrabold text-success-soft-foreground"
+              }
+            >
+              {pace.daysBehind > 0 ? t("paceBehind", { days: pace.daysBehind }) : t("paceOnTrack")}
+            </span>
+          </div>
+
+          {/* The marker is where the year SHOULD be — the sum of every
+              installment already past its due date, not a smooth ramp. */}
+          <div className="relative mt-3 h-2.5 overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-full rounded-full bg-success"
+              style={{ width: `${Math.max(0, Math.min(100, pace.collectedPct))}%` }}
+            />
+            <div
+              aria-hidden="true"
+              className="absolute -top-1 h-[18px] w-0.5 bg-foreground"
+              style={{ left: `${Math.max(0, Math.min(100, pace.expectedPct))}%` }}
+            />
+          </div>
+
+          <div className="mt-2 flex justify-between gap-2 text-[10.5px] font-semibold text-muted-foreground">
+            <span>
+              {t("collected")}{" "}
+              <b className="tabular text-foreground">
+                {formatInr(pace.collected, { compact: true })}
+              </b>{" "}
+              · {Math.round(pace.collectedPct)}%
+            </span>
+            <span>
+              {t("paceShouldBe")}{" "}
+              <b className="tabular text-foreground">
+                {formatInr(pace.expectedToDate, { compact: true })}
+              </b>{" "}
+              · {Math.round(pace.expectedPct)}%
+            </span>
+          </div>
+
+          {pace.catchUpPerDay > 0 ? (
+            <p className="mt-2.5 border-t border-border pt-2.5 text-[11px] font-semibold leading-relaxed text-muted-foreground">
+              {t("paceCatchUp", {
+                amount: formatInr(pace.catchUpPerDay),
+                days: pace.daysLeftInMonth,
+              })}
+            </p>
+          ) : null}
+        </MobileCard>
+      ) : null}
 
       {/* ── The three pots, never blended ─────────────────────────────── */}
       <MobileStatStrip
@@ -283,147 +326,6 @@ export async function MobileDashboardScreen({
         </Link>
       </div>
 
-      {/* ── The year, in one card ─────────────────────────────────────── */}
-      <MobileCard>
-        <div className="flex items-start justify-between gap-2.5">
-          <div>
-            <MobileLabel>{t("expectedThisYear")}</MobileLabel>
-            <HeroMoney
-              value={currentYearExpected}
-              compact
-              className="mt-1 text-3xl text-foreground"
-            />
-          </div>
-          <div className="text-right">
-            <p className="tabular text-xl font-extrabold text-success">{collectionRate}%</p>
-            <p className="text-[9.5px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
-              {t("collected")}
-            </p>
-          </div>
-        </div>
-
-        <MobileSplitBar
-          className="mt-3"
-          segments={[
-            { key: "collected", percent: pctOf(currentYearCollected), tone: "success" },
-            { key: "pending", percent: pctOf(currentYearPending), tone: "danger" },
-            { key: "notdue", percent: pctOf(notDueYet), tone: "neutral" },
-          ]}
-        />
-
-        <div className="mt-2.5 grid grid-cols-3 gap-2 text-[11px]">
-          {[
-            { label: t("collected"), value: currentYearCollected, dot: "bg-success" },
-            { label: t("pending"), value: currentYearPending, dot: "bg-destructive" },
-            { label: t("notDueYet"), value: notDueYet, dot: "bg-border-strong" },
-          ].map((legend) => (
-            <div key={legend.label}>
-              <span className="flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className={`inline-block size-2 rounded-full ${legend.dot}`}
-                />
-                <span className="font-semibold text-muted-foreground">{legend.label}</span>
-              </span>
-              <b className="tabular block text-[13px]">
-                {formatInr(legend.value, { compact: true })}
-              </b>
-            </div>
-          ))}
-        </div>
-
-        {currentInstallmentLabel ? (
-          <p className="mt-2.5 border-t border-border pt-2.5 text-[11px] font-semibold leading-relaxed text-muted-foreground">
-            {t("installmentLine", {
-              label: currentInstallmentLabel,
-              pending: formatInr(currentYearPending),
-              notDue: formatInr(notDueYet),
-            })}
-          </p>
-        ) : null}
-      </MobileCard>
-
-      {/* ── Which installment is dragging ─────────────────────────────── */}
-      {installmentTrack.length > 0 ? (
-        <MobileSectionCard title={t("installmentTrack")}>
-          <ul className="flex flex-col gap-3">
-            {installmentTrack.map((row) => (
-              <li key={row.installmentNo}>
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="truncate text-[12.5px] font-bold text-foreground">
-                    {row.installmentLabel}
-                  </span>
-                  <span className="tabular shrink-0 text-[11px] font-semibold text-muted-foreground">
-                    {row.collectionRate}%
-                  </span>
-                </div>
-                <MobileBar
-                  className="mt-1.5"
-                  percent={row.collectionRate}
-                  tone={row.overdueAmount > 0 ? "danger" : "accent"}
-                />
-                <p className="mt-1 text-[10.5px] font-medium text-muted-foreground">
-                  {t("installmentCollectedOf", {
-                    collected: formatInr(row.collectedAmount, { compact: true }),
-                    expected: formatInr(row.expectedAmount, { compact: true }),
-                  })}
-                  {row.dueDate ? ` · ${row.dueDate}` : ""}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </MobileSectionCard>
-      ) : null}
-
-      {/* ── Where the roster stands ───────────────────────────────────── */}
-      {rosterTotal > 0 ? (
-        <MobileSectionCard
-          title={t("recoveryFunnel")}
-          action={
-            <Link
-              href={withSession("/protected/students")}
-              className="focus-ring inline-flex items-center gap-1 text-[11px] font-extrabold text-accent"
-            >
-              {t("seeAll")}
-              <ArrowRight className="size-3" aria-hidden="true" />
-            </Link>
-          }
-        >
-          <p className="tabular -mt-1 mb-2 text-[11px] font-semibold text-muted-foreground">
-            {t("studentsCount", { count: rosterTotal })}
-          </p>
-          <MobileSplitBar
-            segments={[
-              { key: "paid", percent: rosterPct(paidStudents), tone: "success" },
-              { key: "part", percent: rosterPct(partlyPaidStudents), tone: "warning" },
-              { key: "overdue", percent: rosterPct(overdueStudents), tone: "danger" },
-              { key: "none", percent: rosterPct(notStartedStudents), tone: "neutral" },
-            ]}
-          />
-          <div className="mt-2.5 grid grid-cols-2 gap-2 text-[11px]">
-            {[
-              { label: t("funnelPaid"), value: paidStudents, dot: "bg-success" },
-              { label: t("funnelPart"), value: partlyPaidStudents, dot: "bg-warning" },
-              { label: t("funnelOverdue"), value: overdueStudents, dot: "bg-destructive" },
-              { label: t("funnelNone"), value: notStartedStudents, dot: "bg-border-strong" },
-            ].map((legend) => (
-              <div key={legend.label}>
-                <span className="flex items-center gap-1.5">
-                  <span
-                    aria-hidden="true"
-                    className={`inline-block size-2 rounded-full ${legend.dot}`}
-                  />
-                  <span className="truncate font-semibold text-muted-foreground">
-                    {legend.label}
-                  </span>
-                </span>
-                <b className="tabular block text-[13px]">{legend.value}</b>
-              </div>
-            ))}
-          </div>
-        </MobileSectionCard>
-      ) : null}
-
       {/* ── Worth a call today ────────────────────────────────────────── */}
       {canViewDefaulters && topCalls.length > 0 ? (
         <MobileSectionCard
@@ -475,68 +377,13 @@ export async function MobileDashboardScreen({
           </ul>
         </MobileSectionCard>
       ) : null}
+
+      {/* ── The analytics, behind a switcher ──────────────────────────────
+          Last on the home screen because the board it selects streams in
+          directly underneath, inside the same Suspense boundary the desk
+          boards use. The switcher's links carry `scroll={false}`, so the pill
+          the reader just tapped stays where their thumb left it. */}
+      <ViewSwitcher current={view} sessionLabel={sessionLabel} labels={boardLabels} />
     </MobileScreen>
-  );
-}
-
-/**
- * Pending by class — the one below-fold block the phone home screen keeps.
- * Bars are relative to the worst class, so the top row always fills the track
- * and the rest read as a proportion of it.
- */
-export async function MobilePendingByClass({
-  rows,
-  sessionLabel,
-}: {
-  rows: DashboardClassSummaryRow[];
-  sessionLabel: string;
-}) {
-  const t = await getTranslations("MobileApp");
-  const ranked = rows
-    .filter((row) => row.pendingAmount > 0)
-    .sort((a, b) => b.pendingAmount - a.pendingAmount)
-    .slice(0, 5);
-  const worst = ranked.length > 0 ? ranked[0].pendingAmount : 0;
-
-  return (
-    <div className="flex flex-col gap-2.5">
-      {ranked.length > 0 ? (
-        <MobileSectionCard
-          title={t("pendingByClass")}
-          action={
-            <Link
-              href={appendSessionParam("/protected/students", sessionLabel)}
-              className="focus-ring inline-flex items-center gap-1 text-[11px] font-extrabold text-accent"
-            >
-              {t("seeAll")}
-              <ArrowRight className="size-3" aria-hidden="true" />
-            </Link>
-          }
-        >
-          <ul className="flex flex-col gap-2.5">
-            {ranked.map((row) => (
-              <li key={row.classId}>
-                <div className="mb-1 flex justify-between gap-2 text-xs">
-                  <span className="truncate font-bold">
-                    {row.classLabel}{" "}
-                    <span className="font-medium text-muted-foreground">
-                      · {t("studentsCount", { count: row.studentsWithPending })}
-                    </span>
-                  </span>
-                  <span className="tabular shrink-0 font-extrabold text-destructive">
-                    {formatInr(row.pendingAmount, { compact: true })}
-                  </span>
-                </div>
-                <MobileBar percent={(row.pendingAmount / worst) * 100} tone="warning" />
-              </li>
-            ))}
-          </ul>
-        </MobileSectionCard>
-      ) : null}
-
-      <MobileNote>
-        <b className="text-foreground">{t("calmNoteTitle")}</b> {t("calmNoteBody")}
-      </MobileNote>
-    </div>
   );
 }

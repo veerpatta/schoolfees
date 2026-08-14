@@ -36,6 +36,7 @@ import type {
   StudentClassOption,
   StudentListFilters,
   StudentListItem,
+  StudentListSort,
   StudentRouteOption,
 } from "@/lib/students/types";
 
@@ -47,14 +48,20 @@ const selectClassName =
 // Saved-view labels are translated at render time inside StudentQuickLoad so
 // the SavedViewsTabs control shows them in the user's chosen locale.
 const STUDENT_BUILTIN_VIEWS: readonly SavedView<StudentQuickLoadFilters>[] = [
-  { id: "active", label: "All active", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "active", segments: [] } },
-  { id: "all", label: "All students", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "", segments: [] } },
+  { id: "active", label: "All active", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "active", segments: [], sort: "name" } },
+  { id: "all", label: "All students", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "", segments: [], sort: "name" } },
   // The three questions the office asks by name. Both balance views clear
   // `status`: the point of an old balance or a leaver who still owes is that
   // the default "active" roll does not show them.
-  { id: "old-balance", label: "Old fees due", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "", segments: ["oldBalanceDue"] } },
-  { id: "overdue", label: "Overdue", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "active", segments: ["overdue"] } },
-  { id: "left-owing", label: "Left but owing", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "", segments: ["leftOwing"] } },
+  { id: "old-balance", label: "Old fees due", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "", segments: ["oldBalanceDue"], sort: "name" } },
+  { id: "overdue", label: "Overdue", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "active", segments: ["overdue"], sort: "name" } },
+  { id: "left-owing", label: "Left but owing", builtIn: true, createdAt: 0, state: { query: "", classId: "", transportRouteId: "", status: "", segments: ["leftOwing"], sort: "name" } },
+];
+
+/** Sort options in switcher order. */
+const STUDENT_SORTS: readonly { id: StudentListSort; labelKey: "sortName" | "sortClass" }[] = [
+  { id: "name", labelKey: "sortName" },
+  { id: "class", labelKey: "sortClass" },
 ];
 
 type StudentQuickLoadFilters = Omit<StudentListFilters, "sessionLabel">;
@@ -109,6 +116,7 @@ export function StudentQuickLoad({
     transportRouteId: initialFilters.transportRouteId,
     status: initialFilters.status,
     segments: initialFilters.segments,
+    sort: initialFilters.sort,
   });
   const [students, setStudents] = useState(initialStudents);
   const [segmentCounts, setSegmentCounts] = useState<SegmentCounts>(
@@ -182,8 +190,14 @@ export function StudentQuickLoad({
       transportRouteId: "",
       status: "active",
       segments: [],
+      sort: "name",
     });
   }
+
+  const setSort = useCallback((sort: StudentListSort) => {
+    setPage(1);
+    setFilters((previous) => ({ ...previous, sort }));
+  }, []);
 
   const activeFilterCount = useMemo(() => {
     return (
@@ -220,7 +234,14 @@ export function StudentQuickLoad({
 
   function applyStudentView(view: SavedView<StudentQuickLoadFilters>) {
     setPage(1);
-    setFilters({ ...view.state, segments: view.state.segments ?? [] });
+    // Sort is a reading preference, not part of what a view asks for — none of
+    // the built-in views is about ordering — so picking one keeps whatever
+    // order the reader had chosen.
+    setFilters((previous) => ({
+      ...view.state,
+      segments: view.state.segments ?? [],
+      sort: previous.sort,
+    }));
   }
 
   const withSession = (href: string) => {
@@ -235,6 +256,7 @@ export function StudentQuickLoad({
     if (filters.transportRouteId) searchParams.set("transportRouteId", filters.transportRouteId);
     if (filters.status) searchParams.set("status", filters.status);
     if (filters.segments.length > 0) searchParams.set("seg", serializeSegments(filters.segments));
+    if (filters.sort !== "name") searchParams.set("sort", filters.sort);
     if (page > 1) searchParams.set("page", String(page));
     return searchParams;
   }, [filters, initialFilters.sessionLabel, page]);
@@ -715,9 +737,94 @@ export function StudentQuickLoad({
             // same state, same content — only the edge it enters from changes.
             side={isDesktop ? "right" : "bottom"}
             size="md"
+            // Instant-apply needs a live answer. The old sheet ended in
+            // "Apply filters", which implied the list behind it was waiting on
+            // a decision it had in fact already acted on; this one carries the
+            // count the list is currently showing, and says so underneath.
+            footer={
+              <>
+                <Button
+                  type="button"
+                  variant="primary"
+                  className="h-[52px] w-full rounded-[15px] text-sm font-extrabold"
+                  onClick={() => setFilterSheetOpen(false)}
+                >
+                  {t("filterShowNStudents", { count: isLoading ? "…" : totalCount })}
+                </Button>
+                <p className="mt-2 text-center text-[10.5px] font-semibold text-muted-foreground">
+                  {t("filterInstantApplyHint")}
+                </p>
+              </>
+            }
           >
             <div className="space-y-4 pt-2">
-              {/* Segments first: they answer the questions that brought the
+              {/* Sort first: it is the one control here that changes the order
+                  rather than the contents, so it belongs above the filters
+                  rather than lost among them. */}
+              <div>
+                <Label>{t("filterSortBy")}</Label>
+                <div className="mt-2 flex gap-1 rounded-[14px] bg-surface-2 p-1">
+                  {STUDENT_SORTS.map((option) => {
+                    const active = filters.sort === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setSort(option.id)}
+                        className={cn(
+                          "h-[38px] flex-1 rounded-[10px] text-xs font-extrabold transition-colors",
+                          active
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {t(option.labelKey)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Class as a grid, not a scrolling row. The header's chip row
+                  shows one class at a time and hides the rest off-screen; four
+                  across shows the whole school at once. Same `filters.classId`
+                  the header writes, so the two stay in step for free. */}
+              <div>
+                <span className="flex items-center gap-1.5">
+                  <GraduationCap className="size-4 text-muted-foreground" aria-hidden="true" />
+                  <Label>{t("classLabel")}</Label>
+                </span>
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  {[{ id: "", label: t("classAll") }, ...classOptions].map((option) => {
+                    const selected = filters.classId === option.id;
+                    return (
+                      <button
+                        key={option.id || "all"}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setPage(1);
+                          setFilters((previous) => ({
+                            ...previous,
+                            classId: previous.classId === option.id ? "" : option.id,
+                          }));
+                        }}
+                        className={cn(
+                          "grid h-[42px] place-items-center rounded-xl border-[1.5px] px-1 text-center text-[12.5px] font-extrabold leading-tight transition-colors",
+                          selected
+                            ? "border-accent bg-accent-soft text-accent-soft-foreground"
+                            : "border-border bg-card text-foreground hover:bg-surface-2",
+                        )}
+                      >
+                        <span className="truncate">{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Segments next: they answer the questions that brought the
                   user to the sheet. Route and status stay below, unchanged. */}
               {segmentGroups("wrap")}
 
@@ -818,18 +925,15 @@ export function StudentQuickLoad({
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-2">
+              {/* Reset lives in the body, not beside the footer button: the
+                  footer is the one thing a thumb reaches for at the end of a
+                  long sheet, and a destructive control next to it is a misfire
+                  waiting to happen. */}
+              <div className="pt-2">
                 <Button
                   type="button"
-                  className="flex-1 h-12 text-sm font-semibold rounded-xl"
-                  onClick={() => setFilterSheetOpen(false)}
-                >
-                  {t("filterApplyFilters")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-12 px-4 text-sm font-medium rounded-xl"
+                  variant="ghost"
+                  className="h-10 w-full rounded-xl text-xs font-extrabold text-accent"
                   onClick={resetFilters}
                 >
                   {t("filterReset")}

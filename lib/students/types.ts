@@ -20,6 +20,18 @@ export type StudentRouteOption = {
   isActive: boolean;
 };
 
+/**
+ * How the roll is ordered.
+ *
+ * Both options sort in SQL, across every matching student, not just the page in
+ * hand. There is deliberately no "dues high to low": the list query runs
+ * against `public.students` and dues are enriched after paging, so a dues sort
+ * could only ever reorder the forty rows already loaded — a control that looks
+ * like a ranking and is not. That ranking exists, correctly, as the Overdue
+ * saved view and the Defaulters screen.
+ */
+export type StudentListSort = "name" | "class";
+
 export type StudentListFilters = {
   query: string;
   sessionLabel: string;
@@ -28,6 +40,7 @@ export type StudentListFilters = {
   status: "" | StudentStatus;
   /** Segment chips: money / enrolment / data-quality / fee-profile facets. */
   segments: SegmentId[];
+  sort: StudentListSort;
 };
 
 export type StudentSessionOption = {
@@ -284,4 +297,5 @@ export const EMPTY_STUDENT_FILTERS: StudentListFilters = {
   transportRouteId: "",
   status: "",
   segments: [],
+  sort: "name",
 };

@@ -3,7 +3,16 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
-import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
+import {
+  resolveDateRange,
+  schoolTodayIso,
+  type ReceiptFilters,
+} from "@/lib/receipts/filters";
+import {
+  getAllReceiptReversalTotals,
+  getReceiptReversalTotals,
+  isReceiptReversed,
+} from "@/lib/receipts/reversals";
 import { resolveReceiptSessionLabel } from "@/lib/receipts/session-label";
 import { buildTransportRouteLabel } from "@/lib/transport/label";
 import type {
@@ -278,16 +287,179 @@ function buildInstallmentStatus(
     .sort((left, right) => left.installmentNo - right.installmentNo);
 }
 
+/** Everything `getReceiptsPage` can narrow by, beyond the text query. */
+export type ReceiptPageFilters = Omit<ReceiptFilters, "query" | "sessionLabel"> & {
+  /** Mode and staff counts for the filter sheet. Costs an extra pass. */
+  withFacets?: boolean;
+};
+
+export type ReceiptPageAggregate = {
+  totalAmount: number;
+  receiptCount: number;
+  averageAmount: number;
+  /** The set was larger than the aggregate could read; the UI says "about". */
+  truncated: boolean;
+};
+
+export type ReceiptPageFacets = {
+  byMode: Array<{ mode: string; count: number }>;
+  byStaff: Array<{ receivedBy: string; count: number }>;
+};
+
+/**
+ * How many rows the aggregate passes will read.
+ *
+ * Node-side summing over a session's receipts, in the manner of
+ * `loadExtendedCollectionHeatmap`. A live session is in the low hundreds, so
+ * this is generous by an order of magnitude — and `truncated` says so out loud
+ * rather than reporting a total that is quietly short. Past ~5,000 receipts,
+ * replace both passes with one `get_receipt_filter_facets` RPC cached on
+ * `session:{label}`.
+ */
+const AGGREGATE_ROW_CAP = 5000;
+
+/** The filter-only embed that scopes a receipts read to one academic session. */
+const SESSION_SCOPE_EMBED =
+  "payments!inner(installment_ref:installments!inner(class_ref:classes!inner(session_label)))";
+
+type FilterableQuery = {
+  eq(column: string, value: string): FilterableQuery;
+  gte(column: string, value: string): FilterableQuery;
+  lte(column: string, value: string): FilterableQuery;
+  in(column: string, values: readonly string[]): FilterableQuery;
+  or(filter: string): FilterableQuery;
+};
+
+/**
+ * Applies the text query and every filter to a receipts select.
+ *
+ * One function for all three passes — the page, the aggregate and the facets —
+ * because a filter applied to the list but not the total shows a stat strip
+ * that disagrees with the rows under it.
+ */
+function applyReceiptFilters<Query extends FilterableQuery>(
+  query: Query,
+  searchQuery: string,
+  filters: ReceiptPageFilters | undefined,
+  dateRange: { from: string | null; to: string | null },
+  options: {
+    skipModes?: boolean;
+    skipStaff?: boolean;
+    /** Ids of fully reversed receipts, when "Reversed only" is on. */
+    reversedIds?: readonly string[];
+  } = {},
+): Query {
+  let next = query;
+
+  if (options.reversedIds) {
+    // An empty list is a real answer — nothing has been reversed — and `.in`
+    // with no values correctly matches nothing.
+    next = next.in("id", options.reversedIds) as Query;
+  }
+
+  const normalizedQuery = searchQuery.trim();
+  if (normalizedQuery) {
+    next = next.or(
+      `receipt_number.ilike.%${normalizedQuery}%,reference_number.ilike.%${normalizedQuery}%`,
+    ) as Query;
+  }
+
+  if (!filters) return next;
+
+  if (dateRange.from) next = next.gte("payment_date", dateRange.from) as Query;
+  if (dateRange.to) next = next.lte("payment_date", dateRange.to) as Query;
+
+  if (!options.skipModes && filters.paymentModes.length > 0) {
+    next = next.in("payment_mode", filters.paymentModes) as Query;
+  }
+
+  // "Discount close-outs" narrows to the mode that records a written-off
+  // balance. It is not cash, and it never counts as money collected.
+  if (filters.discountCloseOutsOnly) {
+    next = next.eq("payment_mode", "discount") as Query;
+  }
+
+  if (!options.skipStaff && filters.receivedBy.length > 0) {
+    next = next.in("received_by", filters.receivedBy) as Query;
+  }
+
+  // The class filter needs `students!inner`; see the select builder below. On a
+  // non-inner embed PostgREST nulls the embed instead of dropping the parent
+  // row, so this filter would return every receipt with a blank student.
+  if (filters.classId) {
+    next = next.eq("student_ref.class_id", filters.classId) as Query;
+  }
+
+  return next;
+}
+
+/**
+ * Ids of receipts whose reversals cover their full amount.
+ *
+ * "Reversed" is not a column — it is `sum(reversal) >= total_amount`, computed
+ * from `payment_adjustments`. So the "Reversed only" filter has to resolve the
+ * id set first and hand it to the queries. That is affordable precisely because
+ * reversals are rare: the view holds one row per reversed receipt, not one per
+ * receipt.
+ *
+ * Capped at 500 ids: PostgREST serialises `.in(...)` into the request URL, and
+ * the Ledger page proved that ceiling by dying at ~17,800 characters.
+ */
+async function resolveFullyReversedIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<string[]> {
+  const totals = await getAllReceiptReversalTotals(supabase);
+  if (totals.size === 0) return [];
+
+  const candidateIds = [...totals.keys()].slice(0, 500);
+  const { data } = await supabase
+    .from("receipts")
+    .select("id, total_amount")
+    .in("id", candidateIds);
+
+  return ((data ?? []) as Array<{ id: string; total_amount: number | null }>)
+    .filter((row) => isReceiptReversed(totals, row.id, Number(row.total_amount ?? 0)))
+    .map((row) => row.id);
+}
+
+function receiptSelect(columns: string, filters: ReceiptPageFilters | undefined) {
+  // `!inner` only when a class filter is on. Without it, receipts whose student
+  // row is missing stop rendering as "Unknown student" and vanish instead.
+  const studentJoin = filters?.classId ? "students!inner" : "students";
+  return columns.replace("__STUDENT__", studentJoin);
+}
+
+const LIST_COLUMNS =
+  "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, " +
+  "student_ref:__STUDENT__(id, class_id, full_name, admission_no, father_name, primary_phone, class_ref:classes(class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)), " +
+  SESSION_SCOPE_EMBED;
+
 export async function getReceiptsPage(
   searchQuery: string,
   pagination: { page: number; pageSize: number },
   sessionLabel: string,
-): Promise<{ receipts: ReceiptListItem[]; totalCount: number; page: number; pageSize: number }> {
+  filters?: ReceiptPageFilters,
+): Promise<{
+  receipts: ReceiptListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  aggregate: ReceiptPageAggregate;
+  facets?: ReceiptPageFacets;
+}> {
   const supabase = await createClient();
   const page = Math.max(1, Math.floor(pagination.page));
   const pageSize = Math.min(100, Math.max(1, Math.floor(pagination.pageSize)));
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+  const dateRange = filters
+    ? resolveDateRange(filters, schoolTodayIso())
+    : { from: null, to: null };
+  // Resolved before the queries are built, because it is one of their filters.
+  const reversedIds = filters?.reversedOnly
+    ? await resolveFullyReversedIds(supabase)
+    : undefined;
+  const filterOptions = { reversedIds };
 
   // Scope to the viewed session by the installment frozen on each payment, NOT the
   // student's current class — otherwise a promoted student's prior-year receipts would
@@ -308,24 +480,74 @@ export async function getReceiptsPage(
   // the count is still receipts, not payments. Verified against live data —
   // the join and the id list select exactly the same 181 receipts, with zero
   // rows on either side of the difference.
-  let query = supabase
+  const listBase = supabase
     .from("receipts")
-    .select(
-      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, student_ref:students(id, full_name, admission_no, father_name, primary_phone, class_ref:classes(class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)), payments!inner(installment_ref:installments!inner(class_ref:classes!inner(session_label)))",
-      { count: "exact" },
-    )
-    .eq("payments.installment_ref.class_ref.session_label", sessionLabel)
-    .order("payment_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    .select(receiptSelect(LIST_COLUMNS, filters), { count: "exact" })
+    .eq("payments.installment_ref.class_ref.session_label", sessionLabel);
+  // Newest first by default; amount-high-to-low keeps `created_at` as the
+  // second key so pagination stays stable across ties.
+  const sorted = (
+    filters?.sort === "amount"
+      ? listBase.order("total_amount", { ascending: false }).order("created_at", { ascending: false })
+      : listBase.order("payment_date", { ascending: false }).order("created_at", { ascending: false })
+  ).range(from, to);
 
-  const normalizedQuery = searchQuery.trim();
+  const listQuery = applyReceiptFilters(
+    sorted as unknown as FilterableQuery,
+    searchQuery,
+    filters,
+    dateRange,
+    filterOptions,
+  ) as unknown as typeof sorted;
 
-  if (normalizedQuery) {
-    query = query.or(`receipt_number.ilike.%${normalizedQuery}%,reference_number.ilike.%${normalizedQuery}%`);
-  }
+  const aggregateQuery = applyReceiptFilters(
+    supabase
+      .from("receipts")
+      .select(receiptSelect(`id, total_amount, ${SESSION_SCOPE_EMBED}`, filters), {
+        count: "exact",
+      })
+      .eq("payments.installment_ref.class_ref.session_label", sessionLabel)
+      .range(0, AGGREGATE_ROW_CAP - 1) as unknown as FilterableQuery,
+    searchQuery,
+    filters,
+    dateRange,
+    filterOptions,
+  );
 
-  const { data, error, count } = await query;
+  // Facets exclude the two filters they describe, so a count reads as "how
+  // many more you would get", not "how many you already have".
+  const facetsQuery = filters?.withFacets
+    ? applyReceiptFilters(
+        supabase
+          .from("receipts")
+          .select(
+            receiptSelect(`payment_mode, received_by, ${SESSION_SCOPE_EMBED}`, filters),
+          )
+          .eq("payments.installment_ref.class_ref.session_label", sessionLabel)
+          .range(0, AGGREGATE_ROW_CAP - 1) as unknown as FilterableQuery,
+        searchQuery,
+        filters,
+        dateRange,
+        { ...filterOptions, skipModes: true, skipStaff: true },
+      )
+    : null;
+
+  const [listResult, aggregateResult, facetsResult] = await Promise.all([
+    listQuery,
+    aggregateQuery as unknown as PromiseLike<{
+      data: Array<{ total_amount: number | null }> | null;
+      error: unknown;
+      count: number | null;
+    }>,
+    facetsQuery
+      ? (facetsQuery as unknown as PromiseLike<{
+          data: Array<{ payment_mode: string; received_by: string | null }> | null;
+          error: unknown;
+        }>)
+      : Promise.resolve(null),
+  ]);
+
+  const { data, error, count } = listResult;
 
   if (error) {
     throw new Error(`Unable to load receipts: ${error.message}`);
@@ -358,11 +580,49 @@ export async function getReceiptsPage(
     };
   });
 
+  // Totals over the whole filtered set, not the page in hand — a stat strip
+  // that reported the thirty rows on screen would be worse than none.
+  const aggregateRows = (aggregateResult.data ?? []) as Array<{ total_amount: number | null }>;
+  const totalAmount = aggregateRows.reduce(
+    (sum, row) => sum + Number(row.total_amount ?? 0),
+    0,
+  );
+  const receiptCount = aggregateResult.count ?? aggregateRows.length;
+  const aggregate: ReceiptPageAggregate = {
+    totalAmount,
+    receiptCount,
+    averageAmount: receiptCount > 0 ? Math.round(totalAmount / receiptCount) : 0,
+    truncated: receiptCount > AGGREGATE_ROW_CAP,
+  };
+
+  let facets: ReceiptPageFacets | undefined;
+  if (facetsResult?.data) {
+    const modeCounts = new Map<string, number>();
+    const staffCounts = new Map<string, number>();
+    for (const row of facetsResult.data) {
+      modeCounts.set(row.payment_mode, (modeCounts.get(row.payment_mode) ?? 0) + 1);
+      // Grouped on the RAW value. Two staff can render the same display name,
+      // and the filter matches the stored string.
+      const staff = (row.received_by ?? "").trim();
+      if (staff) staffCounts.set(staff, (staffCounts.get(staff) ?? 0) + 1);
+    }
+    facets = {
+      byMode: [...modeCounts.entries()]
+        .map(([mode, countValue]) => ({ mode, count: countValue }))
+        .sort((left, right) => right.count - left.count),
+      byStaff: [...staffCounts.entries()]
+        .map(([receivedBy, countValue]) => ({ receivedBy, count: countValue }))
+        .sort((left, right) => right.count - left.count),
+    };
+  }
+
   return {
     receipts,
     totalCount: count ?? 0,
     page,
     pageSize,
+    aggregate,
+    facets,
   };
 }
 

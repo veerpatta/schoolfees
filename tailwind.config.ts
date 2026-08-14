@@ -83,6 +83,7 @@ export default {
           surface: "hsl(var(--nav-surface))",
           hover: "hsl(var(--nav-hover))",
           border: "hsl(var(--nav-border))",
+          accent: "hsl(var(--nav-accent))",
         },
         border: "hsl(var(--border))",
         "border-strong": "hsl(var(--border-strong))",

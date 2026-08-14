@@ -2,17 +2,18 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { ReceiptsQuickLoad } from "@/components/receipts/receipts-quick-load";
+import { readerFromRecord } from "@/lib/navigation/search-params";
+import { getPaymentDeskClassOptions } from "@/lib/payments/data";
 import { getReceiptsPage } from "@/lib/receipts/data";
+// The date presets resolve to real bounds inside getReceiptsPage, against the
+// school's timezone — the client never needs to know what "today" is.
+import { normalizeReceiptFilters } from "@/lib/receipts/filters";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 type ReceiptsPageProps = {
-  searchParams?: Promise<{
-    query?: string;
-    page?: string;
-    session?: string | string[];
-  }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function asString(value: string | string[] | undefined): string {
@@ -28,9 +29,20 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
     searchParamSession: asString(resolvedSearchParams?.session),
     cookieSession: await getViewSessionCookie(),
   });
-  const query = (resolvedSearchParams?.query ?? "").trim();
-  const page = Math.max(1, Number.parseInt(resolvedSearchParams?.page ?? "1", 10) || 1);
-  const data = await getReceiptsPage(query, { page, pageSize: 30 }, viewSession.sessionLabel);
+  // One normalizer for the page and the search route, so the first render and
+  // the first refetch cannot answer different questions.
+  const filters = {
+    ...normalizeReceiptFilters(readerFromRecord(resolvedSearchParams)),
+    sessionLabel: viewSession.sessionLabel,
+  };
+  const page = Math.max(1, Number.parseInt(asString(resolvedSearchParams?.page) || "1", 10) || 1);
+
+  // The class list is cached on `session:{label}` and is a fifth the size of
+  // the full student form options — this page only needs labels for chips.
+  const [data, classOptions] = await Promise.all([
+    getReceiptsPage(filters.query, { page, pageSize: 30 }, viewSession.sessionLabel, filters),
+    getPaymentDeskClassOptions(viewSession.sessionLabel),
+  ]);
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
 
   return (
@@ -42,10 +54,12 @@ export default async function ReceiptsPage({ searchParams }: ReceiptsPageProps) 
       />
 
       <ReceiptsQuickLoad
-        initialQuery={query}
+        initialFilters={filters}
         initialPage={page}
         initialReceipts={data.receipts}
         initialTotalCount={data.totalCount}
+        initialAggregate={data.aggregate}
+        classOptions={classOptions}
         canPrintReceipts={canPrintReceipts}
       />
     </div>

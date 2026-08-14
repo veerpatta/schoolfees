@@ -67,6 +67,13 @@
       "rawBytes": 342286,
       "gzipBytes": 118800,
       "currentGzipBytes": 117085
+    },
+    {
+      "route": "/protected/receipts",
+      "chunks": 19,
+      "rawBytes": 440719,
+      "gzipBytes": 141300,
+      "currentGzipBytes": 139759
     }
   ]
 }

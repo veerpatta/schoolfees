@@ -704,8 +704,42 @@ export async function getRepaymentScheduleExportRows(sessionLabel: string, today
   );
 }
 
-/** Session-wide EMI metrics for the Dashboard card. */
-export async function getRepaymentDashboardSummary(sessionLabel: string) {
+/**
+ * Session-wide EMI metrics for the Dashboard card.
+ *
+ * Named rather than inline because two surfaces now read it — the desk's
+ * `EmiTrackingCard` and the phone's Recovery board — and both are handed the
+ * value by `DashboardBelowFold` so the RPC runs once per render.
+ */
+export type RepaymentDashboardSummary = {
+  sessionLabel: string;
+  activePlans: number;
+  onTrack: number;
+  dueNow: number;
+  missed: number;
+  completed: number;
+  planReviewNeeded: number;
+  openingBalanceTotal: number;
+  remainingTotal: number;
+  catchUpTotal: number;
+  expectedThisMonth: number;
+  collectedThisMonth: number;
+  topPriorityStudents: Array<{
+    studentId: string;
+    planId: string;
+    studentName: string;
+    admissionNo: string;
+    paymentStatus: string;
+    missedInstallmentCount: number;
+    catchUpAmount: number;
+    remainingBalance: number;
+    nextDueDate: string | null;
+  }>;
+};
+
+export async function getRepaymentDashboardSummary(
+  sessionLabel: string,
+): Promise<RepaymentDashboardSummary | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_dashboard_repayment_summary", {
     p_session_label: sessionLabel,
@@ -715,29 +749,5 @@ export async function getRepaymentDashboardSummary(sessionLabel: string) {
     return null;
   }
 
-  return data as unknown as {
-    sessionLabel: string;
-    activePlans: number;
-    onTrack: number;
-    dueNow: number;
-    missed: number;
-    completed: number;
-    planReviewNeeded: number;
-    openingBalanceTotal: number;
-    remainingTotal: number;
-    catchUpTotal: number;
-    expectedThisMonth: number;
-    collectedThisMonth: number;
-    topPriorityStudents: Array<{
-      studentId: string;
-      planId: string;
-      studentName: string;
-      admissionNo: string;
-      paymentStatus: string;
-      missedInstallmentCount: number;
-      catchUpAmount: number;
-      remainingBalance: number;
-      nextDueDate: string | null;
-    }>;
-  };
+  return data as unknown as RepaymentDashboardSummary;
 }

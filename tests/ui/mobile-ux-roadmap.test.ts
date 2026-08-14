@@ -75,9 +75,13 @@ describe("mobile UX roadmap implementation", () => {
     expect(englishMessages.Dashboard.activeStudents).toBe("Active students");
     expect(englishMessages.Dashboard.thisMonth).toBe("This month");
     // The phone home screen reads its copy from the MobileApp namespace, so
-    // assert the keys here and the strings in the catalogues below.
+    // assert the keys here and the strings in the catalogues below. The year
+    // card moved onto the Overview board when the phone gained the board
+    // switcher, so "expected this year" is asserted against that file — the
+    // figure still has to be on a phone, just not on the home screen.
     const mobileHome = readRepoFile("components/dashboard/mobile-dashboard-screen.tsx");
-    expect(mobileHome).toContain('t("expectedThisYear")');
+    const mobileBoards = readRepoFile("components/dashboard/mobile-boards.tsx");
+    expect(mobileBoards).toContain('t("expectedThisYear")');
     expect(mobileHome).toContain('t("oldBalance")');
     expect(mobileHome).toContain('t("collectCta")');
 

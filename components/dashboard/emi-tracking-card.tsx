@@ -2,7 +2,10 @@ import Link from "next/link";
 
 import { Section } from "@/components/ui/section";
 import { formatInr } from "@/lib/helpers/currency";
-import { getRepaymentDashboardSummary } from "@/lib/repayment-plans/data";
+import {
+  getRepaymentDashboardSummary,
+  type RepaymentDashboardSummary,
+} from "@/lib/repayment-plans/data";
 
 function Metric({
   label,
@@ -48,9 +51,22 @@ function Metric({
  *
  * Renders nothing when the school has no active plans, so the dashboard does
  * not grow a permanently empty card during rollout.
+ *
+ * Pass `summary` when the caller has already loaded it — the phone Recovery
+ * board reads the same figures, and the dashboard loads it once for both. The
+ * self-fetch stays for any other call site.
  */
-export async function EmiTrackingCard({ sessionLabel }: { sessionLabel: string }) {
-  const summary = await getRepaymentDashboardSummary(sessionLabel).catch(() => null);
+export async function EmiTrackingCard({
+  sessionLabel,
+  summary: preloaded,
+}: {
+  sessionLabel: string;
+  summary?: RepaymentDashboardSummary | null;
+}) {
+  const summary =
+    preloaded !== undefined
+      ? preloaded
+      : await getRepaymentDashboardSummary(sessionLabel).catch(() => null);
 
   if (!summary || summary.activePlans === 0) {
     return null;

@@ -5,8 +5,8 @@ Five analytical boards behind a switcher, under a money band that stays put.
 | | |
 |---|---|
 | Route | `/protected/dashboard?view=overview\|collection\|recovery\|classes\|latefee` |
-| Components | `components/dashboard/` — `money-band.tsx`, `view-switcher.tsx`, `boards.tsx`, `tiles.tsx` |
-| Lib | `lib/dashboard/` — `analytics.ts`, `data.ts`, `summary.ts`, `kpi-delta.ts` |
+| Components | `components/dashboard/` — `money-band.tsx`, `view-switcher.tsx`, `boards.tsx`, `tiles.tsx` (desk) · `mobile-dashboard-screen.tsx`, `mobile-boards.tsx`, `mobile-board-charts.tsx` (phone) |
+| Lib | `lib/dashboard/` — `analytics.ts`, `data.ts`, `summary.ts`, `kpi-delta.ts`, `mobile-derived.ts` |
 | DB | `get_dashboard_summary`, `get_dashboard_fee_split`, `get_dashboard_analytics` |
 
 ## The money band
@@ -31,11 +31,42 @@ to do.
 | **Classes** | One ranked list by fees pending, replacing three overlapping surfaces that used to say similar things differently |
 | **Late fee** | Charged / waived / still owed, split by who waived it, and what accrues on the next due date |
 
+## The phone
+
+Same five boards, same `?view=`, same `ViewSwitcher` — a dashboard link opens the same board
+whichever screen it is tapped on. What differs is the shape: one column of cards
+(`mobile-boards.tsx`) instead of a three-up grid of tiles.
+
+Above the switcher the phone home carries what the desk's money band carries — the day's
+money on the ink band, then **Pace to year end**, then the three pots and the next action.
+Pace is the one figure neither surface stores: `computePaceToYearEnd` sums every installment
+already past its due date, a **step function, not a linear ramp**, because money is due on a
+stated date and a ramp would put a number on screen the school never agreed to.
+
+Two phone-only rules:
+
+- **The Collection board's daily series comes from `collectionHeatmap`, not
+  `collectionTrend`.** The latter is `order by payment_date desc limit 14` — the last 14 days
+  that *had a receipt*, not 14 calendar days. The heatmap is keyed by date and omits quiet
+  days entirely, so `buildDailySeries` / `buildWeekdayAverages` zero-fill before averaging;
+  without that, "average per day" is really "average per day that had a receipt".
+- **It says "money taken", never "fees collected".** The series sums `receipts.total_amount`,
+  which includes late fee. Rule 8 constrains labels as much as columns.
+
+`?days=14|30` picks the window, resolved by `resolveCollectionWindow`. It is a link like
+`?view=`, for the same reason, and only the Collection board carries it.
+
 ## Rules
 
 **Boards are `?view=` links, not client tab state.** A board stays linkable, back works, and
 it survives with JavaScript off. `scroll={false}` — these are tabs, not page navigations, and
 `<Link>`'s default scroll-to-top threw the reader off what they were reading.
+
+**The boards fetch nothing.** `DashboardBelowFold` loads the page data, the analytics and the
+EMI summary once and passes them down. `unstable_cache` does not de-duplicate concurrent
+callers, so a loader inside a board fires a second Mumbai round trip alongside the first on
+every cold cache. `tests/ui/dashboard-mobile-boards.test.tsx` asserts there is exactly one
+`getDashboardAnalytics(` call in the route.
 
 **There is no charting library and there cannot be one.** `/protected/dashboard` sits under
 a gzip ceiling in `quality/route-bundle-baseline.json`; recharts is roughly 100 KB against
@@ -85,4 +116,7 @@ shipping 507 student rows to produce twenty.
 
 `tests/integration/dashboard-summary.test.ts` · `tests/ui/dashboard-boards.test.tsx` ·
 `tests/ui/dashboard-waterfall.test.tsx` (asserts auth resolves before any data fetch, and
-that the independent fetches stay concurrent).
+that the independent fetches stay concurrent) · `tests/ui/dashboard-mobile-boards.test.tsx`
+(renders all five phone boards, asserts tokens-only colour and one analytics fetch) ·
+`tests/unit/dashboard-mobile-derived.test.ts` (the pace and daily-series arithmetic) ·
+`tests/unit/dashboard-view-params.test.ts` (`?view=` and `?days=`).

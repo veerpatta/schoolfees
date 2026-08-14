@@ -1577,6 +1577,9 @@ async function handleExport(request: NextRequest, context: RouteContext) {
       transportRouteId: "",
       status: exportStatus as StudentListFilters["status"],
       segments: exportSegments,
+      // An export has always come out in name order; the sort control on the
+      // Students screen must not quietly reshape a downloaded file.
+      sort: "name",
     });
 
     return rowsResponse(
@@ -1614,6 +1617,9 @@ async function handleExport(request: NextRequest, context: RouteContext) {
       transportRouteId: "",
       status: exportStatus as StudentListFilters["status"],
       segments: exportSegments,
+      // An export has always come out in name order; the sort control on the
+      // Students screen must not quietly reshape a downloaded file.
+      sort: "name",
     });
     const masterById = await getStudentMasterFieldsByIds(rows.map((row) => row.id));
 
@@ -1744,6 +1750,9 @@ async function handleExport(request: NextRequest, context: RouteContext) {
       transportRouteId: "",
       status: exportStatus as StudentListFilters["status"],
       segments: exportSegments,
+      // An export has always come out in name order; the sort control on the
+      // Students screen must not quietly reshape a downloaded file.
+      sort: "name",
     });
     const assignments = await getStudentConventionalDiscountAssignments({
       academicSessionLabel: resolvedSessionLabel,

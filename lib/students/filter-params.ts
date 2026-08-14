@@ -1,3 +1,8 @@
+import {
+  readerFromRecord,
+  readerFromSearchParams,
+  type SearchParamReader,
+} from "@/lib/navigation/search-params";
 import { parseSegments, serializeSegments } from "@/lib/segments/student-segments";
 import { STUDENT_STATUSES } from "@/lib/students/constants";
 import { EMPTY_STUDENT_FILTERS, type StudentListFilters } from "@/lib/students/types";
@@ -19,20 +24,11 @@ import { EMPTY_STUDENT_FILTERS, type StudentListFilters } from "@/lib/students/t
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type SearchParamReader = (key: string) => string | undefined;
-
-export function readerFromRecord(
-  params: Record<string, string | string[] | undefined> | undefined,
-): SearchParamReader {
-  return (key) => {
-    const value = params?.[key];
-    return Array.isArray(value) ? value[0] : value;
-  };
-}
-
-export function readerFromSearchParams(params: URLSearchParams): SearchParamReader {
-  return (key) => params.get(key) ?? undefined;
-}
+// Re-exported so every existing `@/lib/students/filter-params` import keeps
+// resolving; the definitions moved to lib/navigation so Receipts can share them
+// without importing from lib/students.
+export { readerFromRecord, readerFromSearchParams };
+export type { SearchParamReader };
 
 export function normalizeStudentFilters(read: SearchParamReader): StudentListFilters {
   const validStatuses = new Set<string>(
@@ -57,6 +53,10 @@ export function normalizeStudentFilters(read: SearchParamReader): StudentListFil
       ? (rawStatus as StudentListFilters["status"])
       : ("active" as StudentListFilters["status"]),
     segments: parseSegments(read("seg")),
+    // "name" on both entry points, and the only other option is "class" — an
+    // unknown value must not silently become an unordered query, because
+    // PostgREST pagination over an unordered result can repeat or skip rows.
+    sort: read("sort")?.trim() === "class" ? "class" : "name",
   };
 }
 
@@ -73,6 +73,7 @@ export function studentFiltersToParams(
   if (filters.transportRouteId) params.set("transportRouteId", filters.transportRouteId);
   if (filters.status) params.set("status", filters.status);
   if (filters.segments.length > 0) params.set("seg", serializeSegments(filters.segments));
+  if (filters.sort && filters.sort !== "name") params.set("sort", filters.sort);
   if (extra?.page && extra.page > 1) params.set("page", String(extra.page));
 
   return params;

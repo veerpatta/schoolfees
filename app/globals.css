@@ -60,6 +60,10 @@
     --nav-surface: 222 22% 14%;      /* cards sitting on ink */
     --nav-hover: 222 20% 16%;
     --nav-border: 222 16% 20%;
+    /* Saffron lifted one step, for accent marks drawn ON the ink band.
+       --accent is tuned for paper; at 41% lightness it goes muddy against
+       10% ink, which is how the year-rate gauge arc lost its contrast. */
+    --nav-accent: 20 86% 52%;
 
     /* Semantic ---------------------------------------------------------- */
     --success: 151 56% 24%;
@@ -161,6 +165,10 @@
     --nav-surface: 222 20% 18%;
     --nav-hover: 222 18% 20%;
     --nav-border: 222 16% 24%;
+    /* At night the page is already ink, so --accent is on the same footing
+       and the two match. Kept as its own token so the ink surfaces stay
+       adjustable without touching every accent on the page. */
+    --nav-accent: 22 88% 52%;
 
     /* Semantic — bump softs to readable dark tones */
     --success: 151 50% 40%;

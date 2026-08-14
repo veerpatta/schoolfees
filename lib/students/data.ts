@@ -589,6 +589,31 @@ export async function getStudentFormOptions(payload?: {
   };
 }
 
+/**
+ * Applies the roll's sort order to a `students` select.
+ *
+ * Shared by the identity and financial passes so the two cannot disagree: the
+ * client paints identities first and the financial rows overwrite them, so a
+ * different order in either pass shows the list visibly reshuffling itself.
+ *
+ * `full_name` is always the last key. Sorting by class alone leaves students
+ * inside a class in whatever order Postgres returns them, which changes between
+ * pages and makes `.range()` repeat or skip rows.
+ */
+function applyStudentSort<Query extends {
+  order(
+    column: string,
+    options?: { ascending?: boolean; referencedTable?: string },
+  ): Query;
+}>(query: Query, sort: StudentListFilters["sort"]): Query {
+  if (sort === "class") {
+    return query
+      .order("sort_order", { ascending: true, referencedTable: "class_ref" })
+      .order("full_name", { ascending: true });
+  }
+  return query.order("full_name", { ascending: true });
+}
+
 async function getStudentsPageUncached(
   filters: StudentListFilters,
   pagination: {
@@ -602,15 +627,16 @@ async function getStudentsPageUncached(
   const pageSize = Math.min(100, Math.max(1, Math.floor(pagination.pageSize)));
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
-  let query = supabase
-    .from("students")
-    .select(
-      "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, photo_path, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
-      { count: "exact" },
-    )
-    .eq("class_ref.status", "active")
-    .order("full_name", { ascending: true })
-    .range(from, to);
+  let query = applyStudentSort(
+    supabase
+      .from("students")
+      .select(
+        "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, photo_path, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+        { count: "exact" },
+      )
+      .eq("class_ref.status", "active"),
+    filters.sort,
+  ).range(from, to);
 
   if (filters.sessionLabel) {
     query = query.eq("class_ref.session_label", filters.sessionLabel);
@@ -974,15 +1000,16 @@ export async function getStudentsIdentityPage(
   const page = Math.max(1, Math.floor(pagination.page));
   const pageSize = Math.min(100, Math.max(1, Math.floor(pagination.pageSize)));
   const from = (page - 1) * pageSize;
-  let query = supabase
-    .from("students")
-    .select(
-      "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, photo_path, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
-      { count: "exact" },
-    )
-    .eq("class_ref.status", "active")
-    .order("full_name", { ascending: true })
-    .range(from, from + pageSize - 1);
+  let query = applyStudentSort(
+    supabase
+      .from("students")
+      .select(
+        "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, photo_path, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+        { count: "exact" },
+      )
+      .eq("class_ref.status", "active"),
+    filters.sort,
+  ).range(from, from + pageSize - 1);
 
   if (filters.sessionLabel) query = query.eq("class_ref.session_label", filters.sessionLabel);
   if (filters.classId) query = query.eq("class_id", filters.classId);

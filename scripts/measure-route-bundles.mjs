@@ -12,6 +12,9 @@ const routes = [
   "defaulters",
   "exports",
   "admin-tools",
+  // Added when Receipts grew a real filter sheet — until then it was a search
+  // box, and the only route in the daily set with no ceiling over it.
+  "receipts",
 ];
 
 async function measure(route) {

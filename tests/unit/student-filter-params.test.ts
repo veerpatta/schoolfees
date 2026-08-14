@@ -48,6 +48,7 @@ describe("normalizeStudentFilters — one normalizer, two entry points", () => {
       transportRouteId: VALID_UUID,
       status: "left",
       seg: "overdue,onTransport",
+      sort: "class",
     };
     const { fromPage, fromRoute } = bothEntryPoints(input);
 
@@ -59,7 +60,17 @@ describe("normalizeStudentFilters — one normalizer, two entry points", () => {
       transportRouteId: VALID_UUID,
       status: "left",
       segments: ["overdue", "onTransport"],
+      sort: "class",
     });
+  });
+
+  it("falls back to name order for a sort nobody offers", () => {
+    // Never an empty ORDER BY: PostgREST pagination over an unordered result
+    // can repeat or skip rows between pages.
+    expect(normalizeStudentFilters(readerFromRecord({})).sort).toBe("name");
+    expect(normalizeStudentFilters(readerFromRecord({ sort: "dues" })).sort).toBe("name");
+    expect(normalizeStudentFilters(readerFromRecord({ sort: "" })).sort).toBe("name");
+    expect(normalizeStudentFilters(readerFromRecord({ sort: "class" })).sort).toBe("class");
   });
 
   it("takes an array-valued search param's first entry", () => {

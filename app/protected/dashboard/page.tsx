@@ -26,17 +26,18 @@ import { MoneyBand } from "@/components/dashboard/money-band";
 import { ViewSwitcher } from "@/components/dashboard/view-switcher";
 import {
   getDashboardAnalytics,
+  resolveCollectionWindow,
   resolveDashboardView,
+  type CollectionWindow,
   type DashboardView,
 } from "@/lib/dashboard/analytics";
+import { getRepaymentDashboardSummary } from "@/lib/repayment-plans/data";
 import { EmiTrackingCard } from "@/components/dashboard/emi-tracking-card";
 import { DashboardPrefetcher } from "@/components/dashboard/dashboard-prefetcher";
 import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
 import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
-import {
-  MobileDashboardScreen,
-  MobilePendingByClass,
-} from "@/components/dashboard/mobile-dashboard-screen";
+import { MobileDashboardBoards } from "@/components/dashboard/mobile-boards";
+import { MobileDashboardScreen } from "@/components/dashboard/mobile-dashboard-screen";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
 import { RouteCollectionHeatmap } from "@/components/dashboard/route-collection-heatmap";
 import { OptimisticBanner } from "@/components/dashboard/optimistic-banner";
@@ -70,6 +71,7 @@ import type {
 } from "@/lib/dashboard/summary";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate, formatTimeIst } from "@/lib/helpers/date";
+import { staffDisplayName, staffInitials } from "@/lib/helpers/staff-name";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { ServerTimer } from "@/lib/observability/timing";
 import { getViewSessionCookie } from "@/lib/session/cookie";
@@ -1402,14 +1404,23 @@ function FeeDataAttentionBanner({
 // scroll position survived, but the content under it moved anyway.
 function DashboardBelowFoldSkeleton() {
   return (
-    <div className="grid min-h-[32rem] grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <LoadingBlock />
-      <LoadingBlock />
-      <LoadingBlock />
-      <LoadingBlock />
-      <LoadingBlock />
-      <LoadingBlock />
-    </div>
+    <>
+      {/* A phone board is a single column of cards, so a six-tile grid
+          skeleton was a shape it never resolves into. */}
+      <div className="flex min-h-[24rem] flex-col gap-2.5 md:hidden">
+        <LoadingBlock />
+        <LoadingBlock />
+        <LoadingBlock />
+      </div>
+      <div className="hidden min-h-[32rem] grid-cols-1 gap-4 md:grid md:grid-cols-2 xl:grid-cols-3">
+        <LoadingBlock />
+        <LoadingBlock />
+        <LoadingBlock />
+        <LoadingBlock />
+        <LoadingBlock />
+        <LoadingBlock />
+      </div>
+    </>
   );
 }
 
@@ -1419,12 +1430,16 @@ async function DashboardBelowFold({
   canAutoPrepareDues,
   kpis,
   view,
+  collectionWindowDays,
+  todayIso,
 }: {
   staffRole: Awaited<ReturnType<typeof requireStaffPermission>>["appRole"];
   sessionLabel: string;
   canAutoPrepareDues: boolean;
   kpis: DashboardKpis;
   view: DashboardView;
+  collectionWindowDays: CollectionWindow;
+  todayIso: string;
 }) {
   const t = await getTranslations("Dashboard");
   // Overview is built from getDashboardPageData; the other four boards are built
@@ -1433,9 +1448,15 @@ async function DashboardBelowFold({
   // now folded into the analytics query, was shipping 507 student rows from Mumbai
   // to produce twenty. Analytics is cached on `session:{label}`, so once one
   // board has loaded it the rest are a cache read.
-  const [data, analytics] = await Promise.all([
+  //
+  // The EMI summary is loaded here rather than inside EmiTrackingCard because
+  // the phone Recovery board reads the same figures. Two call sites would be
+  // two round trips -- unstable_cache does not de-duplicate concurrent
+  // callers, and this read is not cached at all.
+  const [data, analytics, emiSummary] = await Promise.all([
     getDashboardPageData({ staffRole, sessionLabel }),
     getDashboardAnalytics(sessionLabel),
+    getRepaymentDashboardSummary(sessionLabel).catch(() => null),
   ]);
   scheduleDashboardAutoPrepare({
     canAutoPrepareDues,
@@ -1461,10 +1482,10 @@ async function DashboardBelowFold({
 
   return (
     <>
-      {/* Phone below-fold: pending by class, then the calm note.
-          The data-integrity warnings above it are NOT desktop-only concerns —
-          a student with no fee ledger is invisible in every pending total, so
-          hiding that from a phone hides the reason the numbers are wrong. */}
+      {/* Phone below-fold: the selected analytics board.
+          The data-integrity warnings stay ABOVE it and outside the board — a
+          student with no fee ledger is invisible in every pending total, so
+          that warning must not end up behind a board nobody happens to open. */}
       <div className="space-y-2.5 md:hidden">
         {staffRole === "admin" && data.systemSyncHealth ? (
           <FeeDataAttentionBanner
@@ -1479,7 +1500,16 @@ async function DashboardBelowFold({
             repairHref={appendSessionParam("/protected/fee-setup", sessionLabel)}
           />
         ) : null}
-        <MobilePendingByClass rows={data.classSummary} sessionLabel={sessionLabel} />
+        <MobileDashboardBoards
+          view={view}
+          sessionLabel={sessionLabel}
+          kpis={kpis}
+          data={data}
+          analytics={analytics}
+          emiSummary={emiSummary}
+          collectionWindowDays={collectionWindowDays}
+          todayIso={todayIso}
+        />
       </div>
 
       <div className="hidden space-y-4 md:block md:space-y-6">
@@ -1571,7 +1601,7 @@ async function DashboardBelowFold({
       </div>
 
       {/* Renders nothing until the school actually has active plans. */}
-      <EmiTrackingCard sessionLabel={sessionLabel} />
+      <EmiTrackingCard sessionLabel={sessionLabel} summary={emiSummary} />
 
       <ClassLeaderboard classSummary={data.classSummary} />
 
@@ -1600,7 +1630,14 @@ async function DashboardBelowFold({
    --------------------------------------------------------------------------- */
 
 type DashboardPageProps = {
-  searchParams?: Promise<{ notice?: string; prepared?: string; session?: string; view?: string | string[] }>;
+  searchParams?: Promise<{
+    notice?: string;
+    prepared?: string;
+    session?: string;
+    view?: string | string[];
+    /** Phone Collection board window, 14 or 30. */
+    days?: string | string[];
+  }>;
 };
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
@@ -1648,6 +1685,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const canAutoPrepareDues = hasStaffPermission(staff, "fees:write");
   const preparedCount = Number.parseInt(resolvedSearchParams?.prepared ?? "", 10);
   const view = resolveDashboardView(resolvedSearchParams?.view);
+  const collectionWindowDays = resolveCollectionWindow(resolvedSearchParams?.days);
+  // One label map, two switchers: the phone's (inside MobileDashboardScreen)
+  // and the desk's. Divergent labels would make the same `?view=` read as two
+  // different boards depending on the screen it was opened on.
+  const boardLabels: Record<DashboardView, string> = {
+    overview: t("viewOverview"),
+    collection: t("viewCollection"),
+    recovery: t("viewRecovery"),
+    classes: t("viewClasses"),
+    latefee: t("viewLateFee"),
+  };
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const todayIsoForDelta = new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Kolkata",
@@ -1693,21 +1741,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       hour12: false,
     }).format(new Date()),
   );
-  const mobileEmailLocal = (staff.email ?? "").split("@")[0] ?? "";
-  const mobileNameParts = mobileEmailLocal.split(/[._-]+/).filter(Boolean);
-  const mobileFirstName = mobileNameParts[0]
-    ? mobileNameParts[0][0].toUpperCase() + mobileNameParts[0].slice(1)
-    : "there";
+  // Same email-to-name transform the Receipts "Collected by" filter uses --
+  // both are looking at a staff member we only know by their sign-in address.
+  const mobileFirstName = staffDisplayName(staff.email).split(" ")[0] || "there";
   // Translated: this is the first line on the phone home screen, so an English
   // greeting above a Hindi app is the most visible language leak there is.
   const tMobile = await getTranslations("MobileApp");
   const mobileGreetingKey =
     schoolHour < 12 ? "goodMorning" : schoolHour < 17 ? "goodAfternoon" : "goodEvening";
   const mobileGreeting = tMobile(mobileGreetingKey, { name: mobileFirstName });
-  const mobileInitials =
-    mobileNameParts.length >= 2
-      ? (mobileNameParts[0][0] + mobileNameParts[1][0]).toUpperCase()
-      : (mobileEmailLocal.slice(0, 2) || "VP").toUpperCase();
+  const mobileInitials = staffInitials(staff.email);
 
   timer.flush();
 
@@ -1853,7 +1896,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             sessionLabel={viewSession.sessionLabel}
             canPostPayments={canPostPayments}
             canViewDefaulters={hasStaffPermission(staff, "defaulters:view")}
-            currentInstallmentLabel={aboveFold.currentInstallment?.label}
             greeting={mobileGreeting}
             dateLine={`${formatShortDate(new Date())} · ${viewSession.sessionLabel}`}
             sessionIsTest={viewSession.isTest}
@@ -1861,11 +1903,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             staffInitials={mobileInitials}
             settingsHref={withSession("/protected/settings")}
             installmentSummary={aboveFold.installmentSummary}
-            paidStudents={aboveFold.paidStudents}
-            partlyPaidStudents={aboveFold.partlyPaidStudents}
-            overdueStudents={aboveFold.overdueStudents}
-            notStartedStudents={aboveFold.notStartedStudents}
             followUpQueue={aboveFold.followUpQueue}
+            view={view}
+            boardLabels={boardLabels}
+            todayIso={todayIsoForDelta}
           />
         </div>
 
@@ -1897,13 +1938,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <ViewSwitcher
             current={view}
             sessionLabel={viewSession.sessionLabel}
-            labels={{
-              overview: t("viewOverview"),
-              collection: t("viewCollection"),
-              recovery: t("viewRecovery"),
-              classes: t("viewClasses"),
-              latefee: t("viewLateFee"),
-            }}
+            labels={boardLabels}
           />
 
           <CriticalAlerts
@@ -1930,6 +1965,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             canAutoPrepareDues={canAutoPrepareDues}
             kpis={aboveFold.kpis}
             view={view}
+            collectionWindowDays={collectionWindowDays}
+            todayIso={todayIsoForDelta}
           />
         </Suspense>
         </div>

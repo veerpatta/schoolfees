@@ -75,6 +75,7 @@ const FILTERS = {
   transportRouteId: "",
   status: "active" as const,
   segments: [],
+  sort: "name" as const,
 };
 
 beforeEach(() => {

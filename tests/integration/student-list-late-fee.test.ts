@@ -114,6 +114,7 @@ const FILTERS: StudentListFilters = {
   transportRouteId: "",
   status: "",
   segments: [],
+  sort: "name",
 };
 
 describe("getStudents — pending late fee on the list", () => {
