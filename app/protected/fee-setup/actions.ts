@@ -24,6 +24,7 @@ import {
   prepareDuesForStudentsAutomatically,
   repairMissingDues,
   revalidateCoreFinancePaths,
+  revalidateSessionFinance,
 } from "@/lib/system-sync/finance-sync";
 import {
   buildSyncedOfficeSyncOutcome,
@@ -327,7 +328,7 @@ function toSuccessState(message: string, syncOutcome?: OfficeSyncOutcome): FeeSe
   };
 }
 
-function revalidateFeeSetupSurface() {
+function revalidateFeeSetupSurface(sessionLabel?: string) {
   revalidatePath("/");
   revalidatePath("/auth/login");
   revalidatePath("/protected");
@@ -349,6 +350,17 @@ function revalidateFeeSetupSurface() {
   // Payments, and other office pages see fresh readiness state immediately.
   try { revalidateTag("setup-readiness", "max"); } catch {}
   try { revalidateTag("fee-policy", "max"); } catch {}
+
+  // And the dashboard rollups. Publishing Fee Setup is the single biggest mover
+  // of expected fees in the app — it rewrites dues for every student in scope —
+  // yet none of the busts above reach `session:{label}`, which is the tag the
+  // cached dashboard summary and analytics actually hang off. revalidatePath on
+  // /protected/dashboard does NOT evict an unstable_cache entry; only its tag
+  // does. So the office could publish a fee change, watch the confirmation, and
+  // still be shown the old expected total.
+  if (sessionLabel) {
+    revalidateSessionFinance(sessionLabel);
+  }
 }
 
 async function saveConventionalDiscountPoliciesAndSync(payload: {
@@ -392,7 +404,7 @@ export async function saveWorkbookFeeSetupAction(
         academicSessionLabel: payload.academicSessionLabel,
         policies: conventionalDiscountPolicies,
       });
-      revalidateFeeSetupSurface();
+      revalidateFeeSetupSurface(payload.academicSessionLabel);
       const syncOutcome = buildSyncedOfficeSyncOutcome({
         sessionLabel: payload.academicSessionLabel,
         affectedStudentIds: [],
@@ -423,7 +435,7 @@ export async function saveWorkbookFeeSetupAction(
         policies: conventionalDiscountPolicies,
       });
       const repairResult = await repairMissingDues(payload.academicSessionLabel);
-      revalidateFeeSetupSurface();
+      revalidateFeeSetupSurface(payload.academicSessionLabel);
       const syncOutcome = buildSyncedOfficeSyncOutcome({
         sessionLabel: payload.academicSessionLabel,
         affectedStudentIds: [],
@@ -461,7 +473,7 @@ export async function saveWorkbookFeeSetupAction(
         academicSessionLabel: payload.academicSessionLabel,
         policies: conventionalDiscountPolicies,
       });
-      revalidateFeeSetupSurface();
+      revalidateFeeSetupSurface(payload.academicSessionLabel);
       const syncOutcome = buildSyncedOfficeSyncOutcome({
         sessionLabel: payload.academicSessionLabel,
         affectedStudentIds: [],

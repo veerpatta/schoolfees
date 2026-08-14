@@ -36,11 +36,37 @@ const repoRoot = path.resolve(__dirname, "..", "..");
  * guards, so a new money-moving route belongs in this list on the same commit.
  */
 const MONEY_MOVERS = [
-  "app/api/admin/repair-discount-drift/route.ts",
-  "app/protected/finance-controls/actions.ts",
+  // Posting, reversing and closing out — the obvious ones.
   "app/protected/payments/actions.ts",
+  "app/protected/finance-controls/actions.ts",
   "app/protected/students/close-due-actions.ts",
   "app/api/imports/payments/batch/[batchId]/commit/route.ts",
+  // Repairs and reconciles.
+  "app/api/admin/repair-discount-drift/route.ts",
+  "app/protected/admin-tools/session-health/actions.ts",
+  // The four that were missing when this list was first written, each found by
+  // reading the call sites rather than by anything failing:
+  //   waive-late-fee      moves late_fee_pending and total_pending
+  //   repayment-plan      rewrites the schedule; also calls waive_late_fee
+  //   fee-setup           rewrites dues for every student in scope
+  //   student import      adds students AND prepares their dues
+  "app/protected/payments/waive-late-fee-actions.ts",
+  "app/protected/students/repayment-plan-actions.ts",
+  "app/protected/fee-setup/actions.ts",
+  "app/api/imports/students/batch/[batchId]/commit/route.ts",
+] as const;
+
+/**
+ * These bust PATHS and `student:{id}`, never `session:{label}`.
+ *
+ * The names suggest otherwise, which is the whole problem: four call sites used
+ * one of them and looked finished. `revalidatePath("/protected/dashboard")`
+ * does not evict an `unstable_cache` entry — only the entry's own tag does — so
+ * the page re-rendered and read the same cached money straight back.
+ */
+const NOT_SUFFICIENT_ALONE = [
+  "revalidateCoreFinancePaths",
+  "revalidateAfterPaymentPosting",
 ] as const;
 
 describe("every money-moving path busts the session cache tag", () => {
@@ -57,6 +83,40 @@ describe("every money-moving path busts the session cache tag", () => {
       );
     });
   }
+
+  it("the path-only helpers are never the whole answer on a money mover", () => {
+    // Belt and braces for the assertion above: if a file reaches for one of
+    // these, it must ALSO bust the session tag. Catches the likeliest future
+    // mistake — copying a nearby call site that happens to be the wrong one.
+    for (const file of MONEY_MOVERS) {
+      const source = readFileSync(path.join(repoRoot, file), "utf8");
+
+      for (const helper of NOT_SUFFICIENT_ALONE) {
+        if (source.includes(helper)) {
+          expect(
+            /revalidateSessionFinance\s*\(/.test(source),
+            `${file} calls ${helper}, which does not touch session:{label} — it needs revalidateSessionFinance too`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("the dashboard caches carry a staleness ceiling as a backstop", () => {
+    // pg_cron changes money from inside Postgres, where revalidateTag does not
+    // exist: sync_repayment_plan_late_fees charges EMI late fees nightly. No
+    // amount of care at the call sites covers that, so the caches also expire.
+    const contract = readFileSync(path.join(repoRoot, "lib/dashboard/cache-contract.ts"), "utf8");
+    expect(contract).toMatch(/DASHBOARD_STALENESS_CEILING_SECONDS\s*=\s*\d+/);
+
+    for (const file of ["lib/dashboard/data.ts", "lib/dashboard/analytics.ts"]) {
+      const source = readFileSync(path.join(repoRoot, file), "utf8");
+      expect(source, `${file} must tag on the session`).toContain("session:${sessionLabel}");
+      expect(source, `${file} must also bound staleness`).toContain(
+        "revalidate: DASHBOARD_STALENESS_CEILING_SECONDS",
+      );
+    }
+  });
 
   it("the drift repair busts the tag as well as refreshing the matview", () => {
     // Specifically both, and in that order: drainFinancialViewRefresh fixes the

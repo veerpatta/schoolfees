@@ -3,7 +3,10 @@
 import { after } from "next/server";
 
 import { recordActivity } from "@/lib/activity/events";
-import { revalidateAfterPaymentPosting } from "@/lib/system-sync/finance-revalidation";
+import {
+  revalidateAfterPaymentPosting,
+  revalidateSessionFinance,
+} from "@/lib/system-sync/finance-revalidation";
 // Imported through the system-sync helper rather than reaching for
 // `@/lib/supabase/admin` directly — the helper owns the service-role rationale,
 // and late-fee-waiver-lock.test.ts asserts this module never imports the admin
@@ -165,6 +168,12 @@ export async function waiveLateFeeAction(
     // to what was already stored. The staffer paid for all of it between
     // clicking Waive and seeing the toast.
     revalidateAfterPaymentPosting([studentId]);
+    // revalidateAfterPaymentPosting busts PATHS and the student tag — not
+    // `session:{label}`, which is what the dashboard's cached rollups hang off.
+    // A waiver moves late_fee_pending and total_pending, so without this the
+    // late-fee board keeps the pre-waiver figure until something else happens
+    // to bust the tag.
+    revalidateSessionFinance(sessionLabel ?? "", [studentId]);
 
     after(async () => {
       // The student_fee_overrides trigger only ENQUEUES a materialized-view

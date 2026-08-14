@@ -10,6 +10,7 @@ import {
 } from "@/lib/repayment-plans/types";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaffPermission } from "@/lib/supabase/session";
+import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
 import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
 import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
 
@@ -65,6 +66,16 @@ function scheduleSideEffects(payload: {
   action: string;
   metadata: Record<string, unknown>;
 }) {
+  // Synchronously, before the `after` block: creating, rescheduling or
+  // cancelling a plan rewrites the schedule the dashboard reports on, and
+  // waiveLateFee moves the late-fee ledger outright. This module previously
+  // busted nothing at all, so every one of those changes left the cached
+  // `session:{label}` rollups showing the pre-change numbers.
+  //
+  // Not inside `after()`: that runs once the response is on its way, and the
+  // point is for the redirect the staffer is already following to render fresh.
+  revalidateSessionFinance(payload.sessionLabel, [payload.studentId]);
+
   after(async () => {
     await drainFinancialViewRefresh();
 

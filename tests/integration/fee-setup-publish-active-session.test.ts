@@ -8,6 +8,7 @@ const getActiveSessionLabel = vi.fn();
 const setActiveSessionLabel = vi.fn();
 const revalidatePath = vi.fn();
 const revalidateCoreFinancePaths = vi.fn();
+const revalidateSessionFinance = vi.fn();
 const prepareDuesForStudentsAutomatically = vi.fn();
 const repairMissingDues = vi.fn();
 
@@ -42,6 +43,7 @@ vi.mock("@/lib/system-sync/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
   repairMissingDues,
   revalidateCoreFinancePaths,
+  revalidateSessionFinance,
 }));
 
 const previousState = {
@@ -123,6 +125,13 @@ describe("Fee Setup publish working-session behavior", () => {
       expect.objectContaining({ academicSessionLabel: "2026-27" }),
     );
     expect(result.message).toContain("Fee Setup saved");
+    // Publishing rewrites dues for every student in scope, and the dashboard's
+    // expected/collected/pending rollups are cached on `session:{label}`. Only
+    // that tag evicts them — the revalidatePath calls this action already made
+    // do not touch an unstable_cache entry. Without this the office could
+    // publish a fee change, read the confirmation, and still be shown the old
+    // expected total until something unrelated happened to bust the tag.
+    expect(revalidateSessionFinance).toHaveBeenCalledWith("2026-27");
   });
 
   it("saving an unchanged Fee Setup resyncs missing dues instead of blocking staff", async () => {

@@ -10,6 +10,7 @@ import {
   isCarryForwardInstallment,
 } from "@/lib/prev-year-dues/display";
 import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
+import { DASHBOARD_STALENESS_CEILING_SECONDS } from "@/lib/dashboard/cache-contract";
 import {
   type DashboardClassSummaryRow,
   type DashboardClassInstallmentPendingRow,
@@ -676,7 +677,7 @@ const _getDashboardSummaryCached = cache(
     cacheSafeUnstableCache(
       async () => loadDashboardSummaryRpc(sessionLabel, today),
       ["dashboard-summary", sessionLabel, today],
-      { tags: [`session:${sessionLabel}`] },
+      { tags: [`session:${sessionLabel}`], revalidate: DASHBOARD_STALENESS_CEILING_SECONDS },
     )(),
 );
 

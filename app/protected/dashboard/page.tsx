@@ -1036,7 +1036,15 @@ function StudentStatusRing({
           <div className="absolute flex flex-col items-center">
             <span className="text-xl font-bold tabular-nums text-foreground">{totalStudents}</span>
             <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-              students
+              {/*
+                "active students", not "students". This ring counts active
+                students only (507 in live 2026-27), while the money figures
+                above it deliberately also include students who have LEFT but
+                paid something this year, so their payments are not orphaned
+                from the fees they were paid against. Two populations, one
+                screen — the count should say which one it is.
+              */}
+              active students
             </span>
           </div>
         </div>

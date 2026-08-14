@@ -5,7 +5,10 @@ import {
   getStudentImportBatchSummary,
 } from "@/lib/import/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/lib/supabase/session";
-import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
+import {
+  revalidateCoreFinancePaths,
+  revalidateSessionFinance,
+} from "@/lib/system-sync/finance-sync";
 
 // Commits at most STUDENT_IMPORT_COMMIT_CHUNK_SIZE approved rows per request
 // and reports what is left, so a large file is many short requests rather than
@@ -35,6 +38,14 @@ export async function POST(_request: Request, context: RouteContext) {
     const summary = await getStudentImportBatchSummary(batchId);
 
     revalidateCoreFinancePaths(result.affectedStudentIds ?? []);
+    // Committing an import adds students AND prepares their dues, so both the
+    // student count and the expected-fees total on the dashboard move.
+    // revalidateCoreFinancePaths busts paths and student tags but not
+    // `session:{label}`, and a revalidatePath does not evict an unstable_cache
+    // entry — only its tag does.
+    if (summary.targetSessionLabel) {
+      revalidateSessionFinance(summary.targetSessionLabel, result.affectedStudentIds ?? []);
+    }
 
     return NextResponse.json({
       result,

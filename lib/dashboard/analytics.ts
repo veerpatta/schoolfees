@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
+import { DASHBOARD_STALENESS_CEILING_SECONDS } from "@/lib/dashboard/cache-contract";
 
 /**
  * Everything the dashboard shows below the money band, in one round trip.
@@ -201,7 +202,11 @@ export async function getDashboardAnalytics(sessionLabel: string): Promise<Dashb
     const cached = await cacheSafeUnstableCache(
       async () => getDashboardAnalyticsUncached(sessionLabel),
       ["dashboard-analytics", ANALYTICS_SHAPE_VERSION, sessionLabel, getSchoolDateStamp()],
-      { tags: [`session:${sessionLabel}`] },
+      // The tag is the fast path; the ceiling is the floor under it, for the
+      // writers that cannot bust a tag at all (pg_cron charges EMI late fees
+      // nightly from inside Postgres) and for the next call site that forgets.
+      // See lib/dashboard/cache-contract.ts.
+      { tags: [`session:${sessionLabel}`], revalidate: DASHBOARD_STALENESS_CEILING_SECONDS },
     )();
     return normalizeAnalytics(cached, sessionLabel);
   } catch {

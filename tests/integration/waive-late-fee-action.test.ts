@@ -6,6 +6,7 @@ const requireStaffPermission = vi.fn();
 const createClient = vi.fn();
 const recordActivity = vi.fn();
 const revalidateAfterPaymentPosting = vi.fn();
+const revalidateSessionFinance = vi.fn();
 const drainFinancialViewRefresh = vi.fn();
 
 /**
@@ -43,6 +44,7 @@ vi.mock("@/lib/activity/events", () => ({
 
 vi.mock("@/lib/system-sync/finance-revalidation", () => ({
   revalidateAfterPaymentPosting,
+  revalidateSessionFinance,
 }));
 
 vi.mock("@/lib/system-sync/financial-view-refresh", () => ({
@@ -147,6 +149,12 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       // staff member aims the waiver at one installment.
       p_installment_id: null,
     });
+
+    // A waiver moves late_fee_pending and total_pending, so the dashboard's
+    // late-fee board has to be evicted. revalidateAfterPaymentPosting alone is
+    // not enough: it busts PATHS and `student:{id}`, and a revalidatePath does
+    // not evict the `session:{label}` unstable_cache entry the board reads.
+    expect(revalidateSessionFinance).toHaveBeenCalledWith(SESSION_LABEL, [STUDENT_ID]);
 
     await flushAfter();
     expect(recordActivity).toHaveBeenCalledWith(
