@@ -183,27 +183,25 @@ export function DownloadAnchor({
   const { href: tokenisedHref, onClick } = watch(href);
 
   return (
-    <>
-      <a
-        href={tokenisedHref}
-        download={download}
-        target={target}
-        rel={rel ?? (target === "_blank" ? "noopener" : undefined)}
-        onClick={onClick}
-        aria-busy={pending || undefined}
-        data-download-pending={pending || undefined}
-        className={cn(className, pending && "pointer-events-none opacity-70")}
-        {...rest}
-      >
-        {pending ? (
-          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-        ) : null}
-        {pending ? pendingLabel ?? children : children}
-      </a>
+    <a
+      href={tokenisedHref}
+      download={download}
+      target={target}
+      rel={rel ?? (target === "_blank" ? "noopener" : undefined)}
+      onClick={onClick}
+      aria-busy={pending || undefined}
+      data-download-pending={pending || undefined}
+      className={cn(className, pending && "pointer-events-none opacity-70")}
+      {...rest}
+    >
+      {pending ? (
+        <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+      ) : null}
+      {pending ? pendingLabel ?? children : children}
       {/* Screen readers get the same signal the spinner gives everyone else. */}
       <span className="sr-only" role="status">
         {pending ? "Preparing download" : ""}
       </span>
-    </>
+    </a>
   );
 }

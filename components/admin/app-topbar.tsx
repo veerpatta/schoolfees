@@ -84,17 +84,19 @@ export function AppTopBar({
 
   return (
     <header className="z-20 hidden border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70 print:hidden md:sticky md:top-0 md:flex md:flex-col">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <h1 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
             {headline}
           </h1>
           <CommandTrigger />
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {sessionPill}
-          <StatusBadge label={roleLabel} tone="neutral" iconless />
+          <div className="hidden sm:block">
+            <StatusBadge label={roleLabel} tone="neutral" iconless />
+          </div>
           {localeSwitcher}
           <ThemeToggle />
 

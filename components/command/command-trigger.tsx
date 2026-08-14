@@ -40,7 +40,8 @@ export function CommandTrigger({ className }: CommandTriggerProps) {
       )}
     >
       <Search className="size-3.5" aria-hidden="true" />
-      <span>Find student, receipt, action…</span>
+      <span className="hidden xl:inline">Find student, receipt, action…</span>
+      <span className="xl:hidden">Search…</span>
       <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
         ⌘K
       </kbd>

@@ -442,6 +442,7 @@ function ActivationForm({
         <label className="flex items-start gap-3 rounded-lg border p-3">
           <Checkbox
             name="acknowledged"
+            aria-label="Acknowledge repayment plan terms"
             checked={acknowledged}
             onCheckedChange={(value) => setAcknowledged(value === true)}
           />

@@ -73,7 +73,7 @@ export async function DashboardShell({
 
   return (
     <SessionSwitchingProvider>
-      <div className="min-h-svh bg-background text-foreground lg:h-screen lg:overflow-hidden">
+      <div className="min-h-svh w-full overflow-x-clip bg-background text-foreground lg:h-screen lg:overflow-hidden">
       <Suspense fallback={null}>
         <RouteProgress />
         <OfficeSyncListener sessionLabel={viewSessionLabel} />
