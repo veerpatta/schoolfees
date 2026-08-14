@@ -5,7 +5,7 @@ import { isUuid } from "@/lib/helpers/uuid";
 import { PageHeader } from "@/components/admin/page-header";
 import { MasterStatementDocument } from "@/components/students/master-statement-document";
 import { MasterStatementPrintActions } from "@/components/students/master-statement-print-actions";
-import { partsToIso, todayPartsIst } from "@/lib/helpers/date";
+import { formatShortDate, partsToIso, todayPartsIst } from "@/lib/helpers/date";
 import {
   getRepaymentPlanDetail,
   getRepaymentPlanHistory,
@@ -31,11 +31,15 @@ export default async function StudentStatementPage({
   if (!isUuid(resolvedParams.studentId)) {
     notFound();
   }
+  // One clock read for the whole page: the plan query, the letterhead's issue
+  // date and the overdue comparison all have to agree.
+  const todayIso = partsToIso(todayPartsIst());
+
   const [workspace, repaymentPlan, repaymentPlanHistory] = await Promise.all([
     getStudentWorkspaceData(resolvedParams.studentId),
     getRepaymentPlanDetail({
       studentId: resolvedParams.studentId,
-      today: partsToIso(todayPartsIst()),
+      today: todayIso,
     }).catch(() => null),
     getRepaymentPlanHistory(resolvedParams.studentId).catch(() => []),
   ]);
@@ -61,6 +65,8 @@ export default async function StudentStatementPage({
         receipts={workspace.receipts}
         repaymentPlan={repaymentPlan}
         repaymentPlanHistory={repaymentPlanHistory}
+        issuedOn={formatShortDate(todayIso)}
+        todayIso={todayIso}
       />
     </div>
   );

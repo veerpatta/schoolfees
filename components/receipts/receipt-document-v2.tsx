@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { schoolProfile } from "@/lib/config/school";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatDateTimeIst, formatMediumDate } from "@/lib/helpers/date";
+import { englishAmountWords } from "@/lib/helpers/amount-in-words";
 import { amountInWordsHindi } from "@/lib/helpers/amount-in-words-hi";
 import { localizedFeeLabel } from "@/lib/fees/fee-label";
 import { isYearCleared } from "@/lib/fees/year-clear";
@@ -95,70 +96,11 @@ function biSlash(t: BilingualReceiptTranslator, k: string): string {
   return hi && hi !== en ? `${en} / ${hi}` : en;
 }
 
-function wordsBelowThousand(value: number): string {
-  const ones = [
-    "",
-    "One",
-    "Two",
-    "Three",
-    "Four",
-    "Five",
-    "Six",
-    "Seven",
-    "Eight",
-    "Nine",
-    "Ten",
-    "Eleven",
-    "Twelve",
-    "Thirteen",
-    "Fourteen",
-    "Fifteen",
-    "Sixteen",
-    "Seventeen",
-    "Eighteen",
-    "Nineteen",
-  ];
-  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-  const parts: string[] = [];
-
-  if (value >= 100) {
-    parts.push(`${ones[Math.floor(value / 100)]} Hundred`);
-    value %= 100;
-  }
-  if (value >= 20) {
-    parts.push(tens[Math.floor(value / 10)]);
-    value %= 10;
-  }
-  if (value > 0) {
-    parts.push(ones[value]);
-  }
-
-  return parts.join(" ");
-}
-
 /** English amount-in-words. `t` is a single-locale translator (use `bt.en`). */
 function amountInWords(value: number, t: ReceiptTranslator) {
-  const amount = Math.max(Math.round(value), 0);
-  if (amount === 0) return t("rupeesZero");
-
-  const groups: Array<[number, string]> = [
-    [10000000, "Crore"],
-    [100000, "Lakh"],
-    [1000, "Thousand"],
-    [1, ""],
-  ];
-  const parts: string[] = [];
-  let remaining = amount;
-
-  groups.forEach(([size, label]) => {
-    const groupValue = Math.floor(remaining / size);
-    if (groupValue > 0) {
-      parts.push(`${wordsBelowThousand(groupValue)}${label ? ` ${label}` : ""}`);
-      remaining %= size;
-    }
-  });
-
-  return `${parts.join(" ")} ${t("rupeesSuffix")}`;
+  const words = englishAmountWords(value, { style: "title" });
+  if (!words) return t("rupeesZero");
+  return `${words} ${t("rupeesSuffix")}`;
 }
 
 function paymentModeText(value: ReceiptDetail["paymentMode"], t: ReceiptTranslator) {

@@ -62,6 +62,10 @@ function buildStatementProps(): MasterStatementProps {
         pendingAmount: 6500,
       },
     ],
+    // Fixed, not read from the clock: the statement stamps an issue date and
+    // decides overdue against today, and neither may drift between runs.
+    issuedOn: "14 Aug 2026",
+    todayIso: "2026-08-14",
   } as unknown as MasterStatementProps;
 }
 

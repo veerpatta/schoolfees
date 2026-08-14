@@ -3,6 +3,11 @@ import "server-only";
 import type { PaymentMode } from "@/lib/db/types";
 import { getFeePolicySummary, getStudentFinancialSnapshot } from "@/lib/fees/data";
 import { getLedgerPageData } from "@/lib/ledger/data";
+import {
+  buildReceiptAllocationIndex,
+  formatAppliedTo,
+  type ReceiptAllocationRow,
+} from "@/lib/receipts/allocations";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/lib/receipts/reversals";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentDetail } from "@/lib/students/data";
@@ -77,24 +82,55 @@ export async function getStudentWorkspaceData(
   }
 
   const receiptRows = (receiptsResult.data ?? []) as StudentReceiptRow[];
-  const reversalTotals = await getReceiptReversalTotals(receiptRows.map((row) => row.id));
+  const receiptIds = receiptRows.map((row) => row.id);
+
+  // Which installment each receipt was applied to. `payments` holds one row per
+  // installment a receipt touched, and carries both receipt_id and
+  // installment_id, so this is one indexed batch read — never an N+1. It runs
+  // beside the reversal totals, which were already a sequential await here, so
+  // the statement's "Applied to" column costs no extra round trip.
+  const [reversalTotals, allocationRows] = await Promise.all([
+    getReceiptReversalTotals(receiptIds),
+    receiptIds.length === 0
+      ? Promise.resolve<ReceiptAllocationRow[]>([])
+      : supabase
+          .from("payments")
+          .select(
+            "receipt_id, amount, installment_ref:installments(installment_no, installment_label, due_date, is_carry_forward, source_session_label)",
+          )
+          .in("receipt_id", receiptIds)
+          .order("created_at", { ascending: true })
+          .then(({ data, error }) => {
+            if (error) {
+              throw new Error(`Unable to load receipt allocations: ${error.message}`);
+            }
+            return (data ?? []) as ReceiptAllocationRow[];
+          }),
+  ]);
+
+  const allocationIndex = buildReceiptAllocationIndex(allocationRows);
 
   return {
     student,
     financialSnapshot,
     ledger: ledgerData.selectedStudent,
-    receipts: receiptRows.map((row) => ({
-      id: row.id,
-      receiptNumber: row.receipt_number,
-      paymentDate: row.payment_date,
-      totalAmount: row.total_amount,
-      paymentMode: row.payment_mode,
-      paymentModeLabel: paymentModeLabel(row.payment_mode),
-      referenceNumber: row.reference_number,
-      receivedBy: row.received_by,
-      createdAt: row.created_at,
-      isReversed: isReceiptReversed(reversalTotals, row.id, row.total_amount),
-    })),
+    receipts: receiptRows.map((row) => {
+      const appliedToInstallments = allocationIndex.get(row.id) ?? [];
+      return {
+        id: row.id,
+        receiptNumber: row.receipt_number,
+        paymentDate: row.payment_date,
+        totalAmount: row.total_amount,
+        paymentMode: row.payment_mode,
+        paymentModeLabel: paymentModeLabel(row.payment_mode),
+        referenceNumber: row.reference_number,
+        receivedBy: row.received_by,
+        createdAt: row.created_at,
+        isReversed: isReceiptReversed(reversalTotals, row.id, row.total_amount),
+        appliedToInstallments,
+        appliedTo: formatAppliedTo(appliedToInstallments),
+      };
+    }),
     installmentBalances,
   };
 }
@@ -133,9 +169,14 @@ export async function getFamilyWorkspaceData(
         }
       }),
     ),
+    // The column is `family_label`; there has never been a `name`. Selecting one
+    // errored on every call, so `data` came back null and EVERY family fell
+    // through to the "Family Group" placeholder below — the statement header
+    // read "Family ID: Family Group" for all of them. The redesign puts this
+    // identifier in the letterhead and the footer, so it has to be the real one.
     supabase
       .from("student_family_groups")
-      .select("id, name, academic_session_label")
+      .select("id, family_label, academic_session_label")
       .eq("id", familyGroupId)
       .maybeSingle(),
   ]);
@@ -165,13 +206,20 @@ export async function getFamilyWorkspaceData(
   }
 
   return {
-    familyGroup:
-      familyGroup ??
-      {
-        id: familyGroupId,
-        name: "Family Group",
-        academic_session_label: resolvedFallbackLabel!,
-      },
+    // `name` is the shape every caller already reads; it is `family_label` in
+    // the database. The placeholder stays as the genuine last resort — a family
+    // group row that really is missing — rather than the everyday outcome.
+    familyGroup: familyGroup
+      ? {
+          id: familyGroup.id,
+          name: familyGroup.family_label,
+          academic_session_label: familyGroup.academic_session_label,
+        }
+      : {
+          id: familyGroupId,
+          name: "Family Group",
+          academic_session_label: resolvedFallbackLabel!,
+        },
     students: activeWorkspaces,
   };
 }

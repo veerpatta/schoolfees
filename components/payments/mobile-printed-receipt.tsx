@@ -1,6 +1,7 @@
 "use client";
 
 import { CountUp } from "@/components/ui/count-up";
+import { amountInWordsEnglish } from "@/lib/helpers/amount-in-words";
 import { amountInWordsHindi } from "@/lib/helpers/amount-in-words-hi";
 import { formatInr } from "@/lib/helpers/currency";
 import { schoolProfile } from "@/lib/config/school";
@@ -21,46 +22,6 @@ import { cn } from "@/lib/utils";
  * confirmation surface, not a printable document: it stays on screen and is
  * marked `print:hidden` so it never competes with the real receipt.
  */
-
-const ENGLISH_ONES = [
-  "", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-  "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-  "seventeen", "eighteen", "nineteen",
-];
-const ENGLISH_TENS = [
-  "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety",
-];
-
-function underThousand(value: number): string {
-  if (value === 0) return "";
-  if (value < 20) return ENGLISH_ONES[value];
-  if (value < 100) {
-    const rest = value % 10;
-    return `${ENGLISH_TENS[Math.floor(value / 10)]}${rest ? `-${ENGLISH_ONES[rest]}` : ""}`;
-  }
-  const rest = value % 100;
-  return `${ENGLISH_ONES[Math.floor(value / 100)]} hundred${rest ? ` ${underThousand(rest)}` : ""}`;
-}
-
-/** Indian numbering: crore / lakh / thousand. Whole rupees only. */
-function amountInWordsEnglish(value: number): string {
-  const amount = Math.round(Math.abs(value));
-  if (amount === 0) return "Rupees zero only";
-
-  const parts: string[] = [];
-  const crore = Math.floor(amount / 10_000_000);
-  const lakh = Math.floor((amount % 10_000_000) / 100_000);
-  const thousand = Math.floor((amount % 100_000) / 1000);
-  const rest = amount % 1000;
-
-  if (crore) parts.push(`${underThousand(crore)} crore`);
-  if (lakh) parts.push(`${underThousand(lakh)} lakh`);
-  if (thousand) parts.push(`${underThousand(thousand)} thousand`);
-  if (rest) parts.push(underThousand(rest));
-
-  const words = parts.join(" ").replace(/\s+/g, " ").trim();
-  return `Rupees ${words} only`;
-}
 
 export type PrintedReceiptLine = {
   label: string;

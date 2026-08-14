@@ -5,6 +5,7 @@ import { isUuid } from "@/lib/helpers/uuid";
 import { PageHeader } from "@/components/admin/page-header";
 import { FamilyStatementDocument } from "@/components/students/family-statement-document";
 import { MasterStatementPrintActions } from "@/components/students/master-statement-print-actions";
+import { formatShortDate, partsToIso, todayPartsIst } from "@/lib/helpers/date";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { getFamilyWorkspaceData } from "@/lib/students/workspace";
 import { requireStaffPermission } from "@/lib/supabase/session";
@@ -36,9 +37,34 @@ export default async function FamilyStatementPage({
   const primaryStudent = workspace.students[0].student;
   const sessionLabel = workspace.familyGroup.academic_session_label;
   const backHref = appendSessionParam(`/protected/students/${primaryStudent.id}`, sessionLabel);
+  const todayIso = partsToIso(todayPartsIst());
 
   return (
     <div className="space-y-6">
+      {/*
+        The A4 statement is two sheets, so the first one has to break. Same
+        mechanism the family receipt reprint uses — `break-after` for modern
+        engines, `page-break-after` for the ones that still only understand the
+        legacy property — with the last sheet reset so the print job does not
+        end on a blank page.
+
+        Scoped inside `@media print`, so nothing here touches the screen.
+      */}
+      <style>{`
+        @media print {
+          .statement-page-break {
+            break-after: page;
+            page-break-after: always;
+            margin: 0 !important;
+          }
+
+          .statement-print-page:last-of-type {
+            break-after: auto;
+            page-break-after: auto;
+          }
+        }
+      `}</style>
+
       <PageHeader
         eyebrow="Students / Families"
         title={`Family Statement: Group ${workspace.familyGroup.name}`}
@@ -50,6 +76,8 @@ export default async function FamilyStatementPage({
       <FamilyStatementDocument
         familyGroup={workspace.familyGroup}
         students={workspace.students}
+        issuedOn={formatShortDate(todayIso)}
+        todayIso={todayIso}
       />
     </div>
   );
