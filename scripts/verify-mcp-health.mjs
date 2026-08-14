@@ -23,6 +23,15 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
+import { FINANCIAL_FIELDS } from "../workers/schoolfees-mcp/src/shape/student.mjs";
+import { INSTALLMENT_FIELDS } from "../workers/schoolfees-mcp/src/shape/installment.mjs";
+import { PLAN_FIELDS } from "../workers/schoolfees-mcp/src/shape/plan.mjs";
+import { RECEIPT_FIELDS } from "../workers/schoolfees-mcp/src/shape/receipt.mjs";
+import {
+  DIRECTORY_FIELDS,
+  STUDENT_MASTER_FIELDS,
+} from "../workers/schoolfees-mcp/src/tools/students.mjs";
+
 const DEFAULT_URL = "https://schoolfees-live-mcp.raj-39e.workers.dev";
 
 function loadEnvFile(file) {
@@ -112,6 +121,70 @@ async function supabaseAll(table, params) {
   }
 }
 
+/**
+ * Every column the Worker names in a `select`, by relation.
+ *
+ * The unit tests mock Supabase, so a column that does not exist passes them and
+ * then 400s in production — which is exactly what happened to `students`
+ * (`aadhaar_number`, `address_line1`, `village`) and `defaulter_contacts`
+ * (`created_by`). Keep this in step with the Worker; the check below is what
+ * makes the mismatch loud instead of silent.
+ */
+const COLUMN_CONTRACT = {
+  v_workbook_student_financials: FINANCIAL_FIELDS,
+  v_workbook_installment_balances: INSTALLMENT_FIELDS,
+  v_student_repayment_plan_status: PLAN_FIELDS,
+  receipts: RECEIPT_FIELDS,
+  v_student_directory: DIRECTORY_FIELDS,
+  students: STUDENT_MASTER_FIELDS,
+  defaulter_contacts:
+    "id,student_id,session_label,contacted_at,contacted_by,channel,outcome,note,snooze_until,phone_label,contacted_phone",
+  student_collection_flags: "student_id,session_label,no_call",
+  workbook_materialized_view_refresh_queue: "queue_key,pending,requested_at,last_refreshed_at",
+  v_receipt_reversal_totals: "receipt_id,reversed_amount",
+  student_repayment_plan_items: "plan_id,student_id,installment_id",
+  payments:
+    "id,receipt_id,student_id,installment_id,amount,notes,created_at,discount_applied_at_posting,waiver_applied_at_posting,pending_before_posting,pending_after_posting",
+  payment_adjustments:
+    "id,payment_id,student_id,installment_id,adjustment_type,amount_delta,reason,notes,created_at",
+  refund_requests:
+    "id,receipt_id,student_id,refund_date,requested_amount,refund_method,refund_reference,reason,notes,status,created_at,approved_at,processed_at",
+  student_family_members:
+    "family_group_id,student_id,sibling_order,academic_session_label,is_policy_candidate",
+  student_family_groups:
+    "id,family_label,guardian_name,guardian_phone,notes,academic_session_label",
+  academic_sessions: "id,session_label,status,notes,created_at,updated_at",
+  classes: "id,class_name,section,stream_name,sort_order,status,session_label",
+  transport_routes: "id,route_name,route_code,default_installment_amount,is_active",
+  fee_policy_configs:
+    "academic_session_label,calculation_model,installment_schedule,late_fee_flat_amount,new_student_academic_fee_amount,old_student_academic_fee_amount,accepted_payment_modes,receipt_prefix,updated_at",
+  v_student_carry_forward_balances:
+    "student_id,admission_no,student_name,father_name,father_phone,class_label,source_session_label,target_session_label,fee_head,installment_label,due_date,original_amount,collected_amount,remaining_amount,balance_status,status",
+};
+
+/**
+ * Asks PostgREST for one row of each relation, projecting exactly the columns
+ * the Worker asks for. A wrong name comes back as a 400 naming it.
+ *
+ * `information_schema.columns` would be the obvious check and is the wrong one —
+ * it does not list materialized views, and two of the three most important
+ * relations here are materialized views.
+ */
+async function checkColumnContract() {
+  for (const [relation, columns] of Object.entries(COLUMN_CONTRACT)) {
+    try {
+      await supabase(relation, { select: columns, limit: "1" });
+      checks.push({ ok: true, label: `columns / ${relation}`, actual: "all present", expected: "all present" });
+    } catch (error) {
+      const detail = String(error.message).match(/column [^"]*"?([a-z_.]+)"?/i)?.[1] || "";
+      failures.push(
+        `columns / ${relation}: the Worker selects a column this database does not have${detail ? ` (${detail})` : ""}. Every tool touching ${relation} would fail with HTTP 400.`,
+      );
+      checks.push({ ok: false, label: `columns / ${relation}`, actual: "mismatch", expected: "all present" });
+    }
+  }
+}
+
 const failures = [];
 const checks = [];
 
@@ -130,6 +203,11 @@ async function main() {
 
   const health = await fetch(`${baseUrl}/health`).then((response) => response.json());
   console.log(`Server: ${health.name} v${health.version}, read-only: ${health.readOnly}\n`);
+
+  // Before comparing any figure, prove the Worker's queries are even legal
+  // against this schema. A wrong column name passes every mocked unit test and
+  // then 400s in production.
+  await checkColumnContract();
 
   const financials = await supabaseAll("v_workbook_student_financials", {
     select:

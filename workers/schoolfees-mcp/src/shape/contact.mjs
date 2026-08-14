@@ -128,7 +128,8 @@ export function promiseState(summary, todayKey) {
 /** Full contact log for one student. */
 export async function getContactLog(env, studentId, sessionLabel, limit = 20) {
   const { rows } = await selectAll(env, "defaulter_contacts", {
-    select: "id,student_id,contacted_at,channel,outcome,note,snooze_until,phone_label,created_by",
+    select:
+      "id,student_id,contacted_at,contacted_by,channel,outcome,note,snooze_until,phone_label,contacted_phone",
     student_id: `eq.${studentId}`,
     session_label: `eq.${sessionLabel}`,
     order: "contacted_at.desc",
@@ -138,6 +139,8 @@ export async function getContactLog(env, studentId, sessionLabel, limit = 20) {
   return rows.map((row) => ({
     contactId: row.id,
     contactedAt: row.contacted_at,
+    contactedBy: row.contacted_by || null,
+    contactedPhone: row.contacted_phone || null,
     channel: row.channel,
     outcome: row.outcome,
     note: row.note || null,

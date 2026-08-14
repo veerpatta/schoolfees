@@ -121,18 +121,26 @@ export function registerLeftStudentTools(server, ctx) {
 
       const mapped = rows
         .filter((row) => !row.target_session_label || row.target_session_label === sessionLabel)
+        // Column names verified against v_student_carry_forward_balances. This
+        // view carries the balance, not the student's enrollment status — use
+        // search_students or get_student if you need to know whether the child
+        // is still on the roll.
         .map((row) => ({
           studentId: row.student_id,
           admissionNo: row.admission_no ?? null,
           studentName: row.student_name ?? null,
+          fatherName: row.father_name ?? null,
+          fatherPhone: row.father_phone ?? null,
           classLabel: row.class_label ?? null,
-          enrollmentStatus: row.record_status ?? row.student_status ?? null,
           sourceSessionLabel: row.source_session_label,
           targetSessionLabel: row.target_session_label,
           feeHead: row.fee_head ?? null,
+          installmentLabel: row.installment_label ?? null,
+          dueDate: row.due_date ?? null,
           originalAmount: number(row.original_amount),
-          collectedAmount: number(row.collected_amount ?? row.collected),
-          remainingAmount: number(row.remaining_amount ?? row.remaining),
+          collectedAmount: number(row.collected_amount),
+          remainingAmount: number(row.remaining_amount),
+          balanceStatus: row.balance_status ?? null,
           status: row.status,
         }))
         .filter((row) => (onlyOutstanding ? row.remainingAmount > 0 : true))

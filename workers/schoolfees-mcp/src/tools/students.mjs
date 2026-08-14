@@ -83,7 +83,7 @@ export const SEGMENTS = {
 
 const SEGMENT_IDS = Object.keys(SEGMENTS);
 
-const DIRECTORY_FIELDS = [
+export const DIRECTORY_FIELDS = [
   "student_id",
   "admission_no",
   "full_name",
@@ -124,6 +124,53 @@ const DIRECTORY_FIELDS = [
   "repayment_end_date",
   "repayment_plan_review_needed",
   ...Object.values(SEGMENTS),
+].join(", ");
+
+/**
+ * The student record itself, beyond the money.
+ *
+ * Column names verified against the live schema: the address is one free-text
+ * field plus village_city / tehsil / district / state / pincode, and there is no
+ * `aadhaar_number`. PostgREST returns 400 for a column that does not exist, so
+ * these cannot be guessed — `npm run verify:mcp-health` checks this list against
+ * the real database, because the unit tests mock it and cannot.
+ */
+export const STUDENT_MASTER_FIELDS = [
+  "id",
+  "admission_no",
+  "full_name",
+  "date_of_birth",
+  "gender",
+  "category",
+  "religion",
+  "blood_group",
+  "father_name",
+  "mother_name",
+  "primary_phone",
+  "secondary_phone",
+  "email",
+  "guardian_name",
+  "guardian_relation",
+  "guardian_phone",
+  "emergency_contact_name",
+  "emergency_contact_phone",
+  "address",
+  "village_city",
+  "tehsil",
+  "district",
+  "state",
+  "pincode",
+  "status",
+  "joined_on",
+  "left_on",
+  "tc_number",
+  "roll_no",
+  "house",
+  "previous_school",
+  "notes",
+  "photo_path",
+  "created_at",
+  "updated_at",
 ].join(", ");
 
 /** Numeric columns a caller may put a range filter on. */
@@ -282,8 +329,7 @@ export function registerStudentTools(server, ctx) {
           limit: 1,
         }),
         selectAll(env, "students", {
-          select:
-            "id,admission_no,full_name,date_of_birth,gender,category,blood_group,father_name,mother_name,primary_phone,secondary_phone,email,guardian_name,guardian_relation,guardian_phone,emergency_contact_name,emergency_contact_phone,address_line1,address_line2,village,district,state,pincode,aadhaar_number,status,joined_on,left_on,tc_number,notes,photo_path,created_at,updated_at",
+          select: STUDENT_MASTER_FIELDS,
           id: `eq.${studentId}`,
           limit: 1,
         }),
@@ -303,9 +349,14 @@ export function registerStudentTools(server, ctx) {
           guardianPhone: master.guardian_phone || null,
           emergencyContactName: master.emergency_contact_name || null,
           emergencyContactPhone: master.emergency_contact_phone || null,
-          address: [master.address_line1, master.address_line2, master.village, master.district, master.state, master.pincode]
-            .filter(Boolean)
-            .join(", ") || null,
+          religion: master.religion || null,
+          rollNo: master.roll_no || null,
+          house: master.house || null,
+          previousSchool: master.previous_school || null,
+          address:
+            [master.address, master.village_city, master.tehsil, master.district, master.state, master.pincode]
+              .filter(Boolean)
+              .join(", ") || null,
           joinedOn: master.joined_on || null,
           leftOn: master.left_on || null,
           tcNumber: master.tc_number || null,
