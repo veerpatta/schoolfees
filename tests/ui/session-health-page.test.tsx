@@ -44,6 +44,7 @@ vi.mock("@/components/admin/pending-submit-button", () => ({
 
 vi.mock("@/app/protected/admin-tools/session-health/actions", () => ({
   reconcileSessionAction: vi.fn(),
+  refreshSessionFiguresAction: vi.fn(),
 }));
 
 function health(overrides: {
@@ -148,6 +149,14 @@ describe("Session Health page", () => {
     expect(html).toContain("Reconcile this session");
     // TEST session has classes missing fees → routed to Fee Setup instead.
     expect(html).toContain("Open Fee Setup");
+
+    // Refresh is available on EVERY card, including 2025-26, which is healthy.
+    // It was previously reachable only through the reconcile block, which
+    // renders solely when a session needs attention — so on a healthy session
+    // there was no way to force the cached dashboard figures at all. One
+    // occurrence per session card.
+    expect(html.match(/Refresh figures/g) ?? []).toHaveLength(3);
+    expect(html).toContain("Changes no fee records");
   });
 
   it("does not crash when one session's health probe throws", async () => {

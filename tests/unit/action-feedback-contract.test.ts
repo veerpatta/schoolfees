@@ -90,7 +90,18 @@ function hasFeedback(code: string) {
     code.includes("useActionFeedback") ||
     code.includes("useActionFeedbackMany") ||
     code.includes("FlashNotice") ||
-    code.includes("toast(")
+    code.includes("toast(") ||
+    // Redirect-with-notice: a Server Action that ends in
+    // `redirect("/page?notice=...")` and a page that renders that param. It is
+    // the pattern the Dashboard already uses for every action it hosts, and it
+    // reports the result just as plainly as a FlashNotice does — the staffer
+    // lands back on the page with a green bar explaining what happened.
+    //
+    // Both halves are required. Reading the param without rendering it, or
+    // rendering a notice nobody sets, is not feedback.
+    // `[Ss]earchParams` because the prop is `searchParams` but the awaited
+    // local is conventionally `resolvedSearchParams`.
+    (/[Ss]earchParams\??\.notice/.test(code) && /<Notice[\s>]/.test(code))
   );
 }
 

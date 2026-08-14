@@ -10,7 +10,10 @@ import {
   type ResidualCreditStudent,
 } from "@/lib/fees/generator";
 import { createClient } from "@/lib/supabase/server";
-import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-revalidation";
+import {
+  revalidateCoreFinancePaths,
+  revalidateSessionFinance,
+} from "@/lib/system-sync/finance-revalidation";
 
 type StudentClassSessionRow = {
   id: string;
@@ -854,8 +857,23 @@ export async function syncAfterFeeSetupChange(payload: { sessionLabel: string })
   });
 }
 
-export function revalidateFinanceSurfaces(payload: { studentIds?: readonly string[] } = {}) {
+/**
+ * @param sessionLabel Pass it whenever the caller knows which session moved.
+ *
+ * Without it this only busts PATHS and `student:{id}` — and a revalidatePath
+ * does not evict an `unstable_cache` entry, so the dashboard's cached rollups
+ * survive untouched. `syncDashboardNowAction` is the sharpest example: an
+ * action whose entire job is "refresh the dashboard" refreshed everything
+ * except the dashboard's money.
+ */
+export function revalidateFinanceSurfaces(
+  payload: { studentIds?: readonly string[]; sessionLabel?: string } = {},
+) {
   revalidateCoreFinancePaths(payload.studentIds ?? []);
+
+  if (payload.sessionLabel) {
+    revalidateSessionFinance(payload.sessionLabel, payload.studentIds ?? []);
+  }
 }
 
 export async function getSystemSyncHealth(sessionLabel?: string): Promise<SystemSyncHealth> {

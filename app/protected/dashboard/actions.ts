@@ -46,7 +46,10 @@ export async function repairCurrentSessionDuesAction(formData: FormData) {
 export async function syncDashboardNowAction(formData: FormData) {
   await requireStaffPermission("fees:write");
   const sessionLabel = parseSessionLabel(formData.get("sessionLabel"));
-  revalidateFinanceSurfaces();
+  // With the session label, so the dashboard's own cached rollups are actually
+  // evicted. Without it this action refreshed everything except the numbers it
+  // is named after.
+  revalidateFinanceSurfaces({ sessionLabel });
   redirect(dashboardUrl("Dashboard, Payment Desk, Transactions, and reports were refreshed.", sessionLabel));
 }
 
@@ -87,7 +90,7 @@ export async function repairPaymentDeskDataAction(formData: FormData) {
   }
 
   if (health.studentsMissingInstallments.length === 0 && health.studentsWithNoFeeSetting === 0) {
-    revalidateFinanceSurfaces();
+    revalidateFinanceSurfaces({ sessionLabel });
     redirect(
       dashboardUrl(
         `Payment Desk dues checked for ${sessionLabel}: no students with unprepared dues were found.`,

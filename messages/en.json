@@ -1674,7 +1674,10 @@
     "whatsappPlaceholderPaymentReference": "UPI note/reference for office matching.",
     "whatsappPlaceholderSchoolName": "School short name.",
     "whatsappPlaceholderReceiptNumber": "Receipt number (receipt templates).",
-    "whatsappPlaceholderAmount": "Receipt amount in ₹ (receipt templates)."
+    "whatsappPlaceholderAmount": "Receipt amount in ₹ (receipt templates).",
+    "sessionHealthRefreshFigures": "Refresh figures",
+    "sessionHealthRefreshFiguresPending": "Refreshing…",
+    "sessionHealthRefreshFiguresHint": "Recomputes the cached dashboard totals. Changes no fee records."
   },
   "Toasts": {
     "receiptPostedTitle": "Receipt {receiptNumber} posted",

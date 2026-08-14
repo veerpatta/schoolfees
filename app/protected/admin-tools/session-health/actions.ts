@@ -101,3 +101,45 @@ export async function reconcileSessionAction(formData: FormData) {
     }),
   );
 }
+
+/**
+ * Recompute the cached figures for one session, without touching a single row.
+ *
+ * The dashboard's rollups are cached on `session:{label}` so board switching
+ * stays instant. Every path that moves money busts that tag and a five-minute
+ * ceiling backstops the rest, but two cases still need a human to say "now":
+ * something changed the database from outside the app (a repair script, psql,
+ * the Supabase table editor), or somebody simply wants to be certain before
+ * reading a number out to a parent.
+ *
+ * There was no way to do that. `reconcileSessionAction` busts the tag as a side
+ * effect, but it also REGENERATES the whole session's ledgers — far too heavy to
+ * offer as "refresh" — and its button only rendered when the session already
+ * needed attention, so a healthy session had no control at all.
+ *
+ * This one only drains the materialized-view queue and evicts the tag. It reads
+ * and invalidates; it never writes a fee, so it is safe to press at any time and
+ * safe to press twice.
+ */
+export async function refreshSessionFiguresAction(formData: FormData) {
+  await requireStaffPermission("dashboard:view");
+
+  const label = (formData.get("sessionLabel") ?? "").toString().trim();
+
+  if (!label) {
+    redirect(sessionHealthUrl({ error: "Session is required to refresh figures." }));
+  }
+
+  // Drain first, then evict: the matview is what the RPCs read, so evicting the
+  // Next cache before the projection has settled would just re-cache the old
+  // numbers. This is the ordering the drift repair got wrong.
+  await drainFinancialViewRefresh();
+  revalidateSessionFinance(label);
+
+  redirect(
+    sessionHealthUrl({
+      notice: `Figures for ${label} were recomputed from the database.`,
+      session: label,
+    }),
+  );
+}

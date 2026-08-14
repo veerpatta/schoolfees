@@ -755,7 +755,11 @@ export async function applyPromotionRun(runId: string) {
     } catch (error) {
       console.error("Promotion dues prep failed", error);
     }
-    revalidateFinanceSurfaces({ studentIds: affectedStudentIds });
+    // Promotion writes the TARGET session's ledgers, so that is the tag to bust.
+    revalidateFinanceSurfaces({
+      studentIds: affectedStudentIds,
+      sessionLabel: runDetail.run.targetSessionLabel,
+    });
   }
 
   return {
@@ -862,7 +866,16 @@ export async function rollbackPromotionRun(runId: string) {
     } catch (error) {
       console.error("Rollback dues prep failed", error);
     }
-    revalidateFinanceSurfaces({ studentIds: affectedStudentIds });
+    // A rollback moves figures in BOTH sessions — the target's ledgers are
+    // undone and the source's students come back — so both tags go.
+    revalidateFinanceSurfaces({
+      studentIds: affectedStudentIds,
+      sessionLabel: runDetail.run.targetSessionLabel,
+    });
+    revalidateFinanceSurfaces({
+      studentIds: affectedStudentIds,
+      sessionLabel: runDetail.run.sourceSessionLabel,
+    });
   }
 
   return { runId };

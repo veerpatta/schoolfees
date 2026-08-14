@@ -9,6 +9,10 @@ import {
   getDisplayInstallmentLabel,
   isCarryForwardInstallment,
 } from "@/lib/prev-year-dues/display";
+import {
+  getAllReceiptReversalTotals,
+  isReceiptReversed,
+} from "@/lib/receipts/reversals";
 import { cacheSafeUnstableCache, getCacheSafeClient } from "@/lib/supabase/cache-safe";
 import { DASHBOARD_STALENESS_CEILING_SECONDS } from "@/lib/dashboard/cache-contract";
 import {
@@ -193,6 +197,12 @@ interface DashboardSummaryRpcResult {
   overdueStudents: number;
   notStartedStudents: number;
   systemSyncHealth: DashboardSyncHealth | null;
+  /**
+   * When these figures were actually computed — stamped INSIDE the cached
+   * loader, so it survives in the cache entry alongside the numbers it
+   * describes.
+   */
+  computedAt?: string;
 }
 
 // P0-2 defensive guard: until the dashboard RPC migration that dedupes
@@ -491,23 +501,39 @@ async function loadExtendedCollectionHeatmap(options: {
   fallback: DateAmountPoint[];
 }): Promise<DateAmountPoint[]> {
   try {
-    const { data, error } = await options.supabase
-      .from("receipts")
-      .select("payment_date, total_amount, students!inner(status, classes!inner(session_label, status))")
-      .eq("students.status", "active")
-      .eq("students.classes.session_label", options.sessionLabel)
-      .eq("students.classes.status", "active")
-      .neq("payment_mode", "discount")
-      .order("payment_date", { ascending: true });
+    // The reversal totals are independent of the receipt rows, so both go out
+    // at once rather than one after the other.
+    const [{ data, error }, reversalTotals] = await Promise.all([
+      options.supabase
+        .from("receipts")
+        .select("id, payment_date, total_amount, students!inner(status, classes!inner(session_label, status))")
+        .eq("students.status", "active")
+        .eq("students.classes.session_label", options.sessionLabel)
+        .eq("students.classes.status", "active")
+        .neq("payment_mode", "discount")
+        .order("payment_date", { ascending: true }),
+      getAllReceiptReversalTotals(options.supabase),
+    ]);
 
     if (error || !Array.isArray(data)) {
       return options.fallback ?? [];
     }
 
     const totals = new Map<string, number>();
-    for (const row of data as Array<{ payment_date: string | null; total_amount: number | null }>) {
+    for (const row of data as Array<{
+      id: string;
+      payment_date: string | null;
+      total_amount: number | null;
+    }>) {
       if (!row.payment_date) continue;
       const amount = Number(row.total_amount ?? 0);
+      // Same exclusion `get_dashboard_summary` applies (20260726172238): a
+      // receipt whose reversals cover its full amount is money that came back,
+      // so it is not in the money band and must not be in this series either.
+      // Missing here since the loader was written, which only tinted a heatmap
+      // cell — until the phone Collection board started reading an average and
+      // a best day off it.
+      if (isReceiptReversed(reversalTotals, row.id, amount)) continue;
       totals.set(row.payment_date, (totals.get(row.payment_date) ?? 0) + amount);
     }
 
@@ -656,6 +682,11 @@ async function loadDashboardSummaryRpc(sessionLabel: string, today: string) {
   const result = data as unknown as DashboardSummaryRpcResult;
   dedupeInstallmentDuplicates(result);
   await augmentCarryForwardDashboardResult(sessionLabel, result);
+  // Stamped here, inside the cached function, so it ages with the payload. The
+  // page previously stamped it at RENDER time, which meant "Updated at 11:42"
+  // sat above numbers that could be far older — a freshness indicator that
+  // always claimed freshness is worse than none at all.
+  result.computedAt = new Date().toISOString();
   return result;
 }
 
@@ -715,7 +746,7 @@ export async function getDashboardAboveFoldData(options: {
   return {
     currentSession: sessionLabel,
     currentInstallment: buildCurrentInstallment(policy, today),
-    generatedAt: new Date().toISOString(),
+    generatedAt: result.computedAt ?? new Date().toISOString(),
     kpis: result.kpis,
     todayPaymentModeBreakdown: result.todayPaymentModeBreakdown,
     recentPayments: result.recentPayments,
@@ -774,7 +805,7 @@ export async function getDashboardPageData(options: {
   return {
     currentSession: sessionLabel,
     currentInstallment: buildCurrentInstallment(policy, today),
-    generatedAt: new Date().toISOString(),
+    generatedAt: result.computedAt ?? new Date().toISOString(),
     kpis: result.kpis,
     collectionTrend: result.collectionTrend,
     collectionHeatmap,

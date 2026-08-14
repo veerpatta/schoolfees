@@ -1674,7 +1674,10 @@
     "whatsappPlaceholderPaymentReference": "ऑफिस मिलान के लिए UPI रेफरेंस।",
     "whatsappPlaceholderSchoolName": "School short name.",
     "whatsappPlaceholderReceiptNumber": "Receipt number (receipt templates).",
-    "whatsappPlaceholderAmount": "Receipt amount in ₹ (receipt templates)."
+    "whatsappPlaceholderAmount": "Receipt amount in ₹ (receipt templates).",
+    "sessionHealthRefreshFigures": "आंकड़े ताज़ा करें",
+    "sessionHealthRefreshFiguresPending": "ताज़ा कर रहे हैं…",
+    "sessionHealthRefreshFiguresHint": "डैशबोर्ड के कैश किए गए योग दोबारा गिनता है। किसी फीस रिकॉर्ड को नहीं बदलता।"
   },
   "Toasts": {
     "receiptPostedTitle": "रसीद {receiptNumber} कट गई",

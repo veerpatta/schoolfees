@@ -238,3 +238,22 @@ export function resolveDashboardView(value: string | string[] | undefined): Dash
     ? (raw as DashboardView)
     : "overview";
 }
+
+/**
+ * How far back the phone's daily-collection chart looks, in days.
+ *
+ * A `?days=` link rather than client state, for the same reason the boards are
+ * links: the dashboard is server-rendered under a hard gzip ceiling, and a
+ * two-position toggle is not worth a client component.
+ */
+export const COLLECTION_WINDOWS = [14, 30] as const;
+
+export type CollectionWindow = (typeof COLLECTION_WINDOWS)[number];
+
+export function resolveCollectionWindow(value: string | string[] | undefined): CollectionWindow {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(raw);
+  return (COLLECTION_WINDOWS as readonly number[]).includes(parsed)
+    ? (parsed as CollectionWindow)
+    : 14;
+}

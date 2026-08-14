@@ -15,7 +15,7 @@ import {
   getErrorMessage,
 } from "@/lib/system-sync/health-fallback";
 
-import { reconcileSessionAction } from "./actions";
+import { reconcileSessionAction, refreshSessionFiguresAction } from "./actions";
 
 type AdminToolsTranslator = Awaited<ReturnType<typeof getTranslations<"AdminTools">>>;
 
@@ -194,6 +194,34 @@ export async function SessionHealthGrid({ t }: { t: AdminToolsTranslator }) {
                     t("sessionHealthCardLastReconciledNever"),
                   )}
                 </span>
+              </div>
+
+              {/*
+                Always available, healthy or not. Recomputing the cached
+                figures writes nothing — it drains the materialized-view queue
+                and evicts the `session:{label}` cache — so there is no reason
+                to gate it behind a problem. Gating the only refresh control on
+                `needsAttention` meant a healthy session had no way to force the
+                numbers at all, which is exactly when someone wants to be sure
+                before reading a total out to a parent.
+              */}
+              <div className="mt-4 rounded-md border border-border bg-card p-3">
+                <form action={refreshSessionFiguresAction}>
+                  <input
+                    type="hidden"
+                    name="sessionLabel"
+                    value={card.session.session_label}
+                  />
+                  <PendingSubmitButton
+                    idleLabel={t("sessionHealthRefreshFigures")}
+                    pendingLabel={t("sessionHealthRefreshFiguresPending")}
+                    variant="outline"
+                    className="w-full"
+                  />
+                </form>
+                <p className="mt-2 text-center text-xs text-muted-foreground">
+                  {t("sessionHealthRefreshFiguresHint")}
+                </p>
               </div>
 
               {card.needsAttention ? (
