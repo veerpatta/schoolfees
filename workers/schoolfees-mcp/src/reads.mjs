@@ -7,7 +7,7 @@
  * students who left owing, and why two tools in the same payload disagreed.
  */
 
-import { createDegradationLog, selectAll } from "./supabase.mjs";
+import { createDegradationLog, select, selectAll } from "./supabase.mjs";
 import { resolveScope, scopeParams } from "./scope.mjs";
 import { FINANCIAL_FIELDS, mapFinancialRow } from "./shape/student.mjs";
 import { getSessionInstallmentsByStudent } from "./shape/installment.mjs";
@@ -36,6 +36,42 @@ export async function getFinancialRows(env, { sessionLabel, scope, classId, rout
   if (limit) params.limit = limit;
 
   return selectAll(env, "v_workbook_student_financials", params);
+}
+
+/**
+ * How many students a scope covers, without reading them.
+ *
+ * Two callers wanted a headcount and got it by fetching ~500 rows of 60 columns
+ * and taking `.length`. PostgREST will just count them; `select` has supported
+ * `count=exact` since it was written and nothing had ever asked for it.
+ */
+export async function countFinancialRows(env, { sessionLabel, scope, classId, routeId } = {}) {
+  if (!sessionLabel) throw new Error("countFinancialRows requires a sessionLabel.");
+  resolveScope(scope);
+
+  const params = {
+    select: "student_id",
+    session_label: `eq.${sessionLabel}`,
+    limit: 1,
+    ...scopeParams(scope),
+  };
+  if (classId) params.class_id = `eq.${classId}`;
+  if (routeId) params.transport_route_id = `eq.${routeId}`;
+
+  const { totalCount } = await select(env, "v_workbook_student_financials", params, {
+    count: true,
+  });
+
+  // Never fall back to 0. A headcount is the denominator of half the answers
+  // this server gives, and "0 students on the roll" is a far worse failure than
+  // an error saying the count could not be read.
+  if (totalCount === null) {
+    throw new Error(
+      "Could not read an exact count for v_workbook_student_financials (no content-range header). Refusing to report a headcount of 0.",
+    );
+  }
+
+  return totalCount;
 }
 
 /**

@@ -221,6 +221,7 @@ export function registerStudentTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "search_students",
+    studentRows: true,
     title: "Search Students",
     description:
       "Use this to find a student by name, admission (SR) number, class, parent name or phone number. Returns identity, enrollment status and a money summary for each match. Search runs in the database, so a partial name or a phone fragment is enough.",
@@ -276,6 +277,7 @@ export function registerStudentTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "get_student",
+    studentRows: true,
     title: "Get Student (Full Record)",
     description:
       "Use this for everything about ONE student: personal and parent details, enrollment status, resolved fee structure and why each charge is what it is, every installment, receipts and how each was allocated, corrections, refunds, EMI plan and its history, siblings, discounts, last year's carry-forward, and follow-up call history. Choose sections with `include` to keep the response small.",
@@ -420,6 +422,7 @@ export function registerStudentTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "query_students",
+    studentRows: true,
     title: "Query Students (Filter, Group, Total)",
     description:
       "The general-purpose student query. Use it for any list or count the other tools do not cover: 'every student on transport with dues over 20,000', 'RTE students in Class 8', 'who has an EMI plan and has missed it', 'students with no phone number'. Filter by the same chips the office app uses, add amount ranges, group and total. Returns rows, group rollups and a whole-set summary.",
@@ -578,6 +581,7 @@ export function registerStudentTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "get_student_financial_history",
+    studentRows: true,
     title: "Get Student Financial History",
     description:
       "Use this for a student's exact payment record: every receipt, what each was allocated to, the balance shown to the parent at the time, corrections, refunds, and their EMI plan history including plans that were superseded. Read-only — it changes nothing.",

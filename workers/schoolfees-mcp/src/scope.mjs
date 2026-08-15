@@ -95,6 +95,31 @@ export function describeScope(name, rows) {
 }
 
 /**
+ * The same block as describeScope, built from a count instead of the rows.
+ *
+ * Only valid where the scope makes every row homogeneous: `on_roll` is active by
+ * definition, so onRoll === counted and nothing not-on-roll can be inside it.
+ * That lets a headcount be a COUNT query rather than a full read whose only use
+ * was `.length`.
+ */
+export function describeScopeCount(name, count) {
+  const scope = resolveScope(name);
+  if (name !== "on_roll") {
+    throw new Error(
+      `describeScopeCount is only safe for a homogeneous scope; "${name}" mixes populations, so describe it from its rows.`,
+    );
+  }
+  return {
+    name: scope.name,
+    rule: scope.rule,
+    why: scope.use,
+    counted: count,
+    onRoll: count,
+    includedNotOnRoll: 0,
+  };
+}
+
+/**
  * Applied client-side where a scope has to be enforced over rows already
  * fetched for another reason (a session-wide read reused by several tools).
  * Kept in lockstep with the predicates above.

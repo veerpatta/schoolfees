@@ -97,6 +97,14 @@ export async function handleServiceMcp(request, env) {
   return runMcpTransport(request, env, SERVICE_IDENTITY);
 }
 
+/**
+ * Public, and deliberately carries no student or fee data.
+ *
+ * It does report which optional configuration is present, because the failure
+ * mode of a missing value here is silent: an unset NEXT_PUBLIC_SITE_URL simply
+ * made verifyUrl() return null on every receipt for months, with nothing
+ * anywhere saying why.
+ */
 export function healthPayload(env) {
   return {
     ok: true,
@@ -105,5 +113,9 @@ export function healthPayload(env) {
     defaultSession: env.SCHOOLFEES_MCP_DEFAULT_SESSION || "2026-27",
     schema: getSupabaseSchema(env),
     readOnly: true,
+    config: {
+      siteUrl: env.NEXT_PUBLIC_SITE_URL || null,
+      receiptVerifyLinks: Boolean(env.NEXT_PUBLIC_SITE_URL),
+    },
   };
 }

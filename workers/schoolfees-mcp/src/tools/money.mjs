@@ -10,9 +10,9 @@
 
 import * as z from "zod/v4";
 
-import { rpc, selectAll } from "../supabase.mjs";
-import { reconciliation } from "../scope.mjs";
-import { getFinancialRows } from "../reads.mjs";
+import { createDegradationLog, rpc, selectAll } from "../supabase.mjs";
+import { describeScopeCount, reconciliation } from "../scope.mjs";
+import { countFinancialRows, getFinancialRows } from "../reads.mjs";
 import {
   groupFinancialRows,
   routeLabel,
@@ -72,31 +72,38 @@ export function registerMoneyTools(server, ctx) {
     money: true,
     inputSchema: { sessionLabel: sessionSchema(env) },
     handler: async ({ sessionLabel }) => {
+      // A failed RPC used to become `null`, which rendered as "yearSplit
+      // unavailable" with no reason given — indistinguishable from a session
+      // that genuinely has no previous-year dues.
+      const degraded = createDegradationLog();
       const [summaryRpc, feeSplit, collectable, onRoll] = await Promise.all([
-        rpc(env, "get_dashboard_summary", {
-          p_session_label: sessionLabel,
-          p_today: todayIst(),
-        }).catch(() => null),
-        rpc(env, "get_dashboard_fee_split", { p_session_label: sessionLabel }).catch(() => null),
+        degraded.tolerate(
+          "get_dashboard_summary",
+          () => rpc(env, "get_dashboard_summary", { p_session_label: sessionLabel, p_today: todayIst() }),
+          null,
+        ),
+        degraded.tolerate(
+          "get_dashboard_fee_split",
+          () => rpc(env, "get_dashboard_fee_split", { p_session_label: sessionLabel }),
+          null,
+        ),
         getFinancialRows(env, { sessionLabel, scope: "collectable" }),
-        getFinancialRows(env, { sessionLabel, scope: "on_roll" }),
+        // A COUNT, not a read. Its only use is the headcount number.
+        countFinancialRows(env, { sessionLabel, scope: "on_roll" }),
       ]);
 
       const moneyTotals = summarizeFinancialRows(collectable.rows);
       const split = Array.isArray(feeSplit) ? feeSplit[0] : feeSplit;
 
       return toolResult(
-        `${sessionLabel}: ${onRoll.rows.length} students on the roll. Fees pending ${money(moneyTotals.totalFeesPending)} across ${moneyTotals.pendingStudentCount} families, plus ${money(moneyTotals.totalLateFeePending)} of late fee. Collected ${money(moneyTotals.totalPaid)} of ${money(moneyTotals.totalExpectedFees)} expected.`,
+        `${sessionLabel}: ${onRoll} students on the roll. Fees pending ${money(moneyTotals.totalFeesPending)} across ${moneyTotals.pendingStudentCount} families, plus ${money(moneyTotals.totalLateFeePending)} of late fee. Collected ${money(moneyTotals.totalPaid)} of ${money(moneyTotals.totalExpectedFees)} expected.`,
         {
           sessionLabel,
-          headcount: withScope(
-            {
-              studentsOnRoll: onRoll.rows.length,
-              note: "Children currently enrolled. A student who has left is not on the roll, however much they owe.",
-            },
-            "on_roll",
-            onRoll.rows,
-          ),
+          headcount: {
+            studentsOnRoll: onRoll,
+            note: "Children currently enrolled. A student who has left is not on the roll, however much they owe.",
+            scope: describeScopeCount("on_roll", onRoll),
+          },
           money: withScope(
             {
               ...moneyTotals,
@@ -132,15 +139,16 @@ export function registerMoneyTools(server, ctx) {
             {
               block: "headcount",
               scope: "on_roll",
-              count: onRoll.rows.length,
+              count: onRoll,
             },
             {
               block: "money",
               scope: "collectable",
               count: collectable.rows.length,
-              differenceExplained: `${collectable.rows.length - onRoll.rows.length} student(s) are counted in money but not in headcount: they have left and still owe, or paid and then left.`,
+              differenceExplained: `${collectable.rows.length - onRoll} student(s) are counted in money but not in headcount: they have left and still owe, or paid and then left.`,
             },
           ]),
+          degraded: degraded.entries,
           ...truncationNote(collectable.truncated, "20000 rows"),
         },
       );
@@ -354,8 +362,12 @@ export function registerMoneyTools(server, ctx) {
     description:
       "Use this to explain WHY a student is charged what they are charged: the installment schedule and due dates, the late-fee rule, new versus returning academic fee, per-class fee defaults, transport routes and their amounts, and the conventional discount policies (RTE, Staff Child, Third Child).",
     requires: ["fees:view", "settings:view"],
+    // It publishes the late fee, both academic-fee tiers and every route amount.
+    // It was the one tool returning money with nothing saying how current it is.
+    money: true,
     inputSchema: { sessionLabel: sessionSchema(env) },
     handler: async ({ sessionLabel }) => {
+      const degraded = createDegradationLog();
       const [policy, classes, routes, discountPolicies] = await Promise.all([
         selectAll(env, "fee_policy_configs", {
           select:
@@ -373,11 +385,19 @@ export function registerMoneyTools(server, ctx) {
           select: "id,route_name,route_code,default_installment_amount,is_active",
           order: "route_name.asc",
         }),
-        selectAll(env, "conventional_discount_policies", {
-          select:
-            "code,display_name,calculation_type,fixed_tuition_amount,percentage,is_active,academic_session_label",
-          academic_session_label: `eq.${sessionLabel}`,
-        }).catch(() => ({ rows: [] })),
+        // Losing these silently is the worst case here: an RTE or Staff Child
+        // student would look like they are simply charged less, with no policy
+        // named to explain it.
+        degraded.tolerate(
+          "conventional_discount_policies",
+          () =>
+            selectAll(env, "conventional_discount_policies", {
+              select:
+                "code,display_name,calculation_type,fixed_tuition_amount,percentage,is_active,academic_session_label",
+              academic_session_label: `eq.${sessionLabel}`,
+            }),
+          { rows: [] },
+        ),
       ]);
 
       const config = policy.rows[0] || null;
@@ -429,6 +449,7 @@ export function registerMoneyTools(server, ctx) {
             "At most two active policies per student per year; the lowest resulting tuition wins.",
             "A manual per-student override is separate from these policies.",
           ],
+          degraded: degraded.entries,
         },
       );
     },

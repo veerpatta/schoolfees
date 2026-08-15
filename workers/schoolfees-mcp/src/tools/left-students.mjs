@@ -16,21 +16,43 @@ import * as z from "zod/v4";
 import { selectAll } from "../supabase.mjs";
 import { getFinancialRows } from "../reads.mjs";
 import { mapFinancialRow } from "../shape/student.mjs";
-import { getStudentInstallments } from "../shape/installment.mjs";
+import { getInstallmentsForStudents } from "../shape/installment.mjs";
 import { money, number } from "../format.mjs";
 import {
   defineTool,
   limitSchema,
   sessionSchema,
   toolResult,
+  truncationNote,
   withScope,
 } from "../toolkit.mjs";
+
+/** Named rather than `select: "*"`, so a view change cannot quietly widen the payload. */
+const CARRY_FORWARD_FIELDS = [
+  "student_id",
+  "admission_no",
+  "student_name",
+  "father_name",
+  "father_phone",
+  "class_label",
+  "source_session_label",
+  "target_session_label",
+  "fee_head",
+  "installment_label",
+  "due_date",
+  "original_amount",
+  "collected_amount",
+  "remaining_amount",
+  "balance_status",
+  "status",
+].join(",");
 
 export function registerLeftStudentTools(server, ctx) {
   const { env } = ctx;
 
   defineTool(server, ctx, {
     name: "get_left_student_recovery",
+    studentRows: true,
     title: "Get Left-Student Recovery Queue",
     description:
       "Use this for students who have LEFT, graduated or gone inactive and still owe money. These families are not on the defaulter list — that one covers currently enrolled students — but the debt is real and collectable.",
@@ -53,16 +75,18 @@ export function registerLeftStudentTools(server, ctx) {
       const wanted = new Set(statuses);
       const matching = rows.filter((row) => wanted.has(row.record_status)).slice(0, limit);
 
-      const students = [];
-      for (const row of matching) {
+      // One bulk read for the whole page, not one request per student in series.
+      const duesByStudent = includeDues
+        ? await getInstallmentsForStudents(env, matching.map((row) => row.student_id), sessionLabel)
+        : null;
+
+      const students = matching.map((row) => {
         const mapped = mapFinancialRow(row);
-        students.push({
+        return {
           ...mapped,
-          ...(includeDues
-            ? { dues: await getStudentInstallments(env, row.student_id, sessionLabel) }
-            : {}),
-        });
-      }
+          ...(duesByStudent ? { dues: duesByStudent.get(row.student_id) || [] } : {}),
+        };
+      });
 
       const totals = students.reduce(
         (acc, student) => ({
@@ -114,13 +138,20 @@ export function registerLeftStudentTools(server, ctx) {
       limit: limitSchema.default(100),
     },
     handler: async ({ sessionLabel, onlyOutstanding, limit }) => {
-      const { rows } = await selectAll(env, "v_student_carry_forward_balances", {
-        select: "*",
-        limit: 5000,
-      }).catch(() => ({ rows: [] }));
+      // Filtered in the database, not in JS. This used to read every
+      // carry-forward row that has ever existed, capped at 5,000, swallow any
+      // failure into an empty list, and then discard the truncation flag — three
+      // separate ways to report "no old dues" when the truth was unknown.
+      const params = {
+        select: CARRY_FORWARD_FIELDS,
+        or: `(target_session_label.is.null,target_session_label.eq.${sessionLabel})`,
+        order: "remaining_amount.desc",
+      };
+      if (onlyOutstanding) params.remaining_amount = "gt.0";
+
+      const { rows, truncated } = await selectAll(env, "v_student_carry_forward_balances", params);
 
       const mapped = rows
-        .filter((row) => !row.target_session_label || row.target_session_label === sessionLabel)
         // Column names verified against v_student_carry_forward_balances. This
         // view carries the balance, not the student's enrollment status — use
         // search_students or get_student if you need to know whether the child
@@ -142,11 +173,11 @@ export function registerLeftStudentTools(server, ctx) {
           remainingAmount: number(row.remaining_amount),
           balanceStatus: row.balance_status ?? null,
           status: row.status,
-        }))
-        .filter((row) => (onlyOutstanding ? row.remainingAmount > 0 : true))
-        .sort((a, b) => b.remainingAmount - a.remainingAmount)
-        .slice(0, limit);
+        }));
 
+      // Totals cover every matching row. They used to be summed after the page
+      // slice, so "Rs X still owed" silently meant "owed by the rows that fit in
+      // this page" — right at the default limit, wrong the moment it was raised.
       const totals = mapped.reduce(
         (acc, row) => ({
           original: acc.original + row.originalAmount,
@@ -156,13 +187,18 @@ export function registerLeftStudentTools(server, ctx) {
         { original: 0, collected: 0, remaining: 0 },
       );
 
+      const page = mapped.slice(0, limit);
+
       return toolResult(
         `${mapped.length} carry-forward balance(s) into ${sessionLabel}: ${money(totals.remaining)} still owed from ${money(totals.original)} originally carried, ${money(totals.collected)} recovered so far.`,
         {
           sessionLabel,
           totals,
-          balances: mapped,
-          note: "Previous-year dues live on this year's students as carry-forward installments. Split current from previous year on is_carry_forward, never on session_label — 2025-26 does not exist as a session of its own.",
+          balanceCount: mapped.length,
+          balances: page,
+          balancesReturned: page.length,
+          note: "Previous-year dues live on this year's students as carry-forward installments. Split current from previous year on is_carry_forward, never on session_label — 2025-26 does not exist as a session of its own. Totals cover every matching balance; `balances` is the first `limit` of them.",
+          ...truncationNote(truncated, "20000 rows"),
         },
       );
     },

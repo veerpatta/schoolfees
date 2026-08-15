@@ -41,11 +41,22 @@ async function loadWorker() {
   return (await import(workerPath)) as WorkerModule;
 }
 
-function okJson(data: unknown) {
-  return new Response(JSON.stringify(data), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+function okJson(data: unknown, totalCount?: number) {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  // PostgREST answers `Prefer: count=exact` with a content-range whose tail is
+  // the total. Without it here, a count read returned null and the server had to
+  // choose between guessing and refusing — it now refuses, so the mock has to be
+  // honest about what the real thing sends.
+  if (typeof totalCount === "number") {
+    const length = Array.isArray(data) ? data.length : 0;
+    headers["content-range"] = `0-${Math.max(0, length - 1)}/${totalCount}`;
+  }
+  return new Response(JSON.stringify(data), { status: 200, headers });
+}
+
+function wantsExactCount(init?: RequestInit) {
+  const headers = (init?.headers ?? {}) as Record<string, string>;
+  return headers.prefer === "count=exact";
 }
 
 function financialRow(overrides: Record<string, unknown>) {
@@ -230,12 +241,17 @@ function installSupabaseMock(options?: {
   const repaymentPlan = options?.repaymentPlan ?? null;
   const rows = options?.rows ?? ALL_ROWS;
 
-  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = new URL(String(input));
     const table = url.pathname.split("/").pop();
 
     if (table === "v_workbook_student_financials") {
-      return okJson(applyScopeFilters(rows, url));
+      const page = applyScopeFilters(rows, url);
+      // The count covers the whole matching set, not the page.
+      const total = applyScopeFilters(rows, new URL(url.origin + url.pathname + "?" +
+        [...url.searchParams].filter(([k]) => k !== "limit" && k !== "offset")
+          .map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&"))).length;
+      return okJson(page, wantsExactCount(init) ? total : undefined);
     }
     if (table === "v_student_directory") {
       const query = url.searchParams.get("search_text") || "";

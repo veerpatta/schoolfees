@@ -10,6 +10,7 @@ import * as z from "zod/v4";
 
 import { selectAll } from "../supabase.mjs";
 import { getFinancialRows } from "../reads.mjs";
+import { describeScope, scopeParams } from "../scope.mjs";
 import { getStudentInstallments } from "../shape/installment.mjs";
 import {
   finalizeReceiptSummary,
@@ -191,10 +192,15 @@ export function registerTransactionTools(server, ctx) {
       let studentIds;
       if (studentQuery) {
         const normalized = studentQuery.trim().toLowerCase().replace(/[*,]/g, " ");
+        // The scope has to be applied here too. Naming a student used to route
+        // around the scope branch below entirely, so the same `scope` value
+        // produced a different population depending on whether an unrelated
+        // parameter happened to be set — and the payload never said which.
         const { rows: matches } = await selectAll(env, "v_student_directory", {
           select: "student_id",
           session_label: `eq.${sessionLabel}`,
           search_text: `ilike.*${normalized}*`,
+          ...scopeParams(scope),
         });
         studentIds = matches.map((row) => row.student_id);
         if (studentIds.length === 0) {
@@ -202,6 +208,7 @@ export function registerTransactionTools(server, ctx) {
             sessionLabel,
             receipts: [],
             summary: null,
+            scope: describeScope(scope),
           });
         }
       }
@@ -237,6 +244,7 @@ export function registerTransactionTools(server, ctx) {
           summary,
           receipts: projectAll(page, fields),
           pageInfo: pageInfo({ offset, limit, returned: page.length, totalCount: receipts.length }),
+          scope: describeScope(scope),
           ...truncationNote(truncated, "20000 rows"),
         },
       );

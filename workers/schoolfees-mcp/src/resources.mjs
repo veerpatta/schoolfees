@@ -59,24 +59,35 @@ Every response carries a \`scope\` block naming the rule it used. If two answers
 disagree, compare their scopes before assuming one is wrong.
 `;
 
-const SCHOOL_RULES_DOC = `# School rules, AY 2026-27
+const SCHOOL_RULES_DOC = `# School fee rules — shape, not amounts
 
-- **Late fee**: ₹1,000 flat, charged the day an installment passes its due date
+**Every amount on this page has deliberately been left out. Call
+\`get_fee_structure\` for the live figures.**
+
+This server's instructions say never to quote a fee amount from memory. A
+resource listing ₹1,000 late fee and ₹1,100 academic fee *is* memory: it was
+pinned into context and read as current long after \`fee_policy_configs\` could
+have moved underneath it. What follows is the part that does not change when the
+head revises a number.
+
+- **Late fee**: a flat amount, charged the day an installment passes its due date
   with fees still unsettled, and kept until paid or explicitly waived. Never part
   of fees pending. Never accrues on a carry-forward row.
-- **Installment due dates**: 20-04-2026, 20-07-2026, 20-10-2026, 20-01-2027.
-- **Academic fee**: ₹1,100 for a new student, ₹500 for a returning one. Which
-  applies is the \`feeTier\` field (New / Old) — that field says nothing about
-  whether the student is still enrolled.
-- **Receipt prefix**: SVP.
+  → amount: \`get_fee_structure\` → \`policy.lateFeeFlatAmount\`
+- **Installments**: four a year, each with its own due date.
+  → dates: \`get_fee_structure\` → \`policy.installmentSchedule\`
+- **Academic fee**: two tiers, one for a new admission and one for a returning
+  student. Which applies is the \`feeTier\` field (New / Old) — that field says
+  nothing about whether the student is still enrolled.
+  → amounts: \`get_fee_structure\` → \`policy.newStudentAcademicFee\` / \`oldStudentAcademicFee\`
+- **Receipt prefix**: \`get_fee_structure\` → \`policy.receiptPrefix\`.
 - **Payment modes**: cash, UPI, bank transfer, cheque. A reference number is
   optional for all of them. A fifth mode, \`discount\`, is a write-off, not a
   payment.
-- **Conventional discounts** (tuition only, at most two active per student per
-  year, lowest resulting tuition wins):
-  - RTE → tuition ₹0
-  - Staff Child → tuition 50%
-  - Third Child Policy → tuition ₹6,000
+- **Conventional discounts**: tuition only, at most two active per student per
+  year, lowest resulting tuition wins. The policies in force (RTE, Staff Child,
+  Third Child) and what each one sets tuition to are returned live by
+  \`get_fee_structure\` → \`conventionalDiscountPolicies\`.
 
 ## Previous-year dues
 

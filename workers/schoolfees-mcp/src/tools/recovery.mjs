@@ -252,9 +252,10 @@ export function registerRecoveryTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "today_fee_collection_brief",
+    studentRows: true,
     title: "Today's Fee Collection Brief",
     description:
-      "Use this for the current overall picture: how much is pending, how many families owe, who the top follow-up targets are, and what came in over the past week. A good opening call for 'how are we doing on fees'.",
+      "Use this for the current overall picture: how much is pending, how many families owe, and who the top follow-up targets are. A good opening call for 'how are we doing on fees'. For what actually came in, call get_recent_payments or get_collection_report — this tool reads dues, not receipts.",
     requires: recoveryPermissions,
     money: true,
     inputSchema: {
@@ -265,10 +266,15 @@ export function registerRecoveryTools(server, ctx) {
       const context = await getRecoveryContext(env, sessionLabel);
       const rows = buildRecoveryRows(context, { includeNoCall: true });
       const summary = summarizeFinancialRows(context.financialRows);
-      summary.overdueStudentCount = rows.filter((row) => row.overdueAmount > 0).length;
+      // Kept under its own key. Overwriting `overdueStudentCount` published a
+      // plan-aware figure under the name every other tool uses for the raw one,
+      // so the same field meant two different things depending on the caller.
+      summary.overdueStudentCountPlanAware = rows.filter((row) => row.overdueAmount > 0).length;
+      summary.overdueCountNote =
+        "overdueStudentCount counts students with a past-due installment. overdueStudentCountPlanAware counts those actually behind once an active EMI plan is taken into account, so a family paying to an agreed schedule is not chased.";
 
       return toolResult(
-        `${sessionLabel}: ${summary.pendingStudentCount} families owe fees, totalling ${money(summary.totalFeesPending)}, plus ${money(summary.totalLateFeePending)} of late fee. ${summary.overdueStudentCount} are overdue right now.`,
+        `${sessionLabel}: ${summary.pendingStudentCount} families owe fees, totalling ${money(summary.totalFeesPending)}, plus ${money(summary.totalLateFeePending)} of late fee. ${summary.overdueStudentCountPlanAware} are behind right now.`,
         queuePayload(context, rows.slice(0, topDefaultersLimit), {
           sessionLabel,
           summary,
@@ -280,6 +286,7 @@ export function registerRecoveryTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "list_defaulters_for_followup",
+    studentRows: true,
     title: "List Defaulters For Follow-Up",
     description:
       "Use this when the user asks who to call or message about unpaid fees. Ranked by urgency, aware of EMI plans, and never lists a family whose only debt is a late fee.",
@@ -318,6 +325,7 @@ export function registerRecoveryTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "get_student_due_status",
+    studentRows: true,
     title: "Get Student Due Status",
     description:
       "Use this for one student's current position: what is owed, the installment breakdown, parent phone numbers, and any EMI plan. For the full record including receipts and family, use get_student instead.",
@@ -357,6 +365,7 @@ export function registerRecoveryTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "get_recovery_queue",
+    studentRows: true,
     title: "Get Daily Recovery Queue",
     description:
       "Use this for today's call list, ordered by urgency: broken promises first, then promises due today, repeated no-answers, high exposure and overdue balances. Families flagged no-call are suppressed unless you ask for them.",
@@ -385,6 +394,7 @@ export function registerRecoveryTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "get_promise_due_list",
+    studentRows: true,
     title: "Get Promise Due List",
     description:
       "Use this when the user asks which parents promised to pay and should be chased today, or whose promised date has already passed.",
@@ -407,6 +417,7 @@ export function registerRecoveryTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "get_parent_followup_context",
+    studentRows: true,
     title: "Get Parent Follow-Up Context",
     description:
       "Use this before calling one family: what they owe, what was said last time, whether they promised anything, whether they are on an EMI plan, and whether they have asked not to be called.",
@@ -512,6 +523,7 @@ export function registerRecoveryTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "daily_recovery_digest",
+    studentRows: true,
     title: "Daily Recovery Digest",
     description:
       "Use this for the morning collection run. Bundles today's position, the ranked call queue, promise follow-ups, a grouped plan and ready-to-review reminder drafts in one call. Read-only: it never sends a message or posts a payment.",
@@ -529,10 +541,14 @@ export function registerRecoveryTools(server, ctx) {
       // session five times over.
       const context = await getRecoveryContext(env, sessionLabel);
 
-      const all = buildRecoveryRows(context);
+      // Built once. It was built twice — a full map, score and multi-key sort
+      // over every owing family, run again to produce a strict subset of itself.
       const withNoCall = buildRecoveryRows(context, { includeNoCall: true });
+      const all = withNoCall.filter((row) => !row.noCall);
       const summary = summarizeFinancialRows(context.financialRows);
-      summary.overdueStudentCount = withNoCall.filter((row) => row.overdueAmount > 0).length;
+      summary.overdueStudentCountPlanAware = withNoCall.filter((row) => row.overdueAmount > 0).length;
+      summary.overdueCountNote =
+        "overdueStudentCount counts students with a past-due installment. overdueStudentCountPlanAware counts those actually behind once an active EMI plan is taken into account.";
 
       const queue = all.slice(0, recoveryLimit).map((row, index) => ({ rank: index + 1, ...row }));
       const promises = all
@@ -553,7 +569,7 @@ export function registerRecoveryTools(server, ctx) {
           promisesDue: promises,
           recoveryPlan: buildPlanGroups({ sessionLabel, rows: all.slice(0, recoveryLimit), language }),
           followUpDrafts: drafts,
-          topDefaulters: withNoCall.slice(0, 10),
+          topDefaulters: withNoCall.slice(0, 10).map(compactRow),
           safety: SAFETY,
         }),
       );
@@ -561,15 +577,40 @@ export function registerRecoveryTools(server, ctx) {
   });
 }
 
+/**
+ * Enough of a row to act on, without repeating the row.
+ *
+ * A full recovery row is ~1,800 bytes. The plan groups below are five
+ * overlapping filters of one list that is already in the same payload, so a
+ * family on a broken promise with high exposure was serialised in
+ * recoveryQueue, in two groups, in nextBestRows and again in topDefaulters —
+ * five copies of the same 1,800 bytes. These carry the identity and the reason;
+ * the detail is one lookup away in `recoveryQueue`.
+ */
+function compactRow(row) {
+  return {
+    studentId: row.studentId,
+    admissionNo: row.admissionNo,
+    studentName: row.studentName,
+    classLabel: row.classLabel,
+    fatherPhone: row.fatherPhone,
+    recoveryAmount: row.recoveryAmount,
+    promiseState: row.promiseState,
+    recoveryReasons: row.recoveryReasons,
+  };
+}
+
 function buildPlanGroups({ sessionLabel, rows, language }) {
   const groups = {
-    brokenPromises: rows.filter((row) => row.promiseState === "broken"),
-    promisesDueToday: rows.filter((row) => row.promiseState === "due_today"),
-    repeatedNoAnswer: rows.filter(
-      (row) => (row.contactSummary?.noAnswerStreak || 0) >= NOT_RESPONDING_STREAK,
-    ),
-    highExposure: rows.filter((row) => row.feesPendingAmount >= HIGH_EXPOSURE_AMOUNT),
-    leftButOwing: rows.filter((row) => !row.enrollment.onRoll),
+    brokenPromises: rows.filter((row) => row.promiseState === "broken").map(compactRow),
+    promisesDueToday: rows.filter((row) => row.promiseState === "due_today").map(compactRow),
+    repeatedNoAnswer: rows
+      .filter((row) => (row.contactSummary?.noAnswerStreak || 0) >= NOT_RESPONDING_STREAK)
+      .map(compactRow),
+    highExposure: rows
+      .filter((row) => row.feesPendingAmount >= HIGH_EXPOSURE_AMOUNT)
+      .map(compactRow),
+    leftButOwing: rows.filter((row) => !row.enrollment.onRoll).map(compactRow),
   };
 
   const headline =
@@ -577,5 +618,12 @@ function buildPlanGroups({ sessionLabel, rows, language }) {
       ? `Start with ${groups.brokenPromises.length} broken promise(s), then ${groups.promisesDueToday.length} promise(s) due today, then repeated no-answer and high-exposure families.`
       : `Pehle ${groups.brokenPromises.length} broken promise, phir ${groups.promisesDueToday.length} promise due, uske baad no-answer aur high exposure accounts follow karein.`;
 
-  return { sessionLabel, asOfDateIst: todayIst(), language, headline, groups, nextBestRows: rows.slice(0, 10) };
+  return {
+    sessionLabel,
+    asOfDateIst: todayIst(),
+    language,
+    headline,
+    groups,
+    note: "Groups reference families by studentId. The full row for each is in `recoveryQueue` in this same payload — they are not repeated here. `nextBestRows` is gone: it was the first ten of recoveryQueue, which you already have in order.",
+  };
 }

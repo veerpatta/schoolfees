@@ -12,7 +12,7 @@
  *    reader who assumed four installments got a short number.
  */
 
-import { rpc, selectAll } from "../supabase.mjs";
+import { chunk, rpc, selectAll } from "../supabase.mjs";
 import { number } from "../format.mjs";
 
 export const INSTALLMENT_FIELDS = [
@@ -95,6 +95,41 @@ export async function getStudentInstallments(env, studentId, sessionLabel) {
 
   const { rows } = await selectAll(env, "v_workbook_installment_balances", params);
   return rows.map(mapInstallmentRow);
+}
+
+/**
+ * Installments for a named set of students, indexed by student.
+ *
+ * One chunked query per 100 ids, run together, instead of one request per
+ * student one after another. The caller that needed this was issuing up to 50
+ * serial round trips to decorate a 50-row list.
+ */
+export async function getInstallmentsForStudents(env, studentIds, sessionLabel) {
+  const byStudent = new Map();
+  const ids = [...new Set(studentIds.filter(Boolean))];
+  if (ids.length === 0) return byStudent;
+
+  const pages = await Promise.all(
+    chunk(ids, 100).map((idChunk) =>
+      selectAll(env, "v_workbook_installment_balances", {
+        select: INSTALLMENT_FIELDS,
+        session_label: `eq.${sessionLabel}`,
+        student_id: `in.(${idChunk.join(",")})`,
+        order: "due_date.asc,installment_no.asc,installment_id.asc",
+      }),
+    ),
+  );
+
+  for (const page of pages) {
+    for (const row of page.rows) {
+      const mapped = mapInstallmentRow(row);
+      const bucket = byStudent.get(mapped.studentId) || [];
+      bucket.push(mapped);
+      byStudent.set(mapped.studentId, bucket);
+    }
+  }
+
+  return byStudent;
 }
 
 /** Every installment in a session, indexed by student. */

@@ -11,7 +11,7 @@
 import { STUDENT_SCOPES } from "../scope.mjs";
 import { describeIdentity } from "../permissions.mjs";
 import { getDataFreshness, todayIst } from "../freshness.mjs";
-import { rpc, selectAll } from "../supabase.mjs";
+import { createDegradationLog, rpc, selectAll } from "../supabase.mjs";
 import { number } from "../format.mjs";
 import { defineTool, sessionSchema, toolResult } from "../toolkit.mjs";
 
@@ -73,6 +73,17 @@ export const DOMAIN_RULES = [
   },
 ];
 
+/**
+ * The live session, from configuration rather than a literal.
+ *
+ * It was hardcoded as "2026-27" in three places while `defaultSession` already
+ * read the env var, so rolling the school over to 2027-28 would have left this
+ * server insisting the new year was not the live one.
+ */
+function liveSession(env) {
+  return env.SCHOOLFEES_MCP_DEFAULT_SESSION || "2026-27";
+}
+
 export function registerOrientationTools(server, ctx) {
   const { env, identity } = ctx;
 
@@ -95,9 +106,9 @@ export function registerOrientationTools(server, ctx) {
             school: "Shri Veer Patta Senior Secondary School (VPPS)",
             readOnly: true,
             note: "Every tool reads. Nothing here posts payments, edits records, or sends messages.",
-            defaultSession: env.SCHOOLFEES_MCP_DEFAULT_SESSION || "2026-27",
-            liveSession: "2026-27",
-            testSession: "TEST-2026-27",
+            defaultSession: liveSession(env),
+            liveSession: liveSession(env),
+            testSession: `TEST-${liveSession(env)}`,
           },
           you: who,
           availableTools: tools,
@@ -140,7 +151,7 @@ export function registerOrientationTools(server, ctx) {
           sessionLabel: label,
           status: row.status,
           isTest,
-          isLive: label === "2026-27",
+          isLive: label === liveSession(env),
           purpose: isTest
             ? "Test data. Never quote these figures as the school's real position."
             : "Real school financial records.",
@@ -149,7 +160,7 @@ export function registerOrientationTools(server, ctx) {
       });
 
       return toolResult(
-        `${sessions.length} academic session(s). Live: 2026-27. Test sessions are flagged.`,
+        `${sessions.length} academic session(s). Live: ${liveSession(env)}. Test sessions are flagged.`,
         { sessions, asOfDateIst: todayIst() },
       );
     },
@@ -173,15 +184,14 @@ export function registerOrientationTools(server, ctx) {
 
       const count = (key) => quality.filter((row) => row[key] === true).length;
 
-      let summary = null;
-      try {
-        summary = await rpc(env, "get_dashboard_summary", {
-          p_session_label: sessionLabel,
-          p_today: todayIst(),
-        });
-      } catch {
-        summary = null;
-      }
+      // This is the tool people call to ask whether the numbers can be trusted.
+      // Swallowing a failed read here answered "healthy" by omission.
+      const degraded = createDegradationLog();
+      const summary = await degraded.tolerate(
+        "get_dashboard_summary",
+        () => rpc(env, "get_dashboard_summary", { p_session_label: sessionLabel, p_today: todayIst() }),
+        null,
+      );
 
       return toolResult(
         freshness.refreshPending
@@ -201,6 +211,15 @@ export function registerOrientationTools(server, ctx) {
           },
           sessionTotalsAvailable: summary !== null,
           headcountOnRoll: summary ? number(summary.totalStudents ?? 0) : null,
+          // `studentsInSession` above counts every row in the directory for this
+          // session regardless of enrollment, while `headcountOnRoll` is
+          // active-only. Two populations, so both are named rather than left to
+          // look like a discrepancy.
+          populations: {
+            studentsInSession: { scope: "everyone", rule: "no status filter" },
+            headcountOnRoll: { scope: "on_roll", rule: "record_status = 'active'" },
+          },
+          degraded: degraded.entries,
         },
       );
     },

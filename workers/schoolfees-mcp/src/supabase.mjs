@@ -81,31 +81,50 @@ export async function select(env, table, params = {}, { count = false } = {}) {
 /**
  * Every row, paged. `limit` in `params` is honoured as a caller-imposed cap and
  * paging stops there; without one it reads to `MAX_ROWS` and reports truncation.
+ *
+ * A caller-supplied `offset` is the starting point, not a suggestion. It used to
+ * be overwritten by the page cursor, which silently restarted every read at row
+ * 0 — that is why paging through `search_students` with a cursor returned the
+ * first page forever while still advertising a next one.
+ *
+ * Truncation comes from an exact count on the first page rather than a probe
+ * request after the last. The probe cost one extra round trip on every read that
+ * reached its cap, including the nine single-row lookups that pass `limit: 1`
+ * and can never be truncated in any sense the caller cares about.
  */
 export async function selectAll(env, table, params = {}) {
   const cap = Math.min(Number(params.limit) || MAX_ROWS, MAX_ROWS);
   // `limit` becomes the cap on the whole read; each page carries its own.
   const rest = { ...params };
   delete rest.limit;
+  const baseOffset = Number(rest.offset) || 0;
+  delete rest.offset;
+
   const rows = [];
+  let totalCount = null;
 
   while (rows.length < cap) {
     const pageSize = Math.min(PAGE_SIZE, cap - rows.length);
-    const { rows: page } = await select(env, table, {
-      ...rest,
-      limit: pageSize,
-      offset: rows.length,
-    });
+    const wantCount = rows.length === 0;
+    const { rows: page, totalCount: counted } = await select(
+      env,
+      table,
+      { ...rest, limit: pageSize, offset: baseOffset + rows.length },
+      { count: wantCount },
+    );
+    if (wantCount) totalCount = counted;
     rows.push(...page);
-    if (page.length < pageSize) {
-      return { rows, truncated: false };
-    }
+    if (page.length < pageSize) break;
   }
 
-  // We stopped at the cap with the source possibly still going. Probe one more
-  // row rather than guessing — "truncated" must mean truncated.
-  const { rows: probe } = await select(env, table, { ...rest, limit: 1, offset: cap });
-  return { rows, truncated: probe.length > 0 };
+  // With an exact count the answer is arithmetic. Without one (the header can be
+  // absent on some views) fall back to "a full cap means there may be more",
+  // which errs towards warning rather than towards a short answer that looks
+  // complete.
+  const truncated =
+    totalCount === null ? rows.length >= cap : baseOffset + rows.length < totalCount;
+
+  return { rows, truncated, totalCount };
 }
 
 export async function rpc(env, functionName, args = {}) {

@@ -143,8 +143,6 @@ export function mapFinancialRow(row) {
     enrollment: enrollmentOf(row),
     // Fee tier: which academic-fee amount applies. NOT enrollment status.
     feeTier: row.student_status_label || null,
-    feeTierMeaning:
-      "New or Old decides which academic fee applies (new admission vs returning student). It says nothing about whether the student is still enrolled — read enrollment.status for that.",
     // Payment state, as the app labels it.
     paymentStatus: row.status_label || "",
 
@@ -182,7 +180,6 @@ export function mapFinancialRow(row) {
       inst2: number(row.inst2_pending),
       inst3: number(row.inst3_pending),
       inst4: number(row.inst4_pending),
-      note: "The four scheduled installments only. A carry-forward row from last year is separate and is not included here — compare against feesPendingAmount.",
     },
     moneySegment: moneySegment(row),
     dataQuality: {
@@ -191,6 +188,21 @@ export function mapFinancialRow(row) {
     },
   };
 }
+
+/**
+ * The two explanations every student row used to carry.
+ *
+ * They are constant, ~390 characters together, and were emitted per row. In
+ * `daily_recovery_digest`, which serialises the same families across several
+ * lists, that came to roughly 39 KB of a 44 KB payload — the single largest
+ * thing this server sent. A response says them once, in `howToReadThis`.
+ */
+export const ROW_FIELD_NOTES = {
+  feeTier:
+    "New or Old decides which academic fee applies (new admission vs returning student). It says nothing about whether the student is still enrolled — read enrollment.status for that.",
+  installmentPending:
+    "The four scheduled installments only. A carry-forward row from last year is separate and is not included here — compare against feesPendingAmount.",
+};
 
 /** Session-wide totals. Fees and late fee stay in separate buckets throughout. */
 export function summarizeFinancialRows(rows) {

@@ -16,8 +16,9 @@
 
 import * as z from "zod/v4";
 
-import { reconciliation } from "../scope.mjs";
-import { getFinancialRows } from "../reads.mjs";
+import { describeScopeCount, reconciliation } from "../scope.mjs";
+import { createDegradationLog } from "../supabase.mjs";
+import { countFinancialRows, getFinancialRows } from "../reads.mjs";
 import {
   groupFinancialRows,
   mapFinancialRow,
@@ -25,7 +26,6 @@ import {
   summarizeFinancialRows,
 } from "../shape/student.mjs";
 import { loadDashboardAnalytics } from "./money.mjs";
-import { DOMAIN_RULES, MONEY_GLOSSARY } from "./orientation.mjs";
 import { todayIst } from "../freshness.mjs";
 import { money, number } from "../format.mjs";
 import {
@@ -69,6 +69,7 @@ export function registerAiContextTools(server, ctx) {
 
   defineTool(server, ctx, {
     name: "get_ai_analysis_context",
+    studentRows: true,
     title: "Get AI Analysis Context",
     description:
       "Use this when the user wants a broad analysis of the whole session rather than one figure: totals, class and route rollups, the dashboard boards, the biggest debtors and recent collection, all in one call with the vocabulary needed to read them. For a single number prefer get_session_money_summary; for a list prefer query_students.",
@@ -88,10 +89,15 @@ export function registerAiContextTools(server, ctx) {
       topOutstandingLimit: limitSchema.default(25),
     },
     handler: async ({ sessionLabel, scope, includeStudentRows, studentLimit, topOutstandingLimit }) => {
+      // The reconciliation block below asserts the analytics scope as though the
+      // block were present, so a swallowed failure produced a payload that
+      // explained a dashboard that wasn't there.
+      const degraded = createDegradationLog();
       const [scoped, onRoll, analytics] = await Promise.all([
         getFinancialRows(env, { sessionLabel, scope }),
-        getFinancialRows(env, { sessionLabel, scope: "on_roll" }),
-        loadDashboardAnalytics(env, sessionLabel).catch(() => null),
+        // A COUNT, not a read: only `.length` was ever used.
+        countFinancialRows(env, { sessionLabel, scope: "on_roll" }),
+        degraded.tolerate("get_dashboard_analytics", () => loadDashboardAnalytics(env, sessionLabel), null),
       ]);
 
       const summary = summarizeFinancialRows(scoped.rows);
@@ -119,7 +125,7 @@ export function registerAiContextTools(server, ctx) {
       const scopesAgree = scope === "collectable";
 
       return toolResult(
-        `${sessionLabel}: ${onRoll.rows.length} students on the roll; ${summary.studentCount} in financial scope owing ${money(summary.totalFeesPending)} in fees and ${money(summary.totalLateFeePending)} in late fees.`,
+        `${sessionLabel}: ${onRoll} students on the roll; ${summary.studentCount} in financial scope owing ${money(summary.totalFeesPending)} in fees and ${money(summary.totalLateFeePending)} in late fees.`,
         {
           sessionLabel,
           asOfDateIst: todayIst(),
@@ -137,17 +143,15 @@ export function registerAiContextTools(server, ctx) {
             financeHistory: "append-only receipts, payments, adjustments and refunds",
           },
           howToReadThis: {
-            moneyGlossary: MONEY_GLOSSARY,
-            domainRules: DOMAIN_RULES,
+            note: "The money vocabulary and domain rules are MCP resources, not payload. Read schoolfees://glossary/money and schoolfees://rules/answering once and they apply to every response — they used to be inlined here on every call.",
+            resources: ["schoolfees://glossary/money", "schoolfees://rules/answering"],
+            orIfYourClientCannotReadResources: "call describe_capabilities",
           },
-          headcount: withScope(
-            {
-              studentsOnRoll: onRoll.rows.length,
-              note: "Roster count. Never quote this as the denominator for a money figure.",
-            },
-            "on_roll",
-            onRoll.rows,
-          ),
+          headcount: {
+            studentsOnRoll: onRoll,
+            note: "Roster count. Never quote this as the denominator for a money figure.",
+            scope: describeScopeCount("on_roll", onRoll),
+          },
           summary: withScope(summary, scope, scoped.rows),
           classSummaries: withScope({ groups: classSummaries }, scope, scoped.rows),
           routeSummaries: withScope(
@@ -181,13 +185,13 @@ export function registerAiContextTools(server, ctx) {
             {
               block: "headcount.studentsOnRoll",
               scope: "on_roll",
-              count: onRoll.rows.length,
+              count: onRoll,
             },
             {
               block: "summary / classSummaries / routeSummaries / topOutstanding",
               scope,
               count: summary.studentCount,
-              differenceExplained: `${summary.studentCount - onRoll.rows.length} student(s) appear in the money blocks but not in headcount — they have left and still owe.`,
+              differenceExplained: `${summary.studentCount - onRoll} student(s) appear in the money blocks but not in headcount — they have left and still owe.`,
             },
             {
               block: "dashboardAnalytics",

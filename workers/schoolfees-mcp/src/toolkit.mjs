@@ -12,6 +12,7 @@ import * as z from "zod/v4";
 import { describeScope, SCOPE_NAMES } from "./scope.mjs";
 import { identityCan } from "./permissions.mjs";
 import { moneyProvenance } from "./freshness.mjs";
+import { ROW_FIELD_NOTES } from "./shape/student.mjs";
 
 export const READ_ONLY_ANNOTATIONS = {
   readOnlyHint: true,
@@ -86,9 +87,34 @@ export function permissionDenied(toolName, required) {
  * each person only what they can actually run — an assistant never proposes a
  * call that is going to be refused.
  */
-export function defineTool(server, { identity, env }, definition) {
-  const { name, title, description, inputSchema, requires = [], handler, money = false } =
-    definition;
+/**
+ * The freshness read is identical for every tool in one request, so it is
+ * fetched once and shared. `ctx` is built per request in createMcpServer, which
+ * makes it the right place to hang the memo — an isolate-level cache would leak
+ * one caller's timestamp into another's request.
+ */
+function requestProvenance(ctx) {
+  if (!ctx.provenancePromise) {
+    ctx.provenancePromise = moneyProvenance(ctx.env);
+  }
+  return ctx.provenancePromise;
+}
+
+export function defineTool(server, ctx, definition) {
+  const { identity, env } = ctx;
+  const {
+    name,
+    title,
+    description,
+    inputSchema,
+    requires = [],
+    handler,
+    money = false,
+    // Only tools that emit student rows need the field notes. Attaching them to
+    // every money answer added 376 bytes to fifteen payloads that contain no
+    // student row at all — a cost with no reader.
+    studentRows = false,
+  } = definition;
 
   if (!identityCan(identity, requires)) return false;
 
@@ -101,13 +127,23 @@ export function defineTool(server, { identity, env }, definition) {
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async (args, extra) => {
-      const result = await handler(args, { env, identity, extra });
-
       // A money answer carries how stale it might be. The financial views are
       // rebuilt off the posting path, so a read taken right after a payment can
       // predate it, and saying "as of now" would be a lie.
-      if (money && result?.structuredContent && !result.structuredContent.provenance) {
-        result.structuredContent.provenance = await moneyProvenance(env);
+      //
+      // Started before the handler, not after it: this is a round trip to the
+      // same database the handler is about to query, and awaiting it afterwards
+      // added its full latency to every money answer for no reason.
+      const provenance = money ? requestProvenance(ctx) : null;
+      const result = await handler(args, { env, identity, extra });
+
+      if (provenance && result?.structuredContent && !result.structuredContent.provenance) {
+        result.structuredContent.provenance = await provenance;
+      }
+      // Said once per response. These used to be stamped onto every student row,
+      // which is how one digest shipped the same 390 characters a hundred times.
+      if (studentRows && result?.structuredContent) {
+        result.structuredContent.fieldNotes ??= ROW_FIELD_NOTES;
       }
 
       return result;
