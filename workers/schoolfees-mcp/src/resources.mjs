@@ -8,6 +8,7 @@
  */
 
 import { STUDENT_SCOPES } from "./scope.mjs";
+import { toBase64 } from "./storage.mjs";
 import { DOMAIN_RULES, MONEY_GLOSSARY } from "./tools/orientation.mjs";
 
 const MIME = "text/markdown";
@@ -190,7 +191,49 @@ export const RESOURCES = [
   },
 ];
 
-export function registerResources(server) {
+/**
+ * The school's identity, in one place.
+ *
+ * Every consumer in the web app hardcodes "/branding/veer-patta-school-logo.jpg"
+ * because lib/config/school.ts has no logo field. A reader of this server should
+ * not have to guess either.
+ */
+function brandingProfileDoc(env) {
+  const site = (env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+  return `# School identity
+
+- **Name**: Shri Veer Patta Senior Secondary School (VPPS)
+- **Short name**: Shri Veer Patta SSS
+- **Receipt prefix**: SVP — every receipt number begins with it.
+${site ? `- **App**: ${site}
+- **Logo (print, 230 KB JPEG)**: ${site}/branding/veer-patta-school-logo.jpg
+- **Logo (screen, 16 KB PNG)**: ${site}/branding/icon-192.png` : "- **App URL**: not configured on this Worker (NEXT_PUBLIC_SITE_URL unset), so logo links cannot be given."}
+
+The mark itself is available as the \`schoolfees://branding/logo\` resource.
+
+This is an internal office system for one school. It is not a parent portal and
+has no public self-service surface; the only page a parent ever sees is the
+receipt verification page at /r/<receipt number>, which shows the receipt number,
+date, amount and whether it is valid — deliberately no name, class or balance.
+`;
+}
+
+/** Cached for the life of the isolate: it is a 16 KB file that never changes. */
+let logoCache = null;
+
+async function loadLogoBytes(env) {
+  if (logoCache) return logoCache;
+  const site = (env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+  if (!site) return null;
+  const response = await fetch(`${site}/branding/icon-192.png`);
+  if (!response.ok) return null;
+  logoCache = new Uint8Array(await response.arrayBuffer());
+  return logoCache;
+}
+
+export function registerResources(server, ctx = {}) {
+  const env = ctx.env || {};
+
   for (const resource of RESOURCES) {
     server.registerResource(
       resource.name,
@@ -201,4 +244,60 @@ export function registerResources(server) {
       }),
     );
   }
+
+  server.registerResource(
+    "School identity",
+    "schoolfees://branding/profile",
+    {
+      title: "School identity",
+      description:
+        "The school's name, short name, receipt prefix and logo URLs, plus what this system is and is not.",
+      mimeType: MIME,
+    },
+    async (uri) => ({
+      contents: [{ uri: uri.href, mimeType: MIME, text: brandingProfileDoc(env) }],
+    }),
+  );
+
+  server.registerResource(
+    "School logo",
+    "schoolfees://branding/logo",
+    {
+      title: "School logo",
+      description: "The school mark as a PNG, for letterheads and documents.",
+      mimeType: "image/png",
+    },
+    async (uri) => {
+      // A failed fetch must never take down the server: createMcpServer runs per
+      // request, so an unhandled throw here would remove every tool for that
+      // caller, not just this resource.
+      try {
+        const bytes = await loadLogoBytes(env);
+        if (!bytes) {
+          return {
+            contents: [
+              {
+                uri: uri.href,
+                mimeType: MIME,
+                text: "Logo unavailable: NEXT_PUBLIC_SITE_URL is not configured on this Worker.",
+              },
+            ],
+          };
+        }
+        return {
+          contents: [{ uri: uri.href, mimeType: "image/png", blob: toBase64(bytes) }],
+        };
+      } catch (error) {
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: MIME,
+              text: `Logo unavailable: ${String(error?.message || error).slice(0, 200)}`,
+            },
+          ],
+        };
+      }
+    },
+  );
 }

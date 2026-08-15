@@ -228,4 +228,36 @@ npm run mcp:schoolfees:worker:deploy
 
 Required Worker secrets: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
 `SUPABASE_PUBLISHABLE_KEY` (staff sign-in only), `SCHOOLFEES_MCP_TOKEN`.
-Optional: `NEXT_PUBLIC_SITE_URL`, used to build receipt verification links.
+
+`NEXT_PUBLIC_SITE_URL` is a **var in `wrangler.toml`**, not an optional secret.
+It was unset for months, and the only symptom was `verifyUrl` returning `null` on
+every receipt this server handed back — nothing anywhere said why. `/health` now
+reports it under `config`.
+
+### Documents and assets
+
+`get_receipt_pdf` needs `SCHOOLFEES_DOC_TOKEN`, matching the value set in Vercel:
+
+```bash
+wrangler secret put SCHOOLFEES_DOC_TOKEN --config workers/schoolfees-mcp/wrangler.toml
+```
+
+The Worker cannot render a PDF — `@react-pdf` is Node-only and reads fonts off
+disk — so it calls `POST /api/service/documents` on the web app, which renders
+and returns the bytes. Deploy order is therefore fixed: **the app first, the
+Worker second**, since the endpoint must exist before anything calls it. A
+`protocol` field makes a stale Worker fail with a clear message rather than a
+novel one.
+
+Not `CRON_SECRET`: two existing routes accept that in a query string, so it lands
+in logs, and it also unlocks a write endpoint.
+
+`/health` reports `config.documentBridge`, so a missing secret is visible without
+calling a tool. The document tools stay registered when it is missing and fail
+loudly at call time — a tool that disappears because a secret was forgotten looks
+exactly like one that was never built.
+
+Photographs and voice notes come straight from Supabase Storage with the
+service-role key, which bypasses storage RLS. **No tool accepts a bucket or a
+path.** A caller names a student; the path is read from the database. A generic
+`read_storage_object(bucket, path)` would be an arbitrary-file-read primitive.

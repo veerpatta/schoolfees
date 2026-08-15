@@ -20,6 +20,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { createMcpServer, SERVER_NAME, SERVER_VERSION } from "./src/server.mjs";
 import { resolveStaffRole, SERVICE_IDENTITY } from "./src/permissions.mjs";
 import { getSupabaseSchema } from "./src/supabase.mjs";
+import { documentBridgeConfig } from "./src/documents.mjs";
 
 export function json(data, init = {}) {
   return new Response(JSON.stringify(data), {
@@ -116,6 +117,7 @@ export function healthPayload(env) {
     config: {
       siteUrl: env.NEXT_PUBLIC_SITE_URL || null,
       receiptVerifyLinks: Boolean(env.NEXT_PUBLIC_SITE_URL),
+      documentBridge: documentBridgeConfig(env),
     },
   };
 }

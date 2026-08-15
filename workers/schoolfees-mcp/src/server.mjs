@@ -16,6 +16,8 @@ import { registerTransactionTools } from "./tools/transactions.mjs";
 import { registerRecoveryTools } from "./tools/recovery.mjs";
 import { registerLeftStudentTools } from "./tools/left-students.mjs";
 import { registerAiContextTools } from "./tools/ai-context.mjs";
+import { registerAssetTools } from "./tools/assets.mjs";
+import { registerDocumentTools } from "./tools/documents.mjs";
 import { registerResources } from "./resources.mjs";
 import { registerPrompts } from "./prompts.mjs";
 
@@ -64,8 +66,10 @@ export function createMcpServer(env, identity) {
   registerRecoveryTools(server, ctx);
   registerLeftStudentTools(server, ctx);
   registerAiContextTools(server, ctx);
+  registerAssetTools(server, ctx);
+  registerDocumentTools(server, ctx);
 
-  registerResources(server);
+  registerResources(server, ctx);
   registerPrompts(server, ctx);
 
   return server;

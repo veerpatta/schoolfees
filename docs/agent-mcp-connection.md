@@ -135,6 +135,24 @@ Then, in plain language:
 | `get_left_student_recovery` | Leavers who still owe — not on the defaulter list |
 | `get_prev_year_dues` | Last year's carry-forward balances |
 
+**Documents and images**
+
+| Tool | For |
+|---|---|
+| `get_receipt_pdf` | The receipt itself, as a PDF you can send a parent |
+| `get_student_photo` | A student's photograph |
+| `get_defaulter_voice_note` | A voice note recorded on a follow-up call |
+
+Photographs and voice notes return a short-lived signed link by default; pass
+`format: "bytes"` for the file inline. Those links need no sign-in, so treat one
+as the file itself and keep it out of anywhere public.
+
+`get_receipt_pdf` returns the PDF as bytes. There is no download URL for it and
+there must not be: a receipt carries the child's name, father's name, phone and
+full fee position, which is precisely what the public verification page at
+`/r/<receipt number>` deliberately withholds. A reversed receipt is returned
+clearly marked rather than withheld.
+
 ### Reference material
 
 The server also publishes reference documents your client can pin into the
@@ -146,6 +164,8 @@ schoolfees://rules/student-scope   which students count, and when
 schoolfees://rules/school          AY 2026-27 policy, late fee, discounts
 schoolfees://rules/answering       the rules for a correct answer
 schoolfees://data-model            the views behind every figure, and their traps
+schoolfees://branding/profile      school name, receipt prefix, logo URLs
+schoolfees://branding/logo         the school mark, as a PNG
 ```
 
 And ready-made prompts for the recurring jobs: `morning_recovery_run`,

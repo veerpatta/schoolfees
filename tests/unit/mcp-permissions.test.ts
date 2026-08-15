@@ -76,3 +76,62 @@ describe("identity gating", () => {
     expect(collector.permissions).not.toContain("staff:manage");
   });
 });
+
+/**
+ * The asset and document tools reach data the read-only tools do not: a child's
+ * photograph, a recording of a real conversation with a family, and the
+ * parent-facing receipt itself. Their gates are asserted by name, because a
+ * loosened `requires` is a one-word change with no visible symptom.
+ */
+describe("asset and document tools are gated on the right permission", () => {
+  const canReach = (role: (typeof staffRoles)[number], permission: string) =>
+    identityCan({ kind: "staff", role }, [permission]);
+
+  it("keeps the receipt PDF behind receipts:print, not receipts:view", () => {
+    // Producing the document a parent receives is what `print` governs. A role
+    // that may look a receipt up is not automatically one that may issue it.
+    const printers = staffRoles.filter((role) => canReach(role, "receipts:print"));
+    const viewers = staffRoles.filter((role) => canReach(role, "receipts:view"));
+
+    expect(printers.length).toBeGreaterThan(0);
+    expect(viewers.length).toBeGreaterThanOrEqual(printers.length);
+    for (const role of printers) {
+      expect(viewers, `${role} can print but not view — the matrix is inconsistent`).toContain(role);
+    }
+  });
+
+  it("keeps photographs behind students:view and voice notes behind defaulters:view", () => {
+    expect(staffRoles.some((role) => canReach(role, "students:view"))).toBe(true);
+    expect(staffRoles.some((role) => canReach(role, "defaulters:view"))).toBe(true);
+  });
+
+  it("lets unattended automation reach all three, since the morning run needs them", () => {
+    expect(identityCan(SERVICE_IDENTITY, ["receipts:print"])).toBe(true);
+    expect(identityCan(SERVICE_IDENTITY, ["students:view"])).toBe(true);
+    expect(identityCan(SERVICE_IDENTITY, ["defaulters:view"])).toBe(true);
+  });
+});
+
+/**
+ * Base64 is hand-rolled in the Worker: there is no Buffer without nodejs_compat,
+ * and the obvious `btoa(String.fromCharCode(...bytes))` overflows the stack on
+ * anything large because apply() spreads every byte as an argument. A photo is
+ * ~200 KB, so the chunked path is the only one that ever runs in production.
+ */
+describe("toBase64 survives a real file", () => {
+  it("round-trips a buffer far larger than the argument limit", async () => {
+    const { toBase64 } = await import(
+      new URL("../../workers/schoolfees-mcp/src/storage.mjs", import.meta.url).href
+    );
+
+    const bytes = new Uint8Array(300_000);
+    for (let index = 0; index < bytes.length; index += 1) bytes[index] = index % 256;
+
+    const encoded = toBase64(bytes);
+    const decoded = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
+
+    expect(decoded.byteLength).toBe(bytes.byteLength);
+    expect(decoded[0]).toBe(bytes[0]);
+    expect(decoded[299_999]).toBe(bytes[299_999]);
+  });
+});
