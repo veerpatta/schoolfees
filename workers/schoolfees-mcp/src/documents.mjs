@@ -89,6 +89,23 @@ export async function fetchDocument(env, { kind, id, actorLabel }) {
     );
   }
 
+  // `response.ok` is not enough to know this is a document.
+  //
+  // Next.js serves its not-found page with **HTTP 200** and an HTML body, so an
+  // endpoint that has not deployed yet looks like a success. Without this check
+  // the tool returned 123 KB of an error page labelled application/pdf, and an
+  // assistant would have handed a parent a "receipt" that was a Next.js 404.
+  const contentType = response.headers.get("content-type") || "";
+  const documentKind = response.headers.get("x-document-kind");
+  if (!contentType.includes("application/pdf") || !documentKind) {
+    throw new DocumentBridgeError(
+      `The document service returned ${contentType || "an unknown content type"} instead of a PDF. ` +
+        `The most likely cause is that /api/service/documents is not deployed yet on ${config.siteUrl}, ` +
+        `or that SCHOOLFEES_DOC_TOKEN is not set there.`,
+      { status: response.status, detail: { contentType, matchedPath: response.headers.get("x-matched-path") } },
+    );
+  }
+
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength > MAX_INLINE_BYTES) {
     throw new DocumentBridgeError(

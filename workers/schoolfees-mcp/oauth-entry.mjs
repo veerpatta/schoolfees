@@ -331,7 +331,10 @@ const defaultHandler = {
     }
 
     if (url.pathname === "/health") {
-      return json(healthPayload(env));
+      // No caching. A cached /health reported the old configuration after a
+      // deploy that had already fixed it, which is the opposite of what a health
+      // endpoint is for.
+      return json(healthPayload(env), { headers: { "cache-control": "no-store" } });
     }
 
     if (url.pathname === "/svc/mcp" || url.pathname.startsWith("/svc/mcp/")) {
