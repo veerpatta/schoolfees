@@ -45,6 +45,7 @@ const nextConfig: NextConfig = {
       "./public/fonts/**",
       "./public/branding/icon-192.png",
     ],
+    "/api/service/documents": ["./public/fonts/**", "./public/branding/icon-192.png"],
   },
   images: {
     formats: ["image/avif", "image/webp"],

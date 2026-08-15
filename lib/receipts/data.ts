@@ -1,6 +1,13 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+
+/**
+ * A Supabase client this module can read through. Widened to the operations
+ * actually used so the service-role client (from @supabase/supabase-js) and the
+ * cookie client (from @supabase/ssr) are both acceptable.
+ */
+type ReceiptDataClient = Pick<Awaited<ReturnType<typeof createClient>>, "from">;
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
 import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
 import {
@@ -634,9 +641,23 @@ export async function getReceiptsList(
   return page.receipts;
 }
 
+/**
+ * Receipt detail for a caller that has no cookie session.
+ *
+ * Same body as `getReceiptDetail`, with the client injected — the pattern
+ * `getReceiptReversalTotals` already uses (lib/receipts/reversals.ts). The
+ * document bridge needs this: it runs as a service, not as a signed-in person,
+ * so `createClient()` has no cookies to read and RLS returns nothing.
+ */
+/** Receipt detail for a signed-in staff request. */
 export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail | null> {
-  const supabase = await createClient();
+  return getReceiptDetailWith(await createClient(), receiptId);
+}
 
+export async function getReceiptDetailWith(
+  supabase: ReceiptDataClient,
+  receiptId: string,
+): Promise<ReceiptDetail | null> {
   const { data: receiptRaw, error: receiptError } = await supabase
     .from("receipts")
     .select(
@@ -853,6 +874,7 @@ export async function getReceiptDetail(receiptId: string): Promise<ReceiptDetail
 
   const historyReversalTotals = await getReceiptReversalTotals(
     receiptsBeforeCurrent.map((row) => row.id),
+    supabase,
   );
   const previousReceipts: ReceiptHistoryItem[] = receiptsBeforeCurrent.map((row) => ({
     id: row.id,
