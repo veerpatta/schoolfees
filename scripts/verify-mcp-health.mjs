@@ -267,19 +267,61 @@ async function main() {
   check("ai context / summary vs route rollup", routeTotal, context.summary.totalFeesPending);
   check("ai context / summary vs money summary", context.summary.totalFeesPending, summary.money.totalFeesPending);
 
-  // 4. The dashboard boards must agree with the class rollup, class by class.
-  //    Before 20260814150000 the route board used a different population.
+  // 4. The dashboard class board must agree with the class rollup, class by
+  //    class — once previous-year dues are added back.
+  //
+  //    The board is not a like-for-like of the student view and must not be
+  //    compared as one. `class_rows` in get_dashboard_analytics reads the
+  //    installment view with `where not is_carry_forward`, so it is this year's
+  //    installments only. `classSummaries` reads the student rollup, whose
+  //    outstanding_amount includes balances carried forward from last session.
+  //    Asserting them equal reports every class as broken while nothing is.
+  //
+  //    Reconciling instead still catches the failure this check exists for — a
+  //    board built over a different population — because a population mismatch
+  //    does not divide neatly into carry-forward.
+  const carryForwardRows = await supabaseAll("v_student_carry_forward_balances", {
+    select: "class_id,remaining_amount",
+    target_session_label: `eq.${sessionLabel}`,
+  });
+  const carryForwardByClass = new Map();
+  for (const row of carryForwardRows) {
+    carryForwardByClass.set(
+      row.class_id,
+      (carryForwardByClass.get(row.class_id) || 0) + Number(row.remaining_amount || 0),
+    );
+  }
+
   const classByLabel = new Map(
     context.classSummaries.groups.map((group) => [group.key, group.totalFeesPending]),
   );
   for (const row of context.dashboardAnalytics?.classRecovery || []) {
+    const expected = classByLabel.get(row.classId);
+    if (expected === undefined) continue;
     check(
       `dashboard vs class rollup / ${row.classLabel}`,
-      row.feesPending,
-      classByLabel.get(row.classId) ?? row.feesPending,
-      "The dashboard function and the financial view must count the same students.",
+      row.feesPending + (carryForwardByClass.get(row.classId) || 0),
+      expected,
+      "The dashboard class board plus previous-year dues must equal the class rollup.",
     );
   }
+
+  // And the same reconciliation in total, stated once so the gap is a named
+  // figure rather than something a reader has to derive from 19 rows.
+  const boardTotal = (context.dashboardAnalytics?.classRecovery || []).reduce(
+    (total, row) => total + row.feesPending,
+    0,
+  );
+  const carryForwardTotal = carryForwardRows.reduce(
+    (total, row) => total + Number(row.remaining_amount || 0),
+    0,
+  );
+  check(
+    "dashboard class board + previous-year dues vs money total",
+    boardTotal + carryForwardTotal,
+    summary.money.totalFeesPending,
+    "The class board shows this year's installments only. Previous-year dues make up the difference.",
+  );
 
   // 5. Enrollment status must come from the enrollment column. The old server
   //    published the academic-fee tier here, so this is a named regression guard.
