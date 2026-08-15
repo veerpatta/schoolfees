@@ -27,9 +27,24 @@ const nextConfig: NextConfig = {
   // for the Hindi half of every bilingual label. Vercel's serverless tracer
   // does not see the file path passed to Font.register, so include the fonts
   // explicitly for both fee-pdf routes or the Hindi text 500s in production.
+  // Every PDF route reads two things off disk that the tracer cannot infer from
+  // a computed `path.join(process.cwd(), …)`: the Devanagari fonts, and the
+  // school mark now that documents carry a letterhead. Miss an entry here and
+  // the route works in `next dev` and 500s on Vercel — the failure only ever
+  // shows up in a deployment.
   outputFileTracingIncludes: {
-    "/protected/students/[studentId]/fee-pdf": ["./public/fonts/**"],
-    "/protected/students/family/[familyGroupId]/fee-pdf": ["./public/fonts/**"],
+    "/protected/students/[studentId]/fee-pdf": [
+      "./public/fonts/**",
+      "./public/branding/icon-192.png",
+    ],
+    "/protected/students/family/[familyGroupId]/fee-pdf": [
+      "./public/fonts/**",
+      "./public/branding/icon-192.png",
+    ],
+    "/protected/receipts/[receiptId]/pdf": [
+      "./public/fonts/**",
+      "./public/branding/icon-192.png",
+    ],
   },
   images: {
     formats: ["image/avif", "image/webp"],

@@ -155,7 +155,20 @@ describe("mobile UX roadmap implementation", () => {
     expect(money).toContain("tabular");
   });
 
-  it("does not add the out-of-scope server PDF route from the future roadmap", () => {
-    expect(existsSync(join(process.cwd(), "app/protected/receipts/[receiptId]/pdf/route.ts"))).toBe(false);
+  // This used to assert the route did NOT exist — it was deliberately out of
+  // scope for the mobile work, which shipped receipts as HTML plus
+  // window.print(). The receipt PDF has since been built on purpose, so the
+  // guard becomes a contract: it exists, and it is gated on the permission that
+  // governs issuing a parent-facing receipt rather than merely reading one.
+  it("serves the receipt PDF from a print-gated server route", () => {
+    const routePath = "app/protected/receipts/[receiptId]/pdf/route.ts";
+    expect(existsSync(join(process.cwd(), routePath))).toBe(true);
+
+    const route = readRepoFile(routePath);
+    expect(route).toContain('requireStaffPermission("receipts:print")');
+    expect(route).toContain('export const runtime = "nodejs"');
+    // @react-pdf reads font and logo files off disk; without a tracing entry the
+    // route works locally and 500s on Vercel.
+    expect(readRepoFile("next.config.ts")).toContain("/protected/receipts/[receiptId]/pdf");
   });
 });

@@ -1,16 +1,14 @@
 import "server-only";
 
-import * as path from "node:path";
 import * as React from "react";
+import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
+
 import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-  Font,
-  renderToBuffer,
-} from "@react-pdf/renderer";
+  ensurePdfFontsRegistered,
+  formatPdfDate as formatDate,
+  HI_FONT,
+  rs,
+} from "@/lib/pdf/document-kit";
 
 import { schoolProfile } from "@/lib/config/school";
 import { localizedFeeLabel } from "@/lib/fees/fee-label";
@@ -21,27 +19,6 @@ import {
   type FeeBreakdownSummary,
 } from "@/lib/fees/fee-breakdown-summary";
 
-// Devanagari font for the Hindi half of every bilingual label. The built-in
-// Helvetica (used for English + amounts) has no Devanagari glyphs, and this
-// Noto face has no Latin letters — so each <Text> picks its family by script.
-// The TTFs ship in public/fonts and are traced into the fee-pdf routes via
-// `outputFileTracingIncludes` in next.config.ts.
-const HI_FONT = "NotoDevanagari";
-let fontRegistered = false;
-function ensureFontRegistered() {
-  if (fontRegistered) return;
-  Font.register({
-    family: HI_FONT,
-    fonts: [
-      { src: path.join(process.cwd(), "public/fonts/NotoSansDevanagari-Regular.ttf") },
-      {
-        src: path.join(process.cwd(), "public/fonts/NotoSansDevanagari-Bold.ttf"),
-        fontWeight: "bold",
-      },
-    ],
-  });
-  fontRegistered = true;
-}
 
 // Statement-specific bilingual labels. Fee-head row labels reuse the shared
 // `localizedFeeLabel` so the PDF and the on-screen receipt read identically.
@@ -69,24 +46,6 @@ const PL = {
   closedAsDiscount: { en: "Closed as discount", hi: "छूट के रूप में बंद" },
 } as const;
 
-// react-pdf's built-in Helvetica has no ₹ glyph, so amounts use an ASCII
-// "Rs." prefix to stay legible in the generated PDF.
-function rs(value: number): string {
-  const rounded = Math.round(value || 0);
-  return `Rs. ${rounded.toLocaleString("en-IN")}`;
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return "-";
-  const date = new Date(value.length <= 10 ? `${value}T00:00:00` : value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
 
 export type FeePdfStudent = {
   fullName: string;
@@ -502,7 +461,7 @@ export async function renderFeeStatementPdf(input: {
   sessionLabel: string;
   title: string;
 }): Promise<Buffer> {
-  ensureFontRegistered();
+  ensurePdfFontsRegistered();
   const bt = createBilingualReceiptTranslator();
   return renderToBuffer(
     <FeeStatementDocument
