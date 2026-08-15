@@ -376,6 +376,13 @@ express the school's rule and never fired once:
   paid) except `route_rows`, which filtered `record_status = 'active'`. Class and
   route totals therefore disagreed inside one response, dropping the students who
   left after paying. Only that predicate moves; headcount stays active-only.
+- `20260815094500_dashboard_boards_count_previous_year_dues` — the sequel to the
+  above. That one fixed *who* each board counts; this fixes *what*. `class_rows`,
+  `per_student` and `aged` all carried `where not is_carry_forward`, so the class
+  board showed this year's installments only and sat ₹6,13,175 below the route
+  board and the money band on the same screen. All three now include carry-forward
+  and total alike. `next_accrual` keeps the exclusion, correctly — a carry-forward
+  row carries a late fee rate of 0 and can never contribute to a future accrual.
 
 ## When you add a new migration
 

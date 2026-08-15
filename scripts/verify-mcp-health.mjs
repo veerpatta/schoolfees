@@ -267,31 +267,17 @@ async function main() {
   check("ai context / summary vs route rollup", routeTotal, context.summary.totalFeesPending);
   check("ai context / summary vs money summary", context.summary.totalFeesPending, summary.money.totalFeesPending);
 
-  // 4. The dashboard class board must agree with the class rollup, class by
-  //    class — once previous-year dues are added back.
+  // 4. Every dashboard board must agree with the class rollup, class by class.
   //
-  //    The board is not a like-for-like of the student view and must not be
-  //    compared as one. `class_rows` in get_dashboard_analytics reads the
-  //    installment view with `where not is_carry_forward`, so it is this year's
-  //    installments only. `classSummaries` reads the student rollup, whose
-  //    outstanding_amount includes balances carried forward from last session.
-  //    Asserting them equal reports every class as broken while nothing is.
+  //    Two migrations were needed to make this a plain equality. 20260814143056
+  //    gave route_rows the money population (who is counted); 20260815094500
+  //    stopped class_rows, per_student and aged excluding carry-forward (what is
+  //    counted). Before the second, the class board showed this year's
+  //    installments only and sat Rs 6,13,175 below the route board and the money
+  //    band on the same screen.
   //
-  //    Reconciling instead still catches the failure this check exists for — a
-  //    board built over a different population — because a population mismatch
-  //    does not divide neatly into carry-forward.
-  const carryForwardRows = await supabaseAll("v_student_carry_forward_balances", {
-    select: "class_id,remaining_amount",
-    target_session_label: `eq.${sessionLabel}`,
-  });
-  const carryForwardByClass = new Map();
-  for (const row of carryForwardRows) {
-    carryForwardByClass.set(
-      row.class_id,
-      (carryForwardByClass.get(row.class_id) || 0) + Number(row.remaining_amount || 0),
-    );
-  }
-
+  //    next_accrual still excludes carry-forward, and correctly so: those rows
+  //    carry a late fee rate of 0 and can never contribute to a future accrual.
   const classByLabel = new Map(
     context.classSummaries.groups.map((group) => [group.key, group.totalFeesPending]),
   );
@@ -300,27 +286,31 @@ async function main() {
     if (expected === undefined) continue;
     check(
       `dashboard vs class rollup / ${row.classLabel}`,
-      row.feesPending + (carryForwardByClass.get(row.classId) || 0),
+      row.feesPending,
       expected,
-      "The dashboard class board plus previous-year dues must equal the class rollup.",
+      "The dashboard class board and the financial view must count the same money.",
     );
   }
 
-  // And the same reconciliation in total, stated once so the gap is a named
-  // figure rather than something a reader has to derive from 19 rows.
+  // The three money boards must total the same figure. Concentration is included
+  // because its totalPending tracked the class board through both migrations,
+  // and fixing one without the other would put a fresh contradiction in a single
+  // payload.
   const boardTotal = (context.dashboardAnalytics?.classRecovery || []).reduce(
     (total, row) => total + row.feesPending,
     0,
   );
-  const carryForwardTotal = carryForwardRows.reduce(
-    (total, row) => total + Number(row.remaining_amount || 0),
+  const routeBoardTotal = (context.dashboardAnalytics?.routeRecovery || []).reduce(
+    (total, row) => total + row.pendingAmount,
     0,
   );
+  check("dashboard class board vs money total", boardTotal, summary.money.totalFeesPending);
+  check("dashboard route board vs money total", routeBoardTotal, summary.money.totalFeesPending);
   check(
-    "dashboard class board + previous-year dues vs money total",
-    boardTotal + carryForwardTotal,
+    "dashboard concentration vs money total",
+    context.dashboardAnalytics?.concentration?.totalPending,
     summary.money.totalFeesPending,
-    "The class board shows this year's installments only. Previous-year dues make up the difference.",
+    "Concentration shares a basis with the class board; they move together or not at all.",
   );
 
   // 5. Enrollment status must come from the enrollment column. The old server

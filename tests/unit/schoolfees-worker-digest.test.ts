@@ -446,8 +446,12 @@ afterEach(() => {
 
 describe("schoolfees Worker MCP tools", () => {
   it("lists every tool as read-only, keeping the names existing clients call", async () => {
-    const fetchMock = installSupabaseMock();
+    // Load the Worker before spying on fetch. With the spy installed first it
+    // also observes module resolution, so the assertion below would quietly
+    // claim that loading worker.mjs performs no fetch — a second claim this
+    // test never meant to make, and one that varies with module-cache state.
     const { handleServiceMcp } = await loadWorker();
+    const fetchMock = installSupabaseMock();
 
     const response = await handleServiceMcp(
       mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
@@ -705,8 +709,8 @@ describe("schoolfees Worker auth lanes", () => {
     mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }, path);
 
   it("refuses tools/list on the service lane without a token", async () => {
-    const fetchMock = installSupabaseMock();
     const { handleServiceMcp } = await loadWorker();
+    const fetchMock = installSupabaseMock();
 
     const response = await handleServiceMcp(listRequest("/svc/mcp"), env);
 
@@ -738,8 +742,8 @@ describe("schoolfees Worker auth lanes", () => {
   });
 
   it("fails closed when no service token is configured", async () => {
-    const fetchMock = installSupabaseMock();
     const { handleServiceMcp } = await loadWorker();
+    const fetchMock = installSupabaseMock();
     const envWithoutToken = {
       NEXT_PUBLIC_SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -754,8 +758,8 @@ describe("schoolfees Worker auth lanes", () => {
   });
 
   it("refuses the OAuth lane when no signed-in staff member travels with the request", async () => {
-    const fetchMock = installSupabaseMock();
     const { handleOAuthMcp } = await loadWorker();
+    const fetchMock = installSupabaseMock();
 
     for (const props of [null, undefined, {} as { userId?: string }]) {
       const response = await handleOAuthMcp(listRequest("/mcp"), env, props);
