@@ -40,13 +40,14 @@ export function normalizeOfficeWorkbookView(
 }
 
 export function resolveOfficeWorkbookView(
-  value: string | undefined | null,
+  value: string | string[] | undefined | null,
 ): {
   view: OfficeWorkbookView;
   wasRecognized: boolean;
   rawValue: string;
 } {
-  const normalized = (value ?? "").trim();
+  const scalar = Array.isArray(value) ? value[0] : value;
+  const normalized = (scalar ?? "").trim();
   const aliases: Record<string, OfficeWorkbookView> = {
     receipts_today: "receipts",
     statements: "student_dues",

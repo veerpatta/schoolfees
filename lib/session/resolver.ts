@@ -15,8 +15,16 @@ export type ResolvedViewSession = {
   isCollectable: boolean;
 };
 
-function normalizeValidSessionLabel(value: string | null | undefined) {
-  const label = (value ?? "").trim();
+function toScalar(
+  value: string | string[] | null | undefined,
+): string | null | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeValidSessionLabel(
+  value: string | string[] | null | undefined,
+) {
+  const label = (toScalar(value) ?? "").trim();
 
   if (!label) {
     return null;
@@ -49,7 +57,7 @@ export async function resolveViewSession({
   searchParamSession,
   cookieSession,
 }: {
-  searchParamSession?: string | null;
+  searchParamSession?: string | string[] | null;
   cookieSession?: string | null;
 }): Promise<ResolvedViewSession> {
   const urlSession = normalizeValidSessionLabel(searchParamSession);
