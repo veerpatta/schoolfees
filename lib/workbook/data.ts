@@ -518,6 +518,18 @@ function toPostgrestInList(values: readonly string[]) {
 const RECEIPT_ID_FILTER_CHUNK_SIZE = 100;
 
 /**
+ * How many matched-student ids may be inlined into a receipt search.
+ *
+ * Each id costs about 39 characters inside `or=(student_id.in.(…))`, so 150 is
+ * roughly 6 KB of URL — comfortably inside the gateway limit with the rest of
+ * the query alongside it. Every realistic search (a name, a phone fragment, an
+ * SR number) matches far fewer than this; only a one- or two-character query
+ * reaches it, and that is handled by falling back to a JS match rather than by
+ * failing the page.
+ */
+const SEARCH_STUDENT_ID_INLINE_LIMIT = 150;
+
+/**
  * Mirrors the DB `ORDER BY payment_date DESC, created_at DESC` used by the
  * receipts listing. When the id filter is chunked, each batch is ordered only
  * within itself, so the merged rows have to be re-sorted here before any
@@ -1013,11 +1025,48 @@ export async function getWorkbookTransactions(filters?: {
         `reference_number.ilike.${pattern}`,
       ];
 
-      if (searchStudentIds && searchStudentIds.length > 0) {
+      /**
+       * The matched-student ids go inline, but only while they fit in a URL.
+       *
+       * A short query matches most of the roster — `?query=a` matched every
+       * student — and inlining 500 UUIDs into one `or=(...)` builds a ~20 KB
+       * request URL that PostgREST rejects with `400 Bad Request`. The whole
+       * Transactions page then rendered as bare chrome: no rows, no message,
+       * nothing to act on. That is what an office saw the moment somebody typed
+       * a single letter into the search box. It is the same URL-length failure
+       * the comment on RECEIPT_ID_FILTER_CHUNK_SIZE describes, in a second
+       * place that did not get the same treatment.
+       *
+       * Two things are deliberately NOT done when the list is too long:
+       *  - it is not truncated, because a truncated id list silently hides a
+       *    family's receipts, and a wrong total is worse than a slow one;
+       *  - the id clause is not simply dropped, because the remaining
+       *    receipt-number match would answer "no receipts" for a search that
+       *    plainly has some.
+       *
+       * Instead the DB-side search is skipped altogether and the rows are
+       * matched by name in JS — `filterStudentRows` in lib/transactions/dues.ts
+       * already applies exactly this predicate to whatever comes back. The
+       * result is a broad search that reads the first page rather than the
+       * whole table, which is the honest behaviour for "show me everything
+       * containing the letter a".
+       */
+      const idsFitInUrl =
+        searchStudentIds !== null &&
+        searchStudentIds.length > 0 &&
+        searchStudentIds.length <= SEARCH_STUDENT_ID_INLINE_LIMIT;
+
+      const searchIsTooBroadToNarrow =
+        searchStudentIds !== null &&
+        searchStudentIds.length > SEARCH_STUDENT_ID_INLINE_LIMIT;
+
+      if (idsFitInUrl) {
         receiptSearchParts.push(`student_id.in.(${toPostgrestInList(searchStudentIds)})`);
       }
 
-      query = query.or(receiptSearchParts.join(","));
+      if (!searchIsTooBroadToNarrow) {
+        query = query.or(receiptSearchParts.join(","));
+      }
     }
 
     return query;

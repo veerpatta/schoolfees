@@ -7,6 +7,44 @@ import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-s
 import { revalidateFinanceSurfaces } from "@/lib/system-sync/finance-sync";
 import type { StudentStatus } from "@/lib/db/types";
 
+/**
+ * PostgREST serialises `.in(...)` into the request URL, and a promotion run
+ * covers the whole roster.
+ *
+ * 500-odd UUIDs is roughly a 20 KB URL, which Node's fetch refuses outright —
+ * it surfaced as a bare `TypeError: fetch failed` and the run detail page
+ * rendered as empty chrome with no rows and no explanation. Exactly the failure
+ * `RECEIPT_ID_FILTER_CHUNK_SIZE` guards against in lib/workbook/data.ts; this
+ * was the third place in the codebase with the same shape and no guard.
+ *
+ * 100 ids per request keeps each URL near 4 KB. The batches are disjoint id
+ * sets, so the merged result needs no de-duplication, and the first failing
+ * batch surfaces its error rather than returning a quietly short list.
+ */
+const ID_FILTER_CHUNK_SIZE = 100;
+
+async function selectByIdsInChunks<T>(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  table: string,
+  columns: string,
+  ids: readonly string[],
+): Promise<{ data: T[]; error: null | { message: string } }> {
+  const rows: T[] = [];
+
+  for (let index = 0; index < ids.length; index += ID_FILTER_CHUNK_SIZE) {
+    const chunk = ids.slice(index, index + ID_FILTER_CHUNK_SIZE);
+    const { data, error } = await supabase.from(table).select(columns).in("id", chunk);
+
+    if (error) {
+      return { data: [], error };
+    }
+
+    rows.push(...((data ?? []) as T[]));
+  }
+
+  return { data: rows, error: null };
+}
+
 export type PromotionRunStatus = "preview" | "applied" | "rolled_back";
 export type PromotionEntryDecision = "pending" | "promote" | "graduate" | "skip" | "manual";
 
@@ -240,16 +278,20 @@ export async function getPromotionRun(runId: string): Promise<PromotionPreviewRe
 
   const [studentsResult, classesResult] = await Promise.all([
     studentIds.length > 0
-      ? supabase
-          .from("students")
-          .select("id, full_name, admission_no")
-          .in("id", studentIds)
+      ? selectByIdsInChunks<{ id: string; full_name: string; admission_no: string }>(
+          supabase,
+          "students",
+          "id, full_name, admission_no",
+          studentIds,
+        )
       : Promise.resolve({ data: [] as Array<{ id: string; full_name: string; admission_no: string }>, error: null as null | { message: string } }),
     classIds.length > 0
-      ? supabase
-          .from("classes")
-          .select("id, class_name, section, stream_name, session_label")
-          .in("id", classIds)
+      ? selectByIdsInChunks<ClassRow>(
+          supabase,
+          "classes",
+          "id, class_name, section, stream_name, session_label",
+          classIds,
+        )
       : Promise.resolve({ data: [] as ClassRow[], error: null as null | { message: string } }),
   ]);
 
