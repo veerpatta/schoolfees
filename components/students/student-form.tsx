@@ -335,6 +335,24 @@ export function StudentForm({
             Student name and class are required. SR no is recommended; a temporary SR no is generated if it is left blank.
           </p>
         </div>
+
+        {/* The photo belongs to the child, not to the parents — it spent a
+            release filed under "Parent details and address", which is where
+            nobody looked for it. */}
+        <div>
+          <Label>Student photo</Label>
+          <div className="mt-2">
+            {/* studentId matters: without it every upload lands under the
+                bucket's `new/` folder, even when editing an existing
+                student. */}
+            <StudentPhotoUpload
+              inputName="photoPath"
+              studentId={studentId}
+              initialPath={values.photoPath || null}
+            />
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <Label htmlFor="fullName" required>Student name</Label>
@@ -529,19 +547,6 @@ export function StudentForm({
               defaultValue={values.address}
               className="mt-2"
             />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Student photo (optional)</Label>
-            <div className="mt-2">
-              {/* studentId matters: without it every upload lands under the
-                  bucket's `new/` folder, even when editing an existing
-                  student. */}
-              <StudentPhotoUpload
-                inputName="photoPath"
-                studentId={studentId}
-                initialPath={values.photoPath || null}
-              />
-            </div>
           </div>
         </div>
       </Section>

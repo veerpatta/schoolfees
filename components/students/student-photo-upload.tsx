@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, ImageIcon, Loader2, Trash2, AlertCircle } from "lucide-react";
+import { Camera, Check, ImageIcon, Loader2, Trash2, Upload, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 const BUCKET = "student-photos";
 const MAX_DIMENSION = 600;
@@ -20,11 +21,7 @@ type Props = {
   initialPath?: string | null;
 };
 
-type State =
-  | { status: "idle"; path: string | null; previewUrl: string | null }
-  | { status: "processing" }
-  | { status: "uploading"; previewUrl: string }
-  | { status: "error"; message: string; path: string | null; previewUrl: string | null };
+type Status = "idle" | "processing" | "uploading";
 
 async function resizeToJpeg(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
@@ -77,25 +74,36 @@ async function loadSignedUrlForPath(path: string): Promise<string | null> {
   }
 }
 
+/**
+ * Photo picker for the student forms.
+ *
+ * The hidden input is the whole contract: it carries the object path, and a
+ * blank value means "no photo" — which the edit form reads as a removal. So a
+ * failed pick must never blank it. A bad file, a browser that cannot decode it,
+ * or an upload that errors all leave the previously saved photo exactly where it
+ * was; only the explicit Remove button clears the field.
+ */
 export function StudentPhotoUpload({ studentId, inputName, initialPath }: Props) {
-  const [state, setState] = useState<State>({
-    status: "idle",
-    path: initialPath ?? null,
-    previewUrl: null,
-  });
+  const [path, setPath] = useState<string | null>(initialPath ?? null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [justUploaded, setJustUploaded] = useState(false);
+
   const inputRef = useRef<HTMLInputElement | null>(null);
   const cameraRef = useRef<HTMLInputElement | null>(null);
+  /** The object URL currently on screen, if the preview came from a local blob. */
   const objectUrlRef = useRef<string | null>(null);
+
+  const busy = status !== "idle";
 
   useEffect(() => {
     if (!initialPath) return;
     loadSignedUrlForPath(initialPath).then((url) => {
-      if (url) {
-        setState((previous) =>
-          previous.status === "idle"
-            ? { ...previous, previewUrl: url }
-            : previous,
-        );
+      // A local pick that landed while the signed URL was in flight wins.
+      if (url && !objectUrlRef.current) {
+        setPreviewUrl((current) => current ?? url);
       }
     });
   }, [initialPath]);
@@ -107,34 +115,35 @@ export function StudentPhotoUpload({ studentId, inputName, initialPath }: Props)
   }, []);
 
   async function handleFile(file: File) {
+    setJustUploaded(false);
+
     if (!file.type.startsWith("image/")) {
-      setState({
-        status: "error",
-        message: "Only image files are supported.",
-        path: state.status === "error" ? state.path : state.status === "idle" ? state.path : null,
-        previewUrl: null,
-      });
+      setErrorMessage("That is not an image. Choose a JPG, PNG or HEIC file.");
       return;
     }
 
     let blob: Blob;
     try {
-      setState({ status: "processing" });
+      setErrorMessage(null);
+      setStatus("processing");
       blob = await resizeToJpeg(file);
     } catch (error) {
-      setState({
-        status: "error",
-        message: error instanceof Error ? error.message : "Could not process image.",
-        path: null,
-        previewUrl: null,
-      });
+      setStatus("idle");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not process that image.",
+      );
       return;
     }
 
-    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    const previewUrl = URL.createObjectURL(blob);
-    objectUrlRef.current = previewUrl;
-    setState({ status: "uploading", previewUrl });
+    // Hold on to what was on screen: if the upload fails we put it back rather
+    // than leaving the student looking like they have no photo.
+    const previousObjectUrl = objectUrlRef.current;
+    const previousPreviewUrl = previewUrl;
+
+    const nextPreviewUrl = URL.createObjectURL(blob);
+    objectUrlRef.current = nextPreviewUrl;
+    setPreviewUrl(nextPreviewUrl);
+    setStatus("uploading");
 
     const supabase = createClient();
     const folder = studentId?.trim() || "new";
@@ -146,16 +155,18 @@ export function StudentPhotoUpload({ studentId, inputName, initialPath }: Props)
     });
 
     if (error) {
-      setState({
-        status: "error",
-        message: error.message || "Upload failed.",
-        path: null,
-        previewUrl,
-      });
+      URL.revokeObjectURL(nextPreviewUrl);
+      objectUrlRef.current = previousObjectUrl;
+      setPreviewUrl(previousPreviewUrl);
+      setStatus("idle");
+      setErrorMessage(error.message || "Upload failed. Try again.");
       return;
     }
 
-    setState({ status: "idle", path: objectName, previewUrl });
+    if (previousObjectUrl) URL.revokeObjectURL(previousObjectUrl);
+    setPath(objectName);
+    setStatus("idle");
+    setJustUploaded(true);
   }
 
   function clearPhoto() {
@@ -163,83 +174,147 @@ export function StudentPhotoUpload({ studentId, inputName, initialPath }: Props)
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
     }
-    setState({ status: "idle", path: null, previewUrl: null });
+    setPath(null);
+    setPreviewUrl(null);
+    setErrorMessage(null);
+    setJustUploaded(false);
   }
 
-  const path =
-    state.status === "idle" || state.status === "error" ? state.path ?? "" : "";
-  const previewUrl =
-    state.status === "uploading"
-      ? state.previewUrl
-      : state.status === "idle" || state.status === "error"
-        ? state.previewUrl
-        : null;
+  function takeFirstImage(files: FileList | null) {
+    const file = files?.[0];
+    if (file) void handleFile(file);
+  }
+
+  const hasPhoto = Boolean(path);
+  const statusLine = busy
+    ? status === "processing"
+      ? "Resizing…"
+      : "Uploading…"
+    : justUploaded
+      ? "Photo ready — save the form to keep it."
+      : hasPhoto
+        ? "Photo on file."
+        : "No photo yet.";
 
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-surface-2 p-3">
-      <input type="hidden" name={inputName} value={path} />
-      <div className="flex items-center gap-3">
-        <div className="size-16 shrink-0 overflow-hidden rounded-full border border-border bg-card">
+    <div
+      className={cn(
+        "rounded-xl border border-border bg-surface-2 p-3 transition-colors md:p-4",
+        isDragging && "border-primary bg-primary/5",
+      )}
+      onDragOver={(event) => {
+        event.preventDefault();
+        if (!busy) setIsDragging(true);
+      }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setIsDragging(false);
+        if (busy) return;
+        takeFirstImage(event.dataTransfer.files);
+      }}
+    >
+      <input type="hidden" name={inputName} value={path ?? ""} />
+
+      <div className="flex items-center gap-4">
+        {/* The picture is the biggest target on the card, and tapping it is the
+            thing everyone tries first. */}
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          aria-label={hasPhoto ? "Replace student photo" : "Add student photo"}
+          className="focus-ring group relative size-20 shrink-0 overflow-hidden rounded-xl border border-border bg-card disabled:cursor-progress md:size-24"
+        >
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt="Student photo preview" className="size-full object-cover" />
+            <img
+              src={previewUrl}
+              alt="Student photo preview"
+              className="size-full object-cover"
+            />
           ) : (
-            <div className="flex size-full items-center justify-center text-muted-foreground">
+            <span className="flex size-full flex-col items-center justify-center gap-1 text-muted-foreground">
               <ImageIcon className="size-7" aria-hidden="true" />
-            </div>
+              <span className="text-[10px] font-semibold uppercase tracking-wide">Add</span>
+            </span>
           )}
-        </div>
-        <div className="flex flex-1 flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => cameraRef.current?.click()}
-            disabled={state.status === "processing" || state.status === "uploading"}
+
+          {busy ? (
+            <span className="absolute inset-0 flex items-center justify-center bg-background/70">
+              <Loader2 className="size-6 animate-spin text-foreground" aria-hidden="true" />
+            </span>
+          ) : previewUrl ? (
+            <span className="absolute inset-x-0 bottom-0 hidden bg-foreground/70 py-1 text-[10px] font-semibold uppercase tracking-wide text-background group-hover:block group-focus-visible:block">
+              Change
+            </span>
+          ) : null}
+        </button>
+
+        <div className="min-w-0 flex-1 space-y-2">
+          <p
+            className={cn(
+              "flex items-center gap-1.5 text-sm font-semibold",
+              justUploaded ? "text-success-soft-foreground" : "text-foreground",
+            )}
+            aria-live="polite"
           >
-            <Camera className="size-4" aria-hidden="true" /> Take photo
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => inputRef.current?.click()}
-            disabled={state.status === "processing" || state.status === "uploading"}
-          >
-            <ImageIcon className="size-4" aria-hidden="true" /> Choose file
-          </Button>
-          {(state.status === "idle" && state.path) || (state.status === "error" && state.path) ? (
+            {busy ? (
+              <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
+            ) : justUploaded ? (
+              <Check className="size-3.5 shrink-0" aria-hidden="true" />
+            ) : null}
+            {statusLine}
+          </p>
+
+          <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="gap-1 text-destructive"
-              onClick={clearPhoto}
+              className="gap-2"
+              onClick={() => cameraRef.current?.click()}
+              disabled={busy}
             >
-              <Trash2 className="size-4" aria-hidden="true" /> Remove
+              <Camera className="size-4" aria-hidden="true" /> Take photo
             </Button>
-          ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy}
+            >
+              <Upload className="size-4" aria-hidden="true" />
+              {hasPhoto ? "Replace" : "Choose file"}
+            </Button>
+            {hasPhoto ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-destructive hover:text-destructive"
+                onClick={clearPhoto}
+                disabled={busy}
+              >
+                <Trash2 className="size-4" aria-hidden="true" /> Remove
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {state.status === "processing" || state.status === "uploading" ? (
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-          {state.status === "processing" ? "Resizing…" : "Uploading…"}
-        </p>
-      ) : null}
-
-      {state.status === "error" ? (
-        <p className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-xs text-destructive">
+      {errorMessage ? (
+        <p className="mt-3 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-xs text-destructive">
           <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {state.message}
+          {errorMessage}
         </p>
       ) : null}
 
-      <p className="text-[11px] text-muted-foreground">
-        Photo is optional. Auto-resized to {MAX_DIMENSION}px max and {Math.round(MAX_OUTPUT_BYTES / 1024)} KB.
+      <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+        Optional. Drag an image here or use the buttons — it is resized to{" "}
+        {MAX_DIMENSION}px and about {Math.round(MAX_OUTPUT_BYTES / 1024)} KB before upload.
       </p>
 
       <input
@@ -248,10 +323,7 @@ export function StudentPhotoUpload({ studentId, inputName, initialPath }: Props)
         accept="image/*"
         className="hidden"
         onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) {
-            void handleFile(file);
-          }
+          takeFirstImage(event.target.files);
           event.target.value = "";
         }}
       />
@@ -262,10 +334,7 @@ export function StudentPhotoUpload({ studentId, inputName, initialPath }: Props)
         capture="environment"
         className="hidden"
         onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) {
-            void handleFile(file);
-          }
+          takeFirstImage(event.target.files);
           event.target.value = "";
         }}
       />

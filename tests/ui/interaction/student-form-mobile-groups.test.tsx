@@ -144,6 +144,21 @@ describe("student form phone group switcher", () => {
     expect(new FormData(form).get("district")).toBe("Bhilwara");
   });
 
+  it("files the photo control with the student, not with the parents", () => {
+    // It shipped inside "Parent details and address", which is the one group
+    // nobody opens looking for the child's picture.
+    const { container } = renderForm();
+
+    const nameInput = container.querySelector("#fullName");
+    const photoButton = screen.getByRole("button", { name: "Add student photo" });
+    // Each group is a direct child div of the form; the photo has to share one
+    // with the student's own fields.
+    const studentPanel = nameInput?.closest("form > div");
+
+    expect(studentPanel).toBeTruthy();
+    expect(studentPanel!.contains(photoButton)).toBe(true);
+  });
+
   it("offers one tab per group, with Fees dropped when finance is not editable", () => {
     const { unmount } = renderForm();
 
