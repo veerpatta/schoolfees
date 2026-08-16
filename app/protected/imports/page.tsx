@@ -8,23 +8,30 @@ import { getStudentFormOptions } from "@/lib/students/data";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
+import {
+  searchParamString,
+  type SearchParamValue,
+} from "@/lib/helpers/search-params";
 
 type ImportsPageProps = {
+  // `string | string[]`, because that is what Next passes. Typing these as
+  // plain strings is what let a repeated parameter throw out of a Server
+  // Component on the Dashboard and Transactions.
   searchParams?: Promise<{
-    batchId?: string;
-    mode?: string;
-    notice?: string;
-    error?: string;
-    session?: string;
-    sessionLabel?: string;
+    batchId?: SearchParamValue;
+    mode?: SearchParamValue;
+    notice?: SearchParamValue;
+    error?: SearchParamValue;
+    session?: SearchParamValue;
+    sessionLabel?: SearchParamValue;
   }>;
 };
 
 export default async function ImportsPage({ searchParams }: ImportsPageProps) {
   const staff = await requireStaffPermission("imports:view", { onDenied: "redirect" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const selectedBatchId = resolvedSearchParams?.batchId?.trim() ?? "";
-  const mode = resolvedSearchParams?.mode === "update" ? "update" : "add";
+  const selectedBatchId = searchParamString(resolvedSearchParams?.batchId);
+  const mode = searchParamString(resolvedSearchParams?.mode) === "update" ? "update" : "add";
   const viewSession = await resolveViewSession({
     searchParamSession: resolvedSearchParams?.session ?? resolvedSearchParams?.sessionLabel,
     cookieSession: await getViewSessionCookie(),
@@ -70,11 +77,10 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
   // commit redirects with `?error=Students imported, but dues sync needs
   // attention: …`; we re-render that here in a non-dismissable banner with a
   // Fee Setup CTA.
-  const ledgerSyncErrorMessage =
-    resolvedSearchParams?.error?.trim() &&
-    resolvedSearchParams.error.includes("dues sync needs attention")
-      ? resolvedSearchParams.error.trim()
-      : null;
+  const importError = searchParamString(resolvedSearchParams?.error);
+  const ledgerSyncErrorMessage = importError.includes("dues sync needs attention")
+    ? importError
+    : null;
 
   return (
     <div className="space-y-6">
@@ -103,8 +109,8 @@ export default async function ImportsPage({ searchParams }: ImportsPageProps) {
         canManage={canManageImports}
         currentSessionLabel={viewSession.sessionLabel}
         sessionOptions={studentFormOptions.sessionOptions}
-        notice={resolvedSearchParams?.notice?.trim() || null}
-        error={resolvedSearchParams?.error?.trim() || null}
+        notice={searchParamString(resolvedSearchParams?.notice) || null}
+        error={searchParamString(resolvedSearchParams?.error) || null}
         duplicateAuditSummary={duplicateAuditSummary}
       />
     </div>

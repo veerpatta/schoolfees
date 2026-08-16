@@ -143,10 +143,18 @@ const SEGMENT_ALIASES: Record<string, SegmentId> = {
 };
 
 /** `?seg=overdue,onTransport` → `["overdue", "onTransport"]`. Unknown ids drop. */
-export function parseSegments(raw: string | null | undefined): SegmentId[] {
+export function parseSegments(
+  // `string[]` because that is what Next passes for a repeated `?seg=`, and
+  // `raw.split(",")` threw `split is not a function` straight out of the
+  // Transactions Server Component. Repeated values are concatenated rather
+  // than dropped: `?seg=overdue&seg=onEmi` plainly means both, and unknown
+  // ids fall out below anyway.
+  raw: string | string[] | null | undefined,
+): SegmentId[] {
   if (!raw) return [];
+  const parts = Array.isArray(raw) ? raw : [raw];
   const seen = new Set<SegmentId>();
-  for (const part of raw.split(",")) {
+  for (const part of parts.flatMap((value) => String(value ?? "").split(","))) {
     const id = part.trim();
     const resolved = SEGMENT_ALIASES[id] ?? id;
     if (isSegmentId(resolved)) seen.add(resolved);

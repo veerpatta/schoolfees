@@ -34,19 +34,27 @@ export const officeWorkbookViewI18nPrefix: Record<OfficeWorkbookView, string> = 
 };
 
 export function normalizeOfficeWorkbookView(
-  value: string | undefined | null,
+  value: string | string[] | undefined | null,
 ): OfficeWorkbookView {
   return resolveOfficeWorkbookView(value).view;
 }
 
+/**
+ * `string[]` because a repeated `?view=` arrives as an array — which is what a
+ * link that has been shared and re-shared ends up carrying. First value wins,
+ * the same rule `resolveDashboardView` already uses. Before this, `.trim()`
+ * below threw out of the Transactions Server Component and the page rendered
+ * as a blank error (Sentry SCHOOLFEES-F).
+ */
 export function resolveOfficeWorkbookView(
-  value: string | undefined | null,
+  value: string | string[] | undefined | null,
 ): {
   view: OfficeWorkbookView;
   wasRecognized: boolean;
   rawValue: string;
 } {
-  const normalized = (value ?? "").trim();
+  const first = Array.isArray(value) ? value[0] : value;
+  const normalized = (first ?? "").trim();
   const aliases: Record<string, OfficeWorkbookView> = {
     receipts_today: "receipts",
     statements: "student_dues",

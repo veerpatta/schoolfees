@@ -21,7 +21,13 @@ export const PAYMENT_MODE_FILTER_VALUES: readonly PaymentMode[] = [
 const ALLOWED = new Set<string>(PAYMENT_MODE_FILTER_VALUES);
 
 /** Returns the mode, or "" for "no payment-mode filter". */
-export function normalizePaymentModeFilter(value: string | null | undefined): string {
-  const normalized = (value ?? "").trim();
+export function normalizePaymentModeFilter(
+  // `string[]` because a repeated `?paymentMode=` arrives as an array, and
+  // `(value ?? "").trim()` threw out of a Server Component. First value wins,
+  // matching every other switcher in the app.
+  value: string | string[] | null | undefined,
+): string {
+  const first = Array.isArray(value) ? value[0] : value;
+  const normalized = (first ?? "").trim();
   return ALLOWED.has(normalized) ? normalized : "";
 }

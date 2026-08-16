@@ -18,39 +18,48 @@ import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import { getTodayReceiptSnapshot } from "@/lib/workbook/data";
 import { normalizePaymentModeFilter } from "@/lib/transactions/payment-modes";
 import { parseSegments } from "@/lib/segments/student-segments";
+import {
+  searchParamInteger,
+  searchParamIsoDate,
+  searchParamString,
+  type SearchParamValue,
+} from "@/lib/helpers/search-params";
 
 type TransactionsPageProps = {
+  // Every one of these is `string | string[]` at runtime — Next hands a page an
+  // array whenever a parameter repeats, which is what a re-shared link
+  // produces. Typing them as plain strings is why `(value ?? "").trim()` and
+  // `raw.split(",")` below threw out of this Server Component and took the
+  // whole page down (Sentry SCHOOLFEES-F).
   searchParams?: Promise<{
-    view?: string;
-    classId?: string;
-    fromDate?: string;
-    paymentMode?: string;
-    page?: string;
-    query?: string;
-    routeId?: string;
-    seg?: string;
-    session?: string;
-    sessionLabel?: string;
-    toDate?: string;
+    view?: SearchParamValue;
+    classId?: SearchParamValue;
+    fromDate?: SearchParamValue;
+    paymentMode?: SearchParamValue;
+    page?: SearchParamValue;
+    query?: SearchParamValue;
+    routeId?: SearchParamValue;
+    seg?: SearchParamValue;
+    session?: SearchParamValue;
+    sessionLabel?: SearchParamValue;
+    toDate?: SearchParamValue;
   }>;
 };
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function normalizeClassId(value: string | undefined) {
-  const normalized = (value ?? "").trim();
+function normalizeClassId(value: SearchParamValue) {
+  const normalized = searchParamString(value);
   return UUID_PATTERN.test(normalized) ? normalized : "";
 }
 
-function normalizeDate(value: string | undefined) {
-  const normalized = (value ?? "").trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
+function normalizeDate(value: SearchParamValue) {
+  return searchParamIsoDate(value) ?? "";
 }
 
-function normalizePage(value: string | undefined) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+function normalizePage(value: SearchParamValue) {
+  return searchParamInteger(value, { min: 1, max: 100_000 }) ?? 1;
 }
 
 export default async function TransactionsPage({ searchParams }: TransactionsPageProps) {
@@ -70,7 +79,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     cookieSession: await getViewSessionCookie(),
   });
   const sessionLabel = viewSession.sessionLabel;
-  const searchQuery = (resolvedSearchParams?.query ?? "").trim();
+  const searchQuery = searchParamString(resolvedSearchParams?.query);
   const fromDate = normalizeDate(resolvedSearchParams?.fromDate);
   const toDate = normalizeDate(resolvedSearchParams?.toDate);
   const paymentMode = normalizePaymentModeFilter(resolvedSearchParams?.paymentMode);

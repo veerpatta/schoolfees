@@ -21,7 +21,7 @@ import { appendSessionParam } from "@/lib/navigation/session-href";
 
 type Props = {
   searchParams?: Promise<{
-    asOf?: string;
+    asOf?: string | string[];
     session?: string | string[];
   }>;
 };
@@ -34,6 +34,35 @@ function asString(value: string | string[] | undefined): string {
 function todayIso(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * A date that exists, not merely one shaped like a date.
+ *
+ * `/^\d{4}-\d{2}-\d{2}$/` accepts `9999-99-99`, which sailed through to
+ * `getFeeSetupSnapshotAt` and came back as Postgres `date/time field value out
+ * of range` — a Server Component throw, so the page rendered as a blank error
+ * with the reason redacted in production (SCHOOLFEES-E).
+ *
+ * Round-tripping through `Date` is what closes it: month 99 does not survive.
+ * The year is bounded too, because `0001-01-01` is a valid date and a pointless
+ * query against a school that opened this century.
+ */
+function normalizeAsOf(value: string | string[] | undefined): string {
+  const requested = asString(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(requested)) return todayIso();
+
+  const parsed = new Date(`${requested}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return todayIso();
+
+  // `new Date("2026-02-31")` rolls forward to March rather than failing, so the
+  // only reliable check is whether the date prints back as what was asked for.
+  if (parsed.toISOString().slice(0, 10) !== requested) return todayIso();
+
+  const year = parsed.getUTCFullYear();
+  if (year < 2000 || year > 2100) return todayIso();
+
+  return requested;
 }
 
 const formatDateTime = (value: string) => formatDateTimeIst(value, value);
@@ -62,9 +91,7 @@ export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
   });
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
 
-  const requestedDate = resolved?.asOf?.trim() || todayIso();
-  const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate);
-  const asOf = isValidDate ? requestedDate : todayIso();
+  const asOf = normalizeAsOf(resolved?.asOf);
 
   const [snapshot, classLabels] = await Promise.all([
     getFeeSetupSnapshotAt(asOf),

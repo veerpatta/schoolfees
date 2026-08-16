@@ -13,6 +13,10 @@ import { appendSessionParam } from "@/lib/navigation/session-href";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 
 import { saveWorkbookFeeSetupAction } from "./actions";
+import {
+  searchParamString,
+  type SearchParamValue,
+} from "@/lib/helpers/search-params";
 import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 import {
   createClassAction,
@@ -39,13 +43,16 @@ type FeeSetupSectionId =
   | "discounts";
 
 type FeeSetupPageProps = {
-  searchParams?: Promise<{ session?: string; section?: string }>;
+  // `string | string[]`: Next hands a page an array whenever a parameter
+  // repeats, and reading one as if it were always a string is what threw out
+  // of the Dashboard and Transactions Server Components.
+  searchParams?: Promise<{ session?: SearchParamValue; section?: SearchParamValue }>;
 };
 
 // Maps a ?section=… deep link to a Fee Setup section. Installment dates live in
 // the "basic" section, so ?section=installments lands there.
-function resolveDeepLinkSection(value: string | undefined): FeeSetupSectionId | undefined {
-  const normalized = (value ?? "").trim().toLowerCase();
+function resolveDeepLinkSection(value: SearchParamValue): FeeSetupSectionId | undefined {
+  const normalized = searchParamString(value).toLowerCase();
   if (!normalized) return undefined;
   if (normalized === "installments") return "basic";
   const valid: FeeSetupSectionId[] = ["session", "basic", "classes", "transport", "fee-heads", "discounts"];

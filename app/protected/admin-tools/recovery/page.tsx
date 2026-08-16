@@ -16,6 +16,11 @@ import {
   type RecoveryStudentStatus,
 } from "@/lib/recovery/types";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
+import {
+  optionalSearchParam,
+  searchParamString,
+  type SearchParamValue,
+} from "@/lib/helpers/search-params";
 
 export const revalidate = 0;
 
@@ -26,17 +31,21 @@ const STATUS_TONE: Record<RecoveryStudentStatus, "warning" | "info"> = {
 };
 
 type RecoveryPageProps = {
+  // `string | string[]`, because that is what Next actually passes — typing
+  // these as plain strings is what let `?q=a&q=b` throw out of a Server
+  // Component elsewhere in the app.
   searchParams?: Promise<{
-    q?: string;
-    status?: string;
-    session?: string;
-    classId?: string;
+    q?: SearchParamValue;
+    status?: SearchParamValue;
+    session?: SearchParamValue;
+    classId?: SearchParamValue;
   }>;
 };
 
-function normalizeStatus(value: string | undefined): RecoveryStudentStatus | undefined {
-  return RECOVERY_STUDENT_STATUSES.includes(value as RecoveryStudentStatus)
-    ? (value as RecoveryStudentStatus)
+function normalizeStatus(value: SearchParamValue): RecoveryStudentStatus | undefined {
+  const status = searchParamString(value);
+  return RECOVERY_STUDENT_STATUSES.includes(status as RecoveryStudentStatus)
+    ? (status as RecoveryStudentStatus)
     : undefined;
 }
 
@@ -56,9 +65,9 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
 
   const resolved = searchParams ? await searchParams : undefined;
   const status = normalizeStatus(resolved?.status);
-  const sourceSessionLabel = resolved?.session?.trim() || undefined;
-  const classId = resolved?.classId?.trim() || undefined;
-  const query = resolved?.q?.trim() || undefined;
+  const sourceSessionLabel = optionalSearchParam(resolved?.session);
+  const classId = optionalSearchParam(resolved?.classId);
+  const query = optionalSearchParam(resolved?.q);
 
   const data = await getRecoveryQueue({
     query,
