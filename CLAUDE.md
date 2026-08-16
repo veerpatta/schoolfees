@@ -371,13 +371,31 @@ Routes are embedded in their respective modules (not centralized under `/api/`):
 ## Test Structure
 
 ```
-tests/unit/            # 119 files — pure/domain logic, no DB
-tests/integration/     # 90 files  — module/workflow/system tests
-tests/ui/              # 82 files  — route/component/resilience/UI policy tests
+tests/unit/            # pure/domain logic, no DB
+tests/integration/     # module/workflow/system tests
+tests/ui/              # route/component/resilience/UI policy tests
+tests/deep/            # Playwright + Node — the permutation harness and the
+                       #   live MCP conformance suite. See docs/qa/deep-test/README.md
 tests/smoke-readiness/ # Playwright — authenticated a11y + visual smoke
-tests/smoke-2026-05/   # Playwright — deep crawl
+tests/smoke-2026-05/   # Playwright — the older crawl, superseded by tests/deep
 tests/setup.ts         # Global afterEach: clears and restores mocks
 ```
+
+**`tests/deep` is the harness a new bug should surface in first.** One command
+(`npm run deep`) sweeps every route, every switcher value, every export, the
+5 × 29 role/route matrix, three viewports, 25 malformed inputs and all 32 MCP
+tools across both sessions — then applies a gate that actually fails. Two rules
+make it trustworthy rather than just large:
+
+- **Coverage is a claim it has to earn.** Every dimension declares a strategy in
+  `tests/deep/surface/`, domains are imported or globbed from source, and
+  `assertNoSilentGaps()` fails the run when a dimension declared exhaustive left
+  a value unvisited. The report opens with what was *not* tested.
+- **Redirects and `notFound()` in this app stream.** Next answers 200 with the
+  shell and the browser moves during hydration, after `networkidle` — so
+  anything asserting on a status code or a once-sampled `page.url()` reports
+  working guards as broken. The harness waits for the destination instead. That
+  mistake produced 41 false P0s before it was found; do not reintroduce it.
 
 `npm run test` runs **291 vitest files / 1,777 tests** across two projects: `node` for
 everything, and `interaction` (jsdom + Testing Library) for `tests/ui/interaction/**`.

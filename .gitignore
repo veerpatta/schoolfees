@@ -65,6 +65,23 @@ next-env.d.ts
 /tests/smoke-*/.auth/
 /tests/smoke-*/smoke-results.jsonl
 /tests/smoke-*/*.xlsx
+/tests/deep/.auth/
+/tests/deep/**/*.xlsx
+
+# The deep harness splits its output deliberately. Everything bulky — traces,
+# videos, downloads, the raw JSONL streams — and, importantly, EVERY
+# screenshot stays under the ignored /docs/smoke-reports/deep/<runId>/ above.
+# A screenshot of this app is a picture of a class list: real names, phone
+# numbers and balances. It is the most PII-dense artifact the harness produces,
+# so none of it is committed.
+#
+# What IS committed is docs/qa/deep-test/: the rendered report, the merged
+# findings and the coverage ledger. Those carry route paths, rule names, counts
+# and error text — no student names, no phone numbers, no env values (checked).
+# A findings document nobody can read next month is not a deliverable, and every
+# finding carries a `repro` command that regenerates its screenshot on demand.
+!/docs/qa/deep-test/
+/docs/qa/deep-test/evidence/
 /docs/history/import-previews/
 *.har
 

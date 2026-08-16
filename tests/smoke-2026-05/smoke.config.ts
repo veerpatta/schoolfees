@@ -60,7 +60,10 @@ export default defineConfig({
     },
     {
       name: "desktop-chrome",
-      testMatch: /(deep-smoke|special-flows|i18n-navigation)\.spec\.ts/,
+      // `special-flows.spec.ts` is gone: lines 29-268 of it were a near-verbatim
+      // copy of deep-smoke's export/import/payment helpers, and the copies had
+      // already drifted. Its coverage lives in tests/deep/specs/07 and /08.
+      testMatch: /(deep-smoke|i18n-navigation)\.spec\.ts/,
       dependencies: ["setup"],
       use: {
         ...devices["Desktop Chrome"],

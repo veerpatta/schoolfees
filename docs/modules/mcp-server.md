@@ -108,8 +108,11 @@ keeps producing wrong answers; a missing one produces a question.
 
 ## Tools
 
-28 tools in six families. Every one is read-only, declares the permission it
-needs, and takes `limit` + `cursor`; list tools also take a `fields` projection.
+32 tools in nine families. Every one is read-only and declares the permission it
+needs. Paging is narrower than this section used to claim: **five** tools accept
+a `cursor` — `search_students`, `query_students`, `get_installments`,
+`get_recent_payments`, `search_receipts` — and list tools also take a `fields`
+projection. Everything else answers in one call.
 
 **Orientation** — `describe_capabilities`, `list_sessions`, `get_system_health`
 
@@ -135,8 +138,27 @@ tool and a redeploy.
 
 **Left students** — `get_left_student_recovery`, `get_prev_year_dues`
 
+**Assets** — `get_student_photo`, `get_defaulter_voice_note`
+
+Both read Supabase Storage directly, and both take an identifier only. **No tool
+accepts a bucket or a path**, deliberately: a generic `read_storage_object` would
+be an arbitrary-file-read primitive against the school's private buckets. That
+absence is asserted in the conformance suite, not just described here.
+
+**Documents** — `get_receipt_pdf`
+
+Goes through the app's `/api/service/documents` lane rather than rendering
+anything itself, and needs `SCHOOLFEES_DOC_TOKEN` set **in Vercel as well as on
+the Worker**. `/health` reports only the Worker's half, so it can read
+`hasToken: true` while every call fails with a 503 from the app.
+
 All 14 original tool names are preserved, because the school's morning ChatGPT
 task calls them by name.
+
+The count above is pinned by `tests/unit/deep-harness-mirrors.test.ts`: it reads
+the tool names out of `src/tools/*.mjs` and fails when this file disagrees. It
+was written because this section said 28 for two releases while the Worker
+served 32, and the three it omitted were the three newest.
 
 ### Resources and prompts
 

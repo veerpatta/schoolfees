@@ -4,6 +4,13 @@ Everything needed to smoke-test the app without hand-building a scenario first.
 Five logins, one per role, and a catalogue of `TEST-` students chosen so that
 every interesting permutation already exists somewhere.
 
+> **The automated harness reads this file.** `tests/deep/lib/discovery.ts` looks
+> up the scenario students below by SR number and hands them to the sweep, and
+> `tests/deep/surface/payment-cases.ts` names them case by case. A student
+> renamed here without being renamed there is reported as a missing scenario
+> rather than silently skipped — but it is still a hole in the run. See
+> `docs/qa/deep-test/README.md`.
+
 **Session: `TEST-2026-27` only.** `2026-27` is live and carries real family
 money. Never post a test payment, add test data, or run an experiment against
 it — hard safety rule 6 in `CLAUDE.md`.

@@ -1,0 +1,123 @@
+{
+  "generatedAt": "2026-08-15T21:29:10.178Z",
+  "_comment": [
+    "The noise budget and the waiver list.",
+    "",
+    "noiseBudget: how many findings of a P2/P3 rule this repo currently carries.",
+    "P2 and P3 never fail on presence — only when the count exceeds the number",
+    "here. That is what lets a hard gate be switched on in a codebase that",
+    "already has forty console warnings: 41 against a budget of 38 fails and",
+    "names only the 3 new ones.",
+    "",
+    "waivers: individual findings that are known and accepted for now. Each one",
+    "needs an owner and an expiresOn, and an expired waiver fails the run by",
+    "itself — nothing here can mute a problem forever by being forgotten.",
+    "",
+    "Regenerate the budget from a clean run with:",
+    "  node tests/deep/report/render.mjs --write-baseline"
+  ],
+  "waivers": [
+    {
+      "id": "ef4cc29aa341",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:amount-zero",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "a760a141edd0",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:amount-negative",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "2db4daf9a47e",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:amount-decimal",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "abbe6cacd256",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:amount-non-numeric",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "6d97e76ec83f",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:amount-absurd",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "1f1d0c3a8486",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:preview-back-dated",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "17e91d811134",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:preview-today",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "79444a1dc18c",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:preview-future-dated",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "9cb644dd71ed",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:preview-late-fee-only",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "2c9b45cc9f16",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:preview-emi-student",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "378ea7762852",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:preview-in-credit",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    },
+    {
+      "id": "e8f197f5a2c1",
+      "rule": "write.gate-refused",
+      "surface": "payment-case:preview-graduated-clear",
+      "reason": "The gate worked. Under `next dev` the Payment Desk client bundle compiles on first request and the session pill had not stamped body[data-vpps-test-session] within 30s, so lock 4 refused rather than guessing. Verified present within a second on a real build (local-prod and production). Writes are validated on local-prod; do not run the write suite against next dev.",
+      "owner": "raj@vpps.co.in",
+      "expiresOn": "2026-09-14"
+    }
+  ],
+  "noiseBudget": {
+    "route.console-error": 192,
+    "perf.slow-render": 5,
+    "ux.observation": 10,
+    "route.hydration-mismatch": 1
+  }
+}
