@@ -9,6 +9,8 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoSubmitForm } from "@/components/office/auto-submit-form";
 import { OfficeNotice, WorkflowGuard } from "@/components/office/office-ui";
 import { PrintReportButton } from "@/components/reports/print-report-button";
+import { ReversedBadge } from "@/components/receipts/reversed-badge";
+import { cn } from "@/lib/utils";
 import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1057,7 +1059,9 @@ function ReportTables({ report }: { report: ReportData }) {
             render={(row) => ({
               key: row.receiptId,
               title: row.fullName,
-              subtitle: `${row.receiptNumber} · ${formatShortDate(row.paymentDate)}`,
+              subtitle: `${row.receiptNumber} · ${formatShortDate(row.paymentDate)}${
+                row.isReversed ? " · REVERSED" : ""
+              }`,
               amount: formatInr(row.totalAmount),
               fields: [
                 { label: "SR no", value: row.admissionNo },
@@ -1097,7 +1101,12 @@ function ReportTables({ report }: { report: ReportData }) {
                 ) : (
                   report.rows.map((row) => (
                     <tr key={row.receiptId} className="border-t border-border text-foreground">
-                      <td className="px-4 py-3 font-medium text-foreground">{row.receiptNumber}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                          {row.receiptNumber}
+                          {row.isReversed ? <ReversedBadge /> : null}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
                       <td className="px-4 py-3">{formatDateTime(row.createdAt)}</td>
                       <td className="px-4 py-3">{row.fullName}</td>
@@ -1106,7 +1115,12 @@ function ReportTables({ report }: { report: ReportData }) {
                       <td className="px-4 py-3">{row.classLabel}</td>
                       <td className="px-4 py-3">{row.transportRouteLabel}</td>
                       <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
-                      <td className="px-4 py-3 font-medium text-foreground">
+                      <td
+                        className={cn(
+                          "px-4 py-3 font-medium text-foreground",
+                          row.isReversed && "line-through opacity-60",
+                        )}
+                      >
                         {formatInr(row.totalAmount)}
                       </td>
                       <td className="px-4 py-3">{row.referenceNumber ?? "-"}</td>

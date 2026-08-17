@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -41,11 +41,42 @@ describe("mobile collect step 5", () => {
     expect(sheet).toContain("canUndo");
     expect(sheet).toContain("UNDO_WINDOW_SECONDS");
     expect(sheet).toContain("formatCountdown(secondsLeft)");
-    // The window matches the receipt-page affordance and the RPC's own check.
-    expect(sheet).toContain("10 * 60");
+
+    // The window used to be written out three times — here, on the receipt page
+    // and in the RPC — so this asserted the literal `10 * 60` in each copy. One
+    // shared module now defines it, and both surfaces import it, which is what
+    // this was really trying to guarantee.
+    expect(sheet).toContain('from "@/lib/receipts/undo-window"');
     expect(readRepoFile("components/receipts/receipt-undo-action.tsx")).toContain(
-      "10 * 60_000",
+      'from "@/lib/receipts/undo-window"',
     );
+    expect(readRepoFile("lib/receipts/undo-window.ts")).toContain("10 * 60_000");
+
+    // …and the module still agrees with the only authority, the RPC's own check.
+    const migrations = join(process.cwd(), "supabase", "migrations");
+    const undoMigration = readdirSync(migrations).find((name) =>
+      name.endsWith("_undo_recent_payment.sql"),
+    );
+    expect(undoMigration).toBeTruthy();
+    expect(readRepoFile(`supabase/migrations/${undoMigration}`)).toContain(
+      "interval '10 minutes'",
+    );
+  });
+
+  // The two paths are the same decision at two different ages, so a receipt is
+  // never offered both at once.
+  it("hands an expired undo over to the admin reversal, and never shows both", () => {
+    const page = readRepoFile("app/protected/receipts/[receiptId]/page.tsx");
+    expect(page).toContain("isUndoWindowOpen(receipt.createdAt)");
+    expect(page).toContain("&& undoWindowOpen");
+    expect(page).toContain("&& !undoWindowOpen");
+    expect(page).toContain('hasStaffPermission(staff, "payments:reverse_any")');
+
+    // Twice, not once: the sheet renders a phone branch and a desktop branch,
+    // and only the phone one carried the gate. Ten minutes on an open desktop
+    // sheet left a live button that answered with a raw Postgres error.
+    const gated = sheet.match(/undoState !== "done" && undoWindowOpen/g) ?? [];
+    expect(gated.length).toBe(2);
   });
 
   it("keeps a failed undo on screen instead of silently swallowing it", () => {

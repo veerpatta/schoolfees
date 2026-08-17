@@ -3,6 +3,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 
 import { FORBIDDEN_TABLES, OPERATIONS, describeOperations } from "./bulk-apply-operations.mjs";
+import {
+  CORRECTION_FOLLOW_UP,
+  PAYMENT_CORRECTION_OPERATION,
+  describeCorrectionOps,
+  runPaymentCorrections,
+} from "./bulk-apply-payment-corrections.mjs";
 
 /**
  * Apply a bulk data change described by a plan file.
@@ -95,6 +101,15 @@ Operations:
 
 ${describeOperations()}
 
+Payment corrections — a second mode, for wrongly-entered payment data. Set the
+plan's "operation" to "payment-correction" and give each row an "op":
+
+${describeCorrectionOps()}
+
+  Every one except "metadata" reverses the wrong receipt and posts a corrected
+  replacement. Nothing is ever edited or deleted, so every dashboard, export and
+  day-close figure recomputes itself.
+
 See docs/workflows/agent-bulk-operations.md
 `);
 }
@@ -144,15 +159,27 @@ try {
   fail(`Plan file is not valid JSON: ${error.message}`);
 }
 
-const operation = OPERATIONS[plan.operation];
+/**
+ * Correcting a wrongly-entered payment is a second execution mode, not another
+ * entry in OPERATIONS.
+ *
+ * The registry's engine writes columns, and `payments`/`receipts` cannot be
+ * written that way by anyone — the append-only triggers raise for the service
+ * role too. So this branch calls RPCs instead: reverse the wrong receipt, post a
+ * corrected one. FORBIDDEN_TABLES and its test stay untouched and stay correct —
+ * no column-update operation may name a money table.
+ */
+const isPaymentCorrection = plan.operation === PAYMENT_CORRECTION_OPERATION;
 
-if (!operation) {
+const operation = isPaymentCorrection ? null : OPERATIONS[plan.operation];
+
+if (!isPaymentCorrection && !operation) {
   fail(
     `Unknown operation "${plan.operation}".\n\nKnown operations:\n\n${describeOperations()}`,
   );
 }
 
-if (FORBIDDEN_TABLES.includes(operation.table)) {
+if (operation && FORBIDDEN_TABLES.includes(operation.table)) {
   fail(
     `Operation "${plan.operation}" names table "${operation.table}", which is never writable by a script.`,
   );
@@ -176,10 +203,12 @@ if (plan.rows.length > maxRows) {
   );
 }
 
-if (operation.feeImpact && !allowFeeImpact) {
+// Every correction reverses a posted receipt, so the correction mode always
+// carries the second opt-in a fee-impacting operation needs.
+if ((isPaymentCorrection || operation.feeImpact) && !allowFeeImpact) {
   fail(
     `Operation "${plan.operation}" changes what families owe.\n\n` +
-      `  ${operation.followUp ?? ""}\n\n` +
+      `  ${operation?.followUp ?? CORRECTION_FOLLOW_UP}\n\n` +
       "Re-run with --allow-fee-impact once you have read that.",
   );
 }
@@ -340,6 +369,22 @@ async function buildChanges(context) {
 }
 
 async function main() {
+  if (isPaymentCorrection) {
+    await runPaymentCorrections({
+      supabase,
+      plan,
+      planPath,
+      sessionLabel,
+      apply,
+      actor,
+      liveSessionLabel: LIVE_SESSION_LABEL,
+      baseUrl: readFlag("url"),
+      printTable,
+      fail,
+    });
+    return;
+  }
+
   console.log(`\n## Bulk apply — ${plan.operation} — ${sessionLabel}${apply ? "" : " (dry run)"}\n`);
   console.log(`  Plan:   ${planPath}`);
   console.log(`  Reason: ${plan.reason}`);

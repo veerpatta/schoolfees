@@ -29,6 +29,7 @@ export const ROLE_PERMISSIONS = {
     "payments:view",
     "payments:write",
     "payments:adjust",
+    "payments:reverse_any",
     "payments:bulk",
     "payments:waive_late_fee",
     "finance:view",

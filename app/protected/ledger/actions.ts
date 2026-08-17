@@ -35,11 +35,20 @@ function parseAdjustmentType(value: FormDataEntryValue | null) {
 
   if (
     normalized === "correction" ||
-    normalized === "reversal" ||
     normalized === "discount" ||
     normalized === "writeoff"
   ) {
     return normalized;
+  }
+
+  // A per-payment-row reversal could leave a receipt PARTLY reversed, which
+  // every collection total then counts at face value. Reversing is a
+  // whole-receipt operation, so point the caller at it rather than accepting
+  // half of one.
+  if (normalized === "reversal") {
+    throw new Error(
+      "Reversing is done on the whole receipt, not one ledger row. Open the receipt and use “Reverse this receipt”.",
+    );
   }
 
   throw new Error("Adjustment category is invalid.");

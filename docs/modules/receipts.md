@@ -37,10 +37,43 @@ adjustments recorded against it:
 - It stays visible on purpose. A number that quietly disappears is harder to trust than one
   that is shown and marked.
 
-**Admin undo** (`undo_recent_payment`) is available for 10 minutes after posting. It
-inserts full-amount reversal adjustments tagged `payment_undo:<receipt_id>` and touches
-neither `payments` nor `receipts`. It refuses a receipt that already has adjustments or an
-open refund request, and its reversals stay in the correction-review queue deliberately.
+### Three ways a receipt gets reversed
+
+All three write the same compensating `payment_adjustments` rows, so every board, export and
+day-close figure nets them without knowing which one ran. They differ only in who may run
+them, when, and what they refuse.
+
+| | Window | Permission | Notes tag | Refuses |
+|---|---|---|---|---|
+| `undo_recent_payment` | 10 minutes from `created_at` | `payments:adjust` | `payment_undo:` | any prior adjustment, any open refund |
+| `reverse_receipt_admin` | none | `payments:reverse_any` | `admin_reversal:` | an open refund; an already-fully-reversed receipt |
+| `process_refund_with_adjustment` | none | `finance:write` | `refund_request:` | over-refunding past the remaining headroom |
+
+**Undo** is a mis-click walked back while the parent is still at the counter. It inserts
+full-amount reversals and touches neither `payments` nor `receipts`.
+
+**Admin reversal** is the wrong-fee-entry path: a receipt typed against the wrong child, for
+the wrong amount, or twice, found a week later. No cash moved, so the refund workflow would
+be recording an event that never happened. It reverses the **remaining headroom** on each
+payment row rather than the gross amount, so a receipt already carrying a partial refund
+reverses cleanly to zero. It requires a reason, and the UI asks the operator to type the
+receipt number — the realistic mistake here is reversing the row above the one you meant.
+
+Both leave their rows in the Finance Controls correction-review queue on purpose; only
+`refund_request:` rows are filtered out of it.
+
+**What a reversal does not undo.** `receipt_adjustments` — a Payment Desk quick discount or
+late-fee waiver — is append-only with no negative-delta path, so those lines survive. The
+RPC returns `concession_amount` and the dialog says so rather than implying a cleaner
+reversal than actually happened. A waived late fee is billed again through
+`void_late_fee_waiver`, separately.
+
+The two staff paths are never offered together: the receipt page decides on the server which
+one applies, so a receipt eleven minutes old shows the admin reversal and nothing else.
+
+**Bulk corrections** live outside the app entirely — `scripts/bulk-apply.mjs` in
+`payment-correction` mode, reverse + repost, CLI only. See
+`docs/workflows/agent-bulk-operations.md`.
 
 ## Stamps
 

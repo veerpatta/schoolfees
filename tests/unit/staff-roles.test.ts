@@ -47,6 +47,22 @@ describe("staff RBAC matrix", () => {
     }
   });
 
+  // Reversing a receipt from any date un-collects money the books already
+  // counted. It is the one power that breaks the 10-minute rule, so it is held
+  // on its own permission rather than folded into `payments:adjust` — a reader
+  // of this matrix should be able to see who has it without knowing that
+  // `payments:adjust` happens to be admin-only today.
+  it("keeps unlimited receipt reversal to admin alone", () => {
+    expect(hasRolePermission("admin", "payments:reverse_any")).toBe(true);
+
+    for (const role of ["accountant", "teacher", "fee_collector", "view_only"] satisfies StaffRole[]) {
+      expect(
+        hasRolePermission(role, "payments:reverse_any"),
+        `${role} must not be able to reverse a posted receipt`,
+      ).toBe(false);
+    }
+  });
+
   it("limits accountant to payment-write + late-fee waiver + receipt-print and reads elsewhere", () => {
     expect(hasRolePermission("accountant", "payments:write")).toBe(true);
     expect(hasRolePermission("accountant", "payments:waive_late_fee")).toBe(true);
@@ -58,6 +74,7 @@ describe("staff RBAC matrix", () => {
     expect(hasRolePermission("accountant", "finance:write")).toBe(false);
     expect(hasRolePermission("accountant", "contacts:write")).toBe(false);
     expect(hasRolePermission("accountant", "payments:adjust")).toBe(false);
+    expect(hasRolePermission("accountant", "payments:reverse_any")).toBe(false);
 
     // No student / fee / settings writes.
     expect(hasRolePermission("accountant", "students:write")).toBe(false);

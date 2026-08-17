@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Download, Lock, Printer, Search, SlidersHorizontal, User, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Download, Lock, Printer, Search, SlidersHorizontal, Undo2, User, X } from "lucide-react";
 
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -122,6 +122,13 @@ export type TransactionsClientShellProps = {
   resolvedSessionLabel: string;
   todaySnapshot: TodaySnapshot;
   whatsappTemplates: readonly WhatsappTemplate[];
+  /**
+   * Admin only. Adds a per-row "reverse" action that opens the receipt, where
+   * the confirm dialog lives. The dialog stays on the receipt page on purpose:
+   * it warns about counter concessions and prior partial reversals, and this
+   * list carries neither figure.
+   */
+  canReverseReceipts?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -282,6 +289,7 @@ function TransactionsTable({
   sessionLabel,
   onPreviewReceipt,
   selection,
+  canReverseReceipts = false,
   t,
 }: {
   rows: WorkbookTransaction[];
@@ -295,6 +303,7 @@ function TransactionsTable({
    * actions are a desktop-only workflow per product spec.
    */
   selection?: ReceiptSelection;
+  canReverseReceipts?: boolean;
   t: TxnTranslator;
 }) {
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
@@ -474,6 +483,19 @@ function TransactionsTable({
                           <User className="size-4" />
                         </Link>
                       </Button>
+                      {canReverseReceipts && !row.isReversed ? (
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="ghost"
+                          className="size-8 p-0 text-destructive hover:text-destructive"
+                          aria-label={`Reverse receipt ${row.receiptNumber}`}
+                        >
+                          <Link href={receiptPrintHref(row.receiptId, sessionLabel)}>
+                            <Undo2 className="size-4" />
+                          </Link>
+                        </Button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -677,6 +699,7 @@ export function TransactionsClientShell({
   resolvedSessionLabel,
   todaySnapshot,
   whatsappTemplates,
+  canReverseReceipts = false,
 }: TransactionsClientShellProps) {
   const t = useTranslations("Transactions");
   const tCommon = useTranslations("Common");
@@ -1348,6 +1371,7 @@ export function TransactionsClientShell({
               rows={workbook.rows}
               returnTo={returnTo}
               sessionLabel={effectiveSession}
+              canReverseReceipts={canReverseReceipts}
               onPreviewReceipt={(receiptId) => setPreviewReceiptId(receiptId)}
               selection={{
                 selectedIds: selectedReceiptIds,

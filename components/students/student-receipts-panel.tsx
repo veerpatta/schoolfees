@@ -32,6 +32,14 @@ type StudentReceiptsPanelProps = {
   receiptsBySession: SessionGroup[];
   activeSessionLabel: string | null;
   canPrintReceipts: boolean;
+  /**
+   * Admin only. Shows a "Reverse" link that opens the receipt, where the
+   * confirm dialog lives. The dialog is deliberately NOT inlined here: it warns
+   * about counter concessions and prior partial reversals, and this list does
+   * not carry either figure — a dialog that cannot show the warning is worse
+   * than one more click.
+   */
+  canReverseReceipts?: boolean;
   encodedReturnTo: string;
 };
 
@@ -42,6 +50,7 @@ export function StudentReceiptsPanel({
   receiptsBySession,
   activeSessionLabel,
   canPrintReceipts,
+  canReverseReceipts = false,
   encodedReturnTo,
 }: StudentReceiptsPanelProps) {
   // Timeline first. A receipt lookup is almost always "the one from last week",
@@ -106,6 +115,7 @@ export function StudentReceiptsPanel({
           timeline={timeline}
           activeSessionLabel={activeSessionLabel}
           canPrintReceipts={canPrintReceipts}
+          canReverseReceipts={canReverseReceipts}
           encodedReturnTo={encodedReturnTo}
         />
       ) : (
@@ -113,6 +123,7 @@ export function StudentReceiptsPanel({
           receiptsBySession={receiptsBySession}
           activeSessionLabel={activeSessionLabel}
           canPrintReceipts={canPrintReceipts}
+          canReverseReceipts={canReverseReceipts}
           encodedReturnTo={encodedReturnTo}
         />
       )}
@@ -124,11 +135,13 @@ function BySessionView({
   receiptsBySession,
   activeSessionLabel,
   canPrintReceipts,
+  canReverseReceipts,
   encodedReturnTo,
 }: {
   receiptsBySession: SessionGroup[];
   activeSessionLabel: string | null;
   canPrintReceipts: boolean;
+  canReverseReceipts: boolean;
   encodedReturnTo: string;
 }) {
   return (
@@ -212,11 +225,21 @@ function BySessionView({
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{receipt.receivedBy || "—"}</td>
                       <td className="px-4 py-3 text-right">
-                        <Button asChild size="sm" variant="outline" className="h-8">
-                          <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
-                            {canPrintReceipts ? "Print" : "Open"}
-                          </Link>
-                        </Button>
+                        <span className="inline-flex items-center gap-2">
+                          {canReverseReceipts && !receipt.isReversed ? (
+                            <Link
+                              className="text-xs font-medium text-destructive underline-offset-4 hover:underline"
+                              href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}
+                            >
+                              Reverse
+                            </Link>
+                          ) : null}
+                          <Button asChild size="sm" variant="outline" className="h-8">
+                            <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
+                              {canPrintReceipts ? "Print" : "Open"}
+                            </Link>
+                          </Button>
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -234,11 +257,13 @@ function TimelineView({
   timeline,
   activeSessionLabel,
   canPrintReceipts,
+  canReverseReceipts,
   encodedReturnTo,
 }: {
   timeline: ReceiptItem[];
   activeSessionLabel: string | null;
   canPrintReceipts: boolean;
+  canReverseReceipts: boolean;
   encodedReturnTo: string;
 }) {
   let lastYear = "";
@@ -285,6 +310,14 @@ function TimelineView({
                   <span className={receipt.isReversed ? "line-through opacity-60" : undefined}>
                     <Money value={receipt.totalAmount} size="sm" />
                   </span>
+                  {canReverseReceipts && !receipt.isReversed ? (
+                    <Link
+                      className="text-xs font-medium text-destructive underline-offset-4 hover:underline"
+                      href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}
+                    >
+                      Reverse
+                    </Link>
+                  ) : null}
                   <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2">
                     <Link href={`/protected/receipts/${receipt.id}?returnTo=${encodedReturnTo}`}>
                       {canPrintReceipts ? "Print" : "Open"}

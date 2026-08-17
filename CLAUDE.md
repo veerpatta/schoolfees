@@ -113,6 +113,19 @@ Next.js 16.2.12 App Router + TypeScript 5 (strict) + React 19.2.8, deployed to V
 
 All payment/receipt records are **append-only**. Corrections use a separate `payment_adjustments` table with an audit trail. Never rewrite `payments` or `receipts` rows directly — this constraint applies at every layer (DB, API, UI). A reversed receipt stays visible and marked, and is excluded from every collection figure; it is never deleted or silently subtracted.
 
+**Correcting a wrong fee entry** is reverse + repost, never an edit. Three reversal paths, all
+writing the same compensating `payment_adjustments` rows: `undo_recent_payment` (10 minutes,
+`payments:adjust`), `reverse_receipt_admin` (**any age**, admin-only `payments:reverse_any`,
+mandatory reason), and `process_refund_with_adjustment` (real money handed back). In bulk,
+`scripts/bulk-apply.mjs --plan … ` in `payment-correction` mode — CLI only, never a UI. Dues
+recompute themselves because `pending_amount` is derived, not stored; the caches do not, so
+every path must bust `session:{label}` and drain the matview.
+
+One narrowing to the append-only rule: `receipts` uses
+`private.protect_receipt_money_columns()` rather than the shared guard. Every money column
+still raises; `reference_number`, `notes` and `received_by` may be updated in place because
+they carry no money. `payments`, `payment_adjustments` and `audit_logs` are unchanged.
+
 ### A late fee is not a fee
 
 Since `20260812120000` the two kinds of money have their own columns everywhere:

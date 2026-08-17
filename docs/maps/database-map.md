@@ -118,6 +118,8 @@ supersedes the old one.
 | `preview_workbook_payment_allocation` | The desk's read model. |
 | `waive_late_fee` / `void_late_fee_waiver` | Caps on `late_fee_pending`; a paid late fee cannot be waived. Voiding bills the installment again. |
 | `undo_recent_payment` | 10-minute admin undo; inserts reversals, touches nothing. |
+| `reverse_receipt_admin` | Reversal at any age, for a wrong fee entry. `payments:reverse_any` OR service role, mandatory reason, no time window. Reverses the REMAINING headroom per payment row, so a partly-refunded receipt still clears. Tag `admin_reversal:`. |
+| `post_corrected_payment` | Reposts a receipt with an EXPLICIT allocation, for the CLI correction harness. **service_role only** — no staff permission, so the Payment Desk stays the only human posting surface. Prices off `private.workbook_installment_snapshot`, never the matview. |
 | `process_refund_with_adjustment` | Refunds post a `reversal` adjustment. |
 | `get_dashboard_summary`, `get_dashboard_fee_split`, `get_dashboard_analytics` | The three dashboard reads. |
 | `get_student_directory_summary`, `get_student_segment_counts` | Students list totals and chip counts. |

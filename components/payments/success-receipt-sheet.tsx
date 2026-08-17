@@ -10,10 +10,9 @@ import { CountUp } from "@/components/ui/count-up";
 import { SuccessCheckMark } from "@/components/payments/success-check-mark";
 import { formatInr } from "@/lib/helpers/currency";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { UNDO_WINDOW_SECONDS } from "@/lib/receipts/undo-window";
 import { cn } from "@/lib/utils";
 
-/** Matches UNDO_WINDOW_MS in receipt-undo-action and the RPC's own check. */
-const UNDO_WINDOW_SECONDS = 10 * 60;
 
 function formatCountdown(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -550,7 +549,7 @@ export function SuccessReceiptSheet({
                     {copyStatus === "copied" ? "Copied ✓" : "Copy WhatsApp Message"}
                   </Button>
                 ) : null}
-                {canUndo && onUndoPayment && undoState !== "done" ? (
+                {canUndo && onUndoPayment && undoState !== "done" && undoWindowOpen ? (
                   <div className="col-span-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2">
                     {undoState === "confirming" || undoState === "working" ? (
                       <div className="flex flex-wrap items-center justify-between gap-2">

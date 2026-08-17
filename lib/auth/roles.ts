@@ -24,6 +24,12 @@ export const staffPermissions = [
   "payments:view",
   "payments:write",
   "payments:adjust",
+  // Reversing a receipt after the 10-minute undo window has passed. Admin-only
+  // and deliberately separate from `payments:adjust`, which also gates ledger
+  // edits and import overrides: this one un-collects money from any date, so it
+  // is revoked on its own and reads on its own in the RBAC matrix rather than
+  // riding along with two unrelated powers.
+  "payments:reverse_any",
   "payments:bulk",
   "payments:waive_late_fee",
   "finance:view",
@@ -75,6 +81,7 @@ const adminPermissions: readonly StaffPermission[] = [
   "payments:view",
   "payments:write",
   "payments:adjust",
+  "payments:reverse_any",
   "payments:bulk",
   "payments:waive_late_fee",
   "finance:view",

@@ -196,7 +196,8 @@ export const ROLE_PERMISSIONS = {
   admin: [
     "dashboard:view", "students:view", "students:write", "students:edit_basic",
     "students:edit_sr_no", "fees:view", "fees:write", "fees:repayment_plan",
-    "payments:view", "payments:write", "payments:adjust", "payments:bulk",
+    "payments:view", "payments:write", "payments:adjust", "payments:reverse_any",
+    "payments:bulk",
     "payments:waive_late_fee", "finance:view", "finance:write", "finance:approve",
     "ledger:view", "receipts:view", "receipts:print", "defaulters:view",
     "contacts:write", "imports:view", "reports:view", "settings:view",

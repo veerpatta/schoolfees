@@ -15,7 +15,14 @@ import type { ReceiptDetail } from "@/lib/receipts/types";
 type Props = {
   receipt: Pick<
     ReceiptDetail,
-    "receiptNumber" | "totalAmount" | "studentFullName" | "fatherName" | "fatherPhone" | "parentEmail" | "classLabel"
+    | "receiptNumber"
+    | "totalAmount"
+    | "studentFullName"
+    | "fatherName"
+    | "fatherPhone"
+    | "parentEmail"
+    | "classLabel"
+    | "isVoided"
   >;
   templates: WhatsappTemplate[];
 };
@@ -99,6 +106,22 @@ export function ReceiptShareActions({ receipt, templates }: Props) {
         size="full"
       >
         <div className="space-y-4">
+          {/* Sharing a reversed receipt sends a parent a payment confirmation
+              for money the school no longer holds. The document, the PDF and the
+              share card all mark it; this sheet composed a cheerful "payment
+              received" message regardless, so it says so before the send. */}
+          {receipt.isVoided ? (
+            <div
+              role="alert"
+              className="rounded-md bg-destructive-soft px-4 py-3 text-sm leading-6 text-destructive-soft-foreground"
+            >
+              <p className="font-semibold">This receipt has been reversed</p>
+              <p>
+                It is no longer proof of payment. Sending it would tell the family a payment
+                stands when it does not.
+              </p>
+            </div>
+          ) : null}
           {receiptTemplates.length > 0 ? (
             <div className="space-y-2">
               <label htmlFor="receipt-share-template" className="text-sm font-medium text-foreground">

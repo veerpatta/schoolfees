@@ -13,7 +13,7 @@ import { getSetupWizardDataLight } from "@/lib/setup/data";
 import { getStudentFormOptions } from "@/lib/students/data";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
-import { requireAnyStaffPermission } from "@/lib/supabase/session";
+import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import { getTodayReceiptSnapshot } from "@/lib/workbook/data";
 import { normalizePaymentModeFilter } from "@/lib/transactions/payment-modes";
@@ -161,6 +161,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       ) : null}
 
       <TransactionsClientShell
+        canReverseReceipts={hasStaffPermission(staff, "payments:reverse_any")}
         activeView={activeView}
         initialFilters={{
           classId,

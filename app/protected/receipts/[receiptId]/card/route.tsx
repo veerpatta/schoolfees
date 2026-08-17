@@ -24,6 +24,7 @@ const INK_MUTED = "#bcb7a9"; // --nav-muted 44 12% 70%
 const PAPER = "#f7f5ef";
 const SAFFRON = "#c2410c"; // accent
 const GREEN = "#2f9e63";
+const DANGER = "#b3261e"; // --destructive, for a reversed receipt
 
 export async function GET(
   _request: Request,
@@ -92,7 +93,11 @@ export async function GET(
             style={{
               display: "flex",
               alignItems: "center",
-              backgroundColor: GREEN,
+              // A reversed receipt is not proof of payment, and this card's whole
+              // job is to be forwarded to a parent as exactly that. The PDF and
+              // every on-screen document already swap the PAID stamp for a
+              // REVERSED one; this surface hardcoded green and did not.
+              backgroundColor: receipt.isVoided ? DANGER : GREEN,
               color: "#ffffff",
               borderRadius: 999,
               padding: "16px 36px",
@@ -101,7 +106,7 @@ export async function GET(
               letterSpacing: 4,
             }}
           >
-            PAID ✓
+            {receipt.isVoided ? "REVERSED" : "PAID ✓"}
           </div>
         </div>
 

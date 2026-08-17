@@ -20,8 +20,14 @@ export type FinanceReceivedByTotal = {
 };
 
 export type FinanceDaySummarySnapshot = {
+  /** Receipts that still count as collection — reversed ones are excluded. */
   receiptCount: number;
   receiptTotal: number;
+  /** Reversed on this day's takings. Shown, not merely subtracted, so a day
+   *  whose figure moved after the fact says so rather than quietly disagreeing
+   *  with an earlier printout. */
+  reversedReceiptCount: number;
+  reversedTotal: number;
   refundRequestCount: number;
   refundRequestTotal: number;
   refundProcessedCount: number;

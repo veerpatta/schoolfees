@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+import {
+  getReceiptReversalTotals,
+  isReceiptReversed,
+} from "@/lib/receipts/reversals";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Automatic day close.
@@ -57,7 +61,7 @@ export async function GET(request: Request) {
 
   const { data: receiptRows, error: receiptError } = await supabase
     .from("receipts")
-    .select("payment_mode, total_amount")
+    .select("id, payment_mode, total_amount")
     .eq("payment_date", targetDate)
     .neq("payment_mode", "discount");
 
@@ -81,10 +85,36 @@ export async function GET(request: Request) {
     );
   }
 
-  const receipts = (receiptRows ?? []) as Array<{
+  const allReceipts = (receiptRows ?? []) as Array<{
+    id: string;
     payment_mode: ModeTotal["paymentMode"];
     total_amount: number;
   }>;
+
+  /**
+   * A reversed receipt is not collection.
+   *
+   * `receipts.total_amount` never changes when a receipt is reversed — the
+   * reversal is a compensating `payment_adjustments` row — so summing the column
+   * counts money the school gave back or never took. Every other money surface
+   * has excluded them since 20260726172238; this one did not, and its output is
+   * a FROZEN snapshot, so a day closed before the reversal kept overstating
+   * collection with no way to self-heal.
+   *
+   * Now a re-run for an old date (`?date=YYYY-MM-DD`) actually corrects it,
+   * which is what makes reversing an old receipt safe.
+   */
+  const reversalTotals = await getReceiptReversalTotals(
+    allReceipts.map((row) => row.id),
+    supabase,
+  );
+  const reversedReceipts = allReceipts.filter((row) =>
+    isReceiptReversed(reversalTotals, row.id, row.total_amount),
+  );
+  const reversedTotal = reversedReceipts.reduce((sum, row) => sum + row.total_amount, 0);
+  const receipts = allReceipts.filter(
+    (row) => !isReceiptReversed(reversalTotals, row.id, row.total_amount),
+  );
 
   const modeMap = new Map<ModeTotal["paymentMode"], ModeTotal>();
   let receiptTotal = 0;
@@ -109,6 +139,11 @@ export async function GET(request: Request) {
   const summarySnapshot = {
     receiptCount: receipts.length,
     receiptTotal,
+    // Recorded rather than merely subtracted: a day whose figure moved after it
+    // was closed should say so on its own row, not just disagree with an
+    // earlier printout.
+    reversedReceiptCount: reversedReceipts.length,
+    reversedTotal,
     refundProcessedCount: processedRefunds.length,
     refundProcessedTotal,
     netCashTotal: receiptTotal - refundProcessedTotal,

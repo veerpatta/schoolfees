@@ -1,4 +1,8 @@
 import "server-only";
+import {
+  getReceiptReversalTotals,
+  isReceiptReversed,
+} from "@/lib/receipts/reversals";
 import { fetchAllPages } from "@/lib/helpers/chunk";
 
 import { formatExportName } from "@/lib/helpers/export";
@@ -1250,11 +1254,20 @@ async function getReceiptRegisterReportData(
   filters: ReportFilters,
   classOptions: StudentClassOption[],
 ): Promise<ReceiptRegisterReportData> {
-  const rows = filterReceiptSourceRows(
+  const sourceRows = filterReceiptSourceRows(
     await getReceiptSourceRows(),
     filters,
     classOptions,
-  ).map(
+  );
+
+  // The register lists reversed receipts and always has. Its total summed them
+  // too, so a reversed receipt inflated the register while the dashboard,
+  // transactions and every other board had already dropped it.
+  const reversalTotals = await getReceiptReversalTotals(
+    sourceRows.map((row) => row.receiptId),
+  );
+
+  const rows = sourceRows.map(
     (row) =>
       ({
         receiptId: row.receiptId,
@@ -1271,15 +1284,18 @@ async function getReceiptRegisterReportData(
         sessionLabel: row.sessionLabel,
         classLabel: row.classLabel,
         transportRouteLabel: row.transportRouteLabel,
+        isReversed: isReceiptReversed(reversalTotals, row.receiptId, row.totalAmount),
       }) satisfies ReceiptRegisterReportRow,
   );
+
+  const counted = rows.filter((row) => !row.isReversed);
 
   return {
     key: "receipt-register",
     metrics: {
-      receiptCount: rows.length,
-      totalAmount: rows.reduce((sum, row) => sum + row.totalAmount, 0),
-      studentCount: new Set(rows.map((row) => row.studentId)).size,
+      receiptCount: counted.length,
+      totalAmount: counted.reduce((sum, row) => sum + row.totalAmount, 0),
+      studentCount: new Set(counted.map((row) => row.studentId)).size,
     },
     rows,
   };
@@ -1606,6 +1622,10 @@ export async function getReportCsvData(
           "Amount",
           "Reference no",
           "Received by",
+          // Reversed rows stay in the register but must not be summed. Without a
+          // column saying so, a SUM() over Amount in Excel silently over-counts —
+          // the same shape as the Transactions CSV, which carries this already.
+          "Status",
         ],
         rows: data.report.rows.map((row) => [
           row.receiptNumber,
@@ -1620,6 +1640,7 @@ export async function getReportCsvData(
           row.totalAmount,
           row.referenceNumber,
           row.receivedBy,
+          row.isReversed ? "REVERSED" : "",
         ]),
       };
     case "import-verification": {

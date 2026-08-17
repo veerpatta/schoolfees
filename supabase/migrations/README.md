@@ -383,6 +383,24 @@ express the school's rule and never fired once:
   board and the money band on the same screen. All three now include carry-forward
   and total alike. `next_accrual` keeps the exclusion, correctly — a carry-forward
   row carries a late fee rate of 0 and can never contribute to a future accrual.
+- `20260817103000_admin_can_reverse_any_receipt` — `reverse_receipt_admin`. The
+  10-minute undo covers a mis-click at the counter; this covers the wrong fee
+  entry found a week later, where no cash moved so there is nothing to refund.
+  No time window, admin-only `payments:reverse_any` (or the service role, for the
+  bulk harness), mandatory reason. Reverses the **remaining headroom** per payment
+  row rather than the gross amount, so a receipt already carrying a partial refund
+  still clears to zero. Tag `admin_reversal:`, which falls through the Finance
+  Controls queue filter on purpose — every one gets a second look.
+- `20260817113000_bulk_payment_corrections` — the other half, for the CLI harness.
+  `post_corrected_payment` reposts with an EXPLICIT allocation (the desk RPC
+  auto-allocates by due date, so it could never fix money on the wrong
+  installment) and is `service_role`-only, so the Payment Desk stays the only
+  posting surface a human can reach. Also swaps `receipts` onto its own
+  column-selective guard, `private.protect_receipt_money_columns()`: every money
+  column raises exactly as before, DELETE still raises, and three descriptive
+  columns — `reference_number`, `notes`, `received_by` — become editable so a
+  typo'd UPI reference does not need a receipt voided. `payments`,
+  `payment_adjustments` and `audit_logs` keep the shared unconditional guard.
 
 ## When you add a new migration
 

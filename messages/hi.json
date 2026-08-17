@@ -777,6 +777,7 @@
   "Activity": {
     "kindPaymentPosted": "भुगतान दर्ज हुआ",
     "kindPaymentUndone": "भुगतान वापस लिया गया",
+    "kindPaymentReversed": "रसीद निरस्त की गई",
     "kindReceiptPrinted": "रसीद प्रिंट हुई",
     "kindStudentEdited": "बच्चे की जानकारी बदली",
     "kindStudentView": "बच्चा देखा",

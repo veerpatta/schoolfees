@@ -27,6 +27,15 @@ describe("reversed receipts are excluded from money totals", () => {
     ["Transactions day strip", "lib/workbook/data.ts"],
     ["office home", "lib/office/data.ts"],
     ["dashboard summary fallback", "lib/dashboard/summary.ts"],
+    // Added when admin reversal of any receipt landed. Reversal used to be rare
+    // enough that these six quietly summed reversed money; once an admin can
+    // reverse anything, each one is a number that visibly disagrees with the
+    // board next to it.
+    ["nightly day close", "app/api/cron/auto-day-close/route.ts"],
+    ["finance day summary", "lib/finance-controls/data.ts"],
+    ["receipts page stat strip", "lib/receipts/data.ts"],
+    ["reports receipt register", "lib/reports/data.ts"],
+    ["AI bundle export sheets", "app/protected/exports/[exportType]/route.ts"],
   ];
 
   it.each(surfaces)("%s consults reversal state before summing", (_label, path) => {

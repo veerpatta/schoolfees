@@ -6,12 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { undoRecentPaymentAction } from "@/app/protected/payments/actions";
-
-const UNDO_WINDOW_MS = 10 * 60_000;
-
-function remainingMs(createdAt: string) {
-  return Math.max(0, new Date(createdAt).getTime() + UNDO_WINDOW_MS - Date.now());
-}
+import { undoWindowRemainingMs } from "@/lib/receipts/undo-window";
 
 function formatCountdown(ms: number) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -42,12 +37,12 @@ export function ReceiptUndoAction({
   createdAt,
 }: ReceiptUndoActionProps) {
   const router = useRouter();
-  const [msLeft, setMsLeft] = useState(() => remainingMs(createdAt));
+  const [msLeft, setMsLeft] = useState(() => undoWindowRemainingMs(createdAt));
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    const timer = window.setInterval(() => setMsLeft(remainingMs(createdAt)), 1000);
+    const timer = window.setInterval(() => setMsLeft(undoWindowRemainingMs(createdAt)), 1000);
     return () => window.clearInterval(timer);
   }, [createdAt]);
 

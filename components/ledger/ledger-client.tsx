@@ -26,9 +26,21 @@ const selectClassName =
 const textAreaClassName =
   "flex min-h-[88px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
+/**
+ * `reversal` is deliberately absent.
+ *
+ * This form writes ONE payment row at a time, so a receipt split across three
+ * installments needed three separate entries to be fully reversed — and
+ * "reversed" is all-or-nothing everywhere else (`isReceiptReversed`). Stopping
+ * after the first left a receipt partly given back and still counted at face
+ * value in every collection total, with no VOID stamp and nothing to show the
+ * operator they were half done.
+ *
+ * Reversing a receipt has its own path now, doing the whole receipt in one
+ * transaction: the 10-minute undo, or `reverse_receipt_admin` after that.
+ */
 const adjustmentTypeOptions: Array<{ value: string; label: string }> = [
   { value: "correction", label: "Correction" },
-  { value: "reversal", label: "Reversal" },
   { value: "discount", label: "Discount" },
   { value: "writeoff", label: "Write-off" },
 ];

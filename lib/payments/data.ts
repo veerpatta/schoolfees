@@ -1857,6 +1857,56 @@ export async function undoRecentPayment(payload: { receiptId: string; reason?: s
   };
 }
 
+/**
+ * Admin reversal of a receipt of any age — the wrong-fee-entry path, where the
+ * 10-minute undo window has long passed and no cash ever moved, so the refund
+ * workflow would be describing an event that never happened.
+ *
+ * Reverses what is LEFT on each payment row, so a receipt already carrying a
+ * partial refund reverses cleanly down to zero. Returns the concession total so
+ * the caller can say what the reversal did NOT undo — a Payment Desk quick
+ * discount or late-fee waiver lives on receipt_adjustments and stays.
+ *
+ * MUST run on the user-JWT client: the RPC's permission arm is
+ * has_permission('payments:reverse_any'), which is always false under the
+ * service-role client (auth.uid() is null there). The RPC's other arm exists for
+ * the headless bulk path, not for this one.
+ */
+export async function reverseReceiptAdmin(payload: { receiptId: string; reason: string }) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reverse_receipt_admin", {
+    p_receipt_id: payload.receiptId,
+    p_reason: payload.reason,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Could not reverse the receipt.");
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | {
+        receipt_id: string;
+        receipt_number: string;
+        reversed_amount: number;
+        already_reversed_amount: number;
+        concession_amount: number;
+      }
+    | null
+    | undefined;
+
+  if (!row?.receipt_id) {
+    throw new Error("Reversal did not return a result. Check the receipt before retrying.");
+  }
+
+  return {
+    receiptId: row.receipt_id,
+    receiptNumber: row.receipt_number,
+    reversedAmount: row.reversed_amount,
+    alreadyReversedAmount: row.already_reversed_amount,
+    concessionAmount: row.concession_amount,
+  };
+}
+
 async function findReceiptByClientRequestId(payload: {
   studentId: string;
   clientRequestId: string;

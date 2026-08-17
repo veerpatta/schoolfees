@@ -84,7 +84,13 @@ describe("Receipts filters", () => {
     const data = read("lib/receipts/data.ts");
     const quickLoad = read(QUICK_LOAD);
 
-    expect(data).toContain("truncated: receiptCount > AGGREGATE_ROW_CAP");
+    // Judged on the SERVER-side count, not the netted one. `receiptCount` now
+    // excludes reversed receipts and is therefore derived from the capped fetch,
+    // so comparing it to the cap could never be true and this warning would have
+    // gone quiet exactly when the total was least trustworthy.
+    expect(data).toContain(
+      "truncated: (aggregateResult.count ?? aggregateRows.length) > AGGREGATE_ROW_CAP",
+    );
     // A total that is quietly short is worse than one marked approximate.
     expect(quickLoad).toContain('aggregate.truncated ? "≈ " : ""');
   });

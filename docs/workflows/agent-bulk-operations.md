@@ -123,17 +123,90 @@ family owes and is never a silent operation, so `--only-decreases` exists to wit
 Copy that instinct. "How many rows change" is the wrong headline. "How many families end up
 owing more" is the right one.
 
+## Correcting wrongly-entered payment data
+
+`scripts/bulk-apply.mjs` has a second execution mode for the one thing its
+column-update engine can never do: fix a payment that was entered wrong. Set the plan's
+`operation` to `payment-correction` and give every row an `op`.
+
+There is **no UI for this and none should be added** — the Payment Desk stays the only
+posting surface a human can use.
+
+| `op` | Fixes |
+|---|---|
+| `reverse` | Receipt should not exist at all — a duplicate, or money never received. Reverses with **no replacement** |
+| `amount` | Receipt entered for the wrong rupee figure |
+| `student` | Receipt posted against the wrong child |
+| `date-mode` | Right money, wrong payment date or payment mode |
+| `allocation` | Right money on the right child, applied to the wrong installment |
+| `metadata` | `reference_number` / `notes` / `received_by` only — no money moves |
+
+```jsonc
+{
+  "operation": "payment-correction",
+  "reason": "Import batch 2026-08-14 posted tuition against the sibling",
+  "rows": [
+    { "op": "reverse",  "receiptNumber": "SVP20260814-0029", "fromAmount": 2000 },
+    { "op": "amount",   "receiptNumber": "SVP20260814-0033", "fromAmount": 5000, "toAmount": 3500 },
+    { "op": "student",  "receiptNumber": "SVP20260814-0031",
+      "fromAdmissionNo": "VPPS/2026/0411", "toAdmissionNo": "VPPS/2026/0412",
+      "allocations": [{ "installmentId": "…", "amount": 4000 }] },
+    { "op": "metadata", "receiptNumber": "SVP20260814-0036", "referenceNumber": "UPI-889231" }
+  ]
+}
+```
+
+```bash
+node scripts/bulk-apply.mjs --plan corrections.json --session TEST-2026-27
+node scripts/bulk-apply.mjs --plan corrections.json --session TEST-2026-27 --apply --allow-fee-impact
+```
+
+**Everything except `reverse` and `metadata` is reverse + repost.** `reverse_receipt_admin` writes
+compensating `payment_adjustments`, then `post_corrected_payment` writes a fresh receipt with
+the corrected data. Nothing is edited and nothing is deleted, which is exactly why every
+dashboard, export, defaulter list and day-close figure recomputes itself: `pending_amount` is
+derived from payments + adjustments, never stored.
+
+Five things worth knowing before running one:
+
+- **`--allow-fee-impact` is always required.** Every correction reverses a posted receipt.
+- **`from*` fields are re-checked at apply time.** A row that has moved since the dry run is
+  rejected, and one rejected row aborts the whole plan before anything is written. That is
+  what makes a reviewed dry run mean something.
+- **The reversal is visible to the family immediately.** The old receipt is stamped VOID and
+  `/r/<receipt-number>` — the QR on their printed copy — shows it as reversed.
+- **`amount` can only shrink a receipt.** Taking more money is a payment, not a correction,
+  and belongs at the desk with the parent present.
+- **A failed repost is reported as `REVERSED BUT NOT REPOSTED`.** The reversal is append-only
+  and cannot be taken back, so that receipt is reversed with nothing in its place until
+  somebody posts the replacement. It is not a tidy failure and the run does not pretend it is.
+
+Corrections also POST to `/api/admin/revalidate-after-bulk` (guarded by `CRON_SECRET`) when
+they finish, because a Node process cannot bust a Next.js cache tag or drain a matview. If
+`CRON_SECRET` is unset the run says so rather than leaving you to wonder why the dashboard
+still shows the old number.
+
 ## What is never scriptable
 
 **Posted `payments` and `receipts` rows cannot be updated or deleted — by anyone.**
 `private.prevent_append_only_mutation()` is bound as a `before update or delete` trigger on
-`public.payments`, `public.receipts` and `public.payment_adjustments`. A service-role
-connection raises the same exception as a staff session. There is no flag for this and none
-should be added.
+`public.payments` and `public.payment_adjustments`. A service-role connection raises the same
+exception as a staff session. There is no flag for this and none should be added.
 
 Corrections move money through `payment_adjustments` instead, or through
-`post_student_payment_with_adjustments` for a new posting. A reversed receipt stays visible
-and marked, excluded from every collection figure, never deleted.
+`post_student_payment_with_adjustments` / `post_corrected_payment` for a new posting. A
+reversed receipt stays visible and marked, excluded from every collection figure, never
+deleted.
+
+**One narrowing, since `20260817113000`.** `receipts` now has its own guard,
+`private.protect_receipt_money_columns()`, instead of the shared one. DELETE is still refused
+outright, and every money column — `receipt_number`, `student_id`, `payment_date`,
+`payment_mode`, `total_amount`, `created_by`, `created_at`, `client_request_id`,
+`family_payment_id` — raises exactly as before. Three purely descriptive columns may now be
+updated in place: `reference_number`, `notes`, `received_by`. Correcting a typo'd UPI
+reference should not require voiding a parent's receipt and issuing a new number.
+`payments`, `payment_adjustments` and `audit_logs` keep the shared unconditional guard, so
+this narrowed one table and nothing else.
 
 Also out of bounds for a script:
 

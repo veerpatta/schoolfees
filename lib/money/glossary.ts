@@ -159,7 +159,7 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
     label: "Reversed",
     summary: "A receipt cancelled by an equal and opposite entry.",
     detail:
-      "Both rows stay in the register permanently — the original receipt is never edited or deleted. A reversal posts a compensating payment_adjustment, which is why a reversed receipt still prints and still appears in the day book.",
+      "Both rows stay in the register permanently — the original receipt is never edited or deleted. A reversal posts a compensating payment_adjustment, which is why a reversed receipt still prints and still appears in the day book. Within ten minutes of posting any admin can undo a receipt; after that only an admin holding the separate reverse permission can, and only with a written reason. Either way the money goes straight back onto the family's dues.",
   },
   creditBalance: {
     key: "creditBalance",

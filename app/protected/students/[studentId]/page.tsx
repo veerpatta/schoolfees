@@ -181,6 +181,7 @@ export default async function StudentDetailPage({
 
   const canEditStudent = hasStaffPermission(staff, "students:write");
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
+  const canReverseReceipts = hasStaffPermission(staff, "payments:reverse_any");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canWaiveLateFee = hasStaffPermission(staff, "payments:waive_late_fee");
   // Admin-only: `fees:write` sits in adminPermissions, while accountants get
@@ -746,6 +747,7 @@ export default async function StudentDetailPage({
       }))}
       activeSessionLabel={activeSessionLabel}
       canPrintReceipts={canPrintReceipts}
+      canReverseReceipts={canReverseReceipts}
       encodedReturnTo={encodedReturnTo}
     />
   );

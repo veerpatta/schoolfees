@@ -64,3 +64,11 @@ Added since this index was written:
   adding one is a small reviewable diff in `bulk-apply-operations.mjs`.
   Read `docs/workflows/agent-bulk-operations.md` first.
   `node scripts/bulk-apply.mjs --plan <file.json> --session TEST-2026-27 [--apply]`
+- `bulk-apply-payment-corrections.mjs` — the harness's second mode, for payment data that was
+  entered wrong. Set the plan's `operation` to `payment-correction`; ops are `amount`,
+  `student`, `date-mode`, `allocation` and `metadata`. All but the last are **reverse +
+  repost** — the append-only triggers refuse a column UPDATE on `payments`/`receipts` for the
+  service role too, so a correction gives the wrong receipt back and posts a right one. It
+  carries the same guards plus a `from*` re-check at apply time, and asks the app to bust its
+  caches afterwards, which a Node process cannot do itself. There is no UI for it on purpose.
+  `node scripts/bulk-apply.mjs --plan <file.json> --session TEST-2026-27 --apply --allow-fee-impact`

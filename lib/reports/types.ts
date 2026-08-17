@@ -229,6 +229,10 @@ export type ReceiptRegisterReportRow = {
   sessionLabel: string;
   classLabel: string;
   transportRouteLabel: string;
+  /** Reversed in full. Kept in the register on purpose — a receipt that
+   *  disappears is harder to trust than one that is shown and marked — but
+   *  excluded from `metrics.totalAmount`. */
+  isReversed: boolean;
 };
 
 export type ReceiptRegisterReportData = {

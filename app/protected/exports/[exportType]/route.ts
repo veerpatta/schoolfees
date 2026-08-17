@@ -1,5 +1,9 @@
 import type { NextRequest } from "next/server";
 
+import {
+  getReceiptReversalTotals,
+  isReceiptReversed,
+} from "@/lib/receipts/reversals";
 import { getOfficeWorkbookData } from "@/lib/transactions/dues";
 import type { OfficeWorkbookView } from "@/lib/transactions/workbook";
 import { getDefaulterExportRows } from "@/lib/defaulters/data";
@@ -395,7 +399,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       supabase
         .from("payments")
         .select(
-          "student_id, amount, notes, created_at, discount_applied_at_posting, waiver_applied_at_posting, pending_before_posting, pending_after_posting, receipt_ref:receipts(receipt_number, payment_date, payment_mode, received_by), installment_ref:installments(installment_no, installment_label, due_date)",
+          "student_id, amount, notes, created_at, discount_applied_at_posting, waiver_applied_at_posting, pending_before_posting, pending_after_posting, receipt_ref:receipts(id, receipt_number, total_amount, payment_date, payment_mode, received_by), installment_ref:installments(installment_no, installment_label, due_date)",
         )
         .in("student_id", chunk)
         .order("created_at", { ascending: true }),
@@ -853,6 +857,10 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
         "Late fee waived": row.lateFeeWaived,
         "Outstanding (post)": row.currentOutstanding,
         "Total paid (post)": row.currentTotalPaid,
+        // The source row has carried this all along; the sheet dropped it, so an
+        // AI bundle handed a reader a reversed receipt indistinguishable from a
+        // real one and a SUM over Amount that over-counted.
+        "Status": row.isReversed ? "REVERSED" : "",
       })),
     ),
     "Payments",
@@ -1050,6 +1058,15 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   // ── Payment Allocations ──────────────────────────────────────────────────
   // Receipt -> installment -> rupees, which is what "how much was paid" means
   // once a single receipt clears parts of three installments.
+  type AllocationReceiptRef = {
+    id: string;
+    receipt_number: string;
+    total_amount: number | null;
+    payment_date: string;
+    payment_mode: string;
+    received_by: string | null;
+  };
+
   type AllocationRow = {
     student_id: string;
     amount: number;
@@ -1060,8 +1077,8 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     pending_before_posting: number | null;
     pending_after_posting: number | null;
     receipt_ref:
-      | { receipt_number: string; payment_date: string; payment_mode: string; received_by: string | null }
-      | { receipt_number: string; payment_date: string; payment_mode: string; received_by: string | null }[]
+      | AllocationReceiptRef
+      | AllocationReceiptRef[]
       | null;
     installment_ref:
       | { installment_no: number; installment_label: string; due_date: string }
@@ -1069,7 +1086,15 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       | null;
   };
 
-  const allocationRows = ((allocationResult.data ?? []) as AllocationRow[]).map((row) => {
+  const typedAllocationRows = (allocationResult.data ?? []) as AllocationRow[];
+  const allocationReversalTotals = await getReceiptReversalTotals(
+    typedAllocationRows
+      .map((row) => firstOf(row.receipt_ref)?.id)
+      .filter((id): id is string => Boolean(id)),
+    supabase,
+  );
+
+  const allocationRows = typedAllocationRows.map((row) => {
     const student = studentIndex.get(row.student_id);
     const receipt = firstOf(row.receipt_ref);
     const installment = firstOf(row.installment_ref);
@@ -1092,6 +1117,13 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       "Pending after": row.pending_after_posting ?? "",
       "Received by": receipt?.received_by ?? "",
       "Notes": row.notes ?? "",
+      "Receipt status": receipt && isReceiptReversed(
+        allocationReversalTotals,
+        receipt.id,
+        receipt.total_amount ?? 0,
+      )
+        ? "REVERSED"
+        : "",
     };
   });
 

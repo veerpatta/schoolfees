@@ -589,17 +589,39 @@ export async function getReceiptsPage(
 
   // Totals over the whole filtered set, not the page in hand — a stat strip
   // that reported the thirty rows on screen would be worse than none.
-  const aggregateRows = (aggregateResult.data ?? []) as Array<{ total_amount: number | null }>;
-  const totalAmount = aggregateRows.reduce(
+  //
+  // Reversed receipts are struck through in the list directly below this strip,
+  // so counting them here made the header contradict its own rows and overstated
+  // what the school actually holds. The rows already carry the flag; the strip
+  // needed its own lookup because the aggregate query reads further than one
+  // page of the list.
+  const aggregateRows = (aggregateResult.data ?? []) as Array<{
+    id: string;
+    total_amount: number | null;
+  }>;
+  const aggregateReversals = await getReceiptReversalTotals(
+    aggregateRows.map((row) => row.id),
+    supabase,
+  );
+  const countedAggregateRows = aggregateRows.filter(
+    (row) => !isReceiptReversed(aggregateReversals, row.id, Number(row.total_amount ?? 0)),
+  );
+  const totalAmount = countedAggregateRows.reduce(
     (sum, row) => sum + Number(row.total_amount ?? 0),
     0,
   );
-  const receiptCount = aggregateResult.count ?? aggregateRows.length;
+  // `aggregateResult.count` is the unfiltered server-side count, so it cannot be
+  // used once reversed rows are dropped — fall back to what was actually summed.
+  const receiptCount = countedAggregateRows.length;
   const aggregate: ReceiptPageAggregate = {
     totalAmount,
     receiptCount,
     averageAmount: receiptCount > 0 ? Math.round(totalAmount / receiptCount) : 0,
-    truncated: receiptCount > AGGREGATE_ROW_CAP,
+    // Truncation is still judged on the SERVER-side count, not the netted one:
+    // `receiptCount` is now derived from the capped fetch, so comparing it to the
+    // cap could never be true and the "showing a partial total" warning would
+    // have gone quiet.
+    truncated: (aggregateResult.count ?? aggregateRows.length) > AGGREGATE_ROW_CAP,
   };
 
   let facets: ReceiptPageFacets | undefined;

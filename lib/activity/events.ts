@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export const ACTIVITY_KINDS = [
   "payment_posted",
   "payment_undone",
+  "payment_reversed",
   "receipt_printed",
   "student_edited",
   "student_view",
@@ -19,6 +20,7 @@ export type ActivityKind = (typeof ACTIVITY_KINDS)[number];
 const KIND_LABEL: Record<ActivityKind, string> = {
   payment_posted: "Payment posted",
   payment_undone: "Payment undone",
+  payment_reversed: "Receipt reversed",
   receipt_printed: "Receipt printed",
   student_edited: "Student edited",
   student_view: "Student viewed",
@@ -31,6 +33,7 @@ const KIND_LABEL: Record<ActivityKind, string> = {
 const KIND_TONE: Record<ActivityKind, "success" | "info" | "warning" | "muted"> = {
   payment_posted: "success",
   payment_undone: "warning",
+  payment_reversed: "warning",
   receipt_printed: "info",
   student_edited: "warning",
   student_view: "muted",

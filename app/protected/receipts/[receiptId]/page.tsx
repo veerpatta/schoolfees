@@ -8,7 +8,9 @@ import { MobilePrintedReceipt } from "@/components/payments/mobile-printed-recei
 import { ReceiptDocument } from "@/components/receipts/receipt-document";
 import { ReceiptPrintActions } from "@/components/receipts/receipt-print-actions";
 import { ReceiptShareActions } from "@/components/receipts/receipt-share-actions";
+import { ReceiptAdminReversalAction } from "@/components/receipts/receipt-admin-reversal-action";
 import { ReceiptUndoAction } from "@/components/receipts/receipt-undo-action";
+import { isUndoWindowOpen } from "@/lib/receipts/undo-window";
 import { getSiteUrl } from "@/lib/env";
 import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
 import { getReceiptDetail } from "@/lib/receipts/data";
@@ -53,8 +55,16 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
   }
 
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
+
+  // The 10-minute undo and the unlimited admin reversal are the same decision at
+  // two different ages, so only one of them is ever offered. Evaluated here on
+  // the server rather than left to the countdown component, which would
+  // otherwise leave the page with no correction path at all once it self-hides.
+  const undoWindowOpen = isUndoWindowOpen(receipt.createdAt);
   const canUndoPayment =
-    hasStaffPermission(staff, "payments:adjust") && !receipt.isVoided;
+    hasStaffPermission(staff, "payments:adjust") && !receipt.isVoided && undoWindowOpen;
+  const canReverseReceipt =
+    hasStaffPermission(staff, "payments:reverse_any") && !receipt.isVoided && !undoWindowOpen;
   const layout = resolvedSearchParams?.layout === "v2" ? ("v2" as const) : ("v3" as const);
 
   // Footer QR — public verify link for the printed receipt (V3 layout).
@@ -89,6 +99,19 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
                 sessionLabel={receipt.sessionLabel}
                 receiptNumber={receipt.receiptNumber}
                 createdAt={receipt.createdAt}
+              />
+            ) : null}
+            {canReverseReceipt ? (
+              <ReceiptAdminReversalAction
+                receiptId={receipt.id}
+                studentId={receipt.studentId}
+                sessionLabel={receipt.sessionLabel}
+                receiptNumber={receipt.receiptNumber}
+                studentName={receipt.studentFullName}
+                totalAmount={receipt.totalAmount}
+                paymentDate={receipt.paymentDate}
+                alreadyReversedAmount={receipt.reversedAmount ?? 0}
+                concessionAmount={receipt.discountAmount + receipt.lateFeeWaived}
               />
             ) : null}
           </div>

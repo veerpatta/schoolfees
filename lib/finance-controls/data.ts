@@ -3,6 +3,10 @@ import "server-only";
 import { formatPaymentModeLabel } from "@/lib/config/fee-rules";
 import { formatExportName } from "@/lib/helpers/export";
 import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
+import {
+  getReceiptReversalTotals,
+  isReceiptReversed,
+} from "@/lib/receipts/reversals";
 import { loadSessionScopedReceiptIds } from "@/lib/session/installment-scope";
 import { createClient } from "@/lib/supabase/server";
 
@@ -181,6 +185,8 @@ function parseSummarySnapshot(value: unknown): FinanceDaySummarySnapshot {
     return {
       receiptCount: 0,
       receiptTotal: 0,
+      reversedReceiptCount: 0,
+      reversedTotal: 0,
       refundRequestCount: 0,
       refundRequestTotal: 0,
       refundProcessedCount: 0,
@@ -226,6 +232,9 @@ function parseSummarySnapshot(value: unknown): FinanceDaySummarySnapshot {
   return {
     receiptCount: typeof raw.receiptCount === "number" ? raw.receiptCount : 0,
     receiptTotal: typeof raw.receiptTotal === "number" ? raw.receiptTotal : 0,
+    reversedReceiptCount:
+      typeof raw.reversedReceiptCount === "number" ? raw.reversedReceiptCount : 0,
+    reversedTotal: typeof raw.reversedTotal === "number" ? raw.reversedTotal : 0,
     refundRequestCount: typeof raw.refundRequestCount === "number" ? raw.refundRequestCount : 0,
     refundRequestTotal: typeof raw.refundRequestTotal === "number" ? raw.refundRequestTotal : 0,
     refundProcessedCount: typeof raw.refundProcessedCount === "number" ? raw.refundProcessedCount : 0,
@@ -462,6 +471,7 @@ function mapAdjustmentRow(
 
 function buildSummarySnapshot(payload: {
   receipts: ReceiptRow[];
+  reversalTotals: Map<string, number>;
   refunds: FinanceRefundRequestRow[];
   corrections: FinanceCorrectionReviewRow[];
   closure: FinanceClosureRecord | null;
@@ -473,7 +483,23 @@ function buildSummarySnapshot(payload: {
   const cashierMap = new Map<string, { receivedBy: string; totalAmount: number; receiptCount: number }>();
   let receiptTotal = 0;
 
-  payload.receipts.forEach((row) => {
+  /**
+   * A reversed receipt is not collection, and the day book is where that is
+   * easiest to get wrong: the reversal is a `payment_adjustments` row, so it
+   * shows up in the Corrections panel on the day it was MADE, while this
+   * total sums `receipts.total_amount` for the day the money was taken. Undo
+   * reversals never touched either figure — only refunds did — so a reversed
+   * receipt kept inflating its own day forever.
+   */
+  const countedReceipts = payload.receipts.filter(
+    (row) => !isReceiptReversed(payload.reversalTotals, row.id, row.total_amount),
+  );
+  const reversedReceipts = payload.receipts.filter((row) =>
+    isReceiptReversed(payload.reversalTotals, row.id, row.total_amount),
+  );
+  const reversedTotal = reversedReceipts.reduce((sum, row) => sum + row.total_amount, 0);
+
+  countedReceipts.forEach((row) => {
     receiptTotal += row.total_amount;
 
     const modeExisting = modeMap.get(row.payment_mode);
@@ -521,8 +547,10 @@ function buildSummarySnapshot(payload: {
   );
 
   return {
-    receiptCount: payload.receipts.length,
+    receiptCount: countedReceipts.length,
     receiptTotal,
+    reversedReceiptCount: reversedReceipts.length,
+    reversedTotal,
     refundRequestCount,
     refundRequestTotal,
     refundProcessedCount,
@@ -770,8 +798,13 @@ export async function getFinanceControlsPageData(
     : null;
 
   const receipts = receiptsRaw;
+  const reversalTotals = await getReceiptReversalTotals(
+    receipts.map((row) => row.id),
+    supabase,
+  );
   const summary = buildSummarySnapshot({
     receipts,
+    reversalTotals,
     refunds,
     corrections,
     closure,

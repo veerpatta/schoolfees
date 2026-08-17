@@ -13,6 +13,7 @@ import {
   getPaymentPostingDiagnostic,
   postStudentPayment,
   toFriendlyPaymentPostingError,
+  reverseReceiptAdmin,
   undoRecentPayment,
 } from "@/lib/payments/data";
 import type { PaymentCollectionContext, PaymentEntryActionState } from "@/lib/payments/types";
@@ -498,6 +499,104 @@ export async function undoRecentPaymentAction(
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Could not undo the payment.",
+    };
+  }
+}
+
+export type ReverseReceiptActionResult = {
+  ok: boolean;
+  message: string;
+  receiptNumber?: string;
+  reversedAmount?: number;
+  concessionAmount?: number;
+};
+
+/**
+ * Admin-only: reverse a receipt of ANY age, for a wrong fee entry.
+ *
+ * The 10-minute undo covers a mis-click. This covers the mistake found a week
+ * later — wrong child, wrong amount, entered twice — where no cash moved, so
+ * there is nothing for the refund workflow to refund.
+ *
+ * Defense-in-depth: the permission is checked here AND inside the RPC. The
+ * reason is required at both layers because it is the whole record of why a
+ * collected figure went down.
+ */
+export async function reverseReceiptAdminAction(
+  formData: FormData,
+): Promise<ReverseReceiptActionResult> {
+  try {
+    const staffSession = await requireStaffPermission("payments:reverse_any");
+    const receiptId = parseUuid(formData.get("receiptId"), "Receipt");
+    const studentId = parseUuid(formData.get("studentId"), "Student");
+    const sessionLabel = parseSessionLabel(formData.get("sessionLabel"));
+    const reasonCode = (formData.get("reasonCode") ?? "").toString().trim();
+    const reasonNote = (formData.get("reasonNote") ?? "").toString().trim();
+
+    if (!reasonCode) {
+      return { ok: false, message: "Choose why this receipt is being reversed." };
+    }
+
+    if (!reasonNote) {
+      return { ok: false, message: "Add a short note explaining the reversal." };
+    }
+
+    const reason = `${reasonCode} — ${reasonNote}`;
+    const result = await reverseReceiptAdmin({ receiptId, reason });
+
+    revalidateSessionFinance(sessionLabel, [studentId]);
+    revalidateAfterPaymentPosting([studentId]);
+
+    after(async () => {
+      // Drain before anything else reads: the reversal only enqueues the matview
+      // refresh, so without this the office watches stale dues for up to two
+      // minutes on a receipt they just reversed.
+      await drainFinancialViewRefresh();
+
+      await publishOfficeSyncEvent({
+        sessionLabel,
+        entityType: "payment",
+        entityId: receiptId,
+        action: "reversed",
+        affectedStudentIds: [studentId],
+        metadata: {
+          receiptNumber: result.receiptNumber,
+          reversedAmount: result.reversedAmount,
+        },
+      });
+
+      await recordActivity({
+        userId: (staffSession?.id as string | undefined) ?? null,
+        kind: "payment_reversed",
+        refId: receiptId,
+        payload: {
+          studentId,
+          receiptNumber: result.receiptNumber,
+          reversedAmount: result.reversedAmount,
+          alreadyReversedAmount: result.alreadyReversedAmount,
+          concessionAmount: result.concessionAmount,
+          sessionLabel,
+          reason,
+        },
+      });
+    });
+
+    const concessionNote =
+      result.concessionAmount > 0
+        ? ` The ${formatInr(result.concessionAmount)} of counter concessions on this receipt were not undone.`
+        : "";
+
+    return {
+      ok: true,
+      message: `Receipt ${result.receiptNumber} reversed (${formatInr(result.reversedAmount)} returned to dues).${concessionNote}`,
+      receiptNumber: result.receiptNumber,
+      reversedAmount: result.reversedAmount,
+      concessionAmount: result.concessionAmount,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not reverse the receipt.",
     };
   }
 }

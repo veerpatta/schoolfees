@@ -20,6 +20,16 @@ students, test payments, or experimental fee changes to `2026-27`.
   because every row goes through `post_student_payment_with_adjustments`, sequentially,
   keyed by the row's staged `client_request_id` so a re-run resolves to existing receipts
   instead of double-posting. Any change that bypasses that RPC breaks Hard Rule 5.
+- **`reverse_receipt_admin` + `post_corrected_payment`** — the two RPCs behind correcting a
+  wrong fee entry. Both are append-only and must stay that way: reversal writes compensating
+  `payment_adjustments`, the repost writes a NEW receipt. The moment either one edits a posted
+  row, Hard Rule 1 is gone. `post_corrected_payment` is `service_role`-only on purpose; adding
+  a `has_permission` arm would turn it into a second posting surface for staff.
+- **`receipts` no longer uses the shared append-only guard.** Since `20260817113000` it has
+  `private.protect_receipt_money_columns()`, which names every money column and allows exactly
+  three descriptive ones (`reference_number`, `notes`, `received_by`). Adding a column to
+  `receipts` means deciding which side of that line it falls on — a new money column that is
+  not named in the guard is silently editable.
 - **`app/protected/payments/waive-late-fee-actions.ts`** — the desk calls `waive_late_fee`
   *before* posting, so the posting RPC's guards never see the waiver. That was a real
   bypass for EMI students once.
