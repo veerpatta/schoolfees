@@ -26,7 +26,10 @@ function git(...args) {
 }
 
 const sha = git("rev-parse", "--short", "HEAD") || "unknown";
-const dirty = git("status", "--porcelain") !== "";
+// Tracked changes only. The question this stamp answers is "does the deployed
+// code differ from the commit", and an untracked scratch file in the tree is
+// not a difference in the code — counting it marked a clean deploy dirty.
+const dirty = git("status", "--porcelain", "--untracked-files=no") !== "";
 const commit = dirty ? `${sha}-dirty` : sha;
 const builtAt = new Date().toISOString();
 
