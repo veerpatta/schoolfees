@@ -406,12 +406,27 @@ describe("the correction harness is wired into the CLI a reader will find", () =
     expect(runner).toContain("describeCorrectionOps()");
   });
 
-  it("asks the app to refresh its caches, because a script cannot", () => {
+  it("drains the matview itself, and only asks the app for the half it cannot do", () => {
     const corrections = read("scripts/bulk-apply-payment-corrections.mjs");
+
+    // The matview refresh RPC is granted to service_role, which this script
+    // already holds. Routing it through the app route meant a missing
+    // CRON_SECRET left BOTH halves undone when only one needed the app.
+    expect(corrections).toContain("refresh_workbook_materialized_views_if_requested");
+    expect(corrections).toContain("### Matviews refreshed");
+
+    // …and it does so unconditionally, not inside the `if (secret)` branch.
+    const refresh = corrections.slice(corrections.indexOf("async function revalidateAfterCorrections"));
+    const drainAt = refresh.indexOf("refresh_workbook_materialized_views_if_requested");
+    const secretGateAt = refresh.indexOf("if (!secret)");
+    expect(drainAt).toBeGreaterThan(-1);
+    expect(drainAt).toBeLessThan(secretGateAt);
+
+    // revalidateTag only exists inside the deployed process, so this half does
+    // need the route — and a skipped bust is reported, never swallowed.
     expect(corrections).toContain("/api/admin/revalidate-after-bulk");
     expect(corrections).toContain("CRON_SECRET");
-    // A skipped refresh is reported, never swallowed.
-    expect(corrections).toContain("### Caches NOT refreshed");
+    expect(corrections).toContain("### Cached pages NOT busted");
   });
 
   it("drains the matview before busting the tag in that route", () => {

@@ -181,10 +181,21 @@ Five things worth knowing before running one:
   and cannot be taken back, so that receipt is reversed with nothing in its place until
   somebody posts the replacement. It is not a tidy failure and the run does not pretend it is.
 
-Corrections also POST to `/api/admin/revalidate-after-bulk` (guarded by `CRON_SECRET`) when
-they finish, because a Node process cannot bust a Next.js cache tag or drain a matview. If
-`CRON_SECRET` is unset the run says so rather than leaving you to wonder why the dashboard
-still shows the old number.
+Refreshing afterwards is two separate jobs, and only one of them needs the app:
+
+- **Matviews** are drained by the script itself, through the service role it already holds.
+  No secret, always happens.
+- **Next's cached pages** need `revalidateTag`, which only exists inside the deployed
+  process, so the run POSTs to `/api/admin/revalidate-after-bulk` (guarded by `CRON_SECRET`).
+
+Without `CRON_SECRET` the run says so plainly. It is a delay, not a wrong number: the
+database and the matviews are already correct, and Next's own entries expire within five
+minutes (`DASHBOARD_STALENESS_CEILING_SECONDS`).
+
+Note `CRON_SECRET` is stored in Vercel as a **Sensitive** variable, which means Vercel will
+not display it again to anyone — including the account owner. To use it locally you have to
+rotate it to a value you choose and redeploy, so the deployed app and your `.env.local`
+agree.
 
 ## What is never scriptable
 

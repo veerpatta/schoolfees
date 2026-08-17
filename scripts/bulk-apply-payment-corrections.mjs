@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 
+// Mirrors lib/dashboard/cache-contract.ts. Kept as a literal because this file
+// is plain Node and cannot import a TypeScript module; the number is only used
+// to tell an operator how long to wait.
+const DASHBOARD_STALENESS_CEILING_SECONDS = 300;
+
 /**
  * Bulk correction of wrongly-entered payment data.
  *
@@ -745,6 +750,7 @@ export async function runPaymentCorrections({
   }
 
   await revalidateAfterCorrections({
+    supabase,
     sessionLabel,
     baseUrl,
     studentIds: [...new Set(succeeded.flatMap((outcome) => outcome.studentIds ?? []))],
@@ -770,20 +776,39 @@ export async function runPaymentCorrections({
  * dashboard kept showing the old number" has happened here before, and a silent
  * skip is exactly what made it hard to spot.
  */
-async function revalidateAfterCorrections({ sessionLabel, baseUrl, studentIds }) {
+async function revalidateAfterCorrections({ supabase, sessionLabel, baseUrl, studentIds }) {
   const secret = process.env.CRON_SECRET?.trim();
   const target = baseUrl ?? process.env.NEXT_PUBLIC_SITE_URL?.trim() ?? "http://localhost:3000";
 
+  /**
+   * Drain the matview here, with the service role this script already holds.
+   *
+   * This half needs no secret and no app — `refresh_workbook_materialized_views_if_requested`
+   * is granted to `service_role`. Routing it through the app route meant a
+   * missing CRON_SECRET left BOTH halves undone, when only one of them ever
+   * needed the app at all.
+   */
+  const { error: drainError } = await supabase.rpc(
+    "refresh_workbook_materialized_views_if_requested",
+  );
+
+  if (drainError) {
+    console.log(`\n  Matview refresh could not be drained: ${drainError.message}`);
+    console.log("  The every-2-minutes cron will pick it up.");
+  } else {
+    console.log("\n### Matviews refreshed\n\n  Balances, student financials and financial state.");
+  }
+
   const warn = (why) => {
     console.log(
-      `\n### Caches NOT refreshed\n\n  ${why}\n` +
-        "  The database is correct. The screens may show pre-correction numbers until the\n" +
-        "  two-minute refresh cron catches up.",
+      `\n### Cached pages NOT busted\n\n  ${why}\n` +
+        "  The database and the matviews are correct — only Next's own cache is behind, and\n" +
+        `  its entries expire on their own within ${DASHBOARD_STALENESS_CEILING_SECONDS / 60} minutes.`,
     );
   };
 
   if (!secret) {
-    warn("CRON_SECRET is not set, so the app could not be asked to refresh.");
+    warn("CRON_SECRET is not set, so the deployed app could not be asked to drop its cache.");
     return;
   }
 
