@@ -21,10 +21,12 @@ import type {
 import { formatInr } from "@/lib/helpers/currency";
 
 /**
- * The five boards.
+ * The six boards.
  *
  * Each is a grid of tiles, not a stack of titled sections with paragraphs under
- * them. Every number on every board is fees-only unless the label says late fee.
+ * them. Every number on every board is fees-only unless the label says late fee
+ * — and on the discounts board, a "discount" is a reduction of what was owed:
+ * close-outs (written-off balances) are shown separately and never summed in.
  */
 
 const GRID = "grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3";
@@ -556,6 +558,129 @@ export function LateFeeBoard({
           <StatusBadge label="All waivers were automatic" tone="neutral" />
         </Tile>
       )}
+    </div>
+  );
+}
+
+/* ── Discounts ─────────────────────────────────────────────────────────── */
+
+export function DiscountsBoard({
+  analytics,
+  sessionLabel,
+}: {
+  analytics: DashboardAnalytics;
+  sessionLabel: string;
+}) {
+  // Defaulted at the read, like every board: a payload cached by an earlier
+  // build can be missing this whole block, and an exception here blanks the
+  // area behind the error boundary.
+  const discounts = analytics.discounts ?? {
+    totalDiscount: 0,
+    conventionalDiscount: 0,
+    manualDiscount: 0,
+    studentsWithDiscount: 0,
+    byPolicy: [],
+    closeouts: { amount: 0, students: 0 },
+  };
+  const closeouts = discounts.closeouts ?? { amount: 0, students: 0 };
+  const byPolicy = discounts.byPolicy ?? [];
+  const maxPolicyAmount = Math.max(1, ...byPolicy.map((policy) => policy.amount));
+
+  return (
+    <div className={GRID}>
+      <Tile label="Where the discount goes" className="md:col-span-2">
+        <StackedBar
+          ariaLabel="Total tuition discount, split into policy-driven and manual"
+          segments={[
+            {
+              key: "conventional",
+              label: "Policy (RTE / Staff / 3rd Child)",
+              value: discounts.conventionalDiscount,
+              color: CHART_COLORS[0],
+            },
+            {
+              key: "manual",
+              label: "Manual",
+              value: discounts.manualDiscount,
+              color: CHART_COLORS[2],
+            },
+          ]}
+        />
+        <p className="text-xs text-muted-foreground">
+          {formatInr(discounts.totalDiscount)} of tuition given up this session, across{" "}
+          {discounts.studentsWithDiscount} students. This reduces what families owe — it is
+          not a payment, and it never includes written-off balances.
+        </p>
+      </Tile>
+
+      <StatTile
+        label="Total discount"
+        value={discounts.totalDiscount}
+        tone="neutral"
+        footnote={`${discounts.studentsWithDiscount} students`}
+      />
+
+      <Tile
+        label="By policy"
+        className="md:col-span-2"
+        action={
+          <Link
+            href={`/protected/students?session=${encodeURIComponent(sessionLabel)}&segments=hasDiscount`}
+            className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+          >
+            See students
+          </Link>
+        }
+      >
+        {byPolicy.length > 0 ? (
+          <div className="space-y-2">
+            {byPolicy.map((policy) => (
+              <BarRow
+                key={policy.label}
+                label={policy.label}
+                value={policy.amount}
+                max={maxPolicyAmount}
+                meta={`${policy.students} students`}
+                color={CHART_COLORS[0]}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No conventional discount policy is in use this session.
+          </p>
+        )}
+        <p className="text-xs leading-snug text-muted-foreground">
+          A label like “Staff Child, 3rd Child Policy” is one student holding both policies —
+          the lower resulting tuition wins, so the two never stack.
+        </p>
+      </Tile>
+
+      <StatTile
+        label="Manual discounts"
+        value={discounts.manualDiscount}
+        footnote="entered per student by the office, on top of any policy"
+      />
+
+      <Tile
+        label="Written off as discount"
+        tone={closeouts.amount > 0 ? "accent" : "default"}
+      >
+        {closeouts.amount > 0 ? (
+          <>
+            <p className="font-display-money text-3xl leading-none">{formatInr(closeouts.amount)}</p>
+            <p className="text-xs leading-snug text-muted-foreground">
+              {closeouts.students} students had a pending balance closed with a discount-mode
+              receipt. That is a write-off, not a discount on the fee structure — it is
+              excluded from the totals above and from every collection figure.
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No balance has been written off as a discount this session.
+          </p>
+        )}
+      </Tile>
     </div>
   );
 }

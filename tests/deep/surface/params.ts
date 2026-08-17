@@ -26,6 +26,7 @@ export const DASHBOARD_VIEW_VALUES: readonly string[] = [
   "recovery",
   "classes",
   "latefee",
+  "discounts",
 ];
 
 export const DASHBOARD_DAYS_VALUES: readonly string[] = ["14", "30"];

@@ -18,6 +18,7 @@ import { ActivityStrip } from "@/components/dashboard/activity-strip";
 import {
   ClassesBoard,
   CollectionBoard,
+  DiscountsBoard,
   LateFeeBoard,
   OverviewBoard,
   RecoveryBoard,
@@ -1542,6 +1543,9 @@ async function DashboardBelowFold({
       {view === "classes" ? (
         <ClassesBoard analytics={analytics} sessionLabel={sessionLabel} />
       ) : null}
+      {view === "discounts" ? (
+        <DiscountsBoard analytics={analytics} sessionLabel={sessionLabel} />
+      ) : null}
       {view === "latefee" ? (
         <LateFeeBoard analytics={analytics} sessionLabel={sessionLabel} />
       ) : null}
@@ -1695,6 +1699,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     recovery: t("viewRecovery"),
     classes: t("viewClasses"),
     latefee: t("viewLateFee"),
+    discounts: t("viewDiscounts"),
   };
   const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
   const todayIsoForDelta = new Intl.DateTimeFormat("sv-SE", {

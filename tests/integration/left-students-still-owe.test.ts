@@ -79,7 +79,9 @@ describe("the shared activeOnly filter follows the same rule", () => {
 
 describe("defaulters can chase a leaver who part-paid", () => {
   it("includes left students in the follow-up query", () => {
-    expect(DEFAULTERS).toContain('.in("status", ["active", "left"])');
+    // The population moved from an inline list to a named constant in
+    // lib/students/populations.ts, where its "why" is documented. Same rows.
+    expect(DEFAULTERS).toContain('.in("status", [...DEFAULTER_CALL_LIST_STATUSES])');
     expect(DEFAULTERS).not.toContain('.eq("status", "active")');
   });
 

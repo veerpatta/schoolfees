@@ -4,6 +4,7 @@ import { ArrowRight, IndianRupee, Phone, Receipt } from "lucide-react";
 
 import { MobileSessionPill } from "@/components/admin/mobile-session-pill";
 import { ViewSwitcher } from "@/components/dashboard/view-switcher";
+import { MobileCommandTrigger } from "@/components/command/mobile-command-trigger";
 import { ConnectionPill } from "@/components/mobile-app/connection-pill";
 import { RateGauge } from "@/components/ui/rate-gauge";
 import {
@@ -133,6 +134,9 @@ export async function MobileDashboardScreen({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <ConnectionPill />
+          {/* Cross-module search. The palette exists on every phone already;
+              this is its first reachable entry point below md. */}
+          <MobileCommandTrigger />
           <Link
             href={settingsHref}
             aria-label={t("account")}

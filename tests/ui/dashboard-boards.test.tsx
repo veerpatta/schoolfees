@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   ClassesBoard,
   CollectionBoard,
+  DiscountsBoard,
   LateFeeBoard,
   RecoveryBoard,
 } from "@/components/dashboard/boards";
@@ -99,6 +100,20 @@ const ANALYTICS: DashboardAnalytics = {
     top50Amount: 1805200,
     top50Pct: 18,
   },
+  discounts: {
+    totalDiscount: 1362600,
+    conventionalDiscount: 1305500,
+    manualDiscount: 57100,
+    studentsWithDiscount: 100,
+    byPolicy: [
+      { label: "RTE", students: 46, amount: 887000 },
+      { label: "Staff Child", students: 17, amount: 192500 },
+      { label: "3rd Child Policy", students: 14, amount: 182500 },
+      { label: "Staff Child, 3rd Child Policy", students: 2, amount: 24500 },
+      { label: "RTE, 3rd Child Policy", students: 1, amount: 19000 },
+    ],
+    closeouts: { amount: 0, students: 0 },
+  },
 };
 
 describe("dashboard boards", () => {
@@ -157,6 +172,41 @@ describe("dashboard boards", () => {
     expect(html).toContain("Next accrual");
     expect(html).toContain("20 Oct 2026");
     expect(html).toContain("458 installments");
+  });
+
+  it("the discounts board splits policy from manual and keeps close-outs out of the total", () => {
+    const html = renderToStaticMarkup(
+      <DiscountsBoard analytics={ANALYTICS} sessionLabel="2026-27" />,
+    );
+
+    // The reconciling split: 13,05,500 + 57,100 = 13,62,600. All three appear,
+    // and the total is labelled as a reduction of what is owed, not a payment.
+    expect(html).toContain("13,62,600");
+    expect(html).toContain("13,05,500");
+    expect(html).toContain("57,100");
+    expect(html).toContain("not a payment");
+
+    // Per-policy rollup, including the combined-label case: a student holding
+    // two policies is one row, never two, because the lower tuition wins.
+    expect(html).toContain("RTE");
+    expect(html).toContain("Staff Child, 3rd Child Policy");
+    expect(html).toContain("46 students");
+
+    // Zero close-outs renders as an honest empty state, not a Rs 0 figure that
+    // reads like a measurement.
+    expect(html).toContain("No balance has been written off as a discount");
+  });
+
+  it("the discounts board survives a payload that predates it entirely", () => {
+    // A cached analytics object written before v3-discounts has no `discounts`
+    // key at all. The board must render its empty states, not throw into the
+    // error boundary and blank the page.
+    const stale = { ...ANALYTICS, discounts: undefined } as unknown as typeof ANALYTICS;
+    const html = renderToStaticMarkup(
+      <DiscountsBoard analytics={stale} sessionLabel="2026-27" />,
+    );
+
+    expect(html).toContain("No conventional discount policy is in use");
   });
 
   it("the recovery board reports how old the debt is and whether it is concentrated", () => {

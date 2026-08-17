@@ -1,3 +1,4 @@
+import { ON_ROLL_STATUSES } from "@/lib/students/populations";
 import "server-only";
 
 import { fetchInChunks } from "@/lib/helpers/chunk";
@@ -431,7 +432,13 @@ function classifyCancelLock(payload: {
   const appliedAmount = Math.max(paidAmount + adjustmentAmount, 0);
   const outstandingAmount = Math.max(existing.amount_due - appliedAmount, 0);
 
-  if (paidAmount > 0) {
+  // The paid branches classify on the NET, not the gross. A fully reversed
+  // installment carries paidAmount > 0 and an equal negative adjustment; gross
+  // classification reported it to staff as "Partially paid installment" when
+  // nothing is applied to it at all. It falls through to adjustment_posted
+  // below instead — still locked (the ledger history is real and worth a
+  // human look), but described as what it is.
+  if (paidAmount > 0 && appliedAmount > 0) {
     return appliedAmount >= existing.amount_due
       ? { isLocked: true as const, reasonCode: "fully_paid" as const, reasonLabel: "Fully paid installment", outstandingAmount }
       : { isLocked: true as const, reasonCode: "partially_paid" as const, reasonLabel: "Partially paid installment", outstandingAmount };
@@ -509,7 +516,10 @@ function classifyInstallmentLock(payload: {
   ): InstallmentLockDecision => ({ kind: "locked", reasonCode, reasonLabel, outstandingAmount });
 
   const lockedForMoney = () => {
-    if (paidAmount > 0) {
+    // Net, not gross — same reasoning as classifyCancelLock above. A fully
+    // reversed installment (paid +N, adjustment −N) is not "partially paid";
+    // it has adjustment history, which the fall-through says truthfully.
+    if (paidAmount > 0 && appliedAmount > 0) {
       return appliedAmount >= existing.amount_due
         ? locked("fully_paid", "Fully paid installment")
         : locked("partially_paid", "Partially paid installment");
@@ -609,7 +619,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
   if (scopedStudentIdSet) {
     studentsQuery = studentsQuery.in("id", [...scopedStudentIdSet]);
   } else {
-    studentsQuery = studentsQuery.eq("status", "active");
+    studentsQuery = studentsQuery.in("status", [...ON_ROLL_STATUSES]);
   }
 
   const { data: studentsRaw, error: studentsError } = await studentsQuery;

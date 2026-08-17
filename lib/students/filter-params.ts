@@ -49,9 +49,20 @@ export function normalizeStudentFilters(read: SearchParamReader): StudentListFil
       : EMPTY_STUDENT_FILTERS.transportRouteId,
     // "active" is the deliberate default on BOTH entry points. An office opening
     // Students wants the current roll, not every student who ever attended.
-    status: validStatuses.has(rawStatus)
-      ? (rawStatus as StudentListFilters["status"])
-      : ("active" as StudentListFilters["status"]),
+    //
+    // "all" is the explicit every-status sentinel. It exists because the
+    // client serializes `status: ""` by OMITTING the param (an empty string is
+    // falsy), and a missing param normalizes back to "active" — so the
+    // "All students" and "Left but owing" saved views LOOKED like they widened
+    // the population while the server quietly narrowed it back to the roll.
+    // The chip counts take a different path and were not narrowed, which is
+    // how "Left 28" could display while selecting it returned zero rows.
+    status:
+      rawStatus === "all"
+        ? ("" as StudentListFilters["status"])
+        : validStatuses.has(rawStatus)
+          ? (rawStatus as StudentListFilters["status"])
+          : ("active" as StudentListFilters["status"]),
     segments: parseSegments(read("seg")),
     // "name" on both entry points, and the only other option is "class" — an
     // unknown value must not silently become an unordered query, because
@@ -71,7 +82,11 @@ export function studentFiltersToParams(
   if (filters.sessionLabel) params.set("session", filters.sessionLabel);
   if (filters.classId) params.set("classId", filters.classId);
   if (filters.transportRouteId) params.set("transportRouteId", filters.transportRouteId);
-  if (filters.status) params.set("status", filters.status);
+  // "" means every status, and it must SURVIVE the round trip: omitted, it
+  // normalizes back to "active" and silently narrows the list. "all" is the
+  // explicit sentinel the normalizer understands. "active" alone is omitted —
+  // it is the default the normalizer restores, per this function's contract.
+  if (filters.status !== "active") params.set("status", filters.status || "all");
   if (filters.segments.length > 0) params.set("seg", serializeSegments(filters.segments));
   if (filters.sort && filters.sort !== "name") params.set("sort", filters.sort);
   if (extra?.page && extra.page > 1) params.set("page", String(extra.page));

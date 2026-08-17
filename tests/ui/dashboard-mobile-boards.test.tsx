@@ -91,6 +91,20 @@ const ANALYTICS: DashboardAnalytics = {
     top50Amount: 1805200,
     top50Pct: 18,
   },
+  discounts: {
+    totalDiscount: 1362600,
+    conventionalDiscount: 1305500,
+    manualDiscount: 57100,
+    studentsWithDiscount: 100,
+    byPolicy: [
+      { label: "RTE", students: 46, amount: 887000 },
+      { label: "Staff Child", students: 17, amount: 192500 },
+      { label: "3rd Child Policy", students: 14, amount: 182500 },
+      { label: "Staff Child, 3rd Child Policy", students: 2, amount: 24500 },
+      { label: "RTE, 3rd Child Policy", students: 1, amount: 19000 },
+    ],
+    closeouts: { amount: 0, students: 0 },
+  },
 };
 
 const KPIS = {
@@ -221,13 +235,31 @@ async function renderBoard(
 }
 
 describe("phone analytics boards", () => {
-  it("carries the same five boards as the desk, off the same view names", async () => {
+  it("carries the same boards as the desk, off the same view names", async () => {
     for (const view of DASHBOARD_VIEWS) {
       const html = await renderBoard(view);
       // Every board ends with the read-only note, so a board that rendered
       // nothing at all is still distinguishable from one that threw.
       expect(html).toContain("Nothing here can be edited.");
     }
+  });
+
+  it("the discounts board keeps the write-off out of the discount total", async () => {
+    const html = await renderBoard("discounts");
+
+    // The reconciling split, from the live fixture.
+    expect(html).toContain("13,62,600");
+    expect(html).toContain("13,05,500");
+    expect(html).toContain("57,100");
+    expect(html).toContain("not a payment");
+
+    // Per-policy rows, including the combined label.
+    expect(html).toContain("RTE");
+    expect(html).toContain("Staff Child, 3rd Child Policy");
+
+    // Zero close-outs: the card simply does not render, rather than showing a
+    // Rs 0 that reads like a measurement.
+    expect(html).not.toContain("Written off as discount");
   });
 
   it("puts the year card on Overview, where the phone home used to carry it", async () => {

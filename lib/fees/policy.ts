@@ -1,3 +1,4 @@
+import { FEE_ADMINISTERED_STATUSES } from "@/lib/students/populations";
 import "server-only";
 
 import { cache } from "react";
@@ -561,7 +562,7 @@ async function loadFeeCollectionsUncached(useAdmin = false) {
       .select(
         "id, full_name, admission_no, class_id, class_ref:classes(id, session_label, class_name, section, stream_name)",
       )
-      .in("status", ["active", "inactive"])
+      .in("status", [...FEE_ADMINISTERED_STATUSES])
       .order("full_name", { ascending: true }),
     studentOverridesRequest,
   ]);

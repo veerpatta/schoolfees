@@ -1,3 +1,5 @@
+import { formatInr } from "@/lib/helpers/currency";
+import { PROMOTABLE_STATUSES } from "@/lib/students/populations";
 import "server-only";
 
 import { copyAcademicSessionSetup } from "@/lib/master-data/data";
@@ -353,6 +355,55 @@ export async function getPromotionRun(runId: string): Promise<PromotionPreviewRe
   };
 }
 
+/**
+ * Fees and late fee still owed, per student, from the workbook view.
+ *
+ * Used by the year-end dues guard: a student who is graduated (or otherwise
+ * taken off the roll) while still owing has their clean unpaid installments
+ * cancelled by the next ledger regeneration — a silent bulk write-off. The
+ * school rule (2026-08-18) is that a leaver never rolls over and a debtor is
+ * never quietly forgiven by promotion: settle it, or write it off explicitly
+ * through the close-as-discount path where it leaves an audit trail.
+ */
+async function loadOutstandingByStudent(
+  sessionLabel: string,
+  studentIds: readonly string[],
+): Promise<Map<string, { feesPending: number; lateFeePending: number }>> {
+  if (studentIds.length === 0) return new Map();
+
+  const supabase = await createClient();
+  const outstanding = new Map<string, { feesPending: number; lateFeePending: number }>();
+
+  const chunkSize = 200;
+  for (let i = 0; i < studentIds.length; i += chunkSize) {
+    const chunk = studentIds.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from("v_workbook_student_financials")
+      .select("student_id, base_outstanding_amount, late_fee_outstanding_amount")
+      .eq("session_label", sessionLabel)
+      .in("student_id", chunk);
+
+    if (error) {
+      // Fail closed: a guard that degrades to "no dues found" on a read error
+      // is a guard that waves the bulk write-off through.
+      throw new Error(`Unable to load outstanding dues for the promotion guard: ${error.message}`);
+    }
+
+    for (const row of (data ?? []) as Array<{
+      student_id: string;
+      base_outstanding_amount: number | null;
+      late_fee_outstanding_amount: number | null;
+    }>) {
+      outstanding.set(row.student_id, {
+        feesPending: row.base_outstanding_amount ?? 0,
+        lateFeePending: row.late_fee_outstanding_amount ?? 0,
+      });
+    }
+  }
+
+  return outstanding;
+}
+
 async function loadCreditBalances(
   studentIds: readonly string[],
 ): Promise<Map<string, number>> {
@@ -455,7 +506,7 @@ export async function createPromotionPreview(payload: {
       "id, full_name, admission_no, status, class_id, class_ref:classes(id, session_label, class_name, section, stream_name)",
     )
     .in("class_id", sourceClassIds)
-    .in("status", ["active", "inactive"]);
+    .in("status", [...PROMOTABLE_STATUSES]);
 
   if (studentsResult.error) {
     throw new Error(`Unable to load source-session students: ${studentsResult.error.message}`);
@@ -466,7 +517,10 @@ export async function createPromotionPreview(payload: {
   );
 
   const studentIds = studentRows.map((row) => row.id);
-  const creditMap = await loadCreditBalances(studentIds);
+  const [creditMap, outstandingMap] = await Promise.all([
+    loadCreditBalances(studentIds),
+    loadOutstandingByStudent(sourceSession, studentIds),
+  ]);
 
   const unmatchedClassNames = new Set<string>();
   const feeSetupGapsSet = new Set<string>();
@@ -592,11 +646,22 @@ export async function createPromotionPreview(payload: {
   const runId = insertedRun.id as string;
 
   const entryRows = entriesPlan.map((entry) => {
-    const decision: PromotionEntryDecision = entry.graduates
-      ? "graduate"
-      : entry.nextClass
-        ? "promote"
-        : "manual";
+    // The year-end dues guard. Graduating (or carrying a non-active student)
+    // while they still owe hands the debt to the ledger generator to cancel —
+    // a silent write-off. The preview marks them skip and says why; apply
+    // re-checks with live numbers, because decisions are editable in between.
+    const owed = outstandingMap.get(entry.student.id) ?? { feesPending: 0, lateFeePending: 0 };
+    const owesMoney = owed.feesPending > 0 || owed.lateFeePending > 0;
+    const wouldLeaveRoll = entry.graduates || entry.student.status !== "active";
+    const duesBlocked = wouldLeaveRoll && owesMoney;
+
+    const decision: PromotionEntryDecision = duesBlocked
+      ? "skip"
+      : entry.graduates
+        ? "graduate"
+        : entry.nextClass
+          ? "promote"
+          : "manual";
 
     return {
       run_id: runId,
@@ -609,11 +674,13 @@ export async function createPromotionPreview(payload: {
       opening_credit_amount: entry.creditBalance,
       applied: false,
       decision,
-      reason: entry.graduates
-        ? "Last grade reached"
-        : entry.nextClass
-          ? null
-          : "No matching class in target session",
+      reason: duesBlocked
+        ? `Still owes ${formatDuesForReason(owed)} — settle it or write it off before ${entry.graduates ? "graduating" : "carrying"} them`
+        : entry.graduates
+          ? "Last grade reached"
+          : entry.nextClass
+            ? null
+            : "No matching class in target session",
     };
   });
 
@@ -642,6 +709,13 @@ export async function createPromotionPreview(payload: {
   };
 }
 
+function formatDuesForReason(owed: { feesPending: number; lateFeePending: number }): string {
+  const parts: string[] = [];
+  if (owed.feesPending > 0) parts.push(`${formatInr(owed.feesPending)} fees`);
+  if (owed.lateFeePending > 0) parts.push(`${formatInr(owed.lateFeePending)} late fee`);
+  return parts.join(" + ");
+}
+
 export async function applyPromotionRun(runId: string) {
   await requireStaffPermission("students:write");
   const supabase = await createClient();
@@ -660,6 +734,44 @@ export async function applyPromotionRun(runId: string) {
 
   if (eligibleEntries.length === 0) {
     throw new Error("No entries are eligible to apply. Mark students for promotion or graduation first.");
+  }
+
+  // The dues guard, re-checked against LIVE numbers at apply time. The preview
+  // marks debtors as skip, but decisions are editable and money moves between
+  // preview and apply — so this is the check that actually holds. A student
+  // leaving the roll (graduation, or carried while non-active) with dues would
+  // have their clean unpaid installments cancelled by the next ledger
+  // regeneration: a silent, bulk write-off from Admin Tools. Refuse, name
+  // them, and point at the two legitimate exits.
+  const leavingRoll = eligibleEntries.filter(
+    (entry) => entry.decision === "graduate" || entry.previousStatus !== "active",
+  );
+  if (leavingRoll.length > 0) {
+    const liveOutstanding = await loadOutstandingByStudent(
+      runDetail.run.sourceSessionLabel,
+      leavingRoll.map((entry) => entry.studentId),
+    );
+    const blocked = leavingRoll
+      .map((entry) => ({
+        entry,
+        owed: liveOutstanding.get(entry.studentId) ?? { feesPending: 0, lateFeePending: 0 },
+      }))
+      .filter(({ owed }) => owed.feesPending > 0 || owed.lateFeePending > 0);
+
+    if (blocked.length > 0) {
+      const names = blocked
+        .slice(0, 10)
+        .map(
+          ({ entry, owed }) =>
+            `${entry.studentName} (SR ${entry.studentAdmissionNo}, ${formatDuesForReason(owed)})`,
+        )
+        .join("; ");
+      throw new Error(
+        `${blocked.length} student(s) cannot leave the roll while they still owe: ${names}${
+          blocked.length > 10 ? "; …" : ""
+        }. Collect the dues, or write them off from Admin Tools → Clear dues, then run the promotion again.`,
+      );
+    }
   }
 
   let appliedCount = 0;

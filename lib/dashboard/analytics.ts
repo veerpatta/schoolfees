@@ -81,6 +81,28 @@ export type RouteRecoveryRow = {
   collectionRate: number;
 };
 
+export type DiscountPolicyRollup = {
+  /** The label SET that applied, e.g. "Staff Child, 3rd Child Policy". */
+  label: string;
+  students: number;
+  amount: number;
+};
+
+export type DashboardDiscounts = {
+  /** Conventional + manual. NEVER includes close-outs. */
+  totalDiscount: number;
+  conventionalDiscount: number;
+  manualDiscount: number;
+  studentsWithDiscount: number;
+  byPolicy: DiscountPolicyRollup[];
+  /**
+   * Discount-mode write-offs. A close-out clears a pending balance rather than
+   * reducing what was owed, so it rides here and is never summed into
+   * totalDiscount — the same line lib/money/glossary.ts draws.
+   */
+  closeouts: { amount: number; students: number };
+};
+
 export type DashboardAnalytics = {
   sessionLabel: string;
   debtAge: DebtAgeBucket[];
@@ -89,6 +111,7 @@ export type DashboardAnalytics = {
   classRecovery: ClassRecoveryRow[];
   routeRecovery: RouteRecoveryRow[];
   concentration: DebtConcentration;
+  discounts: DashboardDiscounts;
 };
 
 const EMPTY_ANALYTICS: DashboardAnalytics = {
@@ -112,6 +135,14 @@ const EMPTY_ANALYTICS: DashboardAnalytics = {
     top10Pct: 0,
     top50Amount: 0,
     top50Pct: 0,
+  },
+  discounts: {
+    totalDiscount: 0,
+    conventionalDiscount: 0,
+    manualDiscount: 0,
+    studentsWithDiscount: 0,
+    byPolicy: [],
+    closeouts: { amount: 0, students: 0 },
   },
 };
 
@@ -152,6 +183,12 @@ function normalizeAnalytics(
       nextAccrual: { ...EMPTY_ANALYTICS.lateFee.nextAccrual, ...(payload.lateFee?.nextAccrual ?? {}) },
     },
     concentration: { ...EMPTY_ANALYTICS.concentration, ...(payload.concentration ?? {}) },
+    discounts: {
+      ...EMPTY_ANALYTICS.discounts,
+      ...(payload.discounts ?? {}),
+      byPolicy: payload.discounts?.byPolicy ?? [],
+      closeouts: { ...EMPTY_ANALYTICS.discounts.closeouts, ...(payload.discounts?.closeouts ?? {}) },
+    },
     debtAge: payload.debtAge ?? [],
     monthlyCollection: payload.monthlyCollection ?? [],
     classRecovery: payload.classRecovery ?? [],
@@ -184,7 +221,7 @@ async function getDashboardAnalyticsUncached(sessionLabel: string): Promise<Dash
  * `session:{label}` -- which, for a session with no activity that day, may be
  * nobody.
  */
-const ANALYTICS_SHAPE_VERSION = "v2-route-recovery";
+const ANALYTICS_SHAPE_VERSION = "v3-discounts";
 
 /**
  * Never throws. The money band is rendered from a different call and must still
@@ -214,13 +251,14 @@ export async function getDashboardAnalytics(sessionLabel: string): Promise<Dashb
   }
 }
 
-/** The five boards. Order is the order of the switcher. */
+/** The six boards. Order is the order of the switcher. */
 export const DASHBOARD_VIEWS = [
   "overview",
   "collection",
   "recovery",
   "classes",
   "latefee",
+  "discounts",
 ] as const;
 
 export type DashboardView = (typeof DASHBOARD_VIEWS)[number];

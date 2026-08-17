@@ -1,3 +1,4 @@
+import { FEE_ADMINISTERED_STATUSES } from "@/lib/students/populations";
 import "server-only";
 
 import type { AdjustmentType, PaymentMode } from "@/lib/db/types";
@@ -276,7 +277,7 @@ export async function getLedgerPageData(payload: {
       : supabase.from("students").select(scopedSelect);
 
     studentsQuery = studentsQuery
-      .in("status", ["active", "inactive"])
+      .in("status", [...FEE_ADMINISTERED_STATUSES])
       .order("full_name", { ascending: true })
       .limit(150);
 

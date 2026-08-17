@@ -1,3 +1,4 @@
+import { FEE_ADMINISTERED_STATUSES, ON_ROLL_STATUSES } from "@/lib/students/populations";
 import "server-only";
 import {
   getReceiptReversalTotals,
@@ -603,7 +604,7 @@ async function getActiveSessionBaseReportStudents(filters: ReportFilters) {
     .select(
       "id, admission_no, full_name, class_id, transport_route_id, father_name, primary_phone, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
     )
-    .eq("status", "active")
+    .in("status", [...ON_ROLL_STATUSES])
     .eq("class_ref.session_label", sessionLabel)
     .eq("class_ref.status", "active")
     .order("full_name", { ascending: true });
@@ -939,7 +940,7 @@ async function getLedgerStudentOptions(
     .select(
       "id, full_name, admission_no, transport_route_id, route_ref:transport_routes(route_name, route_code), class_ref:classes(session_label, class_name, section, stream_name)",
     )
-    .in("status", ["active", "inactive"])
+    .in("status", [...FEE_ADMINISTERED_STATUSES])
     .order("full_name", { ascending: true });
 
   if (error) {

@@ -401,6 +401,16 @@ express the school's rule and never fired once:
   columns — `reference_number`, `notes`, `received_by` — become editable so a
   typo'd UPI reference does not need a receipt voided. `payments`,
   `payment_adjustments` and `audit_logs` keep the shared unconditional guard.
+- `20260817150000_waive_late_fee_admits_the_service_role` — `waive_late_fee`
+  accepts the service role alongside `payments:waive_late_fee`, so headless
+  callers stop being refused by a guard meant for staff.
+- `20260818050000_dashboard_analytics_carries_discounts` — the sixth board.
+  `get_dashboard_analytics` gains a `discounts` block: conventional vs manual
+  totals, a per-label-set policy rollup, and close-outs carried separately
+  (a write-off is not a discount). Money population, like every board. The
+  migration asserts the block reconciles to `v_workbook_student_financials`
+  to the rupee before committing, claiming the service role transaction-locally
+  because the RPC's permission gate would otherwise refuse `db push` itself.
 
 ## When you add a new migration
 

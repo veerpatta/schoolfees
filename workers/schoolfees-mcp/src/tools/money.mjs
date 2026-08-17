@@ -75,6 +75,7 @@ async function loadDashboardAnalytics(env, sessionLabel) {
     classRecovery: payload.classRecovery || [],
     routeRecovery: payload.routeRecovery || [],
     concentration: payload.concentration ?? null,
+    discounts: payload.discounts ?? null,
   };
 }
 
@@ -108,6 +109,12 @@ export function registerMoneyTools(server, ctx) {
         totalFeesPending: rupees,
         totalLateFeePending: rupees,
         totalCollectable: rupees,
+        // Both computed since the rebuild but never declared, so a client had
+        // no way to know the session summary carries a discount figure at all.
+        // totalDiscount is conventional + manual and NEVER includes close-outs;
+        // totalDiscountCloseouts is the written-off balances, kept separate.
+        totalDiscount: rupees,
+        totalDiscountCloseouts: rupees,
         scope: scopeBlock,
       }),
       yearSplit: detailObject.nullable(),
@@ -223,6 +230,9 @@ export function registerMoneyTools(server, ctx) {
       classRecovery: z.array(detailRow),
       routeRecovery: z.array(detailRow),
       concentration: detailObject.nullable(),
+      /** Tuition discounts only: conventional + manual, with close-outs riding
+       *  separately inside. Late-fee waivers stay on the lateFee board. */
+      discounts: detailObject.nullable(),
       degraded: degradedBlock,
       scope: scopeBlock,
       notes: detailObject,
@@ -251,6 +261,8 @@ export function registerMoneyTools(server, ctx) {
             "Buckets count installment rows by how long they have been overdue, and exclude carry-forward. The bucket totals therefore do not add up to total fees pending.",
           lateFee:
             "charged is the gross late fee ever raised; waived is what was forgiven; pending is what is still owed. charged minus waived equals pending plus late fee already paid.",
+          discounts:
+            "totalDiscount = conventional + manual tuition discounts; it reduces what is owed and is never a payment. closeouts are written-off balances and are NOT summed into it. Late-fee waivers are on the lateFee board, not here.",
           monthlyCollection:
             "Cash actually received. Discount-mode write-offs and reversed receipts are excluded.",
         },

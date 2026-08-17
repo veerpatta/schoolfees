@@ -8,6 +8,7 @@ import { OfficeNotice } from "@/components/office/office-ui";
 import { DownloadAnchor } from "@/components/ui/download-anchor";
 import { Button } from "@/components/ui/button";
 import { MobileRecordCard } from "@/components/mobile-app/mobile-kit";
+import { RecoveryWriteOffButton } from "@/components/students/recovery-write-off-button";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { getRecoveryQueue } from "@/lib/recovery/data";
@@ -15,6 +16,7 @@ import {
   RECOVERY_STUDENT_STATUSES,
   type RecoveryStudentStatus,
 } from "@/lib/recovery/types";
+import { hasRolePermission } from "@/lib/auth/roles";
 import { requireAnyStaffPermission } from "@/lib/supabase/session";
 import {
   optionalSearchParam,
@@ -59,9 +61,13 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 export default async function RecoveryPage({ searchParams }: RecoveryPageProps) {
-  await requireAnyStaffPermission(["finance:view", "fees:view", "defaulters:view"], {
+  const staff = await requireAnyStaffPermission(["finance:view", "fees:view", "defaulters:view"], {
     onDenied: "redirect",
   });
+  // The write-off posts through closeDueAsDiscountAction, which enforces
+  // finance:write server-side; gating the button too keeps a fee collector
+  // from tapping into a refusal.
+  const canWriteOff = hasRolePermission(staff.appRole, "finance:write");
 
   const resolved = searchParams ? await searchParams : undefined;
   const status = normalizeStatus(resolved?.status);
@@ -94,7 +100,11 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
       <OfficeNotice title="How recovery works" tone="info">
         These students are kept marked as left — collecting here does <strong>not</strong> re-enrol
         them or create new dues. Use <strong>Collect recovery payment</strong> to post against their
-        existing pending installments through the guarded Payment Desk recovery mode.
+        existing pending installments through the guarded Payment Desk recovery mode, or{" "}
+        <strong>Write off</strong> to clear a balance that will never be collected — an audited
+        discount-mode receipt that never counts as collection. A student who still owes here
+        blocks the year-end promotion until one of the two happens. A pending late fee is
+        separate from these figures and is waived from the student page, never written off here.
       </OfficeNotice>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -214,6 +224,17 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
                           </a>
                         </Button>
                       ) : null}
+                      {canWriteOff ? (
+                        <RecoveryWriteOffButton
+                          studentId={row.studentId}
+                          studentLabel={row.fullName}
+                          studentAdmissionNo={row.admissionNo}
+                          classLabel={row.classLabel ?? "-"}
+                          pendingAmount={row.totalRemaining}
+                          sessionLabel={row.sourceSessionLabel ?? ""}
+                          className="h-9"
+                        />
+                      ) : null}
                     </>
                   }
                 />
@@ -292,6 +313,17 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
                                 <span className="sr-only">WhatsApp reminder</span>
                               </a>
                             </Button>
+                          ) : null}
+                          {canWriteOff ? (
+                            <RecoveryWriteOffButton
+                              studentId={row.studentId}
+                              studentLabel={row.fullName}
+                              studentAdmissionNo={row.admissionNo}
+                              classLabel={row.classLabel ?? "-"}
+                              pendingAmount={row.totalRemaining}
+                              sessionLabel={row.sourceSessionLabel ?? ""}
+                              className="h-8"
+                            />
                           ) : null}
                         </div>
                       </td>

@@ -948,6 +948,7 @@
     "viewRecovery": "Recovery",
     "viewClasses": "Classes",
     "viewLateFee": "Late fee",
+    "viewDiscounts": "Discounts",
     "ofExpectedLabel": "of"
   },
   "Payments": {
@@ -2035,6 +2036,14 @@
     "matrixLegendMost": "Most pending",
     "matrixOldColumn": "Old",
     "lateFeeTitle": "Late fee: charged vs waived",
+    "discountsTitle": "Discounts given",
+    "discountsNone": "No discount is in use this session.",
+    "discountsSeeStudents": "See students",
+    "discountsSplitNote": "Policy discounts {conventional} · manual {manual}. This reduces what families owe — it is not a payment.",
+    "discountsByPolicy": "By policy",
+    "discountsPolicyNote": "A combined label is one student holding two policies — the lower tuition wins, they never stack.",
+    "discountsCloseouts": "Written off as discount",
+    "discountsCloseoutNote": "Balances closed with a discount-mode receipt. A write-off, not a discount — excluded from every collection figure.",
     "lateFeeCharged": "Charged",
     "lateFeeWaived": "Waived",
     "lateFeeSplitNote": "{paid} of the late fee has actually been paid; {pending} is still owed. A late fee is never part of fees pending.",

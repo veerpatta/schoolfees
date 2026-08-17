@@ -678,6 +678,111 @@ const WAIVER_SOURCE_KEYS = {
   repayment_plan: "waiverRepaymentPlan",
 } as const;
 
+function DiscountsBoard({ t, analytics, sessionLabel }: BoardProps & { t: Translator }) {
+  // Defaulted at the read, like every board here: a payload cached by an
+  // earlier build can be missing this whole block.
+  const discounts = analytics.discounts ?? {
+    totalDiscount: 0,
+    conventionalDiscount: 0,
+    manualDiscount: 0,
+    studentsWithDiscount: 0,
+    byPolicy: [],
+    closeouts: { amount: 0, students: 0 },
+  };
+  const closeouts = discounts.closeouts ?? { amount: 0, students: 0 };
+  const byPolicy = (discounts.byPolicy ?? []).filter((policy) => policy.amount > 0);
+  const total = discounts.totalDiscount;
+  const maxPolicyAmount = Math.max(1, ...byPolicy.map((policy) => policy.amount));
+
+  if (total === 0 && closeouts.amount === 0) {
+    return (
+      <MobileCard>
+        <EmptyBoardNote>{t("discountsNone")}</EmptyBoardNote>
+      </MobileCard>
+    );
+  }
+
+  return (
+    <>
+      <MobileSectionCard
+        title={t("discountsTitle")}
+        action={
+          <SeeAllLink
+            href={appendSessionParam("/protected/students?segments=hasDiscount", sessionLabel)}
+            label={t("discountsSeeStudents")}
+          />
+        }
+      >
+        <HeroMoney value={total} className="text-3xl" />
+        <p className="mt-1.5 text-[11px] font-semibold text-muted-foreground">
+          {t("studentsCount", { count: discounts.studentsWithDiscount })}
+        </p>
+        <MobileSplitBar
+          className="mt-3"
+          segments={[
+            {
+              key: "conventional",
+              percent: total > 0 ? (discounts.conventionalDiscount / total) * 100 : 0,
+              tone: "accent",
+            },
+            {
+              key: "manual",
+              percent: total > 0 ? (discounts.manualDiscount / total) * 100 : 0,
+              tone: "info",
+            },
+          ]}
+        />
+        <CardFootnote>
+          {t("discountsSplitNote", {
+            conventional: formatInr(discounts.conventionalDiscount),
+            manual: formatInr(discounts.manualDiscount),
+          })}
+        </CardFootnote>
+      </MobileSectionCard>
+
+      {byPolicy.length > 0 ? (
+        <MobileSectionCard title={t("discountsByPolicy")}>
+          <div className="space-y-2.5">
+            {byPolicy.map((policy) => (
+              <div key={policy.label}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 truncate text-[12.5px] font-bold text-foreground">
+                    {policy.label}
+                  </span>
+                  <span className="tabular shrink-0 text-[12.5px] font-extrabold">
+                    {formatInr(policy.amount)}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <MobileBar
+                    percent={(policy.amount / maxPolicyAmount) * 100}
+                    tone="accent"
+                    className="h-[7px] flex-1"
+                  />
+                  <span className="shrink-0 text-[10.5px] font-semibold text-muted-foreground">
+                    {t("studentsCount", { count: policy.students })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <CardFootnote>{t("discountsPolicyNote")}</CardFootnote>
+        </MobileSectionCard>
+      ) : null}
+
+      {closeouts.amount > 0 ? (
+        <MobileSectionCard title={t("discountsCloseouts")}>
+          <HeroMoney value={closeouts.amount} className="text-2xl" />
+          <p className="mt-1.5 text-[11px] font-semibold text-muted-foreground">
+            {t("studentsCount", { count: closeouts.students })}
+          </p>
+          <CardFootnote>{t("discountsCloseoutNote")}</CardFootnote>
+        </MobileSectionCard>
+      ) : null}
+    </>
+  );
+}
+
 function LateFeeBoard({ t, analytics, sessionLabel }: BoardProps & { t: Translator }) {
   const lateFee = analytics.lateFee;
   const charged = lateFee.charged;
@@ -787,6 +892,7 @@ export async function MobileDashboardBoards({
       {view === "recovery" ? <RecoveryBoard {...boardProps} /> : null}
       {view === "classes" ? <ClassesBoard {...boardProps} /> : null}
       {view === "latefee" ? <LateFeeBoard {...boardProps} /> : null}
+      {view === "discounts" ? <DiscountsBoard {...boardProps} /> : null}
 
       {/* Under every board, because it is true of every board: this screen is a
           read model. Corrections happen at the Payment Desk. */}

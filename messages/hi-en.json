@@ -948,6 +948,7 @@
     "viewRecovery": "Recovery",
     "viewClasses": "Classes",
     "viewLateFee": "Late fee",
+    "viewDiscounts": "Discounts",
     "ofExpectedLabel": "of"
   },
   "Payments": {
@@ -2035,6 +2036,14 @@
     "matrixLegendMost": "Sabse zyada baaki",
     "matrixOldColumn": "Purana",
     "lateFeeTitle": "Late fee: lagayi aur maaf ki gayi",
+    "discountsTitle": "Di gayi chhoot",
+    "discountsNone": "Is satra mein koi chhoot laagu nahin hai.",
+    "discountsSeeStudents": "Chhatra dekhein",
+    "discountsSplitNote": "Policy chhoot {conventional} · manual {manual}. Yeh parivaron ki dey rashi ghatati hai — yeh bhugtan nahin hai.",
+    "discountsByPolicy": "Policy anusaar",
+    "discountsPolicyNote": "Sanyukt label ka matlab ek chhatra par do policies — kam shulk wali laagu hoti hai, dono kabhi nahin judtin.",
+    "discountsCloseouts": "Chhoot ke roop mein maaf",
+    "discountsCloseoutNote": "Discount-mode raseed se band ki gayi bakaya rashi. Yeh maafi hai, chhoot nahin — kisi bhi vasooli aankde mein shaamil nahin.",
     "lateFeeCharged": "Lagayi gayi",
     "lateFeeWaived": "Maaf ki gayi",
     "lateFeeSplitNote": "Late fee mein se {paid} sachmuch jama hui hai; {pending} ab bhi baaki hai. Late fee kabhi baaki fees ka hissa nahi hoti.",

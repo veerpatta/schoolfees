@@ -1,3 +1,4 @@
+import { DEFAULTER_CALL_LIST_STATUSES } from "@/lib/students/populations";
 import "server-only";
 
 import { after } from "next/server";
@@ -130,7 +131,7 @@ async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessi
     // pull in the ones who never paid: withdrawing a student cancels their clean
     // unpaid installments, so they have no dues, no pending amount, and drop out
     // of the defaulter list on their own further down.
-    .in("status", ["active", "left"])
+    .in("status", [...DEFAULTER_CALL_LIST_STATUSES])
     .eq("class_ref.session_label", sessionLabel)
     .eq("class_ref.status", "active")
     .order("full_name", { ascending: true });

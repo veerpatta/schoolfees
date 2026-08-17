@@ -188,6 +188,23 @@ export function populationSegments(ids: readonly SegmentId[]): SegmentDef[] {
  * right — the former is a subset of the departed, the latter is orthogonal — so
  * neither narrows the status list.
  */
+/**
+ * True when a selected chip already states an enrolment population.
+ *
+ * `newThisYear` is deliberately NOT one of them: despite the name it reads the
+ * fee tier (New vs Old academic fee), not enrollment — see the directory view.
+ * `leftOwing` is `status <> 'active' AND owing`, so it counts too.
+ *
+ * Callers use this to let the chip win over the status dropdown: chip AND
+ * dropdown-default-"active" is the empty set, which is how "Left 28" could
+ * display on the chip while selecting it returned zero rows.
+ */
+export function segmentsImplyEnrolment(ids: readonly SegmentId[]): boolean {
+  return ids.some(
+    (id) => id === "active" || id === "left" || id === "leftOwing" || id === "graduated",
+  );
+}
+
 export function statusesForSegments(ids: readonly SegmentId[]): string[] | null {
   const statuses = new Set<string>();
   for (const id of ids) {

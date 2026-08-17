@@ -948,6 +948,7 @@
     "viewRecovery": "बकाया वसूली",
     "viewClasses": "कक्षाएँ",
     "viewLateFee": "लेट फीस",
+    "viewDiscounts": "छूट",
     "ofExpectedLabel": "में से लक्ष्य"
   },
   "Payments": {
@@ -2035,6 +2036,14 @@
     "matrixLegendMost": "सबसे ज़्यादा बाकी",
     "matrixOldColumn": "पुराना",
     "lateFeeTitle": "लेट फीस: लगाई और माफ़ की गई",
+    "discountsTitle": "दी गई छूट",
+    "discountsNone": "इस सत्र में कोई छूट लागू नहीं है।",
+    "discountsSeeStudents": "छात्र देखें",
+    "discountsSplitNote": "नीति छूट {conventional} · मैनुअल {manual}। यह परिवारों की देय राशि घटाती है — यह भुगतान नहीं है।",
+    "discountsByPolicy": "नीति अनुसार",
+    "discountsPolicyNote": "संयुक्त लेबल का मतलब है एक छात्र पर दो नीतियाँ — कम शुल्क वाली लागू होती है, दोनों कभी नहीं जुड़तीं।",
+    "discountsCloseouts": "छूट के रूप में माफ़",
+    "discountsCloseoutNote": "डिस्काउंट-मोड रसीद से बंद की गई बकाया राशि। यह माफ़ी है, छूट नहीं — किसी भी वसूली आँकड़े में शामिल नहीं।",
     "lateFeeCharged": "लगाई गई",
     "lateFeeWaived": "माफ़ की गई",
     "lateFeeSplitNote": "लेट फीस में से {paid} सचमुच जमा हुई है; {pending} अब भी बाकी है. लेट फीस कभी बाकी फीस का हिस्सा नहीं होती.",

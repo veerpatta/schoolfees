@@ -254,7 +254,10 @@ export function StudentQuickLoad({
     if (initialFilters.sessionLabel) searchParams.set("session", initialFilters.sessionLabel);
     if (filters.classId) searchParams.set("classId", filters.classId);
     if (filters.transportRouteId) searchParams.set("transportRouteId", filters.transportRouteId);
-    if (filters.status) searchParams.set("status", filters.status);
+    // "" (every status) must survive the round trip as an explicit "all":
+    // omitted, the server normalizes it back to "active", which is how the
+    // "All students" and "Left but owing" views silently narrowed to the roll.
+    if (filters.status !== "active") searchParams.set("status", filters.status || "all");
     if (filters.segments.length > 0) searchParams.set("seg", serializeSegments(filters.segments));
     if (filters.sort !== "name") searchParams.set("sort", filters.sort);
     if (page > 1) searchParams.set("page", String(page));

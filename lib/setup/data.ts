@@ -1,3 +1,4 @@
+import { FEE_ADMINISTERED_STATUSES } from "@/lib/students/populations";
 import "server-only";
 
 import { cache } from "react";
@@ -410,7 +411,7 @@ async function loadSetupWizardData(options: { skipLedgerPreview?: boolean } = {}
     supabase
       .from("students")
       .select("id, class_ref:classes(session_label)")
-      .in("status", ["active", "inactive"]),
+      .in("status", [...FEE_ADMINISTERED_STATUSES]),
     supabase
       .from("import_batches")
       .select("id, status, invalid_rows, duplicate_rows, failed_rows")

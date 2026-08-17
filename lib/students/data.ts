@@ -1,4 +1,5 @@
 import { getStudentDirectoryIds } from "@/lib/segments/directory";
+import { segmentsImplyEnrolment } from "@/lib/segments/student-segments";
 import "server-only";
 
 import { cache } from "react";
@@ -650,7 +651,11 @@ async function getStudentsPageUncached(
     query = query.eq("transport_route_id", filters.transportRouteId);
   }
 
-  if (filters.status) {
+  // An enrolment chip (Left, Graduated, Left-but-owing…) IS a status filter,
+  // and the more specific one. ANDing it with the dropdown's default "active"
+  // produced the empty set — the chip count said "Left 28" (counts are built
+  // from the chip alone) while the list showed nothing.
+  if (filters.status && !segmentsImplyEnrolment(filters.segments)) {
     query = query.eq("status", filters.status);
   }
 
@@ -1014,7 +1019,10 @@ export async function getStudentsIdentityPage(
   if (filters.sessionLabel) query = query.eq("class_ref.session_label", filters.sessionLabel);
   if (filters.classId) query = query.eq("class_id", filters.classId);
   if (filters.transportRouteId) query = query.eq("transport_route_id", filters.transportRouteId);
-  if (filters.status) query = query.eq("status", filters.status);
+  // Same enrolment-chip precedence as getStudentsPage above.
+  if (filters.status && !segmentsImplyEnrolment(filters.segments)) {
+    query = query.eq("status", filters.status);
+  }
 
   // Search and segments both resolve through the directory. The old
   // ilike("full_name") was narrower than the placeholder promised and narrower
