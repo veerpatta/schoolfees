@@ -64,18 +64,41 @@ describe("statement: one door to the phone layout, one to the paper layout", () 
 
   it("never leaves a column-headed table as the phone's only rendering", () => {
     // A <thead> is the tell for a wide, column-headed table — those are the ones
-    // that cannot survive 375px. The phone document renders cards instead, so it
-    // has none at all; the fee-breakup table it does keep is two columns, label
-    // and amount, and reads fine as-is.
-    expect(STUDENT_MOBILE.match(/<thead/g) ?? []).toHaveLength(0);
+    // that cannot survive 375px. The phone documents render cards instead, so
+    // they have none at all; the fee-breakup tables they do keep are two
+    // columns, label and amount, and read fine as-is.
+    //
+    // The family document was exempt from this until it was measured: at 375px
+    // its two six-column installment tables laid out at 506px inside a 291px
+    // container, and because that container is overflow-hidden the Outstanding
+    // column was not merely off-screen, it was clipped away entirely. Widest
+    // visible element went 548px -> 342px in a 375px viewport when the tables
+    // became cards.
+    for (const source of [STUDENT_MOBILE, FAMILY_MOBILE]) {
+      expect(source.match(/<thead/g) ?? []).toHaveLength(0);
+    }
   });
 
-  it("leaves the family phone document exactly as it was", () => {
-    // Deliberately exempt from the rule above. The A4 redesign was scoped to
-    // desktop and paper, so the family document's phone rendering — wide tables
-    // and all — is frozen at what it has always been rather than quietly
-    // rewritten. Changing it is a separate decision, not a side effect.
-    expect(FAMILY_MOBILE).toContain("<thead");
+  it("keeps the family document's own stacked-card installment rows", () => {
+    // Both installment lists — the consolidated one and the per-child one —
+    // render through the same card, so they cannot drift apart.
+    expect(FAMILY_MOBILE).toContain("function InstallmentCard");
+    expect(FAMILY_MOBILE.match(/<InstallmentCard/g) ?? []).toHaveLength(2);
+  });
+
+  it("lets the family letterhead stack on a phone", () => {
+    // The school name and the family id were fighting for ~170px each, so the
+    // name wrapped to four lines. Same stacking rule the student document uses.
+    expect(FAMILY_MOBILE).toContain("flex flex-col gap-3 sm:flex-row");
+    expect(FAMILY_MOBILE).toContain("p-4 text-foreground shadow-sm sm:p-6");
+  });
+
+  it("wraps the family document's long values instead of cutting them off", () => {
+    // The address was `truncate`d and the generated family label is a single
+    // long token. On the one screen a parent is shown, a value cut off
+    // mid-word is worse than a value on two lines.
+    expect(FAMILY_MOBILE).not.toContain("truncate\" title={address}");
+    expect(FAMILY_MOBILE).toContain("break-words");
   });
 });
 
