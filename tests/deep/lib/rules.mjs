@@ -32,6 +32,13 @@ export const RULES = {
   "session.write-crossed-into-live": { severity: "P0", confidence: "deterministic" },
   "mcp.oracle-mismatch": { severity: "P0", confidence: "deterministic" },
   "mcp.tool-visible-without-permission": { severity: "P0", confidence: "deterministic" },
+  // A count of 0 where a read failed. Worse than an error, because it is
+  // quotable: get_system_health reported "0 students on the roll" for months
+  // and the only other student number in that payload counted leavers too.
+  "mcp.silent-zero": { severity: "P0", confidence: "deterministic" },
+  // A session label that names no ledger, answered with zeros instead of
+  // refused — "₹0 collected in 2019-20" reported as fact.
+  "mcp.phantom-session": { severity: "P0", confidence: "deterministic" },
   "gate.post-run-invariant-broken": { severity: "P0", confidence: "deterministic" },
 
   // ── P1: fails when deterministic ───────────────────────────────────────
@@ -51,6 +58,15 @@ export const RULES = {
   "mcp.cursor-overlap": { severity: "P1", confidence: "deterministic" },
   "mcp.cursor-gap": { severity: "P1", confidence: "deterministic" },
   "mcp.scope-drift": { severity: "P1", confidence: "deterministic" },
+  // A tool whose population changes with a parameter the response never echoes.
+  "mcp.scope-not-echoed": { severity: "P1", confidence: "deterministic" },
+  // Two tools spelling the same scope rule differently, so a client comparing
+  // them sees a difference that is not one.
+  "mcp.scope-rule-drift": { severity: "P1", confidence: "deterministic" },
+  // A cursor that returns the offset it was given: paging never terminates.
+  "mcp.cursor-does-not-advance": { severity: "P1", confidence: "deterministic" },
+  // Payload shape discoverable only by calling the tool.
+  "mcp.no-output-schema": { severity: "P1", confidence: "deterministic" },
   "mcp.tool-missing-for-role": { severity: "P1", confidence: "deterministic" },
   "mcp.tool-error": { severity: "P1", confidence: "deterministic" },
   "mcp.transport-error": { severity: "P1", confidence: "deterministic" },

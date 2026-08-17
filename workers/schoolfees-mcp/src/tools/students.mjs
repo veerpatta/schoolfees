@@ -11,7 +11,17 @@
 import * as z from "zod/v4";
 
 import { chunk, selectAll } from "../supabase.mjs";
-import { scopeParams } from "../scope.mjs";
+import { describeScope, scopeParams } from "../scope.mjs";
+import {
+  count,
+  detailObject,
+  detailRow,
+  pageInfoBlock,
+  rupees,
+  safetyBlock,
+  scopeBlock,
+  truncationFields,
+} from "../schema.mjs";
 import { mapDirectoryRow, mapFinancialRow, FINANCIAL_FIELDS } from "../shape/student.mjs";
 import {
   getStudentInstallments,
@@ -212,8 +222,12 @@ async function searchDirectory(env, { query, sessionLabel, scope, classId, route
     if (column) params[column] = "is.true";
   }
 
-  const { rows, truncated } = await selectAll(env, "v_student_directory", params);
-  return { rows, truncated };
+  // `selectAll` already counts exactly on its first page. This used to return
+  // only `rows`, so `search_students` passed `totalCount: null` and `hasMore`
+  // fell back to "the page came back full" — which claims a next page on every
+  // exactly-full last page.
+  const { rows, truncated, totalCount } = await selectAll(env, "v_student_directory", params);
+  return { rows, truncated, totalCount };
 }
 
 export function registerStudentTools(server, ctx) {
@@ -243,9 +257,16 @@ export function registerStudentTools(server, ctx) {
       cursor: cursorSchema,
       fields: fieldsSchema,
     },
+    outputSchema: {
+      sessionLabel: z.string(),
+      query: z.string(),
+      students: z.array(detailRow),
+      pageInfo: pageInfoBlock,
+      scope: scopeBlock,
+    },
     handler: async ({ sessionLabel, query, scope, classId, limit, cursor, fields }) => {
       const offset = decodeCursor(cursor);
-      const { rows } = await searchDirectory(env, {
+      const { rows, totalCount } = await searchDirectory(env, {
         query,
         sessionLabel,
         scope,
@@ -266,7 +287,7 @@ export function registerStudentTools(server, ctx) {
             sessionLabel,
             query,
             students,
-            pageInfo: pageInfo({ offset, limit, returned: students.length, totalCount: null }),
+            pageInfo: pageInfo({ offset, limit, returned: students.length, totalCount }),
           },
           scope,
           rows,
@@ -280,7 +301,7 @@ export function registerStudentTools(server, ctx) {
     studentRows: true,
     title: "Get Student (Full Record)",
     description:
-      "Use this for everything about ONE student: personal and parent details, enrollment status, resolved fee structure and why each charge is what it is, every installment, receipts and how each was allocated, corrections, refunds, EMI plan and its history, siblings, discounts, last year's carry-forward, and follow-up call history. Choose sections with `include` to keep the response small.",
+      "Use this for everything about ONE student: personal and parent details, enrollment status, resolved fee structure and why each charge is what it is, every installment, receipts and how each was allocated, corrections, refunds, EMI plan and its history, siblings, discounts, last year's carry-forward, and follow-up call history. Choose sections with `include` to keep the response small. Deliberately searches every student regardless of enrollment, so a child who has left is still findable; read enrollment.status on the result to see whether they are on the roll.",
     requires: ["students:view"],
     money: true,
     inputSchema: {
@@ -307,17 +328,40 @@ export function registerStudentTools(server, ctx) {
         ),
       receiptLimit: limitSchema.default(25),
     },
+    outputSchema: {
+      sessionLabel: z.string(),
+      query: z.string(),
+      /** null when nothing matched — an empty result, not an error. */
+      student: detailObject.nullable(),
+      scope: scopeBlock,
+      // Sections are present only when asked for via `include`.
+      installments: z.array(detailRow).optional(),
+      yearSplit: detailObject.optional(),
+      receipts: z.array(detailRow).optional(),
+      receiptsReturned: count.optional(),
+      mayBeTruncated: z.boolean().optional(),
+      repaymentPlan: detailObject.nullable().optional(),
+      repaymentPlanHistory: z.union([z.array(detailRow), detailObject]).nullable().optional(),
+      family: detailObject.nullable().optional(),
+      contactLog: z.union([z.array(detailRow), detailObject]).nullable().optional(),
+      allocationPreview: detailObject.optional(),
+    },
     handler: async ({ sessionLabel, query, include, receiptLimit }) => {
+      // Hardcoded on purpose: looking one child up should never fail because
+      // they left. It was hardcoded invisibly, though — no scope parameter and
+      // no scope block, so a caller had no way to know which population was
+      // searched. Both the description above and the payload now say so.
+      const lookupScope = "everyone";
       const directoryRow = await findStudentRow(env, {
         query,
         sessionLabel,
-        scope: "everyone",
+        scope: lookupScope,
       });
 
       if (!directoryRow) {
         return toolResult(
-          `No student found for "${query}" in ${sessionLabel}.`,
-          { sessionLabel, query, student: null },
+          `No student found for "${query}" in ${sessionLabel} (searched every student, including those who have left).`,
+          { sessionLabel, query, student: null, scope: describeScope(lookupScope) },
         );
       }
 
@@ -413,6 +457,7 @@ export function registerStudentTools(server, ctx) {
       }
 
       const enrollment = student.enrollment;
+      payload.scope = describeScope(lookupScope);
       return toolResult(
         `${student.studentName} (${student.admissionNo}, ${student.classLabel}) — ${enrollment.onRoll ? "on roll" : `${enrollment.label.toLowerCase()}, not on the roll`}. Fees pending ${money(student.feesPendingAmount)}, late fee pending ${money(student.lateFeePendingAmount)}.`,
         payload,
@@ -464,6 +509,27 @@ export function registerStudentTools(server, ctx) {
         .boolean()
         .default(true)
         .describe("Set false for a count-and-total-only answer with no student rows."),
+    },
+    outputSchema: {
+      sessionLabel: z.string(),
+      filters: detailObject,
+      // Covers the whole filtered set, not just the returned page.
+      summary: z.looseObject({
+        studentCount: count,
+        onRollCount: count,
+        feesExpected: rupees,
+        totalPaid: rupees,
+        feesPending: rupees,
+        lateFeePending: rupees,
+        oldBalancePending: rupees,
+        discount: rupees,
+        totalCollectable: rupees,
+      }),
+      groups: z.array(detailRow).nullable(),
+      students: z.array(detailRow),
+      pageInfo: pageInfoBlock,
+      scope: scopeBlock,
+      ...truncationFields,
     },
     handler: async (args) => {
       const {
@@ -547,8 +613,18 @@ export function registerStudentTools(server, ctx) {
 
       const page = rows.slice(offset, offset + limit).map(mapDirectoryRow);
 
+      // The scope belongs in the headline, not only in the payload. This line is
+      // `content[0].text` — the one a summarising model quotes — and under
+      // scope "everyone" it read "535 student(s) matched" while onRollCount: 507
+      // sat in structuredContent where nothing had to look.
+      const notOnRoll = summary.studentCount - summary.onRollCount;
+      const population =
+        notOnRoll > 0
+          ? `scope ${scope} (${summary.onRollCount} on the roll, ${notOnRoll} not)`
+          : `scope ${scope}`;
+
       return toolResult(
-        `${summary.studentCount} student(s) matched in ${sessionLabel}${segments.length ? ` [${segments.join(", ")}]` : ""}. Fees pending ${money(summary.feesPending)}, late fee pending ${money(summary.lateFeePending)}.`,
+        `${summary.studentCount} student(s) matched in ${sessionLabel} under ${population}${segments.length ? ` [${segments.join(", ")}]` : ""}. Fees pending ${money(summary.feesPending)}, late fee pending ${money(summary.lateFeePending)}.`,
         withScope(
           {
             sessionLabel,
@@ -569,6 +645,8 @@ export function registerStudentTools(server, ctx) {
               limit,
               returned: includeRows ? page.length : 0,
               totalCount: rows.length,
+              // A count-only answer has nothing to page through.
+              pageable: includeRows,
             }),
             ...truncationNote(truncated, "20000 rows"),
           },
@@ -596,6 +674,13 @@ export function registerStudentTools(server, ctx) {
       ),
       limit: limitSchema.default(3).describe("How many matching students to return."),
       receiptLimit: limitSchema.default(25),
+    },
+    outputSchema: {
+      sessionLabel: z.string(),
+      query: z.string(),
+      safety: safetyBlock,
+      students: z.array(detailRow),
+      scope: scopeBlock,
     },
     handler: async ({ sessionLabel, query, scope, limit, receiptLimit }) => {
       const { rows } = await searchDirectory(env, {
@@ -664,6 +749,12 @@ export function registerStudentTools(server, ctx) {
     inputSchema: {
       sessionLabel: sessionSchema(env),
       query: z.string().min(1).max(80).describe("Any student in the family: SR number, name, or phone."),
+    },
+    outputSchema: {
+      sessionLabel: z.string(),
+      query: z.string(),
+      /** null when no student matched, or the student has no family group. */
+      family: detailObject.nullable(),
     },
     handler: async ({ sessionLabel, query }) => {
       const row = await findStudentRow(env, { query, sessionLabel, scope: "everyone" });

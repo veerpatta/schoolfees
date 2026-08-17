@@ -27,11 +27,22 @@ import { getStudentInstallments } from "../shape/installment.mjs";
 import { todayIst } from "../freshness.mjs";
 import { daysOverdue, money, number, wholeRupees } from "../format.mjs";
 import {
+  degradedBlock,
+  detailObject,
+  detailRow,
+  isoDate,
+  rupees,
+  safetyBlock,
+  scopeBlock,
+  truncationFields,
+} from "../schema.mjs";
+import {
   defineTool,
   limitSchema,
   scopeSchema,
   sessionSchema,
   toolResult,
+  truncationNote,
   withScope,
 } from "../toolkit.mjs";
 
@@ -226,6 +237,20 @@ const SAFETY = {
   note: "Drafts only. Nothing was sent, and no payment was posted. Receipt posting stays in the Payment Desk after office verification.",
 };
 
+/**
+ * What every `queuePayload` answer carries. Spread into each recovery tool's
+ * own schema so the shared half cannot drift from the shared builder.
+ */
+const queueShape = {
+  sessionLabel: z.string(),
+  asOfDateIst: isoDate,
+  rows: z.array(detailRow),
+  degraded: degradedBlock,
+  degradedWarning: z.string().optional(),
+  scope: scopeBlock,
+  ...truncationFields,
+};
+
 function queuePayload(context, rows, extra = {}) {
   return withScope(
     {
@@ -239,6 +264,11 @@ function queuePayload(context, rows, extra = {}) {
               "Some follow-up data could not be read. Promise dates, no-answer streaks or no-call suppression may be missing from this queue — treat the ordering as incomplete.",
           }
         : {}),
+      // `getRecoveryContext` has always computed this and no payload emitted it,
+      // so a queue built from a capped read looked like the whole list. A
+      // follow-up list that silently stops short is the one place silence costs
+      // real money.
+      ...truncationNote(context.truncated, "20000 rows"),
       ...extra,
     },
     context.scope,
@@ -262,6 +292,7 @@ export function registerRecoveryTools(server, ctx) {
       sessionLabel: sessionSchema(env),
       topDefaultersLimit: limitSchema.default(10),
     },
+    outputSchema: { ...queueShape, summary: detailObject, safety: safetyBlock },
     handler: async ({ sessionLabel, topDefaultersLimit }) => {
       const context = await getRecoveryContext(env, sessionLabel);
       const rows = buildRecoveryRows(context, { includeNoCall: true });
@@ -298,6 +329,14 @@ export function registerRecoveryTools(server, ctx) {
       minPendingAmount: z.number().int().min(0).default(0),
       overdueOnly: z.boolean().default(false),
       limit: limitSchema.default(25),
+    },
+    outputSchema: {
+      ...queueShape,
+      filters: detailObject,
+      // Fees only. A family whose only debt is a late fee is not a defaulter
+      // and never appears in this queue.
+      totalFeesPending: rupees,
+      totalRecoveryAmount: rupees,
     },
     handler: async ({ sessionLabel, classId, minPendingAmount, overdueOnly, limit }) => {
       const context = await getRecoveryContext(env, sessionLabel);
@@ -340,6 +379,12 @@ export function registerRecoveryTools(server, ctx) {
       ),
       limit: limitSchema.default(5),
     },
+    outputSchema: {
+      sessionLabel: z.string(),
+      query: z.string(),
+      students: z.array(detailRow),
+      scope: scopeBlock,
+    },
     handler: async ({ sessionLabel, query, scope, limit }) => {
       const normalized = normalizeQuery(query);
       const { rows } = await getFinancialRows(env, { sessionLabel, scope });
@@ -379,6 +424,7 @@ export function registerRecoveryTools(server, ctx) {
         .default(false)
         .describe("Include families flagged do-not-call. Default false — respect the flag."),
     },
+    outputSchema: { ...queueShape, includeNoCall: z.boolean(), safety: safetyBlock },
     handler: async ({ sessionLabel, limit, includeNoCall }) => {
       const context = await getRecoveryContext(env, sessionLabel);
       const rows = buildRecoveryRows(context, { includeNoCall })
@@ -401,6 +447,7 @@ export function registerRecoveryTools(server, ctx) {
     requires: recoveryPermissions,
     money: true,
     inputSchema: { sessionLabel: sessionSchema(env), limit: limitSchema.default(25) },
+    outputSchema: { ...queueShape },
     handler: async ({ sessionLabel, limit }) => {
       const context = await getRecoveryContext(env, sessionLabel);
       const rows = buildRecoveryRows(context)
@@ -428,6 +475,7 @@ export function registerRecoveryTools(server, ctx) {
       query: z.string().min(1).max(80).describe("Student name, admission number, class, or parent phone."),
       limit: limitSchema.default(5),
     },
+    outputSchema: { ...queueShape, query: z.string(), safety: safetyBlock },
     handler: async ({ sessionLabel, query, limit }) => {
       const normalized = query.trim().toLowerCase();
       const context = await getRecoveryContext(env, sessionLabel);
@@ -478,6 +526,13 @@ export function registerRecoveryTools(server, ctx) {
       limit: limitSchema.default(30),
       language: z.enum(["english", "hinglish"]).default("hinglish"),
     },
+    outputSchema: {
+      ...queueShape,
+      language: z.string(),
+      headline: z.string(),
+      groups: z.union([z.array(detailRow), detailObject]),
+      note: z.string(),
+    },
     handler: async ({ sessionLabel, limit, language }) => {
       const context = await getRecoveryContext(env, sessionLabel);
       const rows = buildRecoveryRows(context).slice(0, limit);
@@ -500,6 +555,13 @@ export function registerRecoveryTools(server, ctx) {
       overdueOnly: z.boolean().default(false),
       limit: limitSchema.default(10),
       language: z.enum(["english", "hinglish"]).default("hinglish"),
+    },
+    outputSchema: {
+      ...queueShape,
+      language: z.string(),
+      // Drafts. Nothing here was sent — see safety.
+      drafts: z.array(detailRow),
+      safety: safetyBlock,
     },
     handler: async ({ sessionLabel, minPendingAmount, overdueOnly, limit, language }) => {
       const context = await getRecoveryContext(env, sessionLabel);
@@ -535,6 +597,17 @@ export function registerRecoveryTools(server, ctx) {
       recoveryLimit: limitSchema.default(25),
       promiseLimit: limitSchema.default(25),
       draftLimit: limitSchema.default(10),
+    },
+    outputSchema: {
+      ...queueShape,
+      language: z.string(),
+      summary: detailObject,
+      recoveryQueue: z.array(detailRow),
+      promisesDue: z.array(detailRow),
+      recoveryPlan: detailObject,
+      followUpDrafts: z.array(detailRow),
+      topDefaulters: z.array(detailRow),
+      safety: safetyBlock,
     },
     handler: async ({ sessionLabel, language, recoveryLimit, promiseLimit, draftLimit }) => {
       // One context, five views of it — the old version fetched the whole

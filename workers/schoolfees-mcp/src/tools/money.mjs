@@ -11,16 +11,31 @@
 import * as z from "zod/v4";
 
 import { createDegradationLog, rpc, selectAll } from "../supabase.mjs";
-import { describeScopeCount, reconciliation } from "../scope.mjs";
-import { countFinancialRows, getFinancialRows } from "../reads.mjs";
+import { describeScope, describeScopeCount, reconciliation } from "../scope.mjs";
+import {
+  countFinancialRows,
+  getDashboardHeadline,
+  getFinancialRows,
+  getScopedStudentIds,
+} from "../reads.mjs";
 import {
   groupFinancialRows,
   routeLabel,
   summarizeFinancialRows,
 } from "../shape/student.mjs";
 import { INSTALLMENT_FIELDS, mapInstallmentRow } from "../shape/installment.mjs";
-import { todayIst } from "../freshness.mjs";
 import { decodeCursor, money, number, pageInfo, projectAll } from "../format.mjs";
+import {
+  count,
+  degradedBlock,
+  detailObject,
+  detailRow,
+  pageInfoBlock,
+  reconciliationBlock,
+  rupees,
+  scopeBlock,
+  truncationFields,
+} from "../schema.mjs";
 import {
   cursorSchema,
   defineTool,
@@ -33,30 +48,33 @@ import {
   withScope,
 } from "../toolkit.mjs";
 
+/**
+ * The five dashboard boards, from the RPC the screen reads.
+ *
+ * The board objects used to fall back to hand-written zeros — `lateFee` became
+ * `{charged: 0, waived: 0, pending: 0}` and `concentration` became all zeros
+ * whenever the RPC returned a shape this function did not recognise. Nothing
+ * was logged, so "the late-fee ledger is empty" and "the late-fee board could
+ * not be read" were the same answer. A missing board is now `null` and the
+ * reason is in `degraded`; only the list boards keep an empty-array default,
+ * where empty and absent genuinely mean the same thing to a reader.
+ */
 async function loadDashboardAnalytics(env, sessionLabel) {
   const payload = await rpc(env, "get_dashboard_analytics", { p_session_label: sessionLabel });
+  if (!payload || typeof payload !== "object") {
+    throw new Error(
+      `get_dashboard_analytics returned no payload for ${sessionLabel}. Refusing to render empty boards as a real position.`,
+    );
+  }
+
   return {
     sessionLabel,
-    debtAge: payload?.debtAge || [],
-    lateFee: payload?.lateFee || {
-      charged: 0,
-      waived: 0,
-      pending: 0,
-      studentsWithPending: 0,
-      byWaiverSource: [],
-      nextAccrual: { dueDate: null, amount: 0, installments: 0 },
-    },
-    monthlyCollection: payload?.monthlyCollection || [],
-    classRecovery: payload?.classRecovery || [],
-    routeRecovery: payload?.routeRecovery || [],
-    concentration: payload?.concentration || {
-      studentsWithDues: 0,
-      totalPending: 0,
-      top10Amount: 0,
-      top10Pct: 0,
-      top50Amount: 0,
-      top50Pct: 0,
-    },
+    debtAge: payload.debtAge || [],
+    lateFee: payload.lateFee ?? null,
+    monthlyCollection: payload.monthlyCollection || [],
+    classRecovery: payload.classRecovery || [],
+    routeRecovery: payload.routeRecovery || [],
+    concentration: payload.concentration ?? null,
   };
 }
 
@@ -71,17 +89,47 @@ export function registerMoneyTools(server, ctx) {
     requires: ["dashboard:view", "finance:view", "reports:view"],
     money: true,
     inputSchema: { sessionLabel: sessionSchema(env) },
+    outputSchema: {
+      sessionLabel: z.string(),
+      headcount: z.looseObject({
+        studentsOnRoll: count,
+        note: z.string(),
+        scope: scopeBlock,
+      }),
+      // Fees and late fees are separate columns here on purpose and are never
+      // summed except as the explicitly named totalCollectable.
+      money: z.looseObject({
+        studentCount: count,
+        onRollCount: count,
+        notOnRollCount: count,
+        pendingStudentCount: count,
+        totalExpectedFees: rupees,
+        totalPaid: rupees,
+        totalFeesPending: rupees,
+        totalLateFeePending: rupees,
+        totalCollectable: rupees,
+        scope: scopeBlock,
+      }),
+      yearSplit: detailObject.nullable(),
+      /** null means the Dashboard RPC could not be read — see degraded. Never 0. */
+      dashboardHeadline: z
+        .looseObject({
+          totalStudents: count,
+          studentsWithPending: count,
+          note: z.string(),
+        })
+        .nullable(),
+      reconciliation: reconciliationBlock,
+      degraded: degradedBlock,
+      ...truncationFields,
+    },
     handler: async ({ sessionLabel }) => {
       // A failed RPC used to become `null`, which rendered as "yearSplit
       // unavailable" with no reason given — indistinguishable from a session
       // that genuinely has no previous-year dues.
       const degraded = createDegradationLog();
-      const [summaryRpc, feeSplit, collectable, onRoll] = await Promise.all([
-        degraded.tolerate(
-          "get_dashboard_summary",
-          () => rpc(env, "get_dashboard_summary", { p_session_label: sessionLabel, p_today: todayIst() }),
-          null,
-        ),
+      const [headline, feeSplit, collectable, onRoll] = await Promise.all([
+        degraded.tolerate("get_dashboard_summary", () => getDashboardHeadline(env, sessionLabel), null),
         degraded.tolerate(
           "get_dashboard_fee_split",
           () => rpc(env, "get_dashboard_fee_split", { p_session_label: sessionLabel }),
@@ -128,10 +176,13 @@ export function registerMoneyTools(server, ctx) {
                 lateFeePending: number(split.late_fee_pending),
               }
             : null,
-          dashboardHeadline: summaryRpc
+          // `null`, never a zero. If this read fails the reason is in
+          // `degraded` below; a 0 here would be indistinguishable from a school
+          // with no students.
+          dashboardHeadline: headline
             ? {
-                totalStudents: number(summaryRpc.totalStudents ?? 0),
-                studentsWithPending: number(summaryRpc.students_with_pending ?? 0),
+                totalStudents: headline.totalStudents,
+                studentsWithPending: headline.studentsWithPending,
                 note: "Straight from the same RPC the office Dashboard reads, so these match the screen exactly.",
               }
             : null,
@@ -163,28 +214,47 @@ export function registerMoneyTools(server, ctx) {
     requires: ["dashboard:view", "finance:view"],
     money: true,
     inputSchema: { sessionLabel: sessionSchema(env) },
+    outputSchema: {
+      sessionLabel: z.string(),
+      debtAge: z.array(detailRow),
+      /** null means the board could not be read — see degraded. Never zeros. */
+      lateFee: detailObject.nullable(),
+      monthlyCollection: z.array(detailRow),
+      classRecovery: z.array(detailRow),
+      routeRecovery: z.array(detailRow),
+      concentration: detailObject.nullable(),
+      degraded: degradedBlock,
+      scope: scopeBlock,
+      notes: detailObject,
+    },
     handler: async ({ sessionLabel }) => {
       const analytics = await loadDashboardAnalytics(env, sessionLabel);
+      const missing = ["lateFee", "concentration"].filter((board) => analytics[board] === null);
 
-      return toolResult(
-        `${sessionLabel}: ${money(analytics.concentration.totalPending)} fees pending across ${analytics.concentration.studentsWithDues} families, and ${money(analytics.lateFee.pending)} of late fee pending. ${analytics.classRecovery.length} classes reporting.`,
-        {
-          ...analytics,
-          scope: {
-            name: "collectable",
-            rule: "record_status = 'active' OR the student has paid something",
-            why: "These boards are money, so they include students who left owing. Headcount elsewhere counts only students on the roll.",
-          },
-          notes: {
-            debtAge:
-              "Buckets count installment rows by how long they have been overdue, and exclude carry-forward. The bucket totals therefore do not add up to total fees pending.",
-            lateFee:
-              "charged is the gross late fee ever raised; waived is what was forgiven; pending is what is still owed. charged minus waived equals pending plus late fee already paid.",
-            monthlyCollection:
-              "Cash actually received. Discount-mode write-offs and reversed receipts are excluded.",
-          },
+      const headline = missing.length
+        ? `${sessionLabel}: ${missing.join(" and ")} could not be read — see degraded. ${analytics.classRecovery.length} classes reporting.`
+        : `${sessionLabel}: ${money(analytics.concentration.totalPending)} fees pending across ${analytics.concentration.studentsWithDues} families, and ${money(analytics.lateFee.pending)} of late fee pending. ${analytics.classRecovery.length} classes reporting.`;
+
+      return toolResult(headline, {
+        ...analytics,
+        degraded: missing.map((board) => ({
+          source: `get_dashboard_analytics.${board}`,
+          reason: "The RPC returned no such board. Reported as null rather than as zeros.",
+        })),
+        // Derived, not hand-written. This block used to spell the rule as prose
+        // — "OR the student has paid something" — where every other tool emits
+        // "OR total_paid > 0", so a client comparing two scope rules saw a
+        // difference that was not one.
+        scope: describeScope("collectable"),
+        notes: {
+          debtAge:
+            "Buckets count installment rows by how long they have been overdue, and exclude carry-forward. The bucket totals therefore do not add up to total fees pending.",
+          lateFee:
+            "charged is the gross late fee ever raised; waived is what was forgiven; pending is what is still owed. charged minus waived equals pending plus late fee already paid.",
+          monthlyCollection:
+            "Cash actually received. Discount-mode write-offs and reversed receipts are excluded.",
         },
-      );
+      });
     },
   });
 
@@ -202,6 +272,27 @@ export function registerMoneyTools(server, ctx) {
         .default("class")
         .describe("Dimension to group by."),
       scope: scopeSchema("collectable"),
+    },
+    outputSchema: {
+      sessionLabel: z.string(),
+      groupBy: z.string(),
+      groups: z.array(
+        z.looseObject({
+          key: z.string().nullable(),
+          label: z.string().nullable(),
+          studentCount: count,
+          onRollCount: count,
+        }),
+      ),
+      totals: z.looseObject({
+        studentCount: count,
+        onRollCount: count,
+        notOnRollCount: count,
+        totalFeesPending: rupees,
+        totalLateFeePending: rupees,
+      }),
+      scope: scopeBlock,
+      ...truncationFields,
     },
     handler: async ({ sessionLabel, groupBy, scope }) => {
       const { rows, truncated } = await getFinancialRows(env, { sessionLabel, scope });
@@ -261,6 +352,10 @@ export function registerMoneyTools(server, ctx) {
           "Filter on base-charge state. 'overdue' outranks 'partial': a partly paid past-due installment reads overdue.",
         ),
       lateFeeStatus: z.enum(["none", "pending", "waived", "paid"]).optional(),
+      scope: scopeSchema(
+        "collectable",
+        "The installment view itself carries no enrollment status, so this is applied by joining the student roll.",
+      ),
       dueOnOrBefore: z.string().optional().describe("ISO date, e.g. 2026-10-20."),
       dueOnOrAfter: z.string().optional().describe("ISO date."),
       carryForward: z
@@ -271,6 +366,23 @@ export function registerMoneyTools(server, ctx) {
       cursor: cursorSchema,
       fields: fieldsSchema,
     },
+    outputSchema: {
+      sessionLabel: z.string(),
+      filters: detailObject,
+      totals: z.looseObject({
+        installmentCount: count,
+        studentCount: count,
+        charged: rupees,
+        paid: rupees,
+        feesPending: rupees,
+        lateFeePending: rupees,
+      }),
+      installments: z.array(detailRow),
+      pageInfo: pageInfoBlock,
+      scope: scopeBlock,
+      note: z.string(),
+      ...truncationFields,
+    },
     handler: async (args) => {
       const {
         sessionLabel,
@@ -278,6 +390,7 @@ export function registerMoneyTools(server, ctx) {
         installmentNo,
         balanceStatus,
         lateFeeStatus,
+        scope,
         dueOnOrBefore,
         dueOnOrAfter,
         carryForward,
@@ -308,8 +421,13 @@ export function registerMoneyTools(server, ctx) {
         params.or = `(student_name.ilike.*${normalized}*,admission_no.ilike.*${normalized}*)`;
       }
 
-      const { rows, truncated } = await selectAll(env, "v_workbook_installment_balances", params);
-      const mapped = rows.map(mapInstallmentRow);
+      const [{ rows, truncated }, roll] = await Promise.all([
+        selectAll(env, "v_workbook_installment_balances", params),
+        getScopedStudentIds(env, { sessionLabel, scope }),
+      ]);
+      // The view has no record_status column, so the scope is applied here
+      // rather than in the query.
+      const mapped = rows.map(mapInstallmentRow).filter((row) => roll.ids.has(row.studentId));
       const offset = decodeCursor(cursor);
 
       const totals = mapped.reduce(
@@ -349,8 +467,14 @@ export function registerMoneyTools(server, ctx) {
             returned: page.length,
             totalCount: mapped.length,
           }),
-          note: "This view carries every student regardless of enrollment status. A student who left without paying has no rows here at all — withdrawing cancels their unpaid installments.",
-          ...truncationNote(truncated, "20000 rows"),
+          // Counted over distinct students, so `counted` here equals
+          // totals.studentCount rather than the installment-row count.
+          scope: describeScope(
+            scope,
+            [...students].map((id) => ({ record_status: roll.statusById.get(id) })),
+          ),
+          note: "A student who left without paying has no rows here at all — withdrawing cancels their unpaid installments.",
+          ...truncationNote(truncated || roll.truncated, "20000 rows"),
         },
       );
     },
@@ -366,6 +490,15 @@ export function registerMoneyTools(server, ctx) {
     // It was the one tool returning money with nothing saying how current it is.
     money: true,
     inputSchema: { sessionLabel: sessionSchema(env) },
+    outputSchema: {
+      sessionLabel: z.string(),
+      policy: detailObject.nullable(),
+      classes: z.array(detailRow),
+      transportRoutes: z.array(detailRow),
+      conventionalDiscountPolicies: z.array(detailRow),
+      discountRules: z.array(z.union([z.string(), detailRow])),
+      degraded: degradedBlock,
+    },
     handler: async ({ sessionLabel }) => {
       const degraded = createDegradationLog();
       const [policy, classes, routes, discountPolicies] = await Promise.all([

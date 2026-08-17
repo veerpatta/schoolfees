@@ -7,12 +7,13 @@
  * students who left owing, and why two tools in the same payload disagreed.
  */
 
-import { createDegradationLog, select, selectAll } from "./supabase.mjs";
+import { createDegradationLog, rpc, select, selectAll } from "./supabase.mjs";
 import { resolveScope, scopeParams } from "./scope.mjs";
 import { FINANCIAL_FIELDS, mapFinancialRow } from "./shape/student.mjs";
 import { getSessionInstallmentsByStudent } from "./shape/installment.mjs";
 import { getPlanCoverage } from "./shape/plan.mjs";
 import { getContactSummaries, getNoCallStudentIds } from "./shape/contact.mjs";
+import { todayIst } from "./freshness.mjs";
 
 /**
  * Student financial rows for a session under an explicit scope.
@@ -75,6 +76,98 @@ export async function countFinancialRows(env, { sessionLabel, scope, classId, ro
 }
 
 /**
+ * Every session label that exists, as a Set.
+ *
+ * `sessionSchema` only checks the *shape* of a label, so `2024-25` passed
+ * validation, matched no rows anywhere, and every tool returned a fully-formed
+ * payload of zeros — `degraded: []`, `truncated: false`, normal prose notes.
+ * An assistant reading that would report "₹0 collected in 2024-25" as fact.
+ * A label that does not exist is a caller mistake, and it has to look like one.
+ */
+export async function getKnownSessionLabels(env) {
+  const { rows } = await selectAll(env, "academic_sessions", { select: "session_label" });
+  return new Set(rows.map((row) => row.session_label).filter(Boolean));
+}
+
+export class UnknownSessionError extends Error {
+  constructor(sessionLabel, known) {
+    super(
+      `Academic session "${sessionLabel}" does not exist. This is not a session with no data — there is no such ledger. Valid sessions: ${[...known].sort().join(", ")}. Call list_sessions to see which is live.`,
+    );
+    this.name = "UnknownSessionError";
+    this.sessionLabel = sessionLabel;
+  }
+}
+
+/**
+ * The student ids a scope covers, plus each one's enrollment status.
+ *
+ * `v_workbook_installment_balances` carries no `record_status` of its own, so a
+ * tool reading it cannot express a scope in PostgREST. It fell back to no scope
+ * at all: every student in the session, leavers included, with the caveat left
+ * in prose. This is the join that lets that tool answer under a named scope
+ * like every other one.
+ */
+export async function getScopedStudentIds(env, { sessionLabel, scope } = {}) {
+  if (!sessionLabel) throw new Error("getScopedStudentIds requires a sessionLabel.");
+  resolveScope(scope);
+
+  const { rows, truncated } = await selectAll(env, "v_workbook_student_financials", {
+    select: "student_id,record_status",
+    session_label: `eq.${sessionLabel}`,
+    ...scopeParams(scope),
+  });
+
+  return {
+    ids: new Set(rows.map((row) => row.student_id).filter(Boolean)),
+    statusById: new Map(rows.map((row) => [row.student_id, row.record_status])),
+    truncated,
+  };
+}
+
+/**
+ * The two headline figures the office Dashboard shows, from the RPC the screen
+ * itself reads.
+ *
+ * `get_dashboard_summary` nests the headcount at `kpis.totalStudents` and puts
+ * `studentsWithPending` at the top level. Three call sites read
+ * `summaryRpc.totalStudents` and `summaryRpc.students_with_pending` — neither
+ * key exists on that payload — and a `?? 0` turned both misses into a confident
+ * zero. The RPC call itself succeeds, so `degraded.tolerate` never fired and
+ * nothing was reported as broken: `get_system_health` answered "0 students on
+ * the roll" while the correct 507 sat one level down, leaving an unfiltered
+ * 535 as the only student number in the payload.
+ *
+ * So this reader validates rather than coalesces. A shape change now fails
+ * loudly into `degraded[]` instead of quietly into a wrong number, which is the
+ * same rule `countFinancialRows` above already applies to its own count.
+ */
+export async function getDashboardHeadline(env, sessionLabel) {
+  if (!sessionLabel) throw new Error("getDashboardHeadline requires a sessionLabel.");
+
+  const payload = await rpc(env, "get_dashboard_summary", {
+    p_session_label: sessionLabel,
+    p_today: todayIst(),
+  });
+
+  const figures = {
+    totalStudents: payload?.kpis?.totalStudents,
+    studentsWithPending: payload?.studentsWithPending,
+  };
+  const paths = { totalStudents: "kpis.totalStudents", studentsWithPending: "studentsWithPending" };
+
+  for (const [key, value] of Object.entries(figures)) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(
+        `get_dashboard_summary returned no numeric ${paths[key]} (got ${JSON.stringify(value)}). Refusing to report a figure this reader cannot verify.`,
+      );
+    }
+  }
+
+  return figures;
+}
+
+/**
  * Everything the recovery tools need, fetched once. Scoped `collectable`: a
  * family that paid something and then left still owes the rest, and the office
  * still has to collect it.
@@ -112,22 +205,6 @@ export async function getRecoveryContext(env, sessionLabel, { scope = "collectab
     planCoverage,
     degraded: degradation.entries,
   };
-}
-
-/**
- * Receipts in a window, scoped by session through the student's class.
- *
- * The old version resolved its student set with `students.status = 'active'`
- * joined to active classes, so a leaver's payment vanished from "who paid
- * recently" — money that demonstrably came in, reported as not having.
- */
-export async function getSessionStudentIds(env, sessionLabel, scope) {
-  const { rows } = await getFinancialRows(env, {
-    sessionLabel,
-    scope,
-    limit: undefined,
-  });
-  return rows.map((row) => row.student_id).filter(Boolean);
 }
 
 /** Match a free-text query against the fields a person would actually type. */

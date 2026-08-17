@@ -34,6 +34,50 @@ first became its answer.
 Alongside that, the server was two hand-copied ~2,100-line files kept in step by
 a test that grepped for tool names — so a divergence in the status filter passed.
 
+## What changed in v1.1.0 (2026-08-17)
+
+The rebuild fixed which students each figure covers. This release fixed a
+figure that had stopped being read at all, and the contract gaps that let a
+wrong number pass for a right one.
+
+**A field-name miss reported "0 students on the roll" for months.**
+`get_dashboard_summary` nests its headcount at `kpis.totalStudents` and puts
+`studentsWithPending` at the top level. Three call sites read
+`summaryRpc.totalStudents` and `summaryRpc.students_with_pending` — neither key
+exists — and a `?? 0` turned both misses into confident zeros. The RPC call
+itself succeeded, so `degraded.tolerate` never fired and nothing looked broken.
+
+In `get_system_health` that left `dataQuality.studentsInSession` — an
+**unfiltered** count of every student record in the session, leavers included —
+as the only student number in the payload. On the live session it reads 535
+against a true roll of 507, and that is the number assistants were quoting back
+at the school as "active students".
+
+The fix is `getDashboardHeadline()` in `src/reads.mjs`, which validates the two
+figures and throws rather than coalescing, matching the rule
+`countFinancialRows` already applied: *never fall back to 0.* Both call sites
+wrap it in `degraded.tolerate`, so a failed read is `null` with a reason, never
+a number.
+
+Alongside it:
+
+- **Data-quality counts are split by population.** Each is now
+  `{ onRoll, notOnRoll, total }`. `duesNotPrepared` reads 25 on the live session
+  and every one is a leaver, so the actionable figure is 0 — which the tool used
+  to leave the reader to work out from a prose caveat.
+- **A session that does not exist is refused.** `sessionSchema` only checks a
+  label's *shape*, so `2024-25` passed, matched nothing, and came back as a full
+  payload of zeros. `assertSessionExists` in `defineTool` now returns an error
+  naming the valid labels.
+- **Every tool declares an `outputSchema`** (`src/schema.mjs`). Payload shape was
+  previously discoverable only by calling, and the row-array key differs per tool.
+- **Every count states its population.** `describeScope` warns under `everyone`
+  that `counted` is not a headcount; the scope name is in the quotable headline;
+  `get_recent_payments`, `get_collection_report`, `get_installments` and
+  `get_student` now carry scope blocks they were missing.
+- **`/health` carries a build stamp**, so "is the fix live?" is answerable.
+  Nothing in CI deploys this Worker.
+
 ## Architecture
 
 ```
@@ -208,12 +252,22 @@ current one.
 
 1. Pick the family module under `src/tools/`.
 2. Call `defineTool(server, ctx, { … })` with `name`, `title`, a `description`
-   written for the model deciding whether to call it, `inputSchema`, the
-   `requires` permissions, and `money: true` if it returns any figure.
+   written for the model deciding whether to call it, `inputSchema`, an
+   `outputSchema`, the `requires` permissions, and `money: true` if it returns
+   any figure.
 3. Name a scope explicitly on every read. There is no default and no way to
-   inherit one.
+   inherit one. If the tool takes a `scope` input, echo it back with
+   `describeScope` — a population that changes with a parameter the response
+   never mentions is a population the caller has to guess.
 4. Keep fees and late fees in separate fields, always.
-5. Add the tool to the catalogue in `docs/agent-mcp-connection.md`.
+5. Build the `outputSchema` from the tool's real payload, using the fragments in
+   `src/schema.mjs`. Strict on the blocks that carry meaning (scope, provenance,
+   pageInfo, counts and money), `detailRow`/`detailObject` on detail — the SDK
+   **validates** `structuredContent` against what you declare and turns a
+   mismatch into a tool error, so an over-promised schema breaks the tool.
+6. Never let a failed read render as a number. Return `null` and record why in
+   `degraded[]`; `0` is indistinguishable from a real zero and is quotable.
+7. Add the tool to the catalogue in `docs/agent-mcp-connection.md`.
 
 ## Testing
 

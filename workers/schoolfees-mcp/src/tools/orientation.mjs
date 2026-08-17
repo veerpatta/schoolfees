@@ -8,12 +8,24 @@
  * tool call away, and the caller's own reach is part of it.
  */
 
+import * as z from "zod/v4";
+
 import { STUDENT_SCOPES } from "../scope.mjs";
 import { describeIdentity } from "../permissions.mjs";
 import { getDataFreshness, todayIst } from "../freshness.mjs";
-import { createDegradationLog, rpc, selectAll } from "../supabase.mjs";
-import { number } from "../format.mjs";
+import { createDegradationLog, selectAll } from "../supabase.mjs";
+import { getDashboardHeadline } from "../reads.mjs";
+import {
+  count,
+  dataFreshnessBlock,
+  degradedBlock,
+  detailObject,
+  isoDate,
+} from "../schema.mjs";
 import { defineTool, sessionSchema, toolResult } from "../toolkit.mjs";
+
+/** onRoll is the actionable half of a data-quality figure; total includes leavers. */
+const qualityCount = z.looseObject({ onRoll: count, notOnRoll: count, total: count });
 
 export const MONEY_GLOSSARY = {
   feesExpectedAmount:
@@ -93,6 +105,17 @@ export function registerOrientationTools(server, ctx) {
     description:
       "Call this FIRST in a new conversation about school fees. It returns the money vocabulary, the rules that decide which students count, what each tool is for, and what the current caller is allowed to read. Use it instead of guessing what a field means.",
     inputSchema: {},
+    outputSchema: {
+      server: detailObject,
+      you: detailObject,
+      availableTools: z.array(z.string()),
+      studentScopes: z.array(
+        z.looseObject({ name: z.string(), rule: z.string(), use: z.string() }),
+      ),
+      moneyGlossary: detailObject,
+      domainRules: z.array(z.looseObject({ rule: z.string(), detail: z.string() })),
+      howToAnswerWell: z.array(z.string()),
+    },
     handler: async () => {
       const who = describeIdentity(identity);
       // Populated by server.mjs once every family has registered, so this
@@ -137,6 +160,19 @@ export function registerOrientationTools(server, ctx) {
     description:
       "Use this when the user asks which academic years exist, which one is live, or to confirm a session label before querying it. Test sessions are flagged so their data is never mistaken for the real school's.",
     inputSchema: {},
+    outputSchema: {
+      sessions: z.array(
+        z.looseObject({
+          sessionLabel: z.string(),
+          status: z.string().nullable(),
+          isTest: z.boolean(),
+          isLive: z.boolean(),
+          purpose: z.string(),
+          notes: z.string().nullable(),
+        }),
+      ),
+      asOfDateIst: isoDate,
+    },
     requires: ["settings:view", "dashboard:view"],
     handler: async () => {
       const { rows } = await selectAll(env, "academic_sessions", {
@@ -172,6 +208,24 @@ export function registerOrientationTools(server, ctx) {
     description:
       "Use this when the user asks whether the numbers can be trusted, why a figure looks stale, or for a data-quality check. Reports how recently the financial views were rebuilt and counts the records with quality problems.",
     inputSchema: { sessionLabel: sessionSchema(env) },
+    outputSchema: {
+      sessionLabel: z.string(),
+      dataFreshness: dataFreshnessBlock,
+      /** null means the read failed — see degraded. Never 0. */
+      headcountOnRoll: count.nullable(),
+      sessionTotalsAvailable: z.boolean(),
+      dataQuality: z.looseObject({
+        studentRecordsInSession: qualityCount,
+        missingPhone: qualityCount,
+        duesNotPrepared: qualityCount,
+        missingDateOfBirth: qualityCount,
+        duplicateSrNumber: qualityCount,
+        pendingSrNumber: qualityCount,
+        note: z.string(),
+      }),
+      populations: detailObject,
+      degraded: degradedBlock,
+    },
     requires: ["settings:view", "dashboard:view"],
     handler: async ({ sessionLabel }) => {
       const freshness = await getDataFreshness(env);
@@ -182,42 +236,59 @@ export function registerOrientationTools(server, ctx) {
         session_label: `eq.${sessionLabel}`,
       });
 
-      const count = (key) => quality.filter((row) => row[key] === true).length;
+      // Split, not summed. `duesNotPrepared` reads 25 on the live session and
+      // every one of them is a student who has left — withdrawing cancels the
+      // unpaid installments, so the actionable number is 0. Reporting the
+      // combined figure and explaining the caveat in prose left the assistant
+      // to work out a split it could not see.
+      const onRollRow = (row) => row.record_status === "active";
+      const count = (key) => {
+        const matched = quality.filter((row) => row[key] === true);
+        const onRoll = matched.filter(onRollRow).length;
+        return { onRoll, notOnRoll: matched.length - onRoll, total: matched.length };
+      };
 
       // This is the tool people call to ask whether the numbers can be trusted.
       // Swallowing a failed read here answered "healthy" by omission.
       const degraded = createDegradationLog();
-      const summary = await degraded.tolerate(
+      const headline = await degraded.tolerate(
         "get_dashboard_summary",
-        () => rpc(env, "get_dashboard_summary", { p_session_label: sessionLabel, p_today: todayIst() }),
+        () => getDashboardHeadline(env, sessionLabel),
         null,
       );
+
+      const onRollTotal = quality.filter(onRollRow).length;
+      const phone = count("seg_missing_phone");
+      const duplicateSr = count("seg_duplicate_sr");
 
       return toolResult(
         freshness.refreshPending
           ? `${sessionLabel}: a payment has been posted since the financial views were last rebuilt — figures may be up to two minutes behind the Payment Desk.`
-          : `${sessionLabel}: financial views current as of ${freshness.lastRefreshedAt || "unknown"}. ${count("seg_duplicate_sr")} duplicate SR, ${count("seg_missing_phone")} without a phone.`,
+          : `${sessionLabel}: ${headline ? `${headline.totalStudents} students on the roll. ` : ""}Financial views current as of ${freshness.lastRefreshedAt || "unknown"}. Among students on the roll: ${duplicateSr.onRoll} duplicate SR, ${phone.onRoll} without a phone.`,
         {
           sessionLabel,
           dataFreshness: freshness,
+          // The headcount leads. When this read failed, the only student number
+          // left in this payload was the unfiltered `studentsInSession`, and an
+          // assistant asked "how many students" answered with it.
+          headcountOnRoll: headline ? headline.totalStudents : null,
+          sessionTotalsAvailable: headline !== null,
           dataQuality: {
-            studentsInSession: quality.length,
-            missingPhone: count("seg_missing_phone"),
+            // Deliberately NOT a headcount: every student record attached to
+            // this session, leavers included. Read `headcountOnRoll` above for
+            // how many children the school teaches.
+            studentRecordsInSession: { onRoll: onRollTotal, notOnRoll: quality.length - onRollTotal, total: quality.length },
+            missingPhone: phone,
             duesNotPrepared: count("seg_dues_not_prepared"),
             missingDateOfBirth: count("seg_missing_dob"),
-            duplicateSrNumber: count("seg_duplicate_sr"),
+            duplicateSrNumber: duplicateSr,
             pendingSrNumber: count("seg_pending_sr"),
-            note: "duesNotPrepared means the student has no installment rows. For a student who has left that is expected — withdrawing cancels unpaid installments. For an active student it needs attention.",
+            note: "Each figure is split by population: onRoll is what needs attention, notOnRoll is students who have left. duesNotPrepared means the student has no installment rows — expected for a leaver, because withdrawing cancels unpaid installments, and a problem only for a student on the roll.",
           },
-          sessionTotalsAvailable: summary !== null,
-          headcountOnRoll: summary ? number(summary.totalStudents ?? 0) : null,
-          // `studentsInSession` above counts every row in the directory for this
-          // session regardless of enrollment, while `headcountOnRoll` is
-          // active-only. Two populations, so both are named rather than left to
-          // look like a discrepancy.
           populations: {
-            studentsInSession: { scope: "everyone", rule: "no status filter" },
             headcountOnRoll: { scope: "on_roll", rule: "record_status = 'active'" },
+            "dataQuality.*.onRoll": { scope: "on_roll", rule: "record_status = 'active'" },
+            "dataQuality.*.total": { scope: "everyone", rule: "no status filter" },
           },
           degraded: degraded.entries,
         },

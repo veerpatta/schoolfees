@@ -28,6 +28,28 @@ import {
 import { chunk } from "../supabase.mjs";
 import { dateDaysAgo, decodeCursor, money, pageInfo, projectAll } from "../format.mjs";
 import {
+  count,
+  detailObject,
+  detailRow,
+  isoDate,
+  pageInfoBlock,
+  rupees,
+  scopeBlock,
+  truncationFields,
+} from "../schema.mjs";
+
+/**
+ * Cash, write-offs and reversals are three separate figures and are never
+ * merged. `studentCount` counts distinct payers in the window — not a roll.
+ */
+const receiptSummary = z.looseObject({
+  receiptCount: count,
+  studentCount: count,
+  cashCollected: rupees,
+  writeOffAmount: rupees,
+  reversedAmount: rupees,
+});
+import {
   cursorSchema,
   defineTool,
   fieldsSchema,
@@ -119,6 +141,16 @@ export function registerTransactionTools(server, ctx) {
       cursor: cursorSchema,
       fields: fieldsSchema,
     },
+    outputSchema: {
+      sessionLabel: z.string(),
+      fromDate: isoDate,
+      days: z.number().int(),
+      summary: receiptSummary,
+      payments: z.array(detailRow),
+      pageInfo: pageInfoBlock,
+      scope: scopeBlock,
+      ...truncationFields,
+    },
     handler: async ({ sessionLabel, days, scope, limit, cursor, fields }) => {
       const fromDate = dateDaysAgo(days);
       const { rows, truncated } = await loadSessionReceipts(env, {
@@ -145,6 +177,11 @@ export function registerTransactionTools(server, ctx) {
             returned: page.length,
             totalCount: receipts.length,
           }),
+          // This tool takes a `scope` and used to vary its whole population by
+          // it without the response ever saying so. `summary.studentCount` is a
+          // count of distinct payers in the window, not a roll — the block
+          // stops that being guessed at.
+          scope: describeScope(scope),
           ...truncationNote(truncated, "20000 rows"),
         },
       );
@@ -173,6 +210,15 @@ export function registerTransactionTools(server, ctx) {
       limit: limitSchema.default(25),
       cursor: cursorSchema,
       fields: fieldsSchema,
+    },
+    outputSchema: {
+      sessionLabel: z.string(),
+      filters: detailObject,
+      summary: receiptSummary,
+      receipts: z.array(detailRow),
+      pageInfo: pageInfoBlock,
+      scope: scopeBlock,
+      ...truncationFields,
     },
     handler: async (args) => {
       const {
@@ -262,6 +308,12 @@ export function registerTransactionTools(server, ctx) {
       receiptNumber: z.string().min(3).max(40).describe("The receipt number, e.g. SVP20260808-0004."),
       sessionLabel: sessionSchema(env),
     },
+    outputSchema: {
+      receiptNumber: z.string(),
+      /** null when no receipt matched. A reversed receipt is still returned, marked. */
+      receipt: detailObject.nullable(),
+      note: z.string().optional(),
+    },
     handler: async ({ receiptNumber, sessionLabel }) => {
       const { rows } = await selectAll(env, "receipts", {
         select: RECEIPT_FIELDS,
@@ -307,6 +359,9 @@ export function registerTransactionTools(server, ctx) {
       return toolResult(
         `Receipt ${receiptNumber}: ${money(decorated.receiptTotalAmount)} on ${decorated.paymentDate} by ${decorated.paymentMode}${decorated.isFullyReversed ? " — REVERSED, not counted as collection" : ""}.`,
         {
+          // Echoed on both paths, so a caller correlating a batch of lookups
+          // does not have to reach into `receipt` on one and not the other.
+          receiptNumber,
           receipt: {
             ...decorated,
             verifyUrl: verifyUrl(env, receiptNumber),
@@ -335,6 +390,26 @@ export function registerTransactionTools(server, ctx) {
       toDate: z.string().optional().describe("ISO date, inclusive."),
       groupBy: z.enum(["day", "month", "paymentMode", "receivedBy"]).default("day"),
       scope: scopeSchema("collectable"),
+    },
+    outputSchema: {
+      sessionLabel: z.string(),
+      fromDate: isoDate,
+      toDate: isoDate.nullable(),
+      groupBy: z.string(),
+      summary: receiptSummary,
+      groups: z.array(
+        z.looseObject({
+          key: z.string(),
+          receiptCount: count,
+          studentCount: count,
+          cashCollected: rupees,
+          writeOffAmount: rupees,
+          reversedAmount: rupees,
+        }),
+      ),
+      note: z.string(),
+      scope: scopeBlock,
+      ...truncationFields,
     },
     handler: async ({ sessionLabel, fromDate, toDate, groupBy, scope }) => {
       const from = fromDate || dateDaysAgo(30);
@@ -387,7 +462,10 @@ export function registerTransactionTools(server, ctx) {
           groupBy,
           summary,
           groups: rowsOut,
-          note: "cashCollected is money actually received: discount-mode write-offs and reversed amounts are reported separately and never added to it.",
+          note: "cashCollected is money actually received: discount-mode write-offs and reversed amounts are reported separately and never added to it. studentCount counts distinct payers in the window, not students on the roll.",
+          // Same omission as get_recent_payments: a `scope` input that changed
+          // the population with nothing in the response admitting it.
+          scope: describeScope(scope),
           ...truncationNote(truncated, "20000 rows"),
         },
       );

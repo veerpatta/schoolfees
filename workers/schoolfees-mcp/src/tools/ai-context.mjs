@@ -16,7 +16,7 @@
 
 import * as z from "zod/v4";
 
-import { describeScopeCount, reconciliation } from "../scope.mjs";
+import { describeScope, describeScopeCount, reconciliation } from "../scope.mjs";
 import { createDegradationLog } from "../supabase.mjs";
 import { countFinancialRows, getFinancialRows } from "../reads.mjs";
 import {
@@ -28,6 +28,14 @@ import {
 import { loadDashboardAnalytics } from "./money.mjs";
 import { todayIst } from "../freshness.mjs";
 import { money, number } from "../format.mjs";
+import {
+  detailObject,
+  detailRow,
+  isoDate,
+  reconciliationBlock,
+  safetyBlock,
+  scopeBlock,
+} from "../schema.mjs";
 import {
   defineTool,
   limitSchema,
@@ -88,6 +96,27 @@ export function registerAiContextTools(server, ctx) {
       studentLimit: limitSchema.default(50),
       topOutstandingLimit: limitSchema.default(25),
     },
+    outputSchema: {
+      sessionLabel: z.string(),
+      asOfDateIst: isoDate,
+      scope: scopeBlock,
+      safety: safetyBlock,
+      sourceOfTruth: detailObject,
+      howToReadThis: detailObject,
+      // Headcount and money are built under different scopes on purpose;
+      // `reconciliation` explains the difference rather than hiding it.
+      headcount: detailObject,
+      summary: detailObject,
+      classSummaries: z.union([z.array(detailRow), detailObject]),
+      routeSummaries: z.union([z.array(detailRow), detailObject]),
+      enrollmentSummaries: z.union([z.array(detailRow), detailObject]),
+      dashboardAnalytics: detailObject.nullable(),
+      topOutstanding: z.array(detailRow),
+      studentRows: z.array(detailRow),
+      reconciliation: reconciliationBlock,
+      fullDataExport: detailObject,
+      truncation: detailObject,
+    },
     handler: async ({ sessionLabel, scope, includeStudentRows, studentLimit, topOutstandingLimit }) => {
       // The reconciliation block below asserts the analytics scope as though the
       // block were present, so a swallowed failure produced a payload that
@@ -129,6 +158,11 @@ export function registerAiContextTools(server, ctx) {
         {
           sessionLabel,
           asOfDateIst: todayIst(),
+          // Every money block below carries its own scope, but a client looking
+          // for the population this call was made under should find it where
+          // every other tool puts it. `headcount` is the deliberate exception
+          // and says so in its own block.
+          scope: describeScope(scope, scoped.rows),
           safety: {
             readOnly: true,
             recordsChanged: false,

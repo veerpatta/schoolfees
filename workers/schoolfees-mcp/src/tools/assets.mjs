@@ -17,7 +17,7 @@ import * as z from "zod/v4";
 
 import { select } from "../supabase.mjs";
 import { BUCKETS, createSignedUrl, downloadObject, toBase64 } from "../storage.mjs";
-import { defineTool, toolResult } from "../toolkit.mjs";
+import { defineTool, toolError, toolResult } from "../toolkit.mjs";
 
 /** The bucket limit is 512 KB; this leaves room without inviting a big file. */
 const PHOTO_MAX_BYTES = 700_000;
@@ -64,9 +64,32 @@ export function registerAssetTools(server, ctx) {
         .default(900)
         .describe("How long a link stays valid. Shorter is safer."),
     },
+    // found=false means no such student; found=true with hasPhoto=false means
+    // the student exists and has no photograph. That is ordinary, not an error.
+    outputSchema: {
+      found: z.boolean(),
+      hasPhoto: z.boolean(),
+      studentId: z.string().optional(),
+      studentName: z.string().nullable().optional(),
+      admissionNo: z.string().nullable().optional(),
+      classLabel: z.string().nullable().optional(),
+      format: z.enum(["link", "bytes"]).optional(),
+      url: z.string().optional(),
+      expiresAt: z.string().optional(),
+      expiresInSeconds: z.number().int().optional(),
+      byteLength: z.number().int().optional(),
+      mimeType: z.string().optional(),
+      /** Set when the image was too large to inline and a link was sent instead. */
+      fellBackToLink: z.boolean().optional(),
+      note: z.string().optional(),
+      error: z.string().optional(),
+    },
     handler: async ({ studentId, admissionNo, format, expiresInSeconds }) => {
+      // isError, because "you called me wrong" and "there is nothing there" are
+      // different answers. They used to share one envelope, so a client could
+      // only tell them apart by probing for an `error` key.
       if (!studentId && !admissionNo) {
-        return toolResult("Give either studentId or admissionNo.", {
+        return toolError("Give either studentId or admissionNo.", {
           error: "studentId or admissionNo is required",
         });
       }
@@ -169,9 +192,27 @@ export function registerAssetTools(server, ctx) {
       format: formatSchema,
       expiresInSeconds: z.number().int().min(60).max(1800).default(600),
     },
+    outputSchema: {
+      found: z.boolean(),
+      hasVoiceNote: z.boolean(),
+      contactId: z.string().nullable().optional(),
+      studentId: z.string().nullable().optional(),
+      contactedAt: z.string().nullable().optional(),
+      outcome: z.string().nullable().optional(),
+      channel: z.string().nullable().optional(),
+      format: z.enum(["link", "bytes"]).optional(),
+      url: z.string().optional(),
+      expiresAt: z.string().optional(),
+      expiresInSeconds: z.number().int().optional(),
+      byteLength: z.number().int().optional(),
+      mimeType: z.string().optional(),
+      fellBackToLink: z.boolean().optional(),
+      note: z.string().optional(),
+      error: z.string().optional(),
+    },
     handler: async ({ studentId, contactId, format, expiresInSeconds }) => {
       if (!studentId && !contactId) {
-        return toolResult("Give either studentId or contactId.", {
+        return toolError("Give either studentId or contactId.", {
           error: "studentId or contactId is required",
         });
       }

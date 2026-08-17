@@ -17,7 +17,7 @@
 
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 
-import { createMcpServer, SERVER_NAME, SERVER_VERSION } from "./src/server.mjs";
+import { buildStamp, createMcpServer, SERVER_NAME, SERVER_VERSION } from "./src/server.mjs";
 import { resolveStaffRole, SERVICE_IDENTITY } from "./src/permissions.mjs";
 import { getSupabaseSchema } from "./src/supabase.mjs";
 import { documentBridgeConfig } from "./src/documents.mjs";
@@ -111,6 +111,7 @@ export function healthPayload(env) {
     ok: true,
     name: SERVER_NAME,
     version: SERVER_VERSION,
+    build: buildStamp(env),
     defaultSession: env.SCHOOLFEES_MCP_DEFAULT_SESSION || "2026-27",
     schema: getSupabaseSchema(env),
     readOnly: true,

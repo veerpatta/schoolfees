@@ -74,10 +74,17 @@ export function decodeCursor(cursor) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
-export function pageInfo({ offset, limit, returned, totalCount }) {
+/**
+ * @param {boolean} [options.pageable] false for a count-only answer, which has
+ *   rows to count but none to page. Without it `returned: 0` against a non-zero
+ *   `totalCount` produced `hasMore: true` with a cursor identical to the current
+ *   one — a caller following it paged forever without advancing.
+ */
+export function pageInfo({ offset, limit, returned, totalCount, pageable = true }) {
   const nextOffset = offset + returned;
   const hasMore =
-    totalCount === null || totalCount === undefined ? returned === limit : nextOffset < totalCount;
+    pageable &&
+    (totalCount === null || totalCount === undefined ? returned === limit : nextOffset < totalCount);
   return {
     offset,
     limit,

@@ -22,7 +22,26 @@ import { registerResources } from "./resources.mjs";
 import { registerPrompts } from "./prompts.mjs";
 
 export const SERVER_NAME = "schoolfees";
-export const SERVER_VERSION = "1.0.0";
+export const SERVER_VERSION = "1.1.0";
+
+/**
+ * Which commit is actually running.
+ *
+ * `SERVER_VERSION` is hand-maintained, so it answers "which release did we
+ * intend" and not "is the fix I just wrote live". Nothing in CI deploys this
+ * Worker — it goes out from a developer machine — which makes that a question
+ * people genuinely have to ask. `wrangler deploy --var` supplies the value; a
+ * build without it says so rather than implying a clean deploy.
+ */
+export function buildStamp(env) {
+  return {
+    commit: env?.SCHOOLFEES_MCP_BUILD_SHA || null,
+    builtAt: env?.SCHOOLFEES_MCP_BUILD_TIME || null,
+    note: env?.SCHOOLFEES_MCP_BUILD_SHA
+      ? null
+      : "No build stamp: deployed without SCHOOLFEES_MCP_BUILD_SHA, so the running commit is unknown. Deploy with `npm run mcp:schoolfees:worker:deploy`.",
+  };
+}
 
 const SERVER_INSTRUCTIONS = `Read-only access to the fee system of Shri Veer Patta Senior Secondary School (VPPS).
 

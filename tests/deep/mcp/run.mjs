@@ -289,6 +289,28 @@ async function caseHappyPath(client, receiptNumber) {
         callArgs.receiptNumber = receiptNumber;
       }
 
+      // `expectsSoftError` marks a tool called deliberately without the one
+      // argument it needs, to prove it refuses cleanly. That refusal is now a
+      // real `isError` rather than a success carrying an `error` key — "you
+      // called me wrong" and "there is nothing there" stopped sharing an
+      // envelope — so the refusal is the pass, not the failure.
+      if (spec.expectsSoftError) {
+        const attempt = await client.tryCallTool(name, callArgs);
+        summary.toolMatrix[name] = { ...(summary.toolMatrix[name] ?? {}), [key]: "ok" };
+        if (attempt.ok) {
+          record({
+            rule: "mcp.tool-error",
+            surface: `${name}@${session}`,
+            title: `${name} accepted a call missing its required identifier`,
+            expected:
+              "A call with neither identifier is refused with isError, not answered.",
+            actual: JSON.stringify(attempt.result?.structuredContent ?? attempt.result).slice(0, 300),
+            session,
+          });
+        }
+        continue;
+      }
+
       try {
         const result = await client.callTool(name, callArgs);
         const structured = result.structuredContent;
@@ -386,6 +408,86 @@ async function caseHappyPath(client, receiptNumber) {
 
 /* ----------------------------------------------------------- 03 scope */
 
+/**
+ * A tool that takes a scope must say which one it used, in the same words as
+ * every other tool.
+ *
+ * `get_recent_payments` and `get_collection_report` both accepted a `scope` and
+ * returned no scope block at all, so the population silently changed with a
+ * parameter the response never echoed. `get_dashboard_analytics` hand-wrote its
+ * rule as prose where every other tool emits the predicate, so a client
+ * comparing two rules saw a difference that was not one.
+ */
+async function caseScopeEcho(client) {
+  console.log("\n03b-scope-echo");
+
+  const RULES = {
+    on_roll: "record_status = 'active'",
+    collectable: "record_status = 'active' OR total_paid > 0",
+    left_owing: "record_status <> 'active' AND outstanding_amount > 0",
+    everyone: "no status filter",
+  };
+
+  const list = await client.listTools();
+  for (const tool of list) {
+    const takesScope = Boolean(tool.inputSchema?.properties?.scope);
+    if (!takesScope) continue;
+
+    for (const scope of ["on_roll", "collectable"]) {
+      const args = { sessionLabel: TEST_SESSION, scope };
+      // The few scoped tools that also demand a search term.
+      if (tool.inputSchema?.required?.includes("query")) args.query = "a";
+
+      const attempt = await client.tryCallTool(tool.name, args);
+      if (!attempt.ok || attempt.result?.isError) continue;
+      const block = attempt.result?.structuredContent?.scope;
+
+      if (!block) {
+        record({
+          rule: "mcp.scope-not-echoed",
+          surface: `${tool.name}(scope=${scope})`,
+          title: `${tool.name} accepts a scope and does not report which one it used`,
+          expected:
+            "A tool whose population changes with a parameter states that population in its payload.",
+          actual: "no scope block",
+          session: TEST_SESSION,
+        });
+        continue;
+      }
+
+      if (block.name !== scope || block.rule !== RULES[scope]) {
+        record({
+          rule: "mcp.scope-rule-drift",
+          surface: `${tool.name}(scope=${scope})`,
+          title: `${tool.name} reports scope ${block.name} / "${block.rule}"`,
+          expected: `Every tool spells the same scope identically: "${RULES[scope]}".`,
+          actual: `name=${block.name} rule="${block.rule}"`,
+          session: TEST_SESSION,
+        });
+      }
+    }
+  }
+}
+
+/** Every tool declares the shape it returns, and returns that shape. */
+async function caseOutputSchemas(client) {
+  console.log("\n02c-output-schemas");
+
+  const list = await client.listTools();
+  for (const tool of list) {
+    if (tool.outputSchema) continue;
+    record({
+      rule: "mcp.no-output-schema",
+      surface: `tools/list ${tool.name}`,
+      title: `${tool.name} declares no outputSchema`,
+      expected:
+        "Every tool declares its output shape, so a client knows the payload without calling it. " +
+        "The row-array key differs per tool, which is undiscoverable otherwise.",
+      actual: "outputSchema absent",
+    });
+  }
+}
+
 async function caseScope(client) {
   console.log("\n03-scope");
 
@@ -473,6 +575,26 @@ async function caseScope(client) {
 
 async function caseCursors(client) {
   console.log("\n04-cursors");
+
+  // A count-only answer has rows to count but none to page. It used to report
+  // `returned: 0` against a non-zero `totalCount`, which made `hasMore` true and
+  // handed back a cursor identical to the current offset — a caller following it
+  // paged forever without advancing.
+  const countOnly = await client.tryCallTool("query_students", {
+    sessionLabel: TEST_SESSION,
+    includeRows: false,
+  });
+  const page = countOnly.result?.structuredContent?.pageInfo;
+  if (page && (page.hasMore || page.nextCursor !== null)) {
+    record({
+      rule: "mcp.cursor-does-not-advance",
+      surface: "query_students(includeRows:false)",
+      title: `A count-only answer offers a next page (hasMore=${page.hasMore}, nextCursor=${page.nextCursor})`,
+      expected: "With no rows returned there is nothing to page: hasMore is false and nextCursor is null.",
+      actual: JSON.stringify(page),
+      session: TEST_SESSION,
+    });
+  }
 
   for (const tool of PAGING_TOOLS) {
     const spec = TOOLS[tool];
@@ -622,12 +744,39 @@ async function caseOracle(client) {
       continue;
     }
 
+    // get_system_health publishes its own headcount, from the Dashboard RPC
+    // rather than from the financial view. It was never compared against
+    // anything, and it read 0 for months while the tool's only other student
+    // number — an unfiltered 535 against a true roll of 507 — sat next to it.
+    // Every tool that publishes a headcount is checked here now, not just the
+    // one that happened to be checked first.
+    let health = null;
+    try {
+      health = (await client.callTool("get_system_health", { sessionLabel: session }))
+        .structuredContent;
+    } catch (error) {
+      record({
+        rule: "mcp.tool-error",
+        surface: `get_system_health@${session}`,
+        title: `Could not read system health for ${session}`,
+        expected: "System health answers for every session the school has.",
+        actual: error.message,
+        session,
+      });
+    }
+
     // Headcount and money count different students on purpose, so both are
     // checked: `studentsOnRoll` against record_status='active', and every money
     // figure against active-OR-has-paid. Conflating the two is what once hid
     // ₹17,250 of live collectable dues.
     const rows = [
       compare(`${session} headcount on roll`, money?.headcount?.studentsOnRoll, figures.headcountOnRoll),
+      compare(`${session} health headcount on roll`, health?.headcountOnRoll, figures.headcountOnRoll),
+      compare(
+        `${session} dashboard headline students`,
+        money?.dashboardHeadline?.totalStudents,
+        figures.headcountOnRoll,
+      ),
       compare(`${session} money students`, money?.money?.studentCount, figures.moneyStudents),
       compare(`${session} expected fees`, money?.money?.totalExpectedFees, figures.expected),
       compare(`${session} collected`, money?.money?.totalPaid, figures.collected),
@@ -742,6 +891,90 @@ async function caseNegatives(client) {
       expected: "An unknown tool is a JSON-RPC error.",
       actual: JSON.stringify(unknownTool.result).slice(0, 200),
     });
+  }
+
+  // A well-formed label for a session that does not exist. This used to pass
+  // the regex, match no rows, and come back as a complete payload of zeros with
+  // `degraded: []` — so "there is no such ledger" and "this year collected
+  // nothing" were the same answer, and only one of them is true.
+  const ghostSession = "2019-20";
+  for (const tool of ["get_session_money_summary", "get_system_health", "query_students"]) {
+    const attempt = await client.tryCallTool(tool, { sessionLabel: ghostSession });
+    if (attempt.ok) {
+      record({
+        rule: "mcp.phantom-session",
+        surface: `${tool}(${ghostSession})`,
+        title: `${tool} answered for a session that does not exist`,
+        expected:
+          `A session label that names no ledger is a caller mistake and must be refused. ` +
+          `Answering with zeros invites "₹0 collected in ${ghostSession}" to be reported as fact.`,
+        actual: JSON.stringify(attempt.result?.structuredContent || attempt.result).slice(0, 300),
+        session: ghostSession,
+      });
+    }
+  }
+}
+
+/* ------------------------------------------------- 06b no silent zeros */
+
+/**
+ * A count of 0 is only ever legal if something says why.
+ *
+ * `get_system_health.headcountOnRoll` read 0 on every session for months
+ * because the reader looked for `totalStudents` where the RPC returns
+ * `kpis.totalStudents`, and a `?? 0` turned the miss into a number. The RPC call
+ * succeeded, so nothing landed in `degraded` and nothing looked wrong. This is
+ * the assertion that makes that class of bug loud: on a session known to hold
+ * students, a headline count of zero must be accompanied by a degraded entry.
+ */
+async function caseNoSilentZeros(client) {
+  console.log("\n06b-no-silent-zeros");
+
+  for (const session of SESSIONS) {
+    const probe = await client.tryCallTool("query_students", {
+      sessionLabel: session,
+      scope: "on_roll",
+      includeRows: false,
+    });
+    const onRoll = probe.result?.structuredContent?.summary?.studentCount ?? 0;
+    // An empty session is allowed to answer zero everywhere.
+    if (!onRoll) continue;
+
+    const checks = [
+      ["get_system_health", {}, (sc) => [["headcountOnRoll", sc?.headcountOnRoll]]],
+      [
+        "get_session_money_summary",
+        {},
+        (sc) => [
+          ["headcount.studentsOnRoll", sc?.headcount?.studentsOnRoll],
+          ["money.studentCount", sc?.money?.studentCount],
+          ["dashboardHeadline.totalStudents", sc?.dashboardHeadline?.totalStudents],
+        ],
+      ],
+    ];
+
+    for (const [tool, extraArgs, extract] of checks) {
+      const attempt = await client.tryCallTool(tool, { sessionLabel: session, ...extraArgs });
+      const sc = attempt.result?.structuredContent;
+      if (!sc) continue;
+      const degraded = Array.isArray(sc.degraded) ? sc.degraded : [];
+
+      for (const [field, value] of extract(sc)) {
+        // null is the honest answer for a read that failed — 0 is not.
+        if (value !== 0) continue;
+        if (degraded.length > 0) continue;
+        record({
+          rule: "mcp.silent-zero",
+          surface: `${tool}.${field}@${session}`,
+          title: `${tool} reports ${field} = 0 on a session with ${onRoll} students on the roll`,
+          expected:
+            "A count of zero is either true or explained. A read that failed reports null and " +
+            "records why in degraded[]; it never renders as 0.",
+          actual: `${field} = 0, degraded = []`,
+          session,
+        });
+      }
+    }
   }
 }
 
@@ -904,6 +1137,7 @@ async function main() {
   await caseTransport(adminLane);
   await caseToolsList(lanes);
   await caseNegatives(adminLane);
+  await caseOutputSchemas(adminLane);
 
   if (!adminLane) {
     summary.notes.push("No admin-capable lane; tool, scope, cursor, oracle and bridge cases were skipped.");
@@ -925,6 +1159,8 @@ async function main() {
 
     await caseHappyPath(adminLane, receiptNumber);
     await caseScope(adminLane);
+    await caseScopeEcho(adminLane);
+    await caseNoSilentZeros(adminLane);
     await caseCursors(adminLane);
     await caseOracle(adminLane);
     await caseBridges(adminLane, receiptNumber);

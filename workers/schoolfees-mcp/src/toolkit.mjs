@@ -12,6 +12,8 @@ import * as z from "zod/v4";
 import { describeScope, SCOPE_NAMES } from "./scope.mjs";
 import { identityCan } from "./permissions.mjs";
 import { moneyProvenance } from "./freshness.mjs";
+import { getKnownSessionLabels, UnknownSessionError } from "./reads.mjs";
+import { withEnvelope } from "./schema.mjs";
 import { ROW_FIELD_NOTES } from "./shape/student.mjs";
 
 export const READ_ONLY_ANNOTATIONS = {
@@ -68,15 +70,25 @@ export function toolResult(summary, structuredContent) {
   };
 }
 
-export function permissionDenied(toolName, required) {
+/**
+ * A refusal, not an answer.
+ *
+ * `toolResult` above is the envelope for "here is what I found", including when
+ * what I found is nothing. This one is for "I could not do what you asked" —
+ * a missing argument, an unusable identifier. The two used to be identical
+ * except for an `error` key buried in the payload, so an empty result and a bad
+ * call were indistinguishable to a client that did not know to look for it.
+ *
+ * `permissionDenied` used to live here and was never called: `defineTool`
+ * refuses to register a tool the caller cannot use, so a forbidden tool is
+ * absent from `tools/list` rather than callable and refusing. Removed rather
+ * than left to imply a code path that does not exist.
+ */
+export function toolError(summary, structuredContent) {
   return {
     isError: true,
-    content: [
-      {
-        type: "text",
-        text: `You do not have permission to use ${toolName}. It requires one of: ${required.join(", ")}. Ask a Schoolfees admin to change your staff role.`,
-      },
-    ],
+    content: [{ type: "text", text: summary }],
+    structuredContent,
   };
 }
 
@@ -100,6 +112,37 @@ function requestProvenance(ctx) {
   return ctx.provenancePromise;
 }
 
+/**
+ * Memoised the same way and for the same reason: one request may call several
+ * tools, and the session list does not change between them.
+ */
+function requestSessionLabels(ctx) {
+  if (!ctx.sessionLabelsPromise) {
+    ctx.sessionLabelsPromise = getKnownSessionLabels(ctx.env);
+  }
+  return ctx.sessionLabelsPromise;
+}
+
+/**
+ * Refuses a session label that does not exist, before the handler can answer
+ * with a payload of zeros that reads like a real position.
+ *
+ * If the check itself fails, the tool runs. The session list being unreadable
+ * is a reason to answer with a caveat, not to refuse every question.
+ */
+async function assertSessionExists(ctx, sessionLabel) {
+  if (!sessionLabel) return;
+  let known;
+  try {
+    known = await requestSessionLabels(ctx);
+  } catch {
+    return;
+  }
+  if (known.size > 0 && !known.has(sessionLabel)) {
+    throw new UnknownSessionError(sessionLabel, known);
+  }
+}
+
 export function defineTool(server, ctx, definition) {
   const { identity, env } = ctx;
   const {
@@ -107,6 +150,7 @@ export function defineTool(server, ctx, definition) {
     title,
     description,
     inputSchema,
+    outputSchema,
     requires = [],
     handler,
     money = false,
@@ -124,6 +168,12 @@ export function defineTool(server, ctx, definition) {
       title,
       description,
       inputSchema,
+      // The envelope blocks are appended centrally: a tool that declared its own
+      // shape but forgot `provenance` would fail validation on every call, and
+      // that is exactly the kind of footgun this indirection exists to remove.
+      ...(outputSchema
+        ? { outputSchema: withEnvelope(outputSchema, { money, studentRows }) }
+        : {}),
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async (args, extra) => {
@@ -135,6 +185,14 @@ export function defineTool(server, ctx, definition) {
       // same database the handler is about to query, and awaiting it afterwards
       // added its full latency to every money answer for no reason.
       const provenance = money ? requestProvenance(ctx) : null;
+
+      // Before the handler, so a label that names no ledger can never be
+      // answered with zeros. `list_sessions` declares no sessionLabel and is
+      // therefore untouched — it is how a caller recovers from this error.
+      if ("sessionLabel" in (inputSchema || {})) {
+        await assertSessionExists(ctx, args?.sessionLabel);
+      }
+
       const result = await handler(args, { env, identity, extra });
 
       if (provenance && result?.structuredContent && !result.structuredContent.provenance) {

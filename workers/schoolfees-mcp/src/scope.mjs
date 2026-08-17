@@ -91,7 +91,18 @@ export function describeScope(name, rows) {
     else notOnRoll += 1;
   }
 
-  return { ...block, counted: rows.length, onRoll, includedNotOnRoll: notOnRoll };
+  const described = { ...block, counted: rows.length, onRoll, includedNotOnRoll: notOnRoll };
+
+  // `counted` is the first number in this block and reads like a headcount. Under
+  // `everyone` it is not one: on the live session it is 535 against a true roll of
+  // 507, and that difference is how "535 active students" got quoted back at the
+  // school. `describeScopeCount` below hard-refuses any scope but `on_roll` for
+  // exactly this reason; the guard belonged on this path too.
+  if (name === "everyone" && notOnRoll > 0) {
+    described.warning = `Audit scope. counted (${rows.length}) is NOT a headcount — it includes ${notOnRoll} student(s) who are not on the roll. The headcount is ${onRoll}.`;
+  }
+
+  return described;
 }
 
 /**

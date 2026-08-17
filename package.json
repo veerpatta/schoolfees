@@ -34,7 +34,7 @@
     "verify:fee-health": "node scripts/verify-live-fee-health.mjs",
     "verify:late-fee-health": "node scripts/verify-late-fee-health.mjs",
     "verify:mcp-health": "node scripts/verify-mcp-health.mjs",
-    "mcp:schoolfees:worker:deploy": "wrangler deploy --config workers/schoolfees-mcp/wrangler.toml",
+    "mcp:schoolfees:worker:deploy": "node workers/schoolfees-mcp/deploy.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

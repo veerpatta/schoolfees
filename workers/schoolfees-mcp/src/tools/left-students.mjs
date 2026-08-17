@@ -19,6 +19,13 @@ import { mapFinancialRow } from "../shape/student.mjs";
 import { getInstallmentsForStudents } from "../shape/installment.mjs";
 import { money, number } from "../format.mjs";
 import {
+  count,
+  detailObject,
+  detailRow,
+  scopeBlock,
+  truncationFields,
+} from "../schema.mjs";
+import {
   defineTool,
   limitSchema,
   sessionSchema,
@@ -69,6 +76,14 @@ export function registerLeftStudentTools(server, ctx) {
         .default(true)
         .describe("Include the installment-level breakdown for each student."),
       limit: limitSchema.default(50),
+    },
+    outputSchema: {
+      sessionLabel: z.string(),
+      statusCounts: detailObject,
+      totals: detailObject,
+      students: z.array(detailRow),
+      note: z.string(),
+      scope: scopeBlock,
     },
     handler: async ({ sessionLabel, statuses, includeDues, limit }) => {
       const { rows } = await getFinancialRows(env, { sessionLabel, scope: "left_owing" });
@@ -136,6 +151,16 @@ export function registerLeftStudentTools(server, ctx) {
         .default(true)
         .describe("Only students who still owe on the carry-forward balance."),
       limit: limitSchema.default(100),
+    },
+    outputSchema: {
+      sessionLabel: z.string(),
+      totals: detailObject,
+      // Totals cover every matching balance; `balances` is the first `limit`.
+      balanceCount: count,
+      balances: z.array(detailRow),
+      balancesReturned: count,
+      note: z.string(),
+      ...truncationFields,
     },
     handler: async ({ sessionLabel, onlyOutstanding, limit }) => {
       // Filtered in the database, not in JS. This used to read every

@@ -10,7 +10,8 @@
 import * as z from "zod/v4";
 
 import { documentBridgeConfig, DocumentBridgeError, fetchDocument } from "../documents.mjs";
-import { defineTool, toolResult } from "../toolkit.mjs";
+import { detailObject } from "../schema.mjs";
+import { defineTool, toolError } from "../toolkit.mjs";
 
 function verifyLink(env, receiptNumber) {
   const base = (env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
@@ -38,10 +39,20 @@ export function registerDocumentTools(server, ctx) {
         .describe("Receipt number, e.g. SVP20260808-0004."),
       receiptId: z.string().uuid().optional().describe("Receipt UUID, if known."),
     },
+    outputSchema: {
+      receiptNumber: z.string().nullable().optional(),
+      receiptId: z.string().nullable().optional(),
+      document: detailObject.optional(),
+      // The bridge config is echoed on failure so a missing token is
+      // diagnosable from the response rather than from the Worker logs.
+      bridge: detailObject.optional(),
+      status: z.number().nullable().optional(),
+      error: z.string().optional(),
+    },
     handler: async ({ receiptNumber, receiptId }) => {
       const id = receiptId || receiptNumber;
       if (!id) {
-        return toolResult("Give either receiptNumber or receiptId.", {
+        return toolError("Give either receiptNumber or receiptId.", {
           error: "receiptNumber or receiptId is required",
         });
       }
