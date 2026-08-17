@@ -83,6 +83,52 @@ describe("reversed receipts are excluded from money totals", () => {
     expect(migration).toContain("SECURITY DEFINER");
   });
 
+  it("refuses to report reversals as zero when the read fails", async () => {
+    // The loader used to discard the error and return whatever rows arrived,
+    // described in its own comment as degrading to "no badge". An absent row
+    // does not read as "unknown" to any caller — it reads as "reversed by ₹0",
+    // and the same map decides isReceiptReversed, which is what keeps a
+    // reversed receipt out of a collection figure. So a failed read did not
+    // drop a badge, it counted money the school gave back.
+    const { getReceiptReversalTotals } = await import("@/lib/receipts/reversals");
+
+    const failing = {
+      from: () => ({
+        select: () => ({
+          in: () => Promise.resolve({ data: null, error: { message: "permission denied" } }),
+        }),
+      }),
+    } as unknown as Parameters<typeof getReceiptReversalTotals>[1];
+
+    await expect(
+      getReceiptReversalTotals(["11111111-1111-4111-8111-111111111111"], failing),
+    ).rejects.toThrow(/reversal totals/i);
+  });
+
+  it("returns an empty map for an empty request without touching the database", async () => {
+    // The throw above must not turn "nothing to look up" into a failure.
+    const { getReceiptReversalTotals } = await import("@/lib/receipts/reversals");
+    const explode = {
+      from: () => {
+        throw new Error("must not query for an empty id list");
+      },
+    } as unknown as Parameters<typeof getReceiptReversalTotals>[1];
+
+    await expect(getReceiptReversalTotals([], explode)).resolves.toEqual(new Map());
+  });
+
+  it("tells a parent verification failed, rather than calling the receipt fake", () => {
+    // The public /r/{code} page wraps its lookup in a blanket catch that
+    // answers "Not a recognised receipt". Once the reversal read throws, that
+    // catch would call a genuine receipt a fake — so the failure is caught
+    // narrowly and reported as what it is.
+    const page = read("app/r/[code]/page.tsx");
+    expect(page).toContain('state: "unverifiable"');
+    expect(page).toContain("Could not verify right now");
+    // The narrow catch sits around the reversal read specifically.
+    expect(page).toMatch(/try \{[\s\S]*getReceiptReversalTotals[\s\S]*\} catch \{[\s\S]*unverifiable/);
+  });
+
   it("still counts a PARTIALLY reversed receipt", () => {
     // Money that really did arrive stays counted. The predicate compares the
     // reversed total against the receipt total rather than testing for the mere

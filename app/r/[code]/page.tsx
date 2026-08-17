@@ -33,6 +33,11 @@ type VerifyPageProps = {
 
 type VerifyResult =
   | { state: "invalid" }
+  // The receipt exists, but its reversal state could not be read. Saying
+  // "valid" here could vouch for a receipt the school has since reversed;
+  // saying "not recognised" calls a genuine receipt a fake. Neither is true,
+  // so this says what actually happened.
+  | { state: "unverifiable"; receiptNumber: string }
   | {
       state: "valid" | "reversed";
       receiptNumber: string;
@@ -61,8 +66,15 @@ async function verifyReceipt(code: string): Promise<VerifyResult> {
       return { state: "invalid" };
     }
 
-    const reversalTotals = await getReceiptReversalTotals([data.id], supabase);
-    const reversed = isReceiptReversed(reversalTotals, data.id, data.total_amount ?? 0);
+    // Scoped narrowly: a failure to read the reversal state is not the same
+    // as an unknown receipt, and must not be reported as one.
+    let reversed: boolean;
+    try {
+      const reversalTotals = await getReceiptReversalTotals([data.id], supabase);
+      reversed = isReceiptReversed(reversalTotals, data.id, data.total_amount ?? 0);
+    } catch {
+      return { state: "unverifiable", receiptNumber: data.receipt_number };
+    }
 
     return {
       state: reversed ? "reversed" : "valid",
@@ -96,6 +108,22 @@ export default async function ReceiptVerifyPage({ params }: VerifyPageProps) {
             </p>
             <p className="mt-1 text-xs text-destructive-soft-foreground/80" lang="hi">
               यह रसीद संख्या हमारे रिकॉर्ड में नहीं मिली। कृपया स्कूल कार्यालय से संपर्क करें।
+            </p>
+          </div>
+        ) : result.state === "unverifiable" ? (
+          // Not a green tick and not a rejection. The receipt number is real;
+          // whether it has since been reversed could not be read, and vouching
+          // for it either way would be a guess.
+          <div className="mt-4 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3">
+            <p className="text-sm font-semibold text-warning-soft-foreground">
+              Could not verify right now · अभी सत्यापन नहीं हो सका
+            </p>
+            <p className="mt-1 text-xs text-warning-soft-foreground/80">
+              Receipt {result.receiptNumber} could not be checked. Please try again in a
+              few minutes, or contact the school office.
+            </p>
+            <p className="mt-1 text-xs text-warning-soft-foreground/80" lang="hi">
+              कृपया कुछ देर बाद पुनः प्रयास करें, या स्कूल कार्यालय से संपर्क करें।
             </p>
           </div>
         ) : (
