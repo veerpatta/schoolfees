@@ -378,7 +378,7 @@ Routes are embedded in their respective modules (not centralized under `/api/`):
 | `/protected/receipts/[receiptId]/detail` | Receipt detail fetch |
 | `/protected/defaulters/{contact-log,fee-breakdown,voice-note}` | Follow-up logging |
 | `/protected/students/{photo,index}` | Photo upload, student search |
-| `/protected/students/[studentId]/fee-pdf` · `/family/[familyGroupId]/{fee-pdf,receipts,statement}` | Parent documents |
+| `/protected/students/[studentId]/fee-pdf` · `/family/[familyGroupId]/{fee-pdf,statement}` | Parent documents |
 | `/r/[code]` | Public receipt verification |
 
 ## Test Structure

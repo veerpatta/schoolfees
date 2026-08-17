@@ -387,10 +387,20 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
   }
 
   // Mobile app v2 slot order: Home · Students · Collect (centre saffron pill)
-  // · Calls · More. Collect sits in the middle slot because it is the thumb's
-  // home position and the one action the app exists for. It only appears for
-  // roles that can post payments; Calls only for roles that can view
-  // defaulters. Remaining modules live behind "More".
+  // · Receipts · More. Collect sits in the middle slot because it is the
+  // thumb's home position and the one action the app exists for.
+  //
+  // Receipts took the fourth slot from Defaulters ("Calls") in 2026-08: taking
+  // money and then checking what came in is the daily loop, while chasing a
+  // defaulter is a periodic job. Defaulters moved to More, where it keeps its
+  // overdue count via the More badge. `fee_collector` is untouched above —
+  // chasing IS that role's job.
+  //
+  // The href is `/protected/transactions`, the day book, NOT
+  // `/protected/receipts`. The latter is a takeover route
+  // (`mobileTakeoverRoutes` below) and `MobileBottomNav` renders nothing on a
+  // takeover, so a tab pointing there would hide the very bar it lives in.
+  // Receipt lookup stays in More as "Find a receipt".
   const items: MobileBottomNavigationItem[] = [
     {
       href: "/protected/dashboard",
@@ -415,24 +425,18 @@ export function getMobilePrimaryNavigation(staffRole: StaffRole) {
     });
   }
 
-  if (hasRolePermission(staffRole, "defaulters:view")) {
-    items.push({
-      href: "/protected/defaulters",
-      label: "Calls",
-      icon: ClipboardList,
-      i18nKey: "calls",
-    });
-  }
-
-  if (items.length < 4 && hasRolePermission(staffRole, "receipts:view")) {
+  if (hasRolePermission(staffRole, "receipts:view")) {
     items.push({
       href: "/protected/transactions",
-      label: "Transactions",
+      label: "Receipts",
       icon: BookOpenCheck,
-      i18nKey: "transactions",
+      i18nKey: "receipts",
     });
   }
 
+  // No `items.length < 4` fallback any more. It existed to backfill a fourth
+  // slot when Calls was absent, and with Receipts unconditional it would only
+  // ever double-add the same href.
   return items;
 }
 
@@ -473,6 +477,18 @@ const mobileMoreGroups: readonly MobileMoreGroup[] = [
     i18nKey: "groupDaily",
     label: "Daily",
     items: [
+      // Defaulters lives here since Receipts took its slot in the bar. First in
+      // the group on purpose: it is the one item here with work attached to it,
+      // and the More button carries its overdue count so the number is not lost
+      // by the move.
+      {
+        href: "/protected/defaulters",
+        label: "Follow-up calls",
+        description: "Who to ring, in order",
+        icon: ClipboardList,
+        requiredPermission: "defaulters:view",
+        i18nKey: "moreDefaulters",
+      },
       {
         href: "/protected/transactions",
         label: "All receipts",

@@ -51,13 +51,29 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
     item.i18nKey ? t(item.i18nKey) : item.label;
   const primaryItems = getMobileBottomNavigation(staffRole).slice(0, 4);
   const moreGroups = useMemo(() => getMobileMoreGroups(staffRole), [staffRole]);
-  const primaryHrefs = new Set(primaryItems.map((item) => item.href));
+  const primaryHrefs = useMemo(
+    () => new Set(primaryItems.map((item) => item.href)),
+    [primaryItems],
+  );
   const overflowIsActive = moreGroups.some((group) =>
     group.items.some((item) => {
       if (primaryHrefs.has(item.href)) return false;
       return pathname === item.href || pathname.startsWith(`${item.href}/`);
     }),
   );
+  // Counts belonging to rows that now live behind More, summed onto the More
+  // button. Rows already in the bar are skipped so a count is never shown twice.
+  const overflowBadge = useMemo(() => {
+    if (!counts) return undefined;
+    let total = 0;
+    for (const group of moreGroups) {
+      for (const item of group.items) {
+        if (primaryHrefs.has(item.href)) continue;
+        total += counts[item.href] ?? 0;
+      }
+    }
+    return total > 0 ? total : undefined;
+  }, [counts, moreGroups, primaryHrefs]);
   // Takeover screens replace the screen entirely (mobile v2): the tab bar
   // would cost 68px where height matters most, and a tab bar on a student
   // detail page says "you are on a tab", which it is not. MobileTakeoverBar
@@ -230,7 +246,11 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
             // Collect is THE action of this app — it stays a filled saffron
             // pill in every state so the thumb always knows where money goes.
             const isCollect = !isOverflow && item.href === "/protected/payments";
-            const badge = isOverflow ? undefined : counts?.[item.href];
+            // More carries the sum of its own rows' counts. Without this,
+            // moving Defaulters off the bar and into More would silently drop
+            // the overdue count from the phone entirely — the number is the
+            // reason anyone opens that screen.
+            const badge = isOverflow ? overflowBadge : counts?.[item.href];
             const content = (
               <>
                 <span

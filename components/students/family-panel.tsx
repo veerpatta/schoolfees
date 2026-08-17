@@ -184,16 +184,6 @@ export function StudentFamilyPanel({
                   Print Family Statement
                 </Link>
               </Button>
-              <Button asChild size="sm" variant="outline" className="w-full">
-                <Link
-                  href={withSession(
-                    `/protected/students/family/${encodeURIComponent(familyGroupId)}/receipts?print=1`,
-                  )}
-                  target="_blank"
-                >
-                  Reprint all family receipts
-                </Link>
-              </Button>
             </>
           ) : null}
           {linkSiblingTrigger}

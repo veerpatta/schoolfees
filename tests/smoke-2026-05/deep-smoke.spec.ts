@@ -608,7 +608,6 @@ test("deep route and workflow smoke", async ({ page, request }, testInfo) => {
     ids.fallbackStudent?.id ? `/protected/students/${ids.fallbackStudent.id}/edit` : null,
     ids.fallbackStudent?.id ? `/protected/students/${ids.fallbackStudent.id}/statement` : null,
     ids.familyGroupId ? `/protected/students/family/${ids.familyGroupId}/pay` : null,
-    ids.familyGroupId ? `/protected/students/family/${ids.familyGroupId}/receipts` : null,
     ids.familyGroupId ? `/protected/students/family/${ids.familyGroupId}/statement` : null,
     ids.receiptId ? `/protected/receipts/${ids.receiptId}` : null,
     ids.fallbackStudent?.id ? `/protected/reports/ledger/${ids.fallbackStudent.id}/print` : null,

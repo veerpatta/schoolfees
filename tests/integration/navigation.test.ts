@@ -8,6 +8,7 @@ import {
   getMobileMoreGroups,
   getProtectedRouteMeta,
   getVisibleProtectedNavigation,
+  isMobileTakeoverRoute,
 } from "@/lib/config/navigation";
 
 describe("office navigation", () => {
@@ -184,25 +185,39 @@ describe("office navigation", () => {
     });
   });
 
-  it("builds mobile bottom nav with Home, Students, Collect, and Calls for counter work", () => {
+  it("builds mobile bottom nav with Home, Students, Collect, and Receipts for counter work", () => {
     const accountant = getMobileBottomNavigation("accountant");
     const viewOnly = getMobileBottomNavigation("view_only");
 
     // Mobile app v2 slot order: Home · Students · Collect (centre saffron
-    // pill) · Calls · More (More is appended by the component, not the
+    // pill) · Receipts · More (More is appended by the component, not the
     // config). Collect sits in the middle slot — thumb home position.
+    //
+    // Receipts replaced Calls in the fourth slot in 2026-08: take money, then
+    // check what came in, is the daily loop. Defaulters moved to More.
     expect(accountant.map((item) => item.label)).toEqual([
       "Home",
       "Students",
       "Collect",
-      "Calls",
+      "Receipts",
     ]);
     expect(viewOnly.map((item) => item.label)).toEqual([
       "Home",
       "Students",
-      "Calls",
-      "Transactions",
+      "Receipts",
     ]);
+  });
+
+  it("points the Receipts tab at a route that does not hide the tab bar", () => {
+    // /protected/receipts is a takeover route, and MobileBottomNav renders
+    // nothing on a takeover — a tab pointing there would hide the bar it lives
+    // in the moment it was tapped. The day book is the tab; lookup is in More.
+    const receipts = getMobileBottomNavigation("admin").find(
+      (item) => item.label === "Receipts",
+    );
+
+    expect(receipts?.href).toBe("/protected/transactions");
+    expect(isMobileTakeoverRoute("/protected/transactions")).toBe(false);
   });
 
   it("only offers More-hub rows the target page will actually let the role open", () => {
@@ -213,6 +228,7 @@ describe("office navigation", () => {
     const pageGuards: Record<string, StaffPermission[]> = {
       "/protected/transactions": ["receipts:view", "defaulters:view", "reports:view", "finance:view"],
       "/protected/receipts": ["receipts:view"],
+      "/protected/defaulters": ["defaulters:view"],
       "/protected/fee-setup": ["fees:view"],
       "/protected/exports": ["reports:view"],
       "/protected/imports": ["imports:view"],
@@ -257,11 +273,26 @@ describe("office navigation", () => {
     ]);
   });
 
-  it("keeps the defaulters call list in the teacher mobile tabs", () => {
-    const items = getMobileBottomNavigation("teacher");
-    const calls = items.find((item) => item.label === "Calls");
+  it("keeps the defaulters call list reachable once it leaves the tab bar", () => {
+    // It is no longer a tab for these roles, so More is the only way in. A
+    // module that is in neither place is gone, which is what this guards.
+    for (const role of ["admin", "accountant", "teacher"] as const) {
+      const tabs = getMobileBottomNavigation(role).map((item) => item.href);
+      const more = getMobileMoreGroups(role).flatMap((group) =>
+        group.items.map((item) => item.href),
+      );
 
-    expect(calls?.href).toBe("/protected/defaulters");
+      expect(tabs).not.toContain("/protected/defaulters");
+      expect(more, `${role} cannot reach defaulters at all`).toContain(
+        "/protected/defaulters",
+      );
+    }
+
+    // fee_collector is the exception: chasing is that role's whole job, so it
+    // keeps Defaulters as its first tab.
+    expect(getMobileBottomNavigation("fee_collector")[0]?.href).toBe(
+      "/protected/defaulters",
+    );
   });
 
   it("keeps read_only_staff string accepted as a backward-compat alias for view_only", () => {

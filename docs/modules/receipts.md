@@ -84,11 +84,22 @@ It is theme-aware on screen but **forced to dark ink for print**, so a stamp sur
 photocopy. Stamps are decorative to screen readers; the fact they convey is always also in
 the surrounding text.
 
-## Family reprint
+## Family reprint — removed
 
-`/protected/students/family/[familyGroupId]/receipts` reprints for a confirmed family
-group. Note that a receipt still belongs to **one student** — family payments as a posting
-shape were removed in `20260521171500`. Individual posting is the only shape.
+There was a `/protected/students/family/[familyGroupId]/receipts` page that reprinted every
+receipt for a family in one stack. It was deleted on 2026-08-18 (Sentry `SCHOOLFEES-H`).
+
+It had been throwing on every visit — it selected `student_family_groups.name`, and the
+column is `family_label` — and the errors underneath were worse than the crash: no session
+filter, so it pulled receipts from every academic year; `order(payment_date asc).limit(30)`,
+so a family past thirty receipts silently lost its **newest** ones, which are the ones staff
+reprint; per-receipt failures swallowed by `.catch(() => null)` while the header count still
+counted them; and roughly 270 concurrent queries in a single render. No test covered it and
+the deep suite could never discover an id for it.
+
+A receipt still belongs to **one student** — family payments as a posting shape were removed
+in `20260521171500`. Reprint receipts individually from `/protected/receipts`, or use the
+family statement for a consolidated document.
 
 ## Related
 

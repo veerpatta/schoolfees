@@ -5,7 +5,7 @@ The student master, and every per-student exception to the fee policy.
 | | |
 |---|---|
 | Routes | `/protected/students`, `/[studentId]`, `/[studentId]/edit`, `/[studentId]/statement`, `/new`, `/bulk-update` |
-| Handlers | `/students/index` (search), `/students/photo`, `/[studentId]/fee-pdf`, `/family/[familyGroupId]/{fee-pdf,statement,receipts}` |
+| Handlers | `/students/index` (search), `/students/photo`, `/[studentId]/fee-pdf`, `/family/[familyGroupId]/{fee-pdf,statement}` |
 | Components | `components/students/` |
 | Lib | `lib/students/` (server-only), `lib/segments/` (shared with Transactions) |
 

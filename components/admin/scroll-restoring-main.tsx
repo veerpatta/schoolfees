@@ -22,7 +22,14 @@ export function ScrollRestoringMain({
   const searchParams = useSearchParams();
   const mainRef = useRef<HTMLElement>(null);
   const storageKey = useMemo(() => {
-    const search = searchParams.toString();
+    // `view` is dropped from the key on purpose. The dashboard's boards are
+    // tabs on one page, and their links already say `scroll={false}` so the
+    // reader stays put. Keying on the full query string made every `?view=`
+    // its own slot, so switching board restored a position saved for a
+    // different board -- undoing the very thing scroll={false} was for.
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("view");
+    const search = params.toString();
     return `vpps.scroll.${pathname}${search ? `?${search}` : ""}`;
   }, [pathname, searchParams]);
 

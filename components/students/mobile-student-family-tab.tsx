@@ -197,13 +197,6 @@ export async function MobileStudentFamilyTab({
           >
             {t("familyStatementCta")}
           </Link>
-          <Link
-            href={withSession(`/protected/students/family/${familyGroupId}/receipts`)}
-            target="_blank"
-            className="focus-ring grid h-12 place-items-center rounded-xl border border-border bg-surface-2 text-[12.5px] font-extrabold text-foreground"
-          >
-            {t("familyReceiptsCta")}
-          </Link>
           {linkTrigger}
         </div>
       ) : null}
