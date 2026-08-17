@@ -308,13 +308,31 @@ function ReceivedBySection({ data }: { data: FinanceControlsPageData }) {
 
 function DayCloseSection({ data }: { data: FinanceControlsPageData }) {
   const closure = data.closure;
-  const summary = closure?.summarySnapshot ?? data.summary;
+
+  /**
+   * The LIVE figure wins, always.
+   *
+   * `summary_snapshot` is frozen at midnight, and this office back-dates
+   * payments — a receipt for the 2nd is often keyed on the 9th, long after that
+   * day closed. Preferring the frozen copy meant a closed day showed a total
+   * that disagreed with the receipts listed directly beneath it, and no reversal
+   * made after the close ever reached it either. Across the live session that
+   * was 38 days out by Rs 14.7 lakh, most of it nothing to do with any one edit.
+   *
+   * `data.summary` is recomputed from the receipts on every read and nets
+   * reversals, so it cannot go stale. The closure still says whether and when
+   * the day closed — that is the part only it knows.
+   */
+  const summary = data.summary;
+  const frozen = closure?.summarySnapshot ?? null;
+  const closedOnADifferentFigure =
+    frozen !== null && frozen.receiptTotal !== summary.receiptTotal;
   const isClosed = closure?.status === "closed";
 
   return (
     <SectionCard
       title="Day close"
-      description="Days close automatically overnight — this is a read-only snapshot of that day's collections. No manual approval or reconciliation step is required."
+      description="Days close automatically overnight — this is a read-only view of that day's collections, recomputed live. No manual approval or reconciliation step is required."
       actions={
         <StatusBadge
           label={isClosed ? "Closed automatically" : "Awaiting overnight close"}
@@ -329,6 +347,21 @@ function DayCloseSection({ data }: { data: FinanceControlsPageData }) {
           {summary.receiptCount === 1 ? "" : "s"}. Processed refunds:{" "}
           {formatInr(summary.refundProcessedTotal)}. Net cash: {formatInr(summary.netCashTotal)}.
         </p>
+        {summary.reversedTotal > 0 ? (
+          <p className="mt-1 text-muted-foreground">
+            Excludes {formatInr(summary.reversedTotal)} on {summary.reversedReceiptCount} reversed
+            receipt{summary.reversedReceiptCount === 1 ? "" : "s"}.
+          </p>
+        ) : null}
+        {closedOnADifferentFigure && frozen ? (
+          // Said out loud rather than quietly overridden: a printout taken on
+          // the night of the close will not match this screen, and the reader
+          // deserves to know which number moved and why.
+          <p className="mt-1 text-muted-foreground">
+            This day closed at {formatInr(frozen.receiptTotal)}. It has changed since — receipts
+            entered or reversed after the close are included above.
+          </p>
+        ) : null}
         {closure?.closedAt ? (
           <p className="mt-1 text-muted-foreground">Closed {formatDateTime(closure.closedAt)}.</p>
         ) : (
