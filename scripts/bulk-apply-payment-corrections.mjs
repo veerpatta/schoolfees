@@ -30,6 +30,12 @@ const DASHBOARD_STALENESS_CEILING_SECONDS = 300;
  */
 
 export const CORRECTION_OPS = Object.freeze({
+  "student-total": {
+    describe:
+      "A student's year-to-date collected is wrong. Give a target; the harness works out the receipts.",
+    needs: ["admissionNo", "fromCollected", "toCollected"],
+    keyedBy: "admissionNo",
+  },
   reverse: {
     describe: "Receipt should not exist at all — a duplicate, or money never received.",
     needs: ["receiptNumber", "fromAmount"],
@@ -81,10 +87,21 @@ export function describeCorrectionOps() {
  * become writable just because they moved up a year.
  */
 export async function loadCorrectionContext(supabase, plan, sessionLabel) {
-  const receiptNumbers = [...new Set(plan.rows.map((row) => row.receiptNumber).filter(Boolean))];
+  // Two shapes of row. Receipt-keyed ops name one receipt; `student-total` names
+  // a student and lets the harness work out which receipts have to move.
+  const studentPlanRows = plan.rows.filter((row) => CORRECTION_OPS[row.op]?.keyedBy === "admissionNo");
+  const receiptPlanRows = plan.rows.filter((row) => CORRECTION_OPS[row.op]?.keyedBy !== "admissionNo");
 
-  if (receiptNumbers.length !== plan.rows.length) {
-    throw new Error("Every correction row needs a unique receiptNumber.");
+  const receiptNumbers = [...new Set(receiptPlanRows.map((row) => row.receiptNumber).filter(Boolean))];
+
+  if (receiptNumbers.length !== receiptPlanRows.length) {
+    throw new Error("Every receipt-keyed correction row needs a unique receiptNumber.");
+  }
+
+  const studentKeys = [...new Set(studentPlanRows.map((row) => String(row.admissionNo)).filter(Boolean))];
+
+  if (studentKeys.length !== studentPlanRows.length) {
+    throw new Error("Every student-total row needs a unique admissionNo.");
   }
 
   const { data: receiptRows, error: receiptError } = await supabase
@@ -162,7 +179,7 @@ export async function loadCorrectionContext(supabase, plan, sessionLabel) {
     ...new Set(plan.rows.map((row) => row.toAdmissionNo).filter(Boolean)),
   ];
 
-  const { data: studentRows } = await supabase
+  const { data: studentRecords } = await supabase
     .from("students")
     .select("id, admission_no, full_name")
     .or(
@@ -176,8 +193,113 @@ export async function loadCorrectionContext(supabase, plan, sessionLabel) {
         .join(","),
     );
 
-  const studentsById = new Map((studentRows ?? []).map((row) => [row.id, row]));
-  const studentsByAdmissionNo = new Map((studentRows ?? []).map((row) => [row.admission_no, row]));
+  const studentsById = new Map((studentRecords ?? []).map((row) => [row.id, row]));
+  const studentsByAdmissionNo = new Map(
+    (studentRecords ?? []).map((row) => [row.admission_no, row]),
+  );
+
+  /**
+   * Everything `student-total` needs, and only loaded when a plan actually uses
+   * it: the live year-to-date total, the installments with room left, and the
+   * receipts a take-back could reverse.
+   *
+   * Scoped to the session the CLI was given, through the class on the
+   * installment — the same anchor the receipt-keyed ops use, so a promoted
+   * student's prior-year money is never in scope.
+   */
+  const financialsByStudentId = new Map();
+  const installmentsByStudentId = new Map();
+  const receiptsByStudentId = new Map();
+
+  if (studentKeys.length > 0) {
+    const { data: targetStudents, error: tErr } = await supabase
+      .from("students")
+      .select("id, admission_no, full_name, class_ref:classes!inner(session_label)")
+      .in("admission_no", studentKeys)
+      .eq("class_ref.session_label", sessionLabel);
+
+    if (tErr) throw new Error(`Could not read students: ${tErr.message}`);
+
+    for (const s of targetStudents ?? []) {
+      studentsById.set(s.id, s);
+      studentsByAdmissionNo.set(s.admission_no, s);
+    }
+
+    const targetIds = (targetStudents ?? []).map((s) => s.id);
+    const safeIds = targetIds.length > 0 ? targetIds : ["00000000-0000-0000-0000-000000000000"];
+
+    const { data: fin } = await supabase
+      .from("v_workbook_student_financials")
+      .select("student_id, total_paid, total_due, outstanding_amount")
+      .in("student_id", safeIds);
+    for (const f of fin ?? []) financialsByStudentId.set(f.student_id, f);
+
+    const { data: insts } = await supabase
+      .from("v_workbook_installment_balances")
+      .select(
+        "student_id, installment_id, installment_no, due_date, pending_amount, late_fee_pending, session_label",
+      )
+      .in("student_id", safeIds)
+      .eq("session_label", sessionLabel);
+
+    for (const i of insts ?? []) {
+      if (!installmentsByStudentId.has(i.student_id)) installmentsByStudentId.set(i.student_id, []);
+      installmentsByStudentId.get(i.student_id).push(i);
+    }
+    for (const list of installmentsByStudentId.values()) {
+      list.sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)));
+    }
+
+    const { data: rcs } = await supabase
+      .from("receipts")
+      .select("id, receipt_number, student_id, payment_date, payment_mode, total_amount")
+      .in("student_id", safeIds)
+      .order("payment_date", { ascending: false });
+
+    const targetReceiptIds = (rcs ?? []).map((r) => r.id);
+    const { data: revs } = await supabase
+      .from("v_receipt_reversal_totals")
+      .select("receipt_id, reversed_amount")
+      .in(
+        "receipt_id",
+        targetReceiptIds.length > 0 ? targetReceiptIds : ["00000000-0000-0000-0000-000000000000"],
+      );
+    const revBy = new Map((revs ?? []).map((r) => [r.receipt_id, Number(r.reversed_amount || 0)]));
+
+    // Each receipt's own allocation. A take-back that overshoots reposts into
+    // exactly the room its reversals free, so this is what the repost is priced
+    // from — never a balance read, which is stale the instant a reversal lands.
+    const { data: allocRows } = await supabase
+      .from("payments")
+      .select("receipt_id, installment_id, amount, installment_ref:installments(due_date)")
+      .in(
+        "receipt_id",
+        targetReceiptIds.length > 0 ? targetReceiptIds : ["00000000-0000-0000-0000-000000000000"],
+      );
+
+    const allocByReceipt = new Map();
+    for (const a of allocRows ?? []) {
+      if (!allocByReceipt.has(a.receipt_id)) allocByReceipt.set(a.receipt_id, []);
+      allocByReceipt.get(a.receipt_id).push({
+        installmentId: a.installment_id,
+        amount: Number(a.amount),
+        dueDate: firstOf(a.installment_ref)?.due_date ?? null,
+      });
+    }
+    for (const list of allocByReceipt.values()) {
+      list.sort((x, y) => String(x.dueDate).localeCompare(String(y.dueDate)));
+    }
+
+    for (const r of rcs ?? []) {
+      // A receipt already given back holds no money to take back again.
+      const live = Number(r.total_amount) - (revBy.get(r.id) ?? 0);
+      if (live <= 0) continue;
+      if (!receiptsByStudentId.has(r.student_id)) receiptsByStudentId.set(r.student_id, []);
+      receiptsByStudentId
+        .get(r.student_id)
+        .push({ ...r, liveAmount: live, allocations: allocByReceipt.get(r.id) ?? [] });
+    }
+  }
 
   return {
     sessionLabel,
@@ -188,6 +310,9 @@ export async function loadCorrectionContext(supabase, plan, sessionLabel) {
     openRefundReceiptIds,
     studentsById,
     studentsByAdmissionNo,
+    financialsByStudentId,
+    installmentsByStudentId,
+    receiptsByStudentId,
   };
 }
 
@@ -199,9 +324,10 @@ export async function loadCorrectionContext(supabase, plan, sessionLabel) {
  * was reviewed. A row that has moved is skipped and reported, never forced.
  */
 export function planCorrection(row, index, context) {
-  const reject = (why) => ({ ok: false, index, key: row.receiptNumber ?? `row ${index}`, why });
-
   const op = CORRECTION_OPS[row.op];
+  const key = op?.keyedBy === "admissionNo" ? row.admissionNo : row.receiptNumber;
+  const reject = (why) => ({ ok: false, index, key: key ?? `row ${index}`, why });
+
   if (!op) {
     return reject(`Unknown correction op "${row.op}". Known: ${Object.keys(CORRECTION_OPS).join(" | ")}`);
   }
@@ -210,6 +336,10 @@ export function planCorrection(row, index, context) {
     if (row[field] === undefined || row[field] === null || row[field] === "") {
       return reject(`"${row.op}" needs "${field}".`);
     }
+  }
+
+  if (op.keyedBy === "admissionNo") {
+    return planStudentTotal(row, index, context, reject);
   }
 
   const receipt = context.receipts.get(row.receiptNumber);
@@ -437,6 +567,159 @@ export function planCorrection(row, index, context) {
   };
 }
 
+/**
+ * Reconcile one student's year-to-date collected figure to a target.
+ *
+ * This is the shape an office register actually has — "this child has paid
+ * ₹8,600, not ₹0" — rather than the receipt-level shape of every other op. The
+ * harness works out which receipts have to move.
+ *
+ *   short  -> post ONE new receipt for the difference, spread over the
+ *             installments that still have room, earliest due first
+ *   over   -> reverse receipts newest-first until enough is given back, and
+ *             repost the remainder if the last one overshoots
+ *
+ * Newest-first on the take-back is deliberate: the oldest receipts are the ones
+ * a parent is most likely to be holding a printed copy of, and reversing the
+ * most recent entry is what an office means by "that last one was wrong".
+ */
+function planStudentTotal(row, index, context, reject) {
+  const student = context.studentsByAdmissionNo.get(String(row.admissionNo));
+
+  if (!student) {
+    return reject(`No student with admission no ${row.admissionNo} in ${context.sessionLabel}.`);
+  }
+
+  const financials = context.financialsByStudentId.get(student.id);
+  const liveCollected = Number(financials?.total_paid ?? 0);
+  const from = Number(row.fromCollected);
+  const to = Number(row.toCollected);
+
+  if (!Number.isInteger(to) || to < 0) {
+    return reject(`"toCollected" must be a whole number of rupees, not ${row.toCollected}.`);
+  }
+
+  // The staleness re-check. A reviewed dry run only means something if the row
+  // is still what it was when it was reviewed.
+  if (from !== liveCollected) {
+    return reject(
+      `${row.admissionNo} has collected ${liveCollected}, not the ${from} the plan expected. Re-export and re-run.`,
+    );
+  }
+
+  if (to === liveCollected) {
+    return { ok: true, skip: true, index, key: row.admissionNo, why: "already correct" };
+  }
+
+  const paymentDate = row.paymentDate ?? null;
+  if (!paymentDate) {
+    return reject(`${row.admissionNo} has no payment date, and one cannot be invented.`);
+  }
+
+  if (to > liveCollected) {
+    const shortfall = to - liveCollected;
+    const installments = context.installmentsByStudentId.get(student.id) ?? [];
+    const allocations = [];
+    let remaining = shortfall;
+
+    for (const inst of installments) {
+      if (remaining <= 0) break;
+      // Fees only. A late fee is not collection and must not be silently
+      // settled by a correction — it is waived or paid on its own.
+      const room = Number(inst.pending_amount || 0);
+      if (room <= 0) continue;
+      const amount = Math.min(remaining, room);
+      allocations.push({ installmentId: inst.installment_id, amount });
+      remaining -= amount;
+    }
+
+    if (remaining > 0) {
+      return reject(
+        `${row.admissionNo} is short ${shortfall} but only ${shortfall - remaining} of fees remain unpaid. The extra ${remaining} would be an advance, which a correction must not create.`,
+      );
+    }
+
+    return {
+      ok: true,
+      kind: "collect",
+      index,
+      key: row.admissionNo,
+      student,
+      targetStudent: student,
+      allocations,
+      paymentDate,
+      paymentMode: row.paymentMode ?? "cash",
+      describe: `collected ${liveCollected} → ${to} (+${shortfall} over ${allocations.length} inst.)`,
+    };
+  }
+
+  // Over-stated: give money back.
+  const excess = liveCollected - to;
+  const receipts = context.receiptsByStudentId.get(student.id) ?? [];
+  const toReverse = [];
+  let gathered = 0;
+
+  /**
+   * Prefer a single receipt that matches the excess exactly.
+   *
+   * Newest-first alone would reverse a ₹6,000 receipt, find itself ₹500 short,
+   * take a ₹6,500 one as well and then repost ₹6,000 — voiding two receipts and
+   * issuing a third to achieve what reversing the ₹6,500 does on its own. Every
+   * receipt voided is one a parent may be holding a printed copy of, so the
+   * cheapest correct answer is the right one.
+   */
+  const exact = receipts.find((receipt) => receipt.liveAmount === excess);
+
+  if (exact) {
+    toReverse.push(exact);
+    gathered = exact.liveAmount;
+  } else {
+    for (const receipt of receipts) {
+      if (gathered >= excess) break;
+      toReverse.push(receipt);
+      gathered += receipt.liveAmount;
+    }
+  }
+
+  if (gathered < excess) {
+    return reject(
+      `${row.admissionNo} needs ${excess} taken back but only ${gathered} sits on reversible receipts.`,
+    );
+  }
+
+  const overshoot = gathered - excess;
+  const last = toReverse[toReverse.length - 1];
+
+  return {
+    ok: true,
+    kind: "takeback",
+    index,
+    key: row.admissionNo,
+    student,
+    targetStudent: student,
+    reverseReceipts: toReverse,
+    // Whatever was reversed beyond the target goes straight back on, keeping the
+    // date and mode of the receipt it came from so the day book still balances,
+    // and landing on the very installments the reversals just freed.
+    repost:
+      overshoot > 0
+        ? {
+            amount: overshoot,
+            paymentDate: last.payment_date,
+            paymentMode: last.payment_mode,
+            allocations: toReverse
+              .flatMap((receipt) => receipt.allocations ?? [])
+              .sort((x, y) => String(x.dueDate).localeCompare(String(y.dueDate))),
+          }
+        : null,
+    describe:
+      `collected ${liveCollected} → ${to} (−${excess}; reverse ` +
+      `${toReverse.map((r) => r.receipt_number).join(", ")}` +
+      (overshoot > 0 ? `, repost ${overshoot}` : "") +
+      ")",
+  };
+}
+
 /** Greedy spread of a corrected total over the original installments, earliest due first. */
 function spread(total, allocations) {
   let remaining = total;
@@ -462,6 +745,151 @@ function spread(total, allocations) {
  * wrong receipt has been given back.
  */
 export async function applyCorrection(supabase, change, plan, sessionLabel, actor, runId) {
+  // A student who was short: one new receipt, nothing reversed.
+  if (change.kind === "collect") {
+    const { data, error } = await supabase.rpc("post_corrected_payment", {
+      p_student_id: change.student.id,
+      p_payment_date: change.paymentDate,
+      p_payment_mode: change.paymentMode,
+      p_allocations: change.allocations.map((a) => ({
+        installment_id: a.installmentId,
+        amount: a.amount,
+      })),
+      p_client_request_id: randomUUID(),
+      p_reference_number: null,
+      p_received_by: null,
+      p_notes: `Fee correction register ${sessionLabel}`,
+    });
+
+    if (error) {
+      return { key: change.key, ok: false, why: `could not post: ${error.message}` };
+    }
+
+    const receipt = Array.isArray(data) ? data[0] : data;
+
+    await writeAuditRow(supabase, {
+      table: "students",
+      recordId: change.student.id,
+      before: { admission_no: change.student.admission_no, correction: "collected was short" },
+      after: {
+        new_receipt_number: receipt?.receipt_number ?? null,
+        new_receipt_total: receipt?.allocated_total ?? null,
+        payment_date: change.paymentDate,
+        payment_mode: change.paymentMode,
+      },
+      plan,
+      sessionLabel,
+      actor,
+      runId,
+      op: "student-total:collect",
+    });
+
+    return {
+      key: change.key,
+      ok: true,
+      replacement: receipt?.receipt_number ?? null,
+      studentIds: [change.student.id],
+    };
+  }
+
+  // A student who was over-stated: reverse newest-first, repost any overshoot.
+  if (change.kind === "takeback") {
+    const reversed = [];
+
+    for (const receipt of change.reverseReceipts) {
+      const { error } = await supabase.rpc("reverse_receipt_admin", {
+        p_receipt_id: receipt.id,
+        p_reason: `Fee correction register ${sessionLabel} (${plan.reason})`,
+      });
+
+      if (error) {
+        return {
+          key: change.key,
+          ok: false,
+          why:
+            `reversed ${reversed.join(", ") || "nothing"} then FAILED on ${receipt.receipt_number}: ${error.message}. ` +
+            "This student is part-corrected — finish it by hand.",
+        };
+      }
+
+      reversed.push(receipt.receipt_number);
+    }
+
+    let repostNumber = null;
+
+    if (change.repost) {
+      /**
+       * Repost into the room the reversals just freed, using their OWN
+       * allocation rather than re-reading balances.
+       *
+       * The first version read `v_workbook_installment_balances` here and got
+       * this wrong on live data: the reversal only ENQUEUES a matview refresh,
+       * so the read came back showing the pre-reversal position — zero room for
+       * a student who had been fully paid a moment earlier — and the repost was
+       * abandoned. Two students ended up reversed with nothing put back.
+       *
+       * A reversed receipt frees exactly what it had allocated, installment by
+       * installment. That is knowable without reading anything, and it cannot be
+       * stale.
+       */
+      const allocations = [];
+      let remaining = change.repost.amount;
+
+      for (const alloc of change.repost.allocations) {
+        if (remaining <= 0) break;
+        const amount = Math.min(remaining, alloc.amount);
+        allocations.push({ installment_id: alloc.installmentId, amount });
+        remaining -= amount;
+      }
+
+      if (remaining > 0) {
+        return {
+          key: change.key,
+          ok: false,
+          why:
+            `REVERSED ${reversed.join(", ")} BUT COULD NOT REPOST ${change.repost.amount}: ` +
+            `the reversed receipts only freed ${change.repost.amount - remaining}. Post the remainder at the desk.`,
+        };
+      }
+
+      const { data, error } = await supabase.rpc("post_corrected_payment", {
+        p_student_id: change.student.id,
+        p_payment_date: change.repost.paymentDate,
+        p_payment_mode: change.repost.paymentMode,
+        p_allocations: allocations,
+        p_client_request_id: randomUUID(),
+        p_reference_number: null,
+        p_received_by: null,
+        p_notes: `Fee correction register ${sessionLabel}`,
+      });
+
+      if (error) {
+        return {
+          key: change.key,
+          ok: false,
+          why: `REVERSED ${reversed.join(", ")} BUT REPOST FAILED: ${error.message}. Post the remainder at the desk.`,
+        };
+      }
+
+      const receipt = Array.isArray(data) ? data[0] : data;
+      repostNumber = receipt?.receipt_number ?? null;
+    }
+
+    await writeAuditRow(supabase, {
+      table: "students",
+      recordId: change.student.id,
+      before: { admission_no: change.student.admission_no, correction: "collected was over-stated" },
+      after: { reversed_receipts: reversed, reposted_receipt_number: repostNumber },
+      plan,
+      sessionLabel,
+      actor,
+      runId,
+      op: "student-total:takeback",
+    });
+
+    return { key: change.key, ok: true, replacement: repostNumber, studentIds: [change.student.id] };
+  }
+
   if (change.kind === "metadata") {
     const { error } = await supabase
       .from("receipts")
@@ -683,25 +1111,25 @@ export async function runPaymentCorrections({
   console.log("### Planned corrections\n");
   printTable(changes, [
     { header: "Receipt", get: (row) => row.key },
-    { header: "Student", get: (row) => row.student?.admission_no ?? "?" },
+    { header: "Student", get: (row) => row.student?.admission_no ?? row.key ?? "?" },
     {
       header: "Kind",
       get: (row) =>
-        row.kind === "metadata"
-          ? "metadata"
-          : row.kind === "reverse"
-            ? "reverse only"
-            : "reverse + repost",
+        ({
+          metadata: "metadata",
+          reverse: "reverse only",
+          collect: "new receipt",
+          takeback: "reverse receipts",
+        })[row.kind] ?? "reverse + repost",
     },
     { header: "Change", get: (row) => row.describe },
   ]);
 
-  const reposts = changes.filter((change) => change.kind === "repost").length;
-  const reversals = changes.filter((change) => change.kind === "reverse").length;
+  const count = (kind) => changes.filter((change) => change.kind === kind).length;
   console.log(
     `
-  ${reposts} to reverse and repost, ${reversals} to reverse with no replacement, ` +
-      `${changes.length - reposts - reversals} metadata-only.
+  ${count("collect")} new receipt(s), ${count("takeback")} student(s) with receipts reversed, ` +
+      `${count("repost")} reverse+repost, ${count("reverse")} reverse-only, ${count("metadata")} metadata.
 `,
   );
 

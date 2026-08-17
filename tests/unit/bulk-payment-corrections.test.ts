@@ -144,6 +144,146 @@ describe("planCorrection re-checks the world before it commits to anything", () 
   });
 });
 
+describe("student-total corrections", () => {
+  // An office register says "this child has paid Rs 8,600, not Rs 0". It never
+  // says which receipt is wrong — so the harness has to work that out.
+  function studentContext(overrides: Record<string, unknown> = {}) {
+    return {
+      sessionLabel: "2026-27",
+      receipts: new Map(),
+      allocationsByReceipt: new Map(),
+      sessionByReceipt: new Map(),
+      reversedByReceipt: new Map(),
+      openRefundReceiptIds: new Set(),
+      studentsById: new Map(),
+      studentsByAdmissionNo: new Map([
+        ["2682", { id: "stu-1", admission_no: "2682", full_name: "A" }],
+      ]),
+      financialsByStudentId: new Map([["stu-1", { student_id: "stu-1", total_paid: 10000 }]]),
+      installmentsByStudentId: new Map([
+        [
+          "stu-1",
+          [
+            { installment_id: "i1", due_date: "2026-04-20", pending_amount: 2000, late_fee_pending: 1000 },
+            { installment_id: "i2", due_date: "2026-07-20", pending_amount: 5000, late_fee_pending: 0 },
+          ],
+        ],
+      ]),
+      receiptsByStudentId: new Map([
+        [
+          "stu-1",
+          [
+            { id: "r-new", receipt_number: "SVP-NEW", payment_date: "2026-07-27", payment_mode: "cash", total_amount: 6000, liveAmount: 6000,
+              allocations: [{ installmentId: "i1", amount: 6000, dueDate: "2026-04-20" }] },
+            { id: "r-old", receipt_number: "SVP-OLD", payment_date: "2026-06-01", payment_mode: "cash", total_amount: 4000, liveAmount: 4000,
+              allocations: [{ installmentId: "i2", amount: 4000, dueDate: "2026-07-20" }] },
+          ],
+        ],
+      ]),
+      ...overrides,
+    };
+  }
+
+  const row = (extra: PlanRow) => ({
+    op: "student-total",
+    admissionNo: "2682",
+    fromCollected: 10000,
+    paymentDate: "2026-07-27",
+    ...extra,
+  });
+
+  it("posts one new receipt for a shortfall, earliest due first", () => {
+    const result = plan(row({ toCollected: 13000 }), studentContext());
+
+    expect(result.ok).toBe(true);
+    expect(result.kind).toBe("collect");
+    expect(result.allocations).toEqual([
+      { installmentId: "i1", amount: 2000 },
+      { installmentId: "i2", amount: 1000 },
+    ]);
+  });
+
+  it("never settles a late fee as if it were collection", () => {
+    // i1 has 2000 of fees and 1000 of late fee. A 7000 shortfall must fill only
+    // the 7000 of FEES across both installments and never reach the late fee.
+    const result = plan(row({ toCollected: 17000 }), studentContext());
+
+    expect(result.ok).toBe(true);
+    expect(result.allocations?.reduce((a, b) => a + b.amount, 0)).toBe(7000);
+  });
+
+  it("refuses to invent an advance when the shortfall exceeds what is owed", () => {
+    const result = plan(row({ toCollected: 20000 }), studentContext());
+
+    expect(result.ok).toBe(false);
+    expect(result.why).toMatch(/would be an advance/);
+  });
+
+  it("prefers the single receipt that matches an over-statement exactly", () => {
+    // Taking back 4000 must reverse SVP-OLD alone. Newest-first would reverse
+    // the 6000, come up short, take the 4000 too and repost 6000 — voiding two
+    // receipts a parent may hold to achieve what one does.
+    const result = plan(row({ toCollected: 6000 }), studentContext()) as Planned & {
+      reverseReceipts?: Array<{ receipt_number: string }>;
+      repost?: unknown;
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.kind).toBe("takeback");
+    expect(result.reverseReceipts?.map((r) => r.receipt_number)).toEqual(["SVP-OLD"]);
+    expect(result.repost).toBeNull();
+  });
+
+  it("reverses newest-first and reposts the overshoot when nothing matches", () => {
+    const result = plan(row({ toCollected: 7000 }), studentContext()) as Planned & {
+      reverseReceipts?: Array<{ receipt_number: string }>;
+      repost?: { amount: number };
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.reverseReceipts?.map((r) => r.receipt_number)).toEqual(["SVP-NEW"]);
+    expect(result.repost?.amount).toBe(3000);
+  });
+
+  it("prices the repost off the reversed receipt's own allocation, not a balance read", () => {
+    // Reading balances here was wrong on live data: a reversal only ENQUEUES the
+    // matview refresh, so the read returned the pre-reversal position - zero room
+    // for a student who had just been fully paid - and the repost was abandoned.
+    // A reversed receipt frees exactly what it allocated, which cannot be stale.
+    const result = plan(row({ toCollected: 7000 }), studentContext()) as Planned & {
+      repost?: { allocations?: Array<{ installmentId: string; amount: number }> };
+    };
+
+    expect(result.repost?.allocations).toEqual([
+      { installmentId: "i1", amount: 6000, dueDate: "2026-04-20" },
+    ]);
+
+    // Checks for an actual READ, not the bare name — the comment explaining why
+    // this went wrong on live data is worth keeping in the file.
+    const source = read("scripts/bulk-apply-payment-corrections.mjs");
+    const branch = source.slice(source.indexOf('if (change.kind === "takeback")'));
+    const untilAudit = branch.slice(0, branch.indexOf("await writeAuditRow"));
+    expect(untilAudit).not.toContain('.from("v_workbook_installment_balances")');
+  });
+
+  it("re-checks the live collected figure before doing anything", () => {
+    const result = plan(row({ fromCollected: 9999, toCollected: 12000 }), studentContext());
+
+    expect(result.ok).toBe(false);
+    expect(result.why).toMatch(/has collected 10000, not the 9999/);
+  });
+
+  it("refuses to invent a payment date", () => {
+    const result = plan(
+      { op: "student-total", admissionNo: "2682", fromCollected: 10000, toCollected: 12000 },
+      studentContext(),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.why).toMatch(/no payment date/);
+  });
+});
+
 describe("reverse-only corrections", () => {
   // A duplicate receipt has no corrected version. `amount` cannot express it
   // either, because a receipt of ₹0 is not a receipt.
@@ -440,13 +580,28 @@ describe("the correction harness is wired into the CLI a reader will find", () =
 
   it("reverses before it reposts, and says so loudly if the repost then fails", () => {
     const corrections = read("scripts/bulk-apply-payment-corrections.mjs");
-    const reverseAt = corrections.indexOf('rpc("reverse_receipt_admin"');
-    const repostAt = corrections.indexOf('rpc("post_corrected_payment"');
-    expect(reverseAt).toBeGreaterThan(-1);
-    expect(reverseAt).toBeLessThan(repostAt);
-    // The reversal is append-only and cannot be taken back, so a half-done
-    // correction must not read as a tidy failure.
+
+    // Scoped to each branch that does both. Comparing the first occurrence of
+    // each RPC across the whole file broke the moment `collect` — which only
+    // ever posts — was added above them.
+    for (const branch of [
+      'if (change.kind === "takeback")',
+      "const { data: reversal, error: reversalError }",
+    ]) {
+      const from = corrections.indexOf(branch);
+      expect(from, `branch not found: ${branch}`).toBeGreaterThan(-1);
+      const body = corrections.slice(from);
+      const reverseAt = body.indexOf('rpc("reverse_receipt_admin"');
+      const repostAt = body.indexOf('rpc("post_corrected_payment"');
+      expect(reverseAt, branch).toBeGreaterThan(-1);
+      expect(reverseAt, branch).toBeLessThan(repostAt);
+    }
+
+    // A reversal is append-only and cannot be taken back, so a correction that
+    // stopped halfway must never read as a tidy failure.
     expect(corrections).toContain("REVERSED BUT NOT REPOSTED");
+    expect(corrections).toContain("REVERSED");
+    expect(corrections).toContain("part-corrected");
   });
 
   it("writes its own audit row, since recordActivity() no-ops without a user", () => {
@@ -457,15 +612,23 @@ describe("the correction harness is wired into the CLI a reader will find", () =
 });
 
 describe("every correction op is described where an agent will look", () => {
-  it("declares each op with the fields it needs", () => {
-    const ops = CORRECTION_OPS as Record<string, { describe: string; needs: string[] }>;
+  it("declares each op with the fields it needs, and how it is keyed", () => {
+    const ops = CORRECTION_OPS as Record<
+      string,
+      { describe: string; needs: string[]; keyedBy?: string }
+    >;
     expect(Object.keys(ops).sort()).toEqual(
-      ["allocation", "amount", "date-mode", "metadata", "reverse", "student"].sort(),
+      ["allocation", "amount", "date-mode", "metadata", "reverse", "student", "student-total"].sort(),
     );
 
     for (const [name, meta] of Object.entries(ops)) {
       expect(meta.describe, `${name} has no description`).toBeTruthy();
-      expect(meta.needs, `${name} declares no required fields`).toContain("receiptNumber");
+
+      // Two shapes of row, and the key decides which context gets loaded: a
+      // receipt-keyed op names one receipt, `student-total` names a student and
+      // lets the harness work out which receipts have to move.
+      const keyField = meta.keyedBy === "admissionNo" ? "admissionNo" : "receiptNumber";
+      expect(meta.needs, `${name} does not require its own key`).toContain(keyField);
     }
   });
 

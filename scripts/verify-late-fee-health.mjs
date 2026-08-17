@@ -273,22 +273,58 @@ const CUT_OVER_DATE = "2026-08-08";
         .map((snapshot) => snapshot.installment_id),
     );
 
+    // A waiver granted AFTER the cut-over lowers final_late_fee, and that is a
+    // person deciding, which is the opposite of what this check hunts for. It
+    // used to read as drift: waiving 7 students' late fees off a fee-correction
+    // register turned this invariant red while nothing had gone wrong.
+    //
+    // Subtracted rather than skipped, so the row is still checked — it just has
+    // to have moved by EXACTLY what somebody waived. A rate that also drifted
+    // underneath a waiver still shows up.
+    let waivedSince = new Map();
+    try {
+      const waivers = await fetchAll(
+        "student_late_fee_waivers",
+        "installment_id, amount, source, waived_at, voided_at",
+        (query) =>
+          query
+            .eq("session_label", sessionLabel)
+            .is("voided_at", null)
+            .neq("source", "grandfather")
+            .gt("waived_at", CUT_OVER_DATE),
+      );
+      waivedSince = waivers.reduce((map, waiver) => {
+        const key = waiver.installment_id;
+        return map.set(key, (map.get(key) ?? 0) + Number(waiver.amount || 0));
+      }, new Map());
+    } catch {
+      // Unreadable waivers must not silently excuse a real move.
+      waivedSince = new Map();
+    }
+
     const offenders = data
       .map((snapshot) => {
         const current = balanceByInstallment.get(snapshot.installment_id);
         if (!current) return null;
         if (rateFixedLater.has(snapshot.installment_id)) return null;
         const before = Number(snapshot.final_late_fee);
-        return current.final_late_fee === before
+        const decided = waivedSince.get(snapshot.installment_id) ?? 0;
+        const expected = Math.max(before - decided, 0);
+        return current.final_late_fee === expected
           ? null
-          : `${snapshot.installment_id}: ${before} -> ${current.final_late_fee}`;
+          : `${snapshot.installment_id}: ${before} -> ${current.final_late_fee}` +
+              (decided > 0 ? ` (${decided} waived since, expected ${expected})` : "");
       })
       .filter(Boolean);
+
+    const explained = [...waivedSince.keys()].filter((id) => balanceByInstallment.has(id)).length;
+
     record(
       "grandfathering held",
       offenders.length === 0,
       `${offenders.length} of ${data.length} snapshot row(s) moved`
-        + (rateFixedLater.size > 0 ? `, ${rateFixedLater.size} excluded as later rate fixes` : ""),
+        + (rateFixedLater.size > 0 ? `, ${rateFixedLater.size} excluded as later rate fixes` : "")
+        + (explained > 0 ? `, ${explained} explained by a later waiver` : ""),
       offenders,
     );
   }

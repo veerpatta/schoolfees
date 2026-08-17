@@ -134,6 +134,7 @@ posting surface a human can use.
 
 | `op` | Fixes |
 |---|---|
+| `student-total` | A student's year-to-date collected is wrong. Give a target; the harness works out which receipts move |
 | `reverse` | Receipt should not exist at all — a duplicate, or money never received. Reverses with **no replacement** |
 | `amount` | Receipt entered for the wrong rupee figure |
 | `student` | Receipt posted against the wrong child |
@@ -177,6 +178,12 @@ Five things worth knowing before running one:
   `/r/<receipt-number>` — the QR on their printed copy — shows it as reversed.
 - **`amount` can only shrink a receipt.** Taking more money is a payment, not a correction,
   and belongs at the desk with the parent present.
+- **`student-total` is the shape an office register actually has.** A register says
+  "this child has paid ₹8,600, not ₹0"; it never says which receipt is wrong. Short of the
+  target posts one new receipt across the installments with room, earliest due first, and
+  never touches a late fee. Over the target reverses receipts — preferring a single one that
+  matches the excess exactly, so a parent's other receipts stay valid — and reposts any
+  overshoot into the very room those reversals freed.
 - **A failed repost is reported as `REVERSED BUT NOT REPOSTED`.** The reversal is append-only
   and cannot be taken back, so that receipt is reversed with nothing in its place until
   somebody posts the replacement. It is not a tidy failure and the run does not pretend it is.
