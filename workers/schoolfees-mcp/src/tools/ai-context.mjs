@@ -49,6 +49,9 @@ import {
 /** Sheets in the app's downloadable AI workbook, for when a full file is wanted. */
 const AI_WORKBOOK_SHEETS = [
   "_README",
+  // Per-sheet read status. A sheet with no rows is only an absence if _HEALTH
+  // says its read succeeded.
+  "_HEALTH",
   "Students",
   "Installments",
   "Payments",

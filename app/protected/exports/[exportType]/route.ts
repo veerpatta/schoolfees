@@ -285,16 +285,73 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     discountLabelsByStudent.set(assignment.studentId, labels);
   }
 
+  // Every read below returns `{ data, error }`, and `fetchInChunks` returns the
+  // rows it managed to collect ALONGSIDE the error. None of them were checked.
+  //
+  // This workbook is fed to a model that cannot go and look anything up, so an
+  // empty sheet is read as "the school has never done this". A caller without
+  // finance:view got an empty Adjustments sheet and a README line saying
+  // "Adjustments: 0" — indistinguishable from a school that has never made a
+  // correction. A failure partway through chunking is worse again: a half-
+  // filled sheet that looks complete.
+  //
+  // So every read is registered here, and a failed one is named in the README
+  // and in the _HEALTH sheet rather than being left to look like an absence.
+  type ReadStatus = {
+    source: string;
+    sheet: string;
+    ok: boolean;
+    rows: number;
+    reason: string;
+  };
+  const readStatus = new Map<string, ReadStatus>();
+
+  function checkRead<T>(
+    source: string,
+    sheet: string,
+    result: { data: T[] | null; error: unknown },
+  ): T[] {
+    const rows = (result.data ?? []) as T[];
+    const reason = result.error
+      ? ((result.error as { message?: string })?.message ?? String(result.error)).slice(0, 300)
+      : "";
+    readStatus.set(source, {
+      source,
+      sheet,
+      ok: !result.error,
+      rows: rows.length,
+      reason,
+    });
+    return rows;
+  }
+
+  const degraded = () => [...readStatus.values()].filter((entry) => !entry.ok);
+
+  /** A count that must not read as zero when the read behind it failed. */
+  const countOf = (source: string, rows: { length: number }) =>
+    readStatus.get(source)?.ok === false
+      ? "UNAVAILABLE (read failed — see _HEALTH)"
+      : rows.length;
+
   // Append-only corrections and refunds, session-scoped via the student set.
-  // These read under the caller's JWT; lower roles without finance:view simply
-  // get empty sheets (RLS), which is acceptable degradation.
+  // These read under the caller's JWT, so a role without finance:view is
+  // refused by RLS — which must be reported, not rendered as an empty sheet.
   const supabase = await createClient();
   const [adjustmentsResult, refundsResult] = await Promise.all([
     fetchInChunks(allStudentIds, IN_FILTER_CHUNK_SIZE, (chunk) =>
       supabase
         .from("payment_adjustments")
+        // No `installment_ref:installments(...)` embed. payment_adjustments has
+        // no foreign key to installments — its only one is the composite
+        // payment_adjustments_payment_fk to payments — so PostgREST answered
+        // "Could not find a relationship between 'payment_adjustments' and
+        // 'installments' in the schema cache" and the whole read failed. The
+        // error was never checked, so the Adjustments sheet shipped empty and
+        // the README said "Adjustments: 0" while 49 corrections sat in the
+        // table. The label is resolved from installment_id against the
+        // installments already loaded for this workbook.
         .select(
-          "id, student_id, adjustment_type, amount_delta, reason, notes, created_at, installment_ref:installments(installment_label), payment_ref:payments(receipt_ref:receipts(receipt_number))",
+          "id, student_id, installment_id, adjustment_type, amount_delta, reason, notes, created_at, payment_ref:payments(receipt_ref:receipts(receipt_number))",
         )
         .in("student_id", chunk)
         .order("created_at", { ascending: true }),
@@ -337,8 +394,10 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   // Through `unknown`: the select is assembled with STUDENT_INFO_SELECT_COLUMNS,
   // so postgrest-js cannot parse it at the type level. These row shapes were
   // always hand-declared here.
+  const studentDetailRows = checkRead("students (detail)", "Students", studentDetailResult);
+
   const studentDetailById = new Map(
-    ((studentDetailResult.data ?? []) as unknown as Array<{
+    (studentDetailRows as unknown as Array<{
       id: string;
       address: string | null;
       email: string | null;
@@ -354,7 +413,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   // The 25 information columns, camelCased off the same rows. Keyed separately
   // so the Students sheet and the Recovery Follow-Up sheet read one shape.
   const masterFieldsById = new Map(
-    ((studentDetailResult.data ?? []) as unknown as Array<
+    (studentDetailRows as unknown as Array<
       StudentInfoRow & { id: string }
     >).map((row) => [row.id, mapStudentInfoRow(row)]),
   );
@@ -420,6 +479,20 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     ),
   ]);
 
+  // Checked here rather than where the rows are shaped: _README is assembled
+  // before those points and has to be able to say whether each read succeeded.
+  const allocationRowsChecked = checkRead(
+    "payments (allocations)",
+    "Payment Allocations",
+    allocationResult,
+  );
+  const waiverRowsChecked = checkRead(
+    "student_late_fee_waivers",
+    "Late Fee Waivers",
+    lateFeeWaiverResult,
+  );
+  const feeSettingRowsChecked = checkRead("fee_settings", "Class Fee Settings", feeSettingResult);
+
   type FeeOverrideRow = {
     student_id: string;
     custom_tuition_fee_amount: number | null;
@@ -440,18 +513,20 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
   };
 
   const feeOverrideByStudent = new Map(
-    ((feeOverrideResult.data ?? []) as FeeOverrideRow[]).map((row) => [row.student_id, row]),
+    (checkRead<FeeOverrideRow>("student_fee_overrides", "Fee Overrides", feeOverrideResult)).map(
+      (row) => [row.student_id, row],
+    ),
   );
 
   const directoryByStudent = new Map(
-    ((directoryResult.data ?? []) as Array<Record<string, unknown>>).map((row) => [
+    (checkRead<Record<string, unknown>>("v_student_directory", "Student Segments", directoryResult)).map((row) => [
       String(row.student_id),
       row,
     ]),
   );
 
   const familyByStudentId = new Map(
-    ((familyMemberResult.data ?? []) as Array<{
+    (checkRead("student_family_members", "Siblings", familyMemberResult) as Array<{
       student_id: string;
       sibling_order: number | null;
       is_policy_candidate: boolean | null;
@@ -464,7 +539,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     }>).map((row) => [row.student_id, row]),
   );
 
-  const adjustments = (adjustmentsResult.data ?? []) as Array<{
+  const adjustments = checkRead("payment_adjustments", "Adjustments", adjustmentsResult) as Array<{
     id: string;
     student_id: string;
     adjustment_type: string;
@@ -472,13 +547,13 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     reason: string;
     notes: string | null;
     created_at: string;
-    installment_ref: { installment_label: string } | { installment_label: string }[] | null;
+    installment_id: string | null;
     payment_ref:
       | { receipt_ref: { receipt_number: string } | { receipt_number: string }[] | null }
       | { receipt_ref: { receipt_number: string } | { receipt_number: string }[] | null }[]
       | null;
   }>;
-  const refunds = (refundsResult.data ?? []) as Array<{
+  const refunds = checkRead("refund_requests", "Refunds", refundsResult) as Array<{
     id: string;
     student_id: string;
     refund_date: string;
@@ -498,6 +573,12 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     Array.isArray(value) ? value[0] ?? null : value ?? null;
 
   const studentIndex = new Map(financials.map((row) => [row.studentId, row]));
+  // Adjustments carry an installment_id but no readable label, and the table has
+  // no foreign key to installments to embed one through. The workbook already
+  // holds every installment for this session, so the label comes from there.
+  const installmentLabelById = new Map(
+    installments.map((row) => [row.installmentId, getDisplayInstallmentLabel(row)]),
+  );
   const activeCount = financials.filter((row) => row.recordStatus === "active").length;
 
   const generatedAt = new Date().toISOString();
@@ -507,6 +588,20 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `Snapshot taken: ${generatedAt}`,
     `Active academic session: ${sessionLabel}`,
     ``,
+    // First thing in the file, because a reader who stops after the header must
+    // still not mistake an incomplete sheet for an empty one.
+    ...(degraded().length > 0
+      ? [
+          `!!! THIS SNAPSHOT IS INCOMPLETE — ${degraded().length} READ(S) FAILED !!!`,
+          `The sheets below are missing rows or are empty because the data could`,
+          `not be read, NOT because the school has no such records. Do not report`,
+          `an absence, a zero, or a total from them. Full detail in _HEALTH.`,
+          ...degraded().map((entry) => `  * ${entry.sheet} (${entry.source}): ${entry.reason}`),
+          `A common cause is permissions: a staff role without finance:view is`,
+          `refused Adjustments and Refunds by row-level security.`,
+          ``,
+        ]
+      : [`Completeness: all ${readStatus.size} reads succeeded. See _HEALTH.`, ``]),
     `WHAT THIS FILE IS`,
     `This workbook is a point-in-time export of the live fee-management state`,
     `for Shri Veer Patta Senior Secondary School (VPPS). It is intended for`,
@@ -674,20 +769,28 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     `  Students (all statuses): ${financials.length}  (active: ${activeCount})`,
     `  Installments rows:       ${installments.length}`,
     `  Payments:                ${transactions.length}`,
-    `  Adjustments:             ${adjustments.length}`,
-    `  Refunds:                 ${refunds.length}`,
+    `  Adjustments:             ${countOf("payment_adjustments", adjustments)}`,
+    `  Refunds:                 ${countOf("refund_requests", refunds)}`,
     `  Classes:                 ${masterData.classOptions.length}`,
     `  Routes:                  ${masterData.routeOptions.length}`,
     `  Discount policies:       ${discountPolicies.length}`,
     `  Discount assignments:    ${discountAssignments.length}`,
-    `  Defaulters:              ${financials.filter((row) => row.outstandingAmount > 0).length}`,
+    // Fees only, and every status. A late fee never makes a defaulter (hard
+    // rule 8), and a student who left owing still owes — so this counts the
+    // same population the Defaulters sheet lists, said out loud rather than
+    // left for the reader to infer from the sheet's filter.
+    `  Defaulters (fees pending > 0, all statuses): ${
+      financials.filter((row) => row.outstandingAmount > 0).length
+    }  (active: ${
+      financials.filter((row) => row.recordStatus === "active" && row.outstandingAmount > 0).length
+    })`,
     `  Recovery contact rows:   ${contactSummaries.size}`,
     `  Previous-year dues rows: ${previousYearDues.length}`,
     `  Left-student recovery:   ${leftStudentRecovery.rows.length}`,
-    `  Fee overrides:           ${(feeOverrideResult.data ?? []).length}`,
-    `  Payment allocations:     ${(allocationResult.data ?? []).length}`,
-    `  Late-fee waivers:        ${(lateFeeWaiverResult.data ?? []).length}`,
-    `  Class fee settings:      ${(feeSettingResult.data ?? []).length}`,
+    `  Fee overrides:           ${countOf("student_fee_overrides", feeOverrideResult.data ?? [])}`,
+    `  Payment allocations:     ${countOf("payments (allocations)", allocationRowsChecked)}`,
+    `  Late-fee waivers:        ${countOf("student_late_fee_waivers", waiverRowsChecked)}`,
+    `  Class fee settings:      ${countOf("fee_settings", feeSettingRowsChecked)}`,
     `  Custom-transport students: ${
       financials.filter(
         (row) => feeOverrideByStudent.get(row.studentId)?.custom_transport_fee_amount != null,
@@ -701,6 +804,25 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
     workbook,
     XLSX.utils.aoa_to_sheet(readmeLines.map((line) => [line])),
     "_README",
+  );
+
+  // Machine-readable completeness, next to the prose version in _README. A
+  // model that reads only the data sheets has no other way to tell "no rows
+  // exist" apart from "the rows could not be read", and the two lead to
+  // opposite answers.
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(
+      [...readStatus.values()].map((entry) => ({
+        "Sheet": entry.sheet,
+        "Source": entry.source,
+        "Read succeeded": entry.ok ? "yes" : "NO",
+        "Rows returned": entry.rows,
+        "Rows are complete": entry.ok ? "yes" : "NO — partial or empty",
+        "Failure reason": entry.reason,
+      })),
+    ),
+    "_HEALTH",
   );
 
   XLSX.utils.book_append_sheet(
@@ -872,7 +994,9 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       adjustments.length > 0
         ? adjustments.map((row) => {
             const student = studentIndex.get(row.student_id);
-            const installment = firstOf(row.installment_ref);
+            const installment = row.installment_id
+              ? installmentLabelById.get(row.installment_id)
+              : null;
             const payment = firstOf(row.payment_ref);
             const receipt = payment ? firstOf(payment.receipt_ref) : null;
             return {
@@ -881,9 +1005,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
               "Student": student?.studentName ?? "",
               "Class": student?.classLabel ?? "",
               "Receipt number": receipt?.receipt_number ?? "",
-              "Installment": installment
-                ? getDisplayInstallmentLabel({ installmentLabel: installment.installment_label })
-                : "",
+              "Installment": installment ?? "",
               "Adjustment type": row.adjustment_type,
               "Amount delta (₹, signed)": row.amount_delta,
               "Reason": row.reason,
@@ -1086,7 +1208,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       | null;
   };
 
-  const typedAllocationRows = (allocationResult.data ?? []) as AllocationRow[];
+  const typedAllocationRows = allocationRowsChecked as AllocationRow[];
   const allocationReversalTotals = await getReceiptReversalTotals(
     typedAllocationRows
       .map((row) => firstOf(row.receipt_ref)?.id)
@@ -1156,7 +1278,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       | null;
   };
 
-  const waiverRows = ((lateFeeWaiverResult.data ?? []) as WaiverRow[]).map((row) => {
+  const waiverRows = (waiverRowsChecked as WaiverRow[]).map((row) => {
     const student = studentIndex.get(row.student_id);
     const installment = firstOf(row.installment_ref);
     return {
@@ -1211,7 +1333,7 @@ async function aiContextBundleResponse(filename: string, sessionLabel: string) {
       | null;
   };
 
-  const feeSettingRows = ((feeSettingResult.data ?? []) as FeeSettingRow[]).map((row) => {
+  const feeSettingRows = (feeSettingRowsChecked as FeeSettingRow[]).map((row) => {
     const classRef = firstOf(row.class_ref);
     return {
       "Class": [classRef?.class_name, classRef?.section, classRef?.stream_name]

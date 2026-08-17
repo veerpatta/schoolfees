@@ -24,6 +24,7 @@ const route = readFileSync(
 
 const EXPECTED_SHEETS = [
   "_README",
+  "_HEALTH",
   "Students",
   "Installments",
   "Payments",
@@ -69,6 +70,77 @@ describe("ai context bundle", () => {
     }
     expect(route).toContain("READ THE");
     expect(route).toContain("Granted by a person");
+  });
+
+  it("checks every read, so an empty sheet cannot pass for an absence", () => {
+    // The Adjustments read had been failing in production — payment_adjustments
+    // has no foreign key to installments, so the embed was rejected and the
+    // whole query errored. Nothing checked `.error`, so the sheet shipped empty
+    // and the README reported "Adjustments: 0" while 39 corrections existed for
+    // the live session. Every chunked read must now go through checkRead.
+    // Collapsed, because prettier wraps these calls at different widths.
+    const flat = route.replace(/\s+/g, " ");
+    for (const source of [
+      "payment_adjustments",
+      "refund_requests",
+      "student_fee_overrides",
+      "student_late_fee_waivers",
+      "payments (allocations)",
+      "fee_settings",
+      "v_student_directory",
+      "student_family_members",
+      "students (detail)",
+    ]) {
+      // checkRead, an optional generic, then this exact source as first arg.
+      const registered = new RegExp(
+        `checkRead\\s*(?:<[^(]*>)?\\s*\\(\\s*"${source.replace(/[()]/g, "\\$&")}"`,
+      ).test(flat);
+      expect(registered, `read "${source}" is not registered with checkRead`).toBe(true);
+    }
+
+    // No raw `.data ?? []` left on a chunked result: that is the shape that
+    // turned a failure into an empty array with nothing recorded.
+    for (const raw of [
+      "adjustmentsResult.data ??",
+      "refundsResult.data ??",
+      "lateFeeWaiverResult.data ??",
+      "allocationResult.data ??",
+      "feeSettingResult.data ??",
+      "directoryResult.data ??",
+      "familyMemberResult.data ??",
+      "studentDetailResult.data ??",
+    ]) {
+      expect(route, `${raw} bypasses checkRead`).not.toContain(raw);
+    }
+  });
+
+  it("never embeds installments off payment_adjustments", () => {
+    // The relationship does not exist. Re-adding it silently empties the sheet.
+    expect(route).not.toContain("installment_ref:installments(installment_label)");
+    expect(route).toContain("installmentLabelById");
+  });
+
+  it("reports incompleteness where a reader cannot miss it", () => {
+    expect(route).toContain("THIS SNAPSHOT IS INCOMPLETE");
+    expect(route).toContain("UNAVAILABLE (read failed — see _HEALTH)");
+    // A count that came from a failed read must not render as a number.
+    for (const counted of [
+      'countOf("payment_adjustments"',
+      'countOf("refund_requests"',
+      'countOf("student_fee_overrides"',
+      'countOf("payments (allocations)"',
+      'countOf("student_late_fee_waivers"',
+      'countOf("fee_settings"',
+    ]) {
+      expect(route, `${counted} is not guarded`).toContain(counted);
+    }
+  });
+
+  it("says which population each headline count covers", () => {
+    // Headcount and money count different students on purpose. The Students
+    // line always said so; the Defaulters line did not.
+    expect(route).toContain("Students (all statuses)");
+    expect(route).toContain("Defaulters (fees pending > 0, all statuses)");
   });
 
   it("reads transport from the shared helper, never from the route name alone", () => {

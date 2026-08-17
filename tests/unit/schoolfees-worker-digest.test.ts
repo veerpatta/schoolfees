@@ -591,7 +591,11 @@ describe("schoolfees Worker MCP tools", () => {
       block: "dashboardAnalytics",
       agreesWithMoneyBlocks: true,
     });
-    expect(context.fullDataExport.sheets).toHaveLength(22);
+    // The list the model is told to expect must match the workbook the export
+    // actually builds. `_HEALTH` carries per-sheet read status, so a sheet with
+    // no rows can be told apart from a sheet that could not be read.
+    expect(context.fullDataExport.sheets).toHaveLength(23);
+    expect(context.fullDataExport.sheets).toContain("_HEALTH");
     expect(context.studentRows[0]).toMatchObject({
       admissionNo: "ADM1234",
       routeLabel: "Custom transport (₹14,000 annual)",
