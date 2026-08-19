@@ -61,6 +61,15 @@ node scripts/check-quality-budgets.mjs    # Quality budget checks
 node scripts/verify-workbook-parity.mjs   # Workbook engine parity
 node scripts/verify-required-sessions.mjs # Required academic sessions exist
 node scripts/audit-test-data-in-public.mjs # TEST- data leaking into live (read-only)
+
+# Student photos out of a Sampark export. The photos are images ANCHORED to a
+# row in the "Photo" column, not cell values, so this reads the xlsx drawing
+# anchors. Dry run by default; --apply uploads to the student-photos bucket and
+# sets students.photo_path. It REFUSES any row whose sheet name disagrees with
+# the matched student's name -- PENDING-SR-* placeholders are positional, not
+# identifying, and one of them named a different child on the first real run.
+node scripts/import-student-photos.mjs --file <export.xlsx>
+node scripts/import-student-photos.mjs --file <export.xlsx> --apply
 node scripts/prev-year-dues-dry-run.mjs   # Carry-forward matching, no writes
 
 # Students whose ledger disagrees with their resolved fee policy. Read-only by
