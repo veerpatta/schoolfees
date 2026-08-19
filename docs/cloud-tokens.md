@@ -19,13 +19,41 @@ Nothing on that list was minted. Every credential already existed somewhere on
 the machine and was copied, which is why the container came up complete without
 anyone visiting a token page.
 
-## Deploying does not need a Vercel token
+## Deploying from the container DOES need a Vercel token
 
-The `schoolfees` project deploys from the GitHub integration — `githubDeployment: 1`
-on every production deployment. **A push to `main` is the deploy.** A
-`VERCEL_TOKEN` would only add CLI conveniences: `vercel env pull`, preview
-deploys, `vercel logs`. Deployment status, build logs and runtime errors are
-already readable through the Vercel MCP connector without any token.
+This page previously claimed the opposite, and production proved it wrong on
+19 Aug. The claim was reasonable and wholly untested: the project deploys from
+the GitHub integration, every production deployment carries `githubDeployment: 1`,
+so a push to `main` looked like the deploy.
+
+It is, but only from the workstation. Measured, same repo, same branch, same
+author, minutes apart:
+
+| Commit | Pushed from | GitHub Actions CI | Vercel deployment |
+|---|---|---|---|
+| `b63ceae` | workstation | ran, passed | **created, deployed** |
+| `c28b23e` | cloud container | ran, passed | **none, 20 minutes later** |
+| `173942c` | workstation | ran, passed | **created, deployed** |
+
+GitHub took the container's push, moved `main` to it, and ran CI on it — so the
+push was real and the commit was on the branch. Vercel's GitHub App simply never
+produced a deployment for it. `c28b23e` was the receipt-card fix, and it sat on
+`main`, green, undeployed, while production kept serving the broken route.
+
+Why the App ignores that push is not visible from inside the container, and the
+answer matters less than the consequence: **a container push is not a deploy.**
+
+So `VERCEL_TOKEN` is load-bearing, not a convenience, for anyone working without
+a workstation to push from. Mint one at https://vercel.com/account/tokens scoped
+to `veerpattas-projects`, add it to the vault, and ship explicitly:
+
+```bash
+vercel deploy --prod --token "$VERCEL_TOKEN" --yes
+```
+
+Until then, a fix committed from the container reaches GitHub and stops there,
+and nothing about that failure is loud — CI goes green and the branch looks
+shipped.
 
 ## The two that are absent
 

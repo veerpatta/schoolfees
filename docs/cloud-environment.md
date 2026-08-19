@@ -76,6 +76,11 @@ Once `VERCEL_TOKEN` is set, `bootstrap.sh` pulls the rest of the app's
 environment from Vercel into `.env.vercel`, so the container matches what
 production actually has rather than a copy that drifted.
 
+**`VERCEL_TOKEN` is also the only way to deploy from here.** A push from the
+container reaches GitHub and runs CI, but Vercel's GitHub App creates no
+deployment for it — measured, not assumed. See `docs/cloud-tokens.md`. Without
+the token a fix can be committed, pushed, green, and still not live.
+
 ## Two profiles, one database
 
 ```bash

@@ -95,7 +95,7 @@ if [ -n "${VERCEL_TOKEN:-}" ]; then
   c="$(http -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/user)"
   [ "$c" = "200" ] && row ok "vercel" "token valid" || row no "vercel" "api returned $c"
 else
-  row skip "vercel" "no token — but pushes auto-deploy via the git integration"
+  row no "vercel" "NO TOKEN — container pushes do NOT deploy (docs/cloud-tokens.md)"
 fi
 if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
   c="$(http -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify)"
