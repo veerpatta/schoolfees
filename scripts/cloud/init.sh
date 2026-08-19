@@ -2,9 +2,13 @@
 # ---------------------------------------------------------------------------
 # init.sh — take a bare cloud container to a working environment in one command.
 #
-#   curl -fsSL https://raw.githubusercontent.com/veerpatta/schoolfees/main/scripts/cloud/init.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/veerpatta/schoolfees/main/scripts/cloud/init.sh -o /tmp/init.sh
+#   bash /tmp/init.sh            # then paste the vault, then Ctrl-D
+#   bash /tmp/init.sh vault.txt  # or point it at a file
 #
-# then paste the vault when it asks, and press Ctrl-D.
+# NOT `curl ... | bash`. When the script is piped, bash's stdin IS the script,
+# so reading the vault from stdin eats the rest of the source and the run ends
+# silently with status 0 having done nothing. Download, then run.
 #
 # This exists because the alternative — clone, mkdir, two separate add-secrets
 # invocations with different target files, write a wrangler toml, bootstrap — is
@@ -27,16 +31,40 @@ else
   echo "    cloned to $DEST"
 fi
 
-say "Paste the vault, then press Ctrl-D"
-cat <<'EOT'
+paste="$(mktemp)"; trap 'rm -f "$paste"' EXIT
+
+if [ "${1:-}" ]; then
+  [ -r "$1" ] || { echo "cannot read $1" >&2; exit 1; }
+  cp "$1" "$paste"
+  say "Vault read from $1"
+elif [ ! -t 0 ]; then
+  # Piped in. Refuse if it looks like this script — that is the curl|bash trap,
+  # and silently accepting it produces an empty vault and a confusing failure.
+  cat > "$paste"
+  if grep -q 'init.sh — take a bare cloud container' "$paste"; then
+    echo >&2
+    echo "This was run as 'curl ... | bash', so stdin was the script, not your vault." >&2
+    echo "Download it first:" >&2
+    echo "  curl -fsSL https://raw.githubusercontent.com/veerpatta/schoolfees/main/scripts/cloud/init.sh -o /tmp/init.sh" >&2
+    echo "  bash /tmp/init.sh" >&2
+    exit 1
+  fi
+  say "Vault read from stdin"
+else
+  say "Paste the vault, then press Ctrl-D"
+  cat <<'EOT'
     Both blocks at once — BLOCK A and BLOCK B together, comments and all.
-    Lines are routed by name, so the order does not matter and the
+    Lines are routed by name, so order does not matter and the
     "# ---------- BLOCK ..." headers are ignored.
 EOT
-echo
+  echo
+  cat > "$paste"
+fi
 
-paste="$(mktemp)"; trap 'rm -f "$paste"' EXIT
-cat > "$paste"
+if ! grep -qE '^\s*(NEXT_PUBLIC_SUPABASE_URL|GITHUB_TOKEN)=' "$paste"; then
+  echo "That does not look like the vault — no NEXT_PUBLIC_SUPABASE_URL or GITHUB_TOKEN in it." >&2
+  exit 1
+fi
 
 mkdir -p "$HOME/.veerpatta" "$HOME/.cloud"
 chmod 700 "$HOME/.veerpatta" "$HOME/.cloud"
