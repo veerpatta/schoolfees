@@ -10,7 +10,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VAULT="${VEERPATTA_VAULT:-$HOME/.veerpatta/secrets.env}"
 export PATH="/opt/node24/bin:$HOME/.local/bin:$PATH"
 
+# Two vaults on purpose: app config here, account-level platform tokens in
+# ~/.cloud/tokens.env so every repo in the container sees them. Reading only the
+# first is how this script spent a while reporting live tokens as missing.
+CLOUD_VAULT="${CLOUD_VAULT:-$HOME/.cloud/tokens.env}"
 [ -f "$VAULT" ] && { set -a; . "$VAULT"; set +a; }
+[ -f "$CLOUD_VAULT" ] && { set -a; . "$CLOUD_VAULT"; set +a; }
 [ -f "$REPO_ROOT/.env.local" ] && { set -a; . "$REPO_ROOT/.env.local"; set +a; }
 
 # This container pre-seeds placeholder proxy credentials (GITHUB_TOKEN=proxy-...).
@@ -118,6 +123,17 @@ else
   row skip "supabase account" "no SUPABASE_ACCESS_TOKEN (Supabase MCP will not connect)"
 fi
 [ -n "${SENTRY_AUTH_TOKEN:-}" ] && row ok "sentry" "source-map upload on" || row skip "sentry" "no token — builds still succeed"
+if [ -n "${NEON_API_KEY:-}" ]; then
+  # Not used by this app; checked here because this container is the only place
+  # the key lives, and a dead key should surface before someone needs it.
+  n="$(curl -s --max-time 20 -H "Authorization: Bearer $NEON_API_KEY" -H 'Accept: application/json' \
+      "https://console.neon.tech/api/v2/projects?org_id=${NEON_ORG_ID:-}" \
+      | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);console.log(j.projects?j.projects.length:0)}catch(e){console.log(0)}})" 2>/dev/null)"
+  [ "${n:-0}" -gt 0 ] && row ok "neon" "$n projects (other repos — never expires, revoke by hand)" \
+                     || row no "neon" "key present but no projects returned"
+else
+  row skip "neon" "no NEON_API_KEY"
+fi
 
 echo
 printf '  %d ready, %d broken\n\n' "$pass" "$fail"

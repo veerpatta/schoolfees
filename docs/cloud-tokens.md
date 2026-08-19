@@ -1,110 +1,75 @@
 # Credentials for the cloud container
 
-**Status: wired.** Almost nothing here needs doing. This page records what the
-container holds, where each value came from, and the two that are still absent
-on purpose.
+**Status: complete.** `doctor.sh` reports 17 ready, 0 broken. This page records
+what is held, where it came from, and the two traps that cost time.
 
-## What is wired, and from where
+## Two vaults, on purpose
 
-| Variable | Source | Unlocks |
+| File | Holds | Why separate |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY` | the machine's `.env.local` | the app boots and reads live data |
-| `SCHOOLFEES_DOC_TOKEN` | the machine's `.env.local` | the app→Worker document bridge |
-| `GITHUB_TOKEN` | **reused** from the `gh` CLI login (`gh auth token`) | `git push` from the container |
-| `SCHOOLFEES_WORKER_MCP_TOKEN` | **reused** from a Windows user env var | the `/svc/mcp` automation lane |
-| Cloudflare OAuth | **reused** — `wrangler`'s own `default.toml`, copied in | `wrangler deploy`, `wrangler secret put` |
-| `CLOUDFLARE_ACCOUNT_ID` | `wrangler whoami` | — |
+| `~/.veerpatta/secrets.env` | this app's config — Supabase URL/keys, doc token, Vercel project ids | belongs to one repo |
+| `~/.cloud/tokens.env` | account-level platform tokens | every repo in the container needs them |
 
-Nothing on that list was minted. Every credential already existed somewhere on
-the machine and was copied, which is why the container came up complete without
-anyone visiting a token page.
+Both are mode 600, outside any tree, and sourced by `~/.bashrc` into every shell.
+**This repository is public** — no credential may ever be committed to it.
 
-## Deploying from the container DOES need a Vercel token
-
-This page previously claimed the opposite, and production proved it wrong on
-19 Aug. The claim was reasonable and wholly untested: the project deploys from
-the GitHub integration, every production deployment carries `githubDeployment: 1`,
-so a push to `main` looked like the deploy.
-
-It is, but only from the workstation. Measured, same repo, same branch, same
-author, minutes apart:
-
-| Commit | Pushed from | GitHub Actions CI | Vercel deployment |
-|---|---|---|---|
-| `b63ceae` | workstation | ran, passed | **created, deployed** |
-| `c28b23e` | cloud container | ran, passed | **none, 20 minutes later** |
-| `173942c` | workstation | ran, passed | **created, deployed** |
-
-GitHub took the container's push, moved `main` to it, and ran CI on it — so the
-push was real and the commit was on the branch. Vercel's GitHub App simply never
-produced a deployment for it. `c28b23e` was the receipt-card fix, and it sat on
-`main`, green, undeployed, while production kept serving the broken route.
-
-Why the App ignores that push is not visible from inside the container, and the
-answer matters less than the consequence: **a container push is not a deploy.**
-
-So `VERCEL_TOKEN` is load-bearing, not a convenience, for anyone working without
-a workstation to push from. **It is now in the vault**, scoped to the
-`schoolfees` project alone rather than the whole account. Ship with:
+Add to either without echoing values:
 
 ```bash
-bash scripts/cloud/deploy.sh              # current HEAD
-bash scripts/cloud/deploy.sh --ref main
+bash scripts/cloud/add-secrets.sh <<'EOF'      # app vault
+add-token <<'EOF'                              # platform vault
 ```
 
-That script is not a wrapper around `vercel deploy`, for two reasons found the
-hard way:
+## What is held
 
-- **The CLI cannot use a project-scoped token.** `vercel env pull` and
-  `vercel deploy` resolve the account before doing anything, and a token scoped
-  to one project 404s on `/v2/user` — the CLI reports *"Not able to load user…
-  User not found"*, which reads like a broken token rather than a correctly
-  narrow one. Widening the token to Full Account to satisfy a lookup we do not
-  need is the wrong trade, so the script calls `POST /v13/deployments` directly.
-- **It deploys from git, not from the working tree.** `vercel deploy` uploads
-  whatever is in the container. Passing `gitSource` makes Vercel build the
-  commit, so what ships is what is on `main` — the same artefact the webhook
-  would have produced. The script refuses a sha that is not on an origin branch
-  rather than shipping something GitHub has never seen.
+| Variable | Scope | Unlocks |
+|---|---|---|
+| `GITHUB_TOKEN` | fine-grained PAT, all 24 repos | push from the container |
+| `VERCEL_TOKEN` | `schoolfees` project only | `scripts/cloud/deploy.sh` |
+| `CLOUDFLARE_API_TOKEN` | Workers Scripts:Edit + Workers KV Storage:Edit, one account | `wrangler deploy`, `wrangler secret put` |
+| `SUPABASE_ACCESS_TOKEN` | whole account (no narrower option exists) | Supabase MCP, `supabase db push` |
+| `SENTRY_AUTH_TOKEN` | `org:ci` only | source-map upload at build |
+| `NEON_API_KEY` | whole account, 3 projects | the other repos' databases |
+| `SCHOOLFEES_WORKER_MCP_TOKEN` | the `/svc/mcp` bearer | MCP automation lane |
 
-`doctor.sh` checks this token against the project endpoint for the same reason.
+Sentry's is the narrowest — `org:ci` cannot read issues or change settings, only
+upload source maps and create releases. **Neon's is the widest in practice: it
+never expires.** There is no expiry field on the page because Neon does not offer
+one, so that is the credential to revoke by hand rather than let lapse.
 
-## The two that are absent
+## Two traps, both measured
 
-**`SUPABASE_ACCESS_TOKEN`** — not on the machine; the CLI keeps it in the Windows
-keyring and there is no file to copy. It would enable the Supabase MCP server
-inside the container and `supabase db push` for migrations. Neither is on the
-critical path: the service role key covers every data read and write the app
-does, and the Supabase MCP connector is already attached to the Claude session
-itself. Mint one at https://supabase.com/dashboard/account/tokens only if
-migrations have to run from the container.
+**A container push is not a deploy.** Same repo, same branch, same author,
+minutes apart: `b63ceae` from the workstation deployed; `c28b23e` from the
+container produced no Vercel deployment at all, twenty minutes on, while GitHub
+had taken the push and run CI green. `c28b23e` was a production bug fix, and it
+sat on `main` looking shipped. Hence `deploy.sh`, and hence `doctor.sh` treating
+a missing `VERCEL_TOKEN` as broken rather than merely absent.
 
-**`SENTRY_AUTH_TOKEN`** — build-time source-map upload only. Builds pass without
-it; stack traces from production are just less readable.
+**The Vercel CLI cannot use a project-scoped token.** `vercel deploy` and
+`vercel env pull` resolve the account first, and a token scoped to one project
+404s on `/v2/user` — the CLI says *"Not able to load user… User not found"*,
+which reads like a broken token rather than a correctly narrow one. `deploy.sh`
+posts to `/v13/deployments` directly and passes `gitSource`, so Vercel builds the
+commit rather than whatever is lying around in the container.
 
-## Two things worth knowing about what is stored
+`doctor.sh` checks the Vercel token against the project endpoint for the same
+reason, and reads **both** vaults — reading only the app one is how it spent a
+while reporting live tokens as missing.
 
-The `GITHUB_TOKEN` is the `gh` CLI's own OAuth token (`gho_…`), and its scopes
-are `repo`, `workflow`, `gist`, `read:org` — **every repository on the account**,
-not just this one. A fine-grained PAT limited to `veerpatta/schoolfees` with
-`Contents: read+write` would be the tighter thing to hold, and swapping it in is
-a one-line change to the vault. Revoke either at
-https://github.com/settings/applications if a container is ever lost.
+## Deliberately absent
 
-The Cloudflare credential is a full-scope wrangler OAuth token with `offline_access`,
-so it refreshes itself indefinitely. `wrangler logout` on the machine invalidates
-the copy in the container too.
+**Firebase.** Only `vpps-election-2026` uses it, untouched since May. Firebase
+has no paste-a-token path — it wants a service-account JSON granting broad
+project access, which is a poor trade for a dormant repo, especially during a
+month when nothing can be rotated. The console works from a phone if it ever
+comes up.
 
-## Where the vault lives
+## Revoking
 
-`~/.veerpatta/secrets.env`, mode 600, outside the repo — **this repository is
-public**, so no credential may ever be committed to it. The container is
-ephemeral and takes the vault with it; the paste-block for rebuilding one is in
-the conversation that created it, not here.
-
-```bash
-bash scripts/cloud/add-secrets.sh <<'EOF'
-NAME=value
-EOF
-bash scripts/cloud/doctor.sh
-```
+- GitHub — https://github.com/settings/personal-access-tokens
+- Vercel — https://vercel.com/account/tokens
+- Cloudflare — https://dash.cloudflare.com/profile/api-tokens
+- Supabase — https://supabase.com/dashboard/account/tokens
+- Sentry — https://veer-patta-school.sentry.io/settings/auth-tokens/
+- Neon — https://console.neon.tech/app/settings#api-keys ← **no expiry; this one matters**

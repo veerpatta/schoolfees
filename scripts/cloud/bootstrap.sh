@@ -95,7 +95,22 @@ if [ ! -f "$VAULT" ]; then
 fi
 chmod 600 "$VAULT"
 set -a; . "$VAULT"; set +a
-ok "vault loaded ($(grep -cE '^[A-Z0-9_]+=' "$VAULT") values)"
+ok "app vault loaded ($(grep -cE '^[A-Z0-9_]+=' "$VAULT") values)"
+
+# Account-level tokens (GitHub, Vercel, Cloudflare, Supabase, Sentry, Neon) live
+# outside any one repo, so every project in the container can reach them.
+CLOUD_VAULT="${CLOUD_VAULT:-$HOME/.cloud/tokens.env}"
+if [ -f "$CLOUD_VAULT" ]; then
+  chmod 700 "$(dirname "$CLOUD_VAULT")"; chmod 600 "$CLOUD_VAULT"
+  set -a; . "$CLOUD_VAULT"; set +a
+  ok "platform vault loaded ($(grep -cE '^[A-Z0-9_]+=' "$CLOUD_VAULT") values)"
+  for rc in "$HOME/.bashrc" "$HOME/.profile"; do
+    grep -q 'cloud/tokens.env' "$rc" 2>/dev/null || \
+      printf '[ -f "$HOME/.cloud/tokens.env" ] && set -a && . "$HOME/.cloud/tokens.env" && set +a\n' >> "$rc"
+  done
+else
+  warn "no $CLOUD_VAULT — GitHub/Vercel/Cloudflare/Supabase/Sentry/Neon unavailable"
+fi
 
 # Refresh app env straight from Vercel when a token is available: that keeps the
 # container honest about what production actually has, instead of a stale copy.
