@@ -10,6 +10,13 @@ type InstallmentLike = {
   outstandingAmount?: number | null;
   pendingAmount?: number | null;
   finalLateFee?: number | null;
+  /**
+   * `v_workbook_installment_balances.late_fee_pending` — the late fee still
+   * owed on this row after waivers and after any payment against it. Supply it
+   * whenever the caller has it; see calculatePendingLateFeeAmount for why the
+   * expression below it is not a substitute.
+   */
+  lateFeePending?: number | null;
   balanceStatus?: string | null;
   // Carry-forward (previous-year) installments never accrue a late fee — their
   // stored `late_fee_flat_amount` is 0 (see CARRY_FORWARD_LATE_FEE_FLAT_AMOUNT).
@@ -37,11 +44,37 @@ export function calculateInstallmentBasePending(row: InstallmentLike) {
   return Math.max(calculateInstallmentBaseDue(row) - calculateInstallmentAppliedAmount(row), 0);
 }
 
+/**
+ * The late fee a student still owes for the session, summed across installments.
+ *
+ * Reads `lateFeePending` when the row carries it, which is the column both
+ * engines maintain and the figure `waive_late_fee` caps against.
+ *
+ * The `min(finalLateFee, outstanding)` fallback below is only for rows that do
+ * not carry the column, and it is a fallback rather than the rule for a reason
+ * this function got wrong once: since the late-fee split (20260812120000)
+ * `pending_amount` is FEES ONLY, so `min(final_late_fee, pending_amount)` reads
+ * ZERO for exactly the family whose fees are clear and whose late fee is not —
+ * which is the family the figure exists to describe. On 2026-27 that hid ₹2,000
+ * across two students in the students list and the "Late fee" export column.
+ * `CLAUDE.md` and `docs/product/school-rules.md` both spell the rule out: a late
+ * fee stays owed until it is paid or waived, and clearing the fees afterwards
+ * does not remove it.
+ *
+ * A caller that only has a COMBINED figure (`total_pending`, which does contain
+ * the late fee) is still served correctly by the fallback — that is the Payment
+ * Desk path, and it is why the fallback is kept rather than removed.
+ */
 export function calculatePendingLateFeeAmount(rows: readonly InstallmentLike[]) {
-  return rows.reduce(
-    (sum, row) => sum + Math.min(toAmount(row.finalLateFee), toAmount(row.outstandingAmount ?? row.pendingAmount)),
-    0,
-  );
+  return rows.reduce((sum, row) => {
+    if (row.lateFeePending !== undefined && row.lateFeePending !== null) {
+      return sum + toAmount(row.lateFeePending);
+    }
+
+    return (
+      sum + Math.min(toAmount(row.finalLateFee), toAmount(row.outstandingAmount ?? row.pendingAmount))
+    );
+  }, 0);
 }
 
 /*

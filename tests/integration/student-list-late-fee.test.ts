@@ -36,14 +36,13 @@ type TableResult = { data: unknown; error: unknown; count?: number };
 // Minimal chainable Supabase query stub: every filter/builder method returns the
 // same builder, and awaiting it (or calling maybeSingle/single) resolves the
 // pre-seeded result for that table.
-function makeQuery(result: TableResult) {
+function makeQuery(result: TableResult, filterLog?: string[]) {
   const builder: Record<string, unknown> = {};
   const passthrough = () => builder;
   for (const method of [
     "select",
     "eq",
     "in",
-    "gt",
     "ilike",
     "order",
     "range",
@@ -53,6 +52,16 @@ function makeQuery(result: TableResult) {
   ]) {
     builder[method] = passthrough;
   }
+  // Recorded rather than passed through, so a test can assert WHICH column the
+  // query narrowed on. That matters here: the students list used to filter the
+  // installment read to `pending_amount > 0`, which is fees only, so a row whose
+  // fees were settled and whose late fee was not never reached the mapper at all.
+  for (const method of ["gt", "or"]) {
+    builder[method] = (...args: unknown[]) => {
+      filterLog?.push(`${method}(${args.map(String).join(", ")})`);
+      return builder;
+    };
+  }
   builder.maybeSingle = () => Promise.resolve(result);
   builder.single = () => Promise.resolve(result);
   builder.then = (resolve: (value: TableResult) => unknown, reject?: (reason: unknown) => unknown) =>
@@ -60,7 +69,10 @@ function makeQuery(result: TableResult) {
   return builder;
 }
 
-function makeClient(resultsByTable: Record<string, TableResult>) {
+function makeClient(
+  resultsByTable: Record<string, TableResult>,
+  filtersByTable?: Record<string, string[]>,
+) {
   const withDefaults: Record<string, TableResult> = {
     // Every student-list load reads this to decide the "Late fee waived" badge.
     // Not what these tests are about; a test that cares overrides it.
@@ -76,7 +88,10 @@ function makeClient(resultsByTable: Record<string, TableResult>) {
       if (!result) {
         throw new Error(`Unexpected table in student-list mock: ${table}`);
       }
-      return makeQuery(result);
+      if (filtersByTable && !filtersByTable[table]) {
+        filtersByTable[table] = [];
+      }
+      return makeQuery(result, filtersByTable?.[table]);
     },
   };
 }
@@ -172,6 +187,73 @@ describe("getStudents — pending late fee on the list", () => {
 
     expect(students).toHaveLength(1);
     expect(students[0].pendingLateFeeAmount).toBe(1000);
+  });
+
+  // The live regression. Since the late-fee split (20260812120000)
+  // `pending_amount` is FEES ONLY, and `balance_status` reads 'paid' as soon as
+  // the fees are clear even while the late fee is not. The list did two things
+  // that both keyed on the fees column: it filtered the query to
+  // `pending_amount > 0`, so this row was never fetched at all, and it derived
+  // the figure as min(final_late_fee, pending_amount), which is 0 here. Two real
+  // students on 2026-27 showed Rs 0 against Rs 1,000 owed.
+  //
+  // school-rules.md: "Once charged it stays owed until it is paid or explicitly
+  // waived. Clearing the fees afterwards does not remove it."
+  it("still reports the late fee once the fees on that installment are paid", async () => {
+    const filters: Record<string, string[]> = {};
+    createClient.mockResolvedValue(
+      makeClient({
+        students: { data: [baseStudentRow()], error: null, count: 1 },
+        v_workbook_student_financials: {
+          data: [
+            {
+              student_id: "student-aridaman",
+              student_status_label: "Old",
+              outstanding_amount: 0,
+              late_fee_total: 1000,
+              status_label: "PAID",
+              next_due_date: null,
+            },
+          ],
+          error: null,
+        },
+        student_fee_overrides: { data: [], error: null },
+        v_workbook_installment_balances: {
+          data: [
+            {
+              student_id: "student-aridaman",
+              installment_no: 1,
+              installment_label: "Installment 1",
+              base_charge: 5000,
+              paid_amount: 5000,
+              adjustment_amount: 0,
+              final_late_fee: 1000,
+              // Fees settled...
+              pending_amount: 0,
+              // ...late fee not.
+              late_fee_pending: 1000,
+              balance_status: "paid",
+            },
+          ],
+          error: null,
+        },
+        student_family_members: { data: [], error: null },
+      }, filters),
+    );
+
+    const { getStudents } = await import("@/lib/students/data");
+    const students = await getStudents(FILTERS);
+
+    expect(students[0].pendingLateFeeAmount).toBe(1000);
+    // And it is still not a fees figure — nothing here is overdue.
+    expect(students[0].overdueAmount).toBe(0);
+
+    // The other half of the same bug: the row has to be FETCHED. A bare
+    // `pending_amount > 0` narrows the read to students who still owe fees,
+    // which is precisely the set this student is not in.
+    const installmentFilters = filters.v_workbook_installment_balances ?? [];
+    expect(installmentFilters.join(" ")).toContain("late_fee_pending");
+    expect(installmentFilters).not.toContain("gt(pending_amount, 0)");
   });
 
   // The grandfathering guard. An overdue installment whose late fee has been

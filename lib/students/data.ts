@@ -165,7 +165,10 @@ type StudentListInstallmentBalanceRow = {
   paid_amount: number;
   adjustment_amount: number;
   final_late_fee: number;
+  /** Fees only. Never contains a late fee. */
   pending_amount: number;
+  /** The late fee still owed here, after waivers and any payment against it. */
+  late_fee_pending: number | null;
   balance_status: "paid" | "partial" | "overdue" | "pending" | "waived";
 };
 
@@ -713,10 +716,15 @@ async function getStudentsPageUncached(
       supabase
         .from("v_workbook_installment_balances")
         .select(
-          "student_id, installment_no, installment_label, base_charge, paid_amount, adjustment_amount, final_late_fee, pending_amount, balance_status",
+          "student_id, installment_no, installment_label, base_charge, paid_amount, adjustment_amount, final_late_fee, pending_amount, late_fee_pending, balance_status",
         )
         .in("student_id", studentIds)
-        .gt("pending_amount", 0)
+        // Fees pending OR a late fee still owed. `pending_amount` alone dropped
+        // the row where fees are settled and the flat late fee is not, so the
+        // student the late-fee column exists to flag was the one student it
+        // could never see. `balance_status` reads 'paid' on such a row by
+        // design — the late fee is a separate charge, not part of the fees.
+        .or("pending_amount.gt.0,late_fee_pending.gt.0")
         .order("installment_no", { ascending: true }),
       getStudentConventionalDiscountAssignments({
         academicSessionLabel: listSessionLabel,
@@ -839,6 +847,10 @@ async function getStudentsPageUncached(
           rows.map((row) => ({
             finalLateFee: row.final_late_fee,
             pendingAmount: row.pending_amount,
+            // The authoritative column. Without it the helper falls back to
+            // min(final_late_fee, pending_amount), and `pending_amount` is fees
+            // only — so it answers 0 for precisely the students who owe one.
+            lateFeePending: row.late_fee_pending,
           })),
         ),
       ]),
