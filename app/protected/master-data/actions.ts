@@ -1,6 +1,8 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
+
+import { revalidateTagAfterWrite } from "@/lib/system-sync/finance-revalidation";
 
 import type { ClassStatus, PaymentMode } from "@/lib/db/types";
 import {
@@ -153,7 +155,7 @@ function revalidateMasterDataSurface() {
   // falls back to `snapshots.find(isActive) ?? snapshots[0]` — so for up to
   // five minutes the Payment Desk and post_student_payment would price the new
   // year off the OLD year's installment schedule and late fee.
-  try { revalidateTag("fee-policy", "max"); } catch {}
+  revalidateTagAfterWrite("fee-policy");
 }
 
 export async function createSessionAction(

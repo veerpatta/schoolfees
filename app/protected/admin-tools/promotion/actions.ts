@@ -1,6 +1,8 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
+
+import { revalidateTagAfterWrite } from "@/lib/system-sync/finance-revalidation";
 import { redirect } from "next/navigation";
 
 import { deleteAcademicSession } from "@/lib/master-data/data";
@@ -57,7 +59,7 @@ export async function applyPromotionRunAction(formData: FormData) {
     // fee-policy resolvers are cached for 300s under this tag; without the
     // bust, loadPolicyForSession cannot see the new row and silently falls
     // back to the outgoing year's schedule and late fee.
-    try { revalidateTag("fee-policy", "max"); } catch {}
+    revalidateTagAfterWrite("fee-policy");
     revalidatePath("/protected/admin-tools/promotion");
     revalidatePath(`/protected/admin-tools/promotion/${runId}`);
     redirect(

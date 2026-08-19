@@ -1,6 +1,8 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
+
+import { revalidateTagAfterWrite } from "@/lib/system-sync/finance-revalidation";
 import { after } from "next/server";
 
 import {
@@ -348,8 +350,8 @@ function revalidateFeeSetupSurface(sessionLabel?: string) {
   revalidateCoreFinancePaths();
   // Bust the cached setup-readiness/light-wizard payload so Transactions,
   // Payments, and other office pages see fresh readiness state immediately.
-  try { revalidateTag("setup-readiness", "max"); } catch {}
-  try { revalidateTag("fee-policy", "max"); } catch {}
+  revalidateTagAfterWrite("setup-readiness");
+  revalidateTagAfterWrite("fee-policy");
 
   // And the dashboard rollups. Publishing Fee Setup is the single biggest mover
   // of expected fees in the app — it rewrites dues for every student in scope —
