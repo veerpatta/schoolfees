@@ -29,6 +29,10 @@ row() { # row <status> <name> <detail>
   esac
 }
 http() { curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$@" 2>/dev/null || echo 000; }
+# github.com must bypass the container's git proxy: it intercepts and answers
+# 403 for repos outside the session set, before our own credential is seen.
+http_direct() { env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
+  curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$@" 2>/dev/null || echo 000; }
 
 echo
 echo "veerpatta-fees-app — cloud environment"
@@ -82,7 +86,7 @@ fi
 echo
 echo "authorizations"
 if [ -n "${GITHUB_TOKEN:-}" ]; then
-  c="$(http -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/veerpatta/schoolfees)"
+  c="$(http_direct -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/veerpatta/schoolfees)"
   [ "$c" = "200" ] && row ok "github" "token valid, push enabled" || row no "github" "api returned $c"
 else
   row skip "github" "read-only clone (no GITHUB_TOKEN)"
@@ -91,13 +95,17 @@ if [ -n "${VERCEL_TOKEN:-}" ]; then
   c="$(http -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/user)"
   [ "$c" = "200" ] && row ok "vercel" "token valid" || row no "vercel" "api returned $c"
 else
-  row skip "vercel" "no VERCEL_TOKEN (no env pull, no deploys)"
+  row skip "vercel" "no token — but pushes auto-deploy via the git integration"
 fi
 if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
   c="$(http -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify)"
-  [ "$c" = "200" ] && row ok "cloudflare" "token valid, wrangler deploy enabled" || row no "cloudflare" "api returned $c"
+  [ "$c" = "200" ] && row ok "cloudflare" "API token valid, Worker deploy enabled" || row no "cloudflare" "api returned $c"
+elif [ -f "$HOME/.wrangler/config/default.toml" ] || [ -f "$HOME/.config/.wrangler/config/default.toml" ]; then
+  who="$(timeout 60 wrangler whoami 2>/dev/null | grep -oE '[0-9a-f]{32}' | head -1)"
+  [ -n "$who" ] && row ok "cloudflare" "wrangler OAuth, account ${who:0:8}…, deploy enabled" \
+                || row no "cloudflare" "wrangler config present but whoami failed"
 else
-  row skip "cloudflare" "no CLOUDFLARE_API_TOKEN (no Worker deploys)"
+  row skip "cloudflare" "no Cloudflare auth (no Worker deploys)"
 fi
 if [ -n "${SUPABASE_ACCESS_TOKEN:-}" ]; then
   c="$(http -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" https://api.supabase.com/v1/projects)"

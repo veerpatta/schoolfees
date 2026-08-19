@@ -17,6 +17,10 @@ VAULT="${VEERPATTA_VAULT:-$HOME/.veerpatta/secrets.env}"
 mkdir -p "$(dirname "$VAULT")"; chmod 700 "$(dirname "$VAULT")"
 touch "$VAULT"; chmod 600 "$VAULT"
 
+if [ -t 0 ]; then
+  echo "Paste KEY=VALUE lines, then press Ctrl-D:" >&2
+fi
+
 added=(); skipped=0
 while IFS= read -r line || [ -n "$line" ]; do
   line="${line#"${line%%[![:space:]]*}"}"          # ltrim

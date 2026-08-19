@@ -13,6 +13,24 @@ scripts/cloud/doctor.sh        one screen: what works, what does not
 scripts/cloud/mcp.cloud.json   headless MCP config (token auth, no browser)
 ```
 
+## Resuming in a fresh container
+
+Containers are reclaimed. When you land in a new one with nothing:
+
+```bash
+git clone https://github.com/veerpatta/schoolfees.git ~/veerpatta-fees-app
+cd ~/veerpatta-fees-app
+bash scripts/cloud/add-secrets.sh          # paste the vault block, then Ctrl-D
+bash scripts/cloud/bootstrap.sh
+```
+
+Three commands, about three minutes, and `doctor.sh` prints green. The vault
+block is **not in this repository** — this repo is public. Keep it wherever you
+keep passwords; it is also in the conversation that first built the container.
+
+Everything else rebuilds from git, so nothing needs to be carried between
+containers except that one block.
+
 ## First run in a new container
 
 ```bash
