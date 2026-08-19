@@ -70,6 +70,21 @@ function authorize(request: Request): { ok: boolean; reason?: string } {
   return { ok: true };
 }
 
+/**
+ * Sized against the row caps declared above: five table dumps of up to 50,000
+ * rows each, CSV-encoded in memory and uploaded to object storage one at a time.
+ *
+ * Nobody watches a cron. When one exceeds its budget the platform kills it
+ * mid-flight, and here that leaves a partial set of dumps under tonight's date
+ * prefix with no manifest — because the manifest is uploaded last, after the
+ * loop. A backup that looks present and is incomplete is worse than one that is
+ * plainly missing, so the ceiling is stated rather than inherited.
+ *
+ * The other unattended route, /api/cron/auto-day-close, deliberately has none:
+ * its work is bounded and does not grow with the roll.
+ */
+export const maxDuration = 300;
+
 export async function GET(request: Request) {
   const auth = authorize(request);
   if (!auth.ok) {
