@@ -74,8 +74,13 @@ chmod 700 "$HOME/.veerpatta" "$HOME/.cloud"
 node - "$paste" "$HOME/.veerpatta/secrets.env" "$HOME/.cloud/tokens.env" <<'NODE'
 const fs = require("fs");
 const [src, appVault, cloudVault] = process.argv.slice(2);
+// Account-level only. VERCEL_TOKEN is deliberately NOT here: it is scoped to a
+// single Vercel project, so it belongs beside that project's ids in the app
+// vault. Splitting it from VERCEL_PROJECT_ID would put a container's layout out
+// of step with the one this vault came from, which is how "works here, not
+// there" starts.
 const PLATFORM = new Set([
-  "GITHUB_TOKEN","VERCEL_TOKEN","CLOUDFLARE_API_TOKEN","CLOUDFLARE_ACCOUNT_ID",
+  "GITHUB_TOKEN","CLOUDFLARE_API_TOKEN","CLOUDFLARE_ACCOUNT_ID",
   "SUPABASE_ACCESS_TOKEN","SENTRY_AUTH_TOKEN","SENTRY_ORG","SENTRY_PROJECT",
   "NEON_API_KEY","NEON_ORG_ID",
 ]);

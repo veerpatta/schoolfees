@@ -34,8 +34,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+CLOUD_VAULT="${CLOUD_VAULT:-$HOME/.cloud/tokens.env}"
 [ -f "$VAULT" ] || { echo "no vault at $VAULT" >&2; exit 1; }
-set -a; . "$VAULT"; set +a
+set -a; . "$VAULT"; [ -f "$CLOUD_VAULT" ] && . "$CLOUD_VAULT"; set +a
 : "${VERCEL_TOKEN:?VERCEL_TOKEN not in the vault — see docs/cloud-tokens.md}"
 : "${VERCEL_ORG_ID:?}" ; : "${VERCEL_PROJECT_ID:?}"
 
