@@ -72,7 +72,9 @@ export const metadata: Metadata = {
     title: `${schoolProfile.shortName} Fee Admin`,
     statusBarStyle: "default",
   },
-  manifest: "/api/manifest",
+  // No `manifest:` here on purpose -- see the hand-rendered <link> in
+  // RootLayout below. Next's Metadata API cannot set crossOrigin on the
+  // manifest link, and without it the manifest is fetched without cookies.
 };
 
 export const viewport: Viewport = {
@@ -114,6 +116,22 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="antialiased">
+        {/*
+          The manifest link is written by hand rather than through
+          `metadata.manifest`, for one attribute: crossOrigin.
+
+          A manifest is fetched with credentials omitted unless the link says
+          use-credentials, and Next only emits that attribute on Vercel preview
+          deployments (lib/metadata/metadata.js, guarded on VERCEL_ENV). So in
+          production /api/manifest saw no cookies, getAuthenticatedStaff()
+          returned null, and every installed app -- accountant, fee collector,
+          teacher -- got the view_only manifest: launched on Dashboard, with no
+          Payment Desk shortcut. The route has been role-aware since it was
+          written; this is what lets it act on it.
+
+          React 19 hoists <link> into <head>, so it does not need a head block.
+        */}
+        <link rel="manifest" href="/api/manifest" crossOrigin="use-credentials" />
         <LanguageProvider initialLocale={initialLocale} catalogs={catalogs}>
           <ThemeProvider>
             <DensityProvider>

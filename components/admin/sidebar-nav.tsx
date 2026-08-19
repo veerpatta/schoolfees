@@ -5,6 +5,7 @@ import { NavLink } from "@/components/admin/nav-link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { NavCount, type NavCounts } from "@/components/admin/nav-count";
 import { useIdlePrefetch } from "@/hooks/use-idle-prefetch";
 
 import {
@@ -27,7 +28,12 @@ type SidebarNavProps = {
    */
   tone?: "light" | "ink";
   /** Count pills keyed by nav href (e.g. payments today, defaulter count). */
-  counts?: Record<string, number>;
+  counts?: NavCounts;
+  /**
+   * The same counts, still in flight. The workspace shell passes this so the
+   * nav can paint before its numbers exist — see components/admin/nav-count.tsx.
+   */
+  countsPromise?: Promise<NavCounts>;
   className?: string;
 };
 
@@ -74,6 +80,7 @@ export function SidebarNav({
   mode = "sidebar",
   tone = "light",
   counts,
+  countsPromise,
   className,
 }: SidebarNavProps) {
   const pathname = usePathname();
@@ -119,8 +126,6 @@ export function SidebarNav({
       );
     }
 
-    const count = counts?.[item.href];
-
     return (
       <NavLink
         key={item.href}
@@ -163,19 +168,25 @@ export function SidebarNav({
           aria-hidden="true"
         />
         <span className="min-w-0 flex-1 truncate">{translateLabel(item)}</span>
-        {typeof count === "number" && count > 0 ? (
-          <span
-            className={cn(
-              "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none",
-              isInk
-                ? "bg-nav-surface text-nav-muted group-hover:text-nav-foreground"
-                : "bg-surface-2 text-muted-foreground",
-              active && isInk && "bg-nav text-nav-foreground",
-            )}
-          >
-            {count > 999 ? "999+" : count}
-          </span>
-        ) : null}
+        <NavCount
+          counts={counts}
+          countsPromise={countsPromise}
+          select={(resolved) => resolved[item.href]}
+        >
+          {(count) => (
+            <span
+              className={cn(
+                "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none",
+                isInk
+                  ? "bg-nav-surface text-nav-muted group-hover:text-nav-foreground"
+                  : "bg-surface-2 text-muted-foreground",
+                active && isInk && "bg-nav text-nav-foreground",
+              )}
+            >
+              {count > 999 ? "999+" : count}
+            </span>
+          )}
+        </NavCount>
       </NavLink>
     );
   };

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { NavCount, type NavCounts } from "@/components/admin/nav-count";
 import { NavLink } from "@/components/admin/nav-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -35,12 +36,22 @@ type MobileBottomNavProps = {
    * Live counts rendered as badges on the bar. Keyed by href so a role that
    * cannot see a module simply never receives its badge.
    */
-  counts?: Partial<Record<string, number>>;
+  counts?: NavCounts;
+  /**
+   * The same counts, still in flight. The workspace shell passes this so the
+   * bar can paint before its numbers exist — see components/admin/nav-count.tsx.
+   */
+  countsPromise?: Promise<NavCounts>;
   /** Signed-in account, shown on the More hub's footer row. */
   staffEmail?: string;
 };
 
-export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomNavProps) {
+export function MobileBottomNav({
+  staffRole,
+  counts,
+  countsPromise,
+  staffEmail,
+}: MobileBottomNavProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [overflowOpen, setOverflowOpen] = useState(false);
@@ -63,17 +74,19 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
   );
   // Counts belonging to rows that now live behind More, summed onto the More
   // button. Rows already in the bar are skipped so a count is never shown twice.
-  const overflowBadge = useMemo(() => {
-    if (!counts) return undefined;
-    let total = 0;
-    for (const group of moreGroups) {
-      for (const item of group.items) {
-        if (primaryHrefs.has(item.href)) continue;
-        total += counts[item.href] ?? 0;
+  const selectOverflowCount = useCallback(
+    (resolved: NavCounts) => {
+      let total = 0;
+      for (const group of moreGroups) {
+        for (const item of group.items) {
+          if (primaryHrefs.has(item.href)) continue;
+          total += resolved[item.href] ?? 0;
+        }
       }
-    }
-    return total > 0 ? total : undefined;
-  }, [counts, moreGroups, primaryHrefs]);
+      return total > 0 ? total : undefined;
+    },
+    [moreGroups, primaryHrefs],
+  );
   // Takeover screens replace the screen entirely (mobile v2): the tab bar
   // would cost 68px where height matters most, and a tab bar on a student
   // detail page says "you are on a tab", which it is not. MobileTakeoverBar
@@ -250,7 +263,9 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
             // moving Defaulters off the bar and into More would silently drop
             // the overdue count from the phone entirely — the number is the
             // reason anyone opens that screen.
-            const badge = isOverflow ? overflowBadge : counts?.[item.href];
+            const selectBadge = isOverflow
+              ? selectOverflowCount
+              : (resolved: NavCounts) => resolved[item.href];
             const content = (
               <>
                 <span
@@ -264,16 +279,22 @@ export function MobileBottomNav({ staffRole, counts, staffEmail }: MobileBottomN
                   )}
                 >
                   <Icon className="size-5" aria-hidden="true" />
-                  {badge && badge > 0 ? (
-                    /* Sized by content, not a fixed min-width: this school
-                       runs 400+ defaulters, so the badge is "99+" far more
-                       often than a two-digit count, and a fixed box clipped
-                       the "+". box-content keeps the padding outside the
-                       height so the pill stays circular for single digits. */
-                    <span className="absolute -right-2 -top-1 box-content inline-flex h-[17px] min-w-[9px] items-center justify-center rounded-full bg-destructive px-1.5 text-[9.5px] font-extrabold tabular-nums text-destructive-foreground">
-                      {badge > 99 ? "99+" : badge}
-                    </span>
-                  ) : null}
+                  <NavCount
+                    counts={counts}
+                    countsPromise={countsPromise}
+                    select={selectBadge}
+                  >
+                    {(badge) => (
+                      /* Sized by content, not a fixed min-width: this school
+                         runs 400+ defaulters, so the badge is "99+" far more
+                         often than a two-digit count, and a fixed box clipped
+                         the "+". box-content keeps the padding outside the
+                         height so the pill stays circular for single digits. */
+                      <span className="absolute -right-2 -top-1 box-content inline-flex h-[17px] min-w-[9px] items-center justify-center rounded-full bg-destructive px-1.5 text-[9.5px] font-extrabold tabular-nums text-destructive-foreground">
+                        {badge > 99 ? "99+" : badge}
+                      </span>
+                    )}
+                  </NavCount>
                 </span>
                 <span
                   className={cn(

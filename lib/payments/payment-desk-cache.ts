@@ -1,6 +1,6 @@
+import { paymentDeskStudentIndexCacheKey } from "@/lib/payments/payment-desk-cache-keys";
 import type { PaymentStudentIndexItem } from "@/lib/payments/types";
 
-const paymentDeskStudentIndexCacheKey = "vpps.paymentDesk.studentIndex";
 const studentIndexCacheFreshMs = 5 * 60 * 1000;
 
 type PaymentDeskStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;

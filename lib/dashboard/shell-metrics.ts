@@ -16,11 +16,18 @@ export type ShellPulse = {
   overdueStudentCount: number;
 };
 
-const EMPTY_PULSE: ShellPulse = {
+/**
+ * Exported so the workspace shell can use it as the `.catch()` value when it
+ * starts this read without awaiting it. A shell whose pulse read failed shows
+ * zeros in one sidebar card; it does not fail to render.
+ */
+export const EMPTY_SHELL_PULSE: ShellPulse = {
   todayTotalAmount: 0,
   todayReceiptCount: 0,
   overdueStudentCount: 0,
 };
+
+const EMPTY_PULSE = EMPTY_SHELL_PULSE;
 
 function getSchoolDateStamp(referenceDate = new Date()) {
   return new Intl.DateTimeFormat("sv-SE", {

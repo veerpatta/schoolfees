@@ -49,6 +49,12 @@ export async function GET() {
     {
       name: "Shri Veer Patta School Fee Admin",
       short_name: "VPPS Fee",
+      // A stable install identity. start_url moves per role (below), and
+      // without an explicit id Chrome derives the identity from start_url --
+      // so an accountant and a teacher would read as two different apps, and
+      // a role change would orphan the installed one.
+      id: "/protected",
+      scope: "/",
       // Land on the role's real home rather than on `/protected`, which only
       // exists to `redirect()` there from a Server Component. Every PWA launch
       // used to traverse that redirect, and the App Router crashed part-way
@@ -58,6 +64,14 @@ export async function GET() {
       // Skipping the hop removes the trigger on the launch path.
       start_url: getDefaultProtectedHref(role),
       display: "standalone",
+      display_override: ["standalone", "minimal-ui"],
+      orientation: "any",
+      categories: ["business", "education"],
+      // focus-existing, not navigate-existing: tapping the icon while a window
+      // is already open brings it forward and leaves it where it is. A cashier
+      // half-way through entering an amount must not have the form navigated
+      // out from under them because someone tapped the icon on the taskbar.
+      launch_handler: { client_mode: "focus-existing" },
       background_color: "#faf9f6",
       theme_color: "#c0521a",
       description: "Internal fee management workspace for VPPS office/accounts staff.",

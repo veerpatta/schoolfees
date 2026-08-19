@@ -1,4 +1,5 @@
 import { AuthConfigNotice } from "@/components/auth/auth-config-notice";
+import { SignedOutCachePurge } from "@/components/auth/signed-out-cache-purge";
 import { getAuthenticatedStaff } from "@/lib/supabase/session";
 import { hasRequiredEnvVars } from "@/lib/env";
 import { LoginForm } from "@/components/login-form";
@@ -15,5 +16,13 @@ export default async function Page() {
     redirect("/protected");
   }
 
-  return <LoginForm />;
+  return (
+    <>
+      {/* Reaching this line proves there is no session (the redirect above is
+          the only other way out), so clearing the previous staffer's cached
+          student data is unconditionally safe here. */}
+      <SignedOutCachePurge />
+      <LoginForm />
+    </>
+  );
 }

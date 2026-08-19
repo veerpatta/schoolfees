@@ -50,6 +50,36 @@ const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
   },
+  // Vercel serves everything in public/ with a revalidate-on-every-request
+  // default, so the installed app re-checked its own icons on every launch.
+  // These four are the only public assets a browser actually fetches; the
+  // Devanagari TTFs under public/fonts are read off disk by @react-pdf on the
+  // server and never travel to a client.
+  async headers() {
+    return [
+      {
+        // Not `immutable`: the school mark is replaceable, and a year-long
+        // immutable cache would strand a replacement on every installed device.
+        source: "/branding/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=2592000" }],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [{ key: "Cache-Control", value: "public, max-age=3600" }],
+      },
+      {
+        // A stale service worker is the worst thing in this list: it decides
+        // what every other request does. Browsers already bypass the HTTP cache
+        // for the worker script, but say it out loud.
+        source: "/service-worker.js",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+      {
+        source: "/offline.html",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+    ];
+  },
   experimental: {
     // Only packages that are actually installed. react-dialog / react-select /
     // react-sheet were listed here but have never been dependencies — dialogs
@@ -67,6 +97,26 @@ const nextConfig: NextConfig = {
     ],
     optimizeCss: true,
     scrollRestoration: true,
+    // The client Router Cache. `dynamic` ships as 0, which means a page you
+    // were looking at ten seconds ago is refetched in full when you come back
+    // to it -- and because every route here is force-dynamic (see
+    // docs/design/design-system.md §5.6), "in full" is a complete server
+    // render: auth, users lookup, fee policy, shell pulse, page data.
+    //
+    // 30s is safe for money because a posting is a Server Action and
+    // revalidatePath purges this cache outright -- the cashier who posted
+    // never sees a pre-receipt figure. What 30s buys is a colleague's posting
+    // taking up to half a minute to appear on a re-visit, against a
+    // server-side ceiling of 300s that the dashboard already runs on
+    // (DASHBOARD_STALENESS_CEILING_SECONDS).
+    //
+    // `static` is the Next default restated, so a future default change is a
+    // visible edit here rather than a silent behaviour swing. It governs
+    // router.prefetch() results, which is what the sidebar warms on idle.
+    staleTimes: {
+      dynamic: 30,
+      static: 300,
+    },
   },
 };
 

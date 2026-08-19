@@ -393,6 +393,112 @@ page, which the deployment guards depend on.
 slow, the cost is in per-route data fetching, not in this directive — measure
 the route's own queries instead.
 
+### 5.9 The two levers §5.6 left on the table
+
+§5.6 asked whether `force-dynamic` makes navigation slow and answered no. It did
+not ask the next question: given that every navigation *is* a server render,
+what stops us paying for the same one twice, and what has to finish before
+anything appears on screen. Both had an answer, and neither touches the
+directive.
+
+**The client Router Cache was off.** Next ships `experimental.staleTimes.dynamic`
+at `0`, which means a page you were looking at ten seconds ago is refetched in
+full when you come back to it — auth, users lookup, fee policy, shell pulse,
+page data, all of it, for a screen already sitting in memory. It is now `30`
+(`next.config.ts`).
+
+Thirty seconds is safe for money because of who can be hurt, in order:
+
+- The cashier who posted. A posting is a Server Action calling
+  `revalidateAfterPaymentPosting` → `revalidatePath`, and that purges the whole
+  client cache. They never see a pre-receipt figure.
+- A colleague of theirs. They may not see somebody else's posting for up to 30s
+  on a re-visit. The dashboard already runs on a **300s** server-side ceiling
+  for the same numbers (`DASHBOARD_STALENESS_CEILING_SECONDS`), so this is an
+  order of magnitude inside a staleness the app has been shipping for months.
+- Playwright. Unaffected — `page.goto()` is a document load and never consults
+  the client router cache.
+
+`staleTimes.static` is written out at its default `300` on purpose, so a future
+Next default change shows up as an edit here rather than a silent behaviour
+swing. It governs `router.prefetch()` results, which is what the sidebar warms
+on idle (§5.6's sibling finding).
+
+**The shell blocked the first paint.** `DashboardShell` awaited fee policy, the
+session list and the shell pulse before emitting a single byte of chrome — and
+because a layout that awaits blocks its children, the child route's
+`loading.tsx` could not paint either. Every skeleton in this app only appeared
+*after* the slow part was over, which is backwards in the same way §5.4's
+progress bar was.
+
+`getShellPulse` is the one that hurt: it is tagged `session:{label}`, so every
+payment posting busts it, and on a busy desk it is cold far more often than it
+is warm. `getSessionSwitcherData` is a 1200ms `Promise.race` on a cold lambda.
+
+`DashboardShell` is a plain function now. It starts the three reads, hands the
+promises to `<Suspense>` boundaries — `ShellDayCard`, `ShellSessionPill`, and
+`NavCount` for the badges — and returns. Each read carries a `.catch()`, which
+does two jobs: an unawaited promise that rejects is an unhandled rejection, and
+separately, a failed shell read used to take down the whole workspace. A missing
+"Day so far" figure is not a reason nobody can reach the Payment Desk.
+
+Pinned by `tests/unit/performance-guardrails.test.ts`.
+
+### 5.10 The installed app (Chrome PWA) — three traps
+
+Staff install this from Chrome on counter machines and phones. Three things
+about that were wrong, and each is the kind of thing a later reader will
+helpfully "fix" back.
+
+**A manifest is fetched without cookies.** `metadata.manifest` in
+`app/layout.tsx` emitted `<link rel="manifest" href="/api/manifest">` with no
+`crossorigin`, and a manifest request omits credentials unless the link says
+`use-credentials`. Next only sets that attribute on Vercel *preview*
+deployments (`lib/metadata/metadata.js`, guarded on `VERCEL_ENV`). So in
+production `/api/manifest` saw no cookies, `getAuthenticatedStaff()` returned
+null, the role fell back to `view_only` — and every installed app, whoever
+owned it, launched on Dashboard with no Payment Desk shortcut. The route had
+been role-aware since it was written and had never once acted on it.
+
+The link is therefore **hand-rendered** in `app/layout.tsx` with
+`crossOrigin="use-credentials"`. Moving it back to `metadata.manifest` silently
+reverts the bug.
+
+**Cache Storage does not know who is signed in.** The worker precached and
+stale-while-revalidated `/api/manifest`, which is `private, no-store` and
+per-role — so on a shared counter device one staffer's manifest was served to
+the next for up to thirty minutes. Cache Storage ignores `Cache-Control`
+entirely; nothing user-specific belongs in it. It is out, and every bucket was
+renamed to `v2` because renaming is what actually evicts the already-written
+copies from devices in the field (the `activate` handler deletes anything not
+on `KEEPABLE_CACHES`).
+
+The same reasoning is why `app/auth/login/page.tsx` mounts
+`<SignedOutCachePurge />`. `logoutAction` is a Server Action and cannot reach
+Cache Storage or IndexedDB at all; reaching the login page proves there is no
+session, so purging there is unconditionally safe and also covers the ways a
+session ends without touching the sign-out button. It clears caches of *server*
+data only — payment drafts, saved views and preferences are the staffer's own
+work and stay.
+
+**A service worker that claims navigations, without navigation preload, is a
+tax.** Chrome kills an idle worker after about thirty seconds. The `fetch`
+handler responds to every navigation, so each cold navigation waited for the
+worker to boot *before* the request was issued. `navigationPreload.enable()` in
+`activate` plus `event.preloadResponse` in the navigate branch lets the browser
+start the request in parallel. This is the one change that makes the worker pay
+for itself.
+
+Unchanged and deliberate: GET-only, network-first navigations, no protected
+page body ever cached, nothing queued or replayed. Pinned by
+`tests/unit/offline-shell-policy.test.ts` and `tests/ui/mobile-ux-roadmap.test.ts`.
+
+**Deliberately not done in the same pass:** caching the per-navigation `users`
+row. It carries `role` and `is_active`, the Router Cache above already removes a
+large share of the calls, and a 60s window in which a deactivated account still
+works is a poor trade for one round trip. `requireAuthenticatedStaff()` stays an
+uncached read.
+
 ### 5.5 Component count
 
 We grew the primitive count by 7 (`Money`, `KpiCard`, `EmptyState`, `Notice`,

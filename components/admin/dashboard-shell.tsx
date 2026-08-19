@@ -5,12 +5,15 @@ import { CalendarDays } from "lucide-react";
 import { type StaffRole } from "@/lib/auth/roles";
 import { SchoolBrand } from "@/components/branding/school-brand";
 import { OfficeSyncListener } from "@/components/admin/office-sync-listener";
-import { SessionPill } from "@/components/admin/session-pill";
+import { ShellDayCard, ShellDayCardSkeleton } from "@/components/admin/shell-day-card";
+import {
+  ShellSessionPill,
+  ShellSessionPillSkeleton,
+} from "@/components/admin/shell-session-pill";
 import { SessionSwitchOverlayMount } from "@/components/admin/session-switch-overlay";
 import { getDefaultProtectedHref } from "@/lib/config/navigation";
-import { getShellPulse } from "@/lib/dashboard/shell-metrics";
+import { EMPTY_SHELL_PULSE, getShellPulse } from "@/lib/dashboard/shell-metrics";
 import { getFeePolicyForSession } from "@/lib/fees/data";
-import { formatInr } from "@/lib/helpers/currency";
 import { getSessionSwitcherData } from "@/lib/session/switcher";
 import { SessionSwitchingProvider } from "@/lib/session/switching-context";
 
@@ -43,18 +46,43 @@ type DashboardShellProps = {
   viewSessionIsTest: boolean;
 };
 
-export async function DashboardShell({
+export function DashboardShell({
   children,
   staffEmail,
   staffRole,
   viewSessionLabel,
   viewSessionIsTest,
 }: DashboardShellProps) {
-  const [policy, sessionSwitcher, pulse] = await Promise.all([
-    getFeePolicyForSession(viewSessionLabel),
-    getSessionSwitcherData(),
-    getShellPulse(viewSessionLabel),
-  ]);
+  // Started, not awaited. This function used to `await Promise.all([...])` on
+  // these three, which meant no chrome was emitted until all three came back —
+  // and because the layout was blocked, the child route's `loading.tsx` could
+  // not paint either. Every carefully shaped skeleton in this app only appeared
+  // *after* the slow part was over. They now resolve inside their own Suspense
+  // boundaries below, so the frame and the skeleton go out first.
+  //
+  // Each `.catch()` is doing two jobs. An unawaited promise that rejects is an
+  // unhandled rejection, and separately: a failed shell read used to take down
+  // the whole workspace. A missing "Day so far" figure is not a reason nobody
+  // can reach the Payment Desk.
+  const pulsePromise = getShellPulse(viewSessionLabel).catch(() => EMPTY_SHELL_PULSE);
+  const receiptPrefixPromise = getFeePolicyForSession(viewSessionLabel)
+    .then((policy) => policy.receiptPrefix)
+    .catch(() => null);
+  const sessionSwitcherPromise = getSessionSwitcherData().catch(() => ({
+    activeSessionLabel: viewSessionLabel,
+    availableSessions: [],
+  }));
+  const navCountsPromise = pulsePromise.then((pulse) => ({
+    "/protected/payments": pulse.todayReceiptCount,
+    "/protected/defaulters": pulse.overdueStudentCount,
+  }));
+  // The phone bar gets only the follow-up count, same as before. A badge on
+  // Collect would read as "3 payments waiting", which is not a thing. Derived
+  // from the same promise, so it costs no second read.
+  const mobileNavCountsPromise = pulsePromise.then((pulse) => ({
+    "/protected/defaulters": pulse.overdueStudentCount,
+  }));
+
   const homeHref = getDefaultProtectedHref(staffRole);
   const localeSwitcher = isLocaleSwitcherEnabled() ? <LocaleSwitcher /> : null;
   // School time, not server time — the greeting must match the clock on the
@@ -66,10 +94,6 @@ export async function DashboardShell({
       hour12: false,
     }).format(new Date()),
   );
-  const navCounts: Record<string, number> = {
-    "/protected/payments": pulse.todayReceiptCount,
-    "/protected/defaulters": pulse.overdueStudentCount,
-  };
 
   return (
     <SessionSwitchingProvider>
@@ -94,7 +118,7 @@ export async function DashboardShell({
         {/* no-scrollbar: a light OS scrollbar track on the ink panel reads as
             a rendering fault once the nav list overflows a short viewport. */}
         <div className="no-scrollbar flex-1 overflow-y-auto px-2 py-3">
-          <SidebarNav staffRole={staffRole} tone="ink" counts={navCounts} />
+          <SidebarNav staffRole={staffRole} tone="ink" countsPromise={navCountsPromise} />
         </div>
 
         <footer className="border-t border-nav-border px-3 py-3">
@@ -108,21 +132,9 @@ export async function DashboardShell({
             ) : null}
           </p>
           {/* Day so far */}
-          <div className="mt-2 rounded-xl bg-nav-surface px-3 py-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-nav-muted">
-              Day so far
-            </p>
-            <p className="font-display-money mt-0.5 text-xl leading-tight text-nav-foreground">
-              {formatInr(pulse.todayTotalAmount)}
-            </p>
-            <p className="mt-0.5 text-[11px] tabular-nums text-nav-muted">
-              {pulse.todayReceiptCount === 1
-                ? "1 receipt today"
-                : `${pulse.todayReceiptCount} receipts today`}
-              {" · "}
-              {policy.receiptPrefix}
-            </p>
-          </div>
+          <Suspense fallback={<ShellDayCardSkeleton />}>
+            <ShellDayCard pulse={pulsePromise} receiptPrefix={receiptPrefixPromise} />
+          </Suspense>
         </footer>
       </aside>
 
@@ -138,11 +150,20 @@ export async function DashboardShell({
           staffRole={staffRole}
           schoolHour={schoolHour}
           sessionPill={
-            <SessionPill
-              currentLabel={viewSessionLabel}
-              isTest={viewSessionIsTest}
-              initialSessions={sessionSwitcher.availableSessions}
-            />
+            <Suspense
+              fallback={
+                <ShellSessionPillSkeleton
+                  currentLabel={viewSessionLabel}
+                  isTest={viewSessionIsTest}
+                />
+              }
+            >
+              <ShellSessionPill
+                currentLabel={viewSessionLabel}
+                isTest={viewSessionIsTest}
+                sessions={sessionSwitcherPromise}
+              />
+            </Suspense>
           }
           localeSwitcher={localeSwitcher}
         />
@@ -167,7 +188,7 @@ export async function DashboardShell({
         <MobileBottomNav
           staffRole={staffRole}
           staffEmail={staffEmail}
-          counts={{ "/protected/defaulters": pulse.overdueStudentCount }}
+          countsPromise={mobileNavCountsPromise}
         />
       </div>
       </div>

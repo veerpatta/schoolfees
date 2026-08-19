@@ -25,12 +25,21 @@ function readRepoCode(path: string) {
 describe("session switcher preload", () => {
   it("preloads session rows in the protected shell instead of fetching after mount", () => {
     const shell = readRepoFile("components/admin/dashboard-shell.tsx");
+    const shellPill = readRepoFile("components/admin/shell-session-pill.tsx");
     const desktopPill = readRepoFile("components/admin/session-pill.tsx");
     const mobilePill = readRepoFile("components/admin/mobile-session-pill.tsx");
     const switcher = readRepoFile("lib/session/switcher.ts");
 
+    // The shell still preloads the rows; it no longer BLOCKS on them. It starts
+    // getSessionSwitcherData() and hands the promise to <ShellSessionPill>
+    // inside a Suspense boundary, because awaiting it here held back the whole
+    // workspace — chrome, and the child route's loading.tsx with it — for a
+    // read that is a 1200ms race on a cold lambda. What this guard is really
+    // about is unchanged: the pill opens with rows already in hand rather than
+    // fetching after mount.
     expect(shell).toContain("getSessionSwitcherData");
-    expect(shell).toContain("initialSessions={sessionSwitcher.availableSessions}");
+    expect(shell).toContain("sessions={sessionSwitcherPromise}");
+    expect(shellPill).toContain("initialSessions={availableSessions}");
 
     // Mobile v2 moved the phone pill out of the shell and onto Home — the
     // shell no longer renders a phone app bar. Both pills must still open with

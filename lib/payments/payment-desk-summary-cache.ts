@@ -1,3 +1,7 @@
+import {
+  paymentDeskStudentSummaryKeyPrefix,
+  paymentDeskSummaryDbName,
+} from "@/lib/payments/payment-desk-cache-keys";
 import type { PaymentDeskStudentSummary } from "@/lib/payments/types";
 
 export type PaymentDeskStudentSummaryCacheKeyParts = {
@@ -17,9 +21,9 @@ type PaymentDeskStudentSummaryCachePayload = {
   summary: PaymentDeskStudentSummary;
 };
 
-const dbName = "vpps-payment-desk-cache";
+const dbName = paymentDeskSummaryDbName;
 const storeName = "studentSummaries";
-const localStorageKeyPrefix = "vpps.paymentDesk.studentSummary";
+const localStorageKeyPrefix = paymentDeskStudentSummaryKeyPrefix;
 const summaryCacheFreshMs = 2 * 60 * 1000;
 
 export function buildPaymentDeskStudentSummaryCacheKey({

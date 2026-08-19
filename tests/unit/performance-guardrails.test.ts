@@ -353,6 +353,50 @@ describe("office performance guardrails", () => {
     expect(route).toContain('"Cache-Control": "private, max-age=300, stale-while-revalidate=900"');
   });
 
+  it("keeps the workspace shell from blocking the first paint", () => {
+    const shell = readRepoFile("components/admin/dashboard-shell.tsx");
+
+    // DashboardShell used to `await Promise.all([...])` on fee policy, the
+    // session list and the shell pulse before emitting a single byte of
+    // chrome. Because the layout was blocked, the child route's loading.tsx
+    // could not paint either — so on a cold PWA launch nothing at all was on
+    // screen until three database reads came back, and getShellPulse is tagged
+    // `session:{label}`, which every payment posting busts.
+    //
+    // It is a plain function now: it starts those reads, hands the promises to
+    // Suspense boundaries, and returns.
+    expect(shell).toContain("export function DashboardShell(");
+    expect(shell).not.toContain("export async function DashboardShell(");
+    expect(shell).not.toMatch(/const \[policy, sessionSwitcher, pulse\] = await/);
+
+    // An unawaited promise that rejects is an unhandled rejection, and a
+    // failed shell read used to take down the whole workspace. A missing "Day
+    // so far" figure is not a reason nobody can reach the Payment Desk.
+    expect(shell).toContain("getShellPulse(viewSessionLabel).catch(() => EMPTY_SHELL_PULSE)");
+    expect(shell).toContain("getSessionSwitcherData().catch(");
+    expect(shell).toContain("<Suspense fallback={<ShellDayCardSkeleton />}>");
+
+    // Same rule as before on the phone bar: only the follow-up count. A badge
+    // on Collect would read as "3 payments waiting", which is not a thing.
+    expect(shell).toContain("countsPromise={mobileNavCountsPromise}");
+    expect(shell).toContain("countsPromise={navCountsPromise}");
+  });
+
+  it("keeps the client router cache on so a re-visit is not a fresh server render", () => {
+    const config = readRepoFile("next.config.ts");
+
+    // Next ships staleTimes.dynamic at 0: a page you were looking at ten
+    // seconds ago is refetched in full when you come back to it, and on this
+    // app "in full" is a complete server render because every route is
+    // force-dynamic (docs/design/design-system.md §5.6 and §5.9).
+    //
+    // 30s is safe for money: a posting is a Server Action, and revalidatePath
+    // purges this cache outright, so the cashier who posted never sees a
+    // pre-receipt figure.
+    expect(config).toContain("staleTimes: {");
+    expect(config).toContain("dynamic: 30");
+  });
+
   it("keeps payment posting revalidation focused", () => {
     const paymentActions = readRepoFile("app/protected/payments/actions.ts");
     const revalidation = readRepoFile("lib/system-sync/finance-revalidation.ts");

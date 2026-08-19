@@ -13,7 +13,17 @@ describe("mobile UX roadmap implementation", () => {
     const staticManifest = readRepoFile("public/manifest.webmanifest");
     const apiManifest = readRepoFile("app/api/manifest/route.ts");
 
-    expect(layout).toContain('manifest: "/api/manifest"');
+    // The manifest link is hand-rendered rather than declared through
+    // `metadata.manifest`, and crossOrigin is the entire reason. A manifest is
+    // fetched with credentials omitted unless the link says use-credentials,
+    // and Next only emits that attribute on Vercel PREVIEW deployments. So in
+    // production /api/manifest saw no cookies, fell back to view_only, and
+    // every installed app launched on Dashboard with no Payment Desk shortcut
+    // — the role-awareness asserted below had never actually reached a device.
+    expect(layout).toContain('rel="manifest"');
+    expect(layout).toContain('href="/api/manifest"');
+    expect(layout).toContain('crossOrigin="use-credentials"');
+    expect(layout).not.toContain('manifest: "/api/manifest"');
     expect(staticManifest).toContain('"theme_color": "#c0521a"');
     expect(staticManifest).toContain('"background_color": "#faf9f6"');
     expect(apiManifest).toContain("getAuthenticatedStaff");
@@ -34,17 +44,72 @@ describe("mobile UX roadmap implementation", () => {
     expect(apiManifest).not.toContain('start_url: "/protected"');
   });
 
+  it("declares the fields Chrome needs to treat the install as an app", () => {
+    const apiManifest = readRepoFile("app/api/manifest/route.ts");
+    const staticManifest = JSON.parse(readRepoFile("public/manifest.webmanifest")) as {
+      id: string;
+      scope: string;
+      start_url: string;
+      launch_handler: { client_mode: string };
+    };
+
+    // start_url moves per role. Without an explicit id Chrome derives the
+    // install identity from start_url, so an accountant and a teacher would
+    // read as two different apps and a role change would orphan the installed
+    // one.
+    expect(apiManifest).toContain('id: "/protected"');
+    expect(apiManifest).toContain('scope: "/"');
+    expect(staticManifest.id).toBe("/protected");
+
+    // focus-existing, not navigate-existing: tapping the icon while a window
+    // is already open must not navigate a cashier out of a half-entered
+    // amount.
+    expect(apiManifest).toContain('client_mode: "focus-existing"');
+    expect(staticManifest.launch_handler.client_mode).toBe("focus-existing");
+
+    // Same reason the route avoids it (SCHOOLFEES-8): /protected exists only
+    // to redirect() from a Server Component, and putting that hop on every
+    // launch is where the App Router crashed.
+    expect(staticManifest.start_url).not.toBe("/protected");
+  });
+
+  it("clears cached student data when the login screen is shown", () => {
+    const loginPage = readRepoFile("app/auth/login/page.tsx");
+
+    // The office counter is a shared device, and logoutAction is a Server
+    // Action that cannot reach Cache Storage or IndexedDB. Reaching the login
+    // page proves there is no session (the page redirects to /protected
+    // otherwise), so purging there is unconditionally safe and also covers the
+    // ways a session ends without touching the sign-out button.
+    expect(loginPage).toContain("<SignedOutCachePurge />");
+  });
+
   it("adds runtime caching for mobile office shell data without caching writes", () => {
     const serviceWorker = readRepoFile("public/service-worker.js");
 
     expect(serviceWorker).toContain("RUNTIME_CACHE_VERSION");
-    expect(serviceWorker).toContain("vpps-navigation-data-v1");
-    expect(serviceWorker).toContain("vpps-student-index-v1");
+    // v2, not v1. Renaming every bucket is what actually evicts the leak
+    // described below from devices already in the field — the activate handler
+    // deletes any cache not on KEEPABLE_CACHES.
+    expect(serviceWorker).toContain("vpps-navigation-data-v2");
+    expect(serviceWorker).toContain("vpps-student-index-v2");
     expect(serviceWorker).toContain("STALE_WHILE_REVALIDATE_TTL_MS");
     expect(serviceWorker).toContain("isRuntimeCacheRequest");
     expect(serviceWorker).toContain("cache.put(new Request(request.url), cachedResponse)");
     expect(serviceWorker).toContain('request.method !== "GET"');
     expect(serviceWorker).not.toContain('url.pathname === "/protected/dashboard"');
+
+    // /api/manifest is role-aware and `private, no-store`. Cache Storage
+    // ignores Cache-Control and cannot tell one signed-in staffer from the
+    // next, so caching it served one person's manifest — start_url and all —
+    // to whoever used the shared counter device next.
+    expect(serviceWorker).not.toContain('"/api/manifest"');
+
+    // Without navigation preload, the fetch handler below means Chrome has to
+    // boot a worker it killed 30 seconds ago BEFORE the navigation request is
+    // even issued. That is latency this worker adds, not removes.
+    expect(serviceWorker).toContain("navigationPreload.enable()");
+    expect(serviceWorker).toContain("event.preloadResponse");
   });
 
   it("keeps touch-sized mobile payment controls and the requested success haptic pattern", () => {
