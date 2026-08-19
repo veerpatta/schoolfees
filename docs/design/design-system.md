@@ -499,6 +499,64 @@ large share of the calls, and a 60s window in which a deactivated account still
 works is a poor trade for one round trip. `requireAuthenticatedStaff()` stays an
 uncached read.
 
+### 5.11 List filters live in the URL
+
+Filter the Students list, open a child, press back: the filters were gone and
+the list reloaded itself. Same on Receipts and Transactions. The rule that
+was missing is the one the dashboard boards already follow (§3.1) — **the URL
+is the state model** — stated once for lists.
+
+Each screen owned its filters in `useState`, seeded from server props, and
+mirrored them out with `history.replaceState` from an unguarded effect. Both
+halves of the symptom came from that, in order:
+
+1. `replaceState` creates no router-cache entry, so the filtered URL was never
+   a payload the router had. A back-navigation restored the tree it *did*
+   have — the unfiltered one — and the screen remounted with unfiltered props.
+2. The mirror effect then fired on that mount and wrote the empty state over
+   the filters still sitting in the address bar. The evidence was gone before
+   anything could read it. Then the list refetched, unfiltered.
+
+`hooks/use-url-filter-state.ts` is the one mechanism all four lists now use.
+Four rules, and each fixes one of the faults above:
+
+- **On mount, the URL wins over the props when they disagree.** It is what the
+  user can see and what a shared link means.
+- **Never write the URL on the first render.** The gate is `useState`, not a
+  ref — same reasoning as `use-stored-preference.ts` (§SCHOOLFEES-6): effects
+  in one commit see a ref already flipped but still close over the pre-adoption
+  value, so a ref would write the stale props straight back out.
+- **Re-derive on `popstate`.**
+- **`replaceState`, never `pushState`, for a filter change.** Typing is not a
+  destination, and an entry per keystroke would also compete with the single
+  history entry `components/ui/sheet.tsx` pushes per open. Transactions keeps
+  exactly two `pushState` calls — switching board and applying a saved view —
+  because those *are* destinations.
+
+**Defaulters is the deliberate exception.** Its filters are sticky for the tab
+(`vpps.defaulters.filters.v1`, sessionStorage), because a fee collector works
+one class for a morning and re-picking it after every detour is the complaint.
+Everywhere else, back restores and the nav item resets. The stored set is
+scoped to one academic session: switching session strips the query string,
+which looks exactly like a fresh arrival, so without that guard the old year's
+class id was replayed into the new one.
+
+sessionStorage rather than localStorage is also what keeps this out of
+`lib/cache/signed-out-purge.ts` — a tab-scoped store clears itself when the
+staff session ends, so class and student ids never outlive a sign-out on a
+shared counter device.
+
+Related: **where Back goes.** Three detail pages each hardcoded the parent they
+expected (`returnTo?.startsWith("/protected/students")`), so a child opened
+from Transactions failed the check and Back fell through to a bare, unfiltered
+list. `lib/navigation/return-to.ts` accepts any `/protected/` path and rejects
+everything else — an unchecked `returnTo` is an open redirect wearing a Back
+button.
+
+Pinned by `tests/unit/list-filter-url-contract.test.ts`,
+`tests/unit/safe-return-to.test.ts` and
+`tests/ui/interaction/url-filter-state.test.tsx`.
+
 ### 5.5 Component count
 
 We grew the primitive count by 7 (`Money`, `KpiCard`, `EmptyState`, `Notice`,

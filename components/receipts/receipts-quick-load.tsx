@@ -22,13 +22,22 @@ import { ReversedBadge } from "@/components/receipts/reversed-badge";
 import {
   EMPTY_RECEIPT_FILTERS,
   countActiveReceiptFilters,
+  normalizeReceiptFilters,
   receiptFiltersToParams,
   type ReceiptDatePreset,
   type ReceiptFilters,
 } from "@/lib/receipts/filters";
+import { readerFromSearchParams } from "@/lib/navigation/search-params";
+import { useUrlFilterState } from "@/hooks/use-url-filter-state";
 import type { ReceiptPageAggregate, ReceiptPageFacets } from "@/lib/receipts/data";
 import type { ReceiptListItem } from "@/lib/receipts/types";
 import type { PaymentMode } from "@/lib/db/types";
+
+/** Everything this screen puts in the address bar, in one object. */
+type ReceiptsUrlState = {
+  filters: ReceiptFilters;
+  page: number;
+};
 
 /** The presets that fit a phone chip row; the rest live in the sheet. */
 const QUICK_DATE_PRESETS: ReceiptDatePreset[] = [
@@ -111,18 +120,37 @@ export function ReceiptsQuickLoad({
     }));
   }, []);
 
-  const params = useMemo(
-    () => receiptFiltersToParams(filters, { page }),
-    [filters, page],
+  // The server already owns both directions of this round trip -- the page
+  // parses the query with normalizeReceiptFilters and this screen writes it
+  // back with receiptFiltersToParams. Handing both to useUrlFilterState is what
+  // lets a back-navigation put the filters back instead of erasing them.
+  const toParams = useCallback(
+    ({ filters: value, page: pageValue }: ReceiptsUrlState) =>
+      receiptFiltersToParams(value, { page: pageValue }),
+    [],
   );
 
-  useEffect(() => {
-    window.history.replaceState(
-      null,
-      "",
-      `/protected/receipts${params.toString() ? `?${params.toString()}` : ""}`,
-    );
-  }, [params]);
+  const fromParams = useCallback(
+    (searchParams: URLSearchParams): ReceiptsUrlState => ({
+      filters: normalizeReceiptFilters(readerFromSearchParams(searchParams)),
+      page: Math.max(1, Number(searchParams.get("page") ?? 1) || 1),
+    }),
+    [],
+  );
+
+  const urlState = useMemo<ReceiptsUrlState>(() => ({ filters, page }), [filters, page]);
+  const params = useMemo(() => toParams(urlState), [toParams, urlState]);
+
+  useUrlFilterState<ReceiptsUrlState>({
+    pathname: "/protected/receipts",
+    value: urlState,
+    toParams,
+    fromParams,
+    onAdopt: (next) => {
+      setFilters(next.filters);
+      setPage(next.page);
+    },
+  });
 
   // Facet counts cost the server an extra pass, so they are only asked for
   // while the sheet that displays them is open.

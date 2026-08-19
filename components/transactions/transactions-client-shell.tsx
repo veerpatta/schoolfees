@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Download, Lock, Printer, Search, SlidersHorizontal, Undo2, User, X } from "lucide-react";
 
+import { useUrlFilterState } from "@/hooks/use-url-filter-state";
 import { SectionCard } from "@/components/admin/section-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { SavedViewsTabs } from "@/components/data-table/saved-views-tabs";
@@ -173,7 +174,13 @@ function buildApiUrl(view: OfficeWorkbookView, f: FilterState) {
   return `/protected/transactions/data?${p}`;
 }
 
-function buildPageUrl(view: OfficeWorkbookView, f: FilterState) {
+/** Everything this screen puts in the address bar, in one object. */
+type TransactionsUrlState = {
+  view: OfficeWorkbookView;
+  filters: FilterState;
+};
+
+function buildPageParams(view: OfficeWorkbookView, f: FilterState) {
   const p = new URLSearchParams({ view });
   if (f.classId) p.set("classId", f.classId);
   if (f.query) p.set("query", f.query);
@@ -184,11 +191,14 @@ function buildPageUrl(view: OfficeWorkbookView, f: FilterState) {
   if (f.routeId) p.set("routeId", f.routeId);
   if (f.sessionLabel) p.set("session", f.sessionLabel);
   if (f.segments.length > 0) p.set("seg", serializeSegments(f.segments));
-  return `/protected/transactions?${p}`;
+  return p;
 }
 
-function filtersFromUrl(): { view: OfficeWorkbookView; filters: FilterState } {
-  const p = new URLSearchParams(window.location.search);
+function buildPageUrl(view: OfficeWorkbookView, f: FilterState) {
+  return `/protected/transactions?${buildPageParams(view, f)}`;
+}
+
+function filtersFromUrl(p: URLSearchParams): { view: OfficeWorkbookView; filters: FilterState } {
   return {
     view: resolveOfficeWorkbookView(p.get("view")).view,
     filters: {
@@ -517,6 +527,12 @@ type StudentTableProps = {
   rows: OfficeWorkbookStudentRow[];
   sessionLabel: string;
   /**
+   * Where a row's Back link should land. Without it the student page's guard
+   * falls through to a bare, unfiltered `/protected/students`, which is how a
+   * child opened from a filtered Transactions view lost the filter.
+   */
+  returnTo?: string;
+  /**
    * DefaultersTable-only: when true, renders the bulk-WhatsApp checkbox
    * column on the desktop view. Other student tables ignore this flag.
    */
@@ -734,6 +750,11 @@ export function TransactionsClientShell({
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const urlState = useMemo<TransactionsUrlState>(
+    () => ({ view: activeView, filters }),
+    [activeView, filters],
+  );
+
   const fetchData = useCallback(async (view: OfficeWorkbookView, f: FilterState) => {
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
@@ -764,20 +785,26 @@ export function TransactionsClientShell({
     };
   }, []);
 
-  // Sync state on browser back/forward
-  useEffect(() => {
-    function onPop() {
-      const { view, filters: f } = filtersFromUrl();
+  // Back/forward, and — the part the old popstate listener could not do — a
+  // remount after leaving the route entirely. On that path the listener had
+  // already been torn down, so the shell came back seeded from whatever props
+  // the router had cached and the filters in the address bar were ignored.
+  useUrlFilterState<TransactionsUrlState>({
+    pathname: "/protected/transactions",
+    value: urlState,
+    toParams: ({ view, filters: f }) => buildPageParams(view, f),
+    fromParams: filtersFromUrl,
+    onAdopt: ({ view, filters: f }) => {
       setActiveView(view);
       setFilters(f);
       fetchData(view, f);
-    }
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, [fetchData]);
+    },
+  });
 
   function scheduleOrFetch(view: OfficeWorkbookView, newFilters: FilterState, debounce: boolean) {
-    window.history.replaceState(null, "", buildPageUrl(view, newFilters));
+    // No history write here any more: useUrlFilterState mirrors the state it
+    // is given, so doing it twice raced the debounce and wrote the URL for a
+    // fetch that had not happened yet.
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (debounce) {
       // 200 ms, not 60. At 60 ms an ordinary typing cadence (~120 ms/keystroke)
@@ -832,7 +859,6 @@ export function TransactionsClientShell({
     const empty: FilterState = { classId: "", query: "", fromDate: "", toDate: "", paymentMode: "", page: 1, routeId: "", sessionLabel: "", segments: [] };
     setFilters(empty);
     setActiveSavedViewId(null);
-    window.history.replaceState(null, "", buildPageUrl(activeView, empty));
     fetchData(activeView, empty);
   }
 
@@ -1404,17 +1430,17 @@ export function TransactionsClientShell({
         )}
         {workbook.view === "installments" && (
           <SectionCard title={t("duesTrackerTitle")} description={t("duesTrackerDescription")}>
-            <InstallmentTrackerTable rows={workbook.rows} sessionLabel={effectiveSession} />
+            <InstallmentTrackerTable rows={workbook.rows} sessionLabel={effectiveSession} returnTo={returnTo} />
           </SectionCard>
         )}
         {workbook.view === "student_dues" && (
           <SectionCard title={t("studentDuesTitle")} description={t("studentDuesDescription")}>
-            <StudentDuesTable rows={workbook.rows} sessionLabel={effectiveSession} />
+            <StudentDuesTable rows={workbook.rows} sessionLabel={effectiveSession} returnTo={returnTo} />
           </SectionCard>
         )}
         {workbook.view === "class_register" && (
           <SectionCard title={t("classRegisterTitle")} description={t("classRegisterDescription")}>
-            <ClassRegisterTable rows={workbook.rows} sessionLabel={effectiveSession} />
+            <ClassRegisterTable rows={workbook.rows} sessionLabel={effectiveSession} returnTo={returnTo} />
           </SectionCard>
         )}
         {workbook.view === "defaulters" && (
@@ -1436,6 +1462,7 @@ export function TransactionsClientShell({
               <DefaultersTable
                 rows={workbook.rows}
                 sessionLabel={effectiveSession}
+                returnTo={returnTo}
                 bulkSelectable
               />
             </BulkWhatsappProvider>

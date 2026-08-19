@@ -1,59 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback } from "react";
+import { useRouter } from "next/navigation";
 
+import { useUrlFilterState } from "@/hooks/use-url-filter-state";
 import { EMPTY_DEFAULTER_FILTERS, type DefaulterFilters } from "@/lib/defaulters/types";
 
 const STORAGE_KEY = "vpps.defaulters.filters.v1";
-const FILTER_PARAM_NAMES = [
-  "classId",
-  "transportRouteId",
-  "overdue",
-  "prevYearDues",
-  "minPendingAmount",
-  "query",
-] as const;
-
-type StoredFilters = {
-  classId?: string;
-  transportRouteId?: string;
-  overdue?: string;
-  prevYearDues?: string;
-  minPendingAmount?: string;
-  searchQuery?: string;
-};
-
-function readStored(): StoredFilters | null {
-  try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredFilters;
-    if (!parsed || typeof parsed !== "object") return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function writeStored(filters: DefaulterFilters) {
-  try {
-    const trimmed: StoredFilters = {};
-    if (filters.classId) trimmed.classId = filters.classId;
-    if (filters.transportRouteId) trimmed.transportRouteId = filters.transportRouteId;
-    if (filters.overdue) trimmed.overdue = filters.overdue;
-    if (filters.prevYearDues) trimmed.prevYearDues = filters.prevYearDues;
-    if (filters.minPendingAmount) trimmed.minPendingAmount = filters.minPendingAmount;
-    if (filters.searchQuery) trimmed.searchQuery = filters.searchQuery;
-    if (Object.keys(trimmed).length === 0) {
-      window.sessionStorage.removeItem(STORAGE_KEY);
-    } else {
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-    }
-  } catch {
-    // sessionStorage may be unavailable in private browsing — silent no-op.
-  }
-}
 
 type Props = {
   filters: DefaulterFilters;
@@ -61,71 +14,79 @@ type Props = {
 };
 
 /**
- * Audit 1.15 — Persist the active DefaulterFilters in sessionStorage so a
- * navigation away from the Defaulters page and back rehydrates the user's
- * last set of filter chips. sessionStorage scopes the persistence to the
- * current tab, so a logout (which closes the staff session anyway) clears
- * it implicitly without an extra listener.
+ * Audit 1.15 — remember the follow-up filters for the tab, so leaving
+ * Defaulters and coming back brings the same call list rather than the whole
+ * roll.
  *
- * Behaviour:
- *   * On mount, if the URL has zero filter params AND sessionStorage has a
- *     stored set, navigate to the same path with the stored params applied.
- *   * Whenever the server-rendered filters are non-empty, write them back to
- *     sessionStorage so subsequent visits rehydrate them.
+ * Defaulters is the one list here whose filters are deliberately sticky: a fee
+ * collector works one class for a morning, and re-picking it after every
+ * detour is the whole complaint. The other three lists are URL-only — going
+ * back restores them, clicking the nav item gives a clean list — which is why
+ * `sticky` is an option on the shared hook rather than its default.
+ *
+ * It is also the only one whose filters the SERVER reads: this screen's filter
+ * bar is a form that submits, so the address bar is already right before this
+ * component sees a value. Hence `commit: "none"` — there is nothing to mirror,
+ * only something to remember.
+ *
+ * Renders nothing.
  */
 export function DefaulterFilterRehydrator({ filters, sessionLabel }: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const hasUrlFilters = FILTER_PARAM_NAMES.some((name) =>
-      Boolean(searchParams.get(name)),
-    );
+  const toParams = useCallback(
+    (value: DefaulterFilters) => {
+      const params = new URLSearchParams();
+      if (sessionLabel) params.set("session", sessionLabel);
+      if (value.classId) params.set("classId", value.classId);
+      if (value.transportRouteId) params.set("transportRouteId", value.transportRouteId);
+      if (value.overdue) params.set("overdue", value.overdue);
+      if (value.prevYearDues) params.set("prevYearDues", value.prevYearDues);
+      if (value.minPendingAmount) params.set("minPendingAmount", value.minPendingAmount);
+      if (value.searchQuery) params.set("query", value.searchQuery);
+      return params;
+    },
+    [sessionLabel],
+  );
 
-    if (!hasUrlFilters) {
-      const stored = readStored();
-      if (!stored) return;
-      const hasStored =
-        Boolean(stored.classId) ||
-        Boolean(stored.transportRouteId) ||
-        Boolean(stored.overdue) ||
-        Boolean(stored.prevYearDues) ||
-        Boolean(stored.minPendingAmount) ||
-        Boolean(stored.searchQuery);
-      if (!hasStored) return;
+  const fromParams = useCallback(
+    (params: URLSearchParams): DefaulterFilters => ({
+      ...EMPTY_DEFAULTER_FILTERS,
+      classId: params.get("classId") ?? EMPTY_DEFAULTER_FILTERS.classId,
+      transportRouteId:
+        params.get("transportRouteId") ?? EMPTY_DEFAULTER_FILTERS.transportRouteId,
+      // Both are two-valued flags, so an unrecognised value means "off"
+      // rather than passing an arbitrary string through to the query.
+      overdue: params.get("overdue") === "overdue" ? "overdue" : "",
+      prevYearDues: params.get("prevYearDues") === "prevYear" ? "prevYear" : "",
+      minPendingAmount:
+        params.get("minPendingAmount") ?? EMPTY_DEFAULTER_FILTERS.minPendingAmount,
+      searchQuery: params.get("query") ?? EMPTY_DEFAULTER_FILTERS.searchQuery,
+    }),
+    [],
+  );
 
-      const next = new URLSearchParams();
-      next.set("session", sessionLabel);
-      if (stored.classId) next.set("classId", stored.classId);
-      if (stored.transportRouteId) next.set("transportRouteId", stored.transportRouteId);
-      if (stored.overdue) next.set("overdue", stored.overdue);
-      if (stored.prevYearDues) next.set("prevYearDues", stored.prevYearDues);
-      if (stored.minPendingAmount) next.set("minPendingAmount", stored.minPendingAmount);
-      if (stored.searchQuery) next.set("query", stored.searchQuery);
+  useUrlFilterState<DefaulterFilters>({
+    pathname: "/protected/defaulters",
+    value: filters,
+    toParams,
+    fromParams,
+    commit: "none",
+    sticky: { key: STORAGE_KEY, sessionLabel },
+    onAdopt: (next, source) => {
+      // Only the stored set needs an action. A URL-sourced value arrived by a
+      // navigation the server has already answered.
+      if (source !== "storage") return;
 
-      router.replace(`/protected/defaulters?${next.toString()}`);
-      return;
-    }
+      const query = toParams(next).toString();
+      if (!query) return;
 
-    // URL has filters — sync them into storage so the next bare visit can
-    // rehydrate. Defaults shouldn't be persisted.
-    const isAllEmpty =
-      filters.classId === EMPTY_DEFAULTER_FILTERS.classId &&
-      filters.transportRouteId === EMPTY_DEFAULTER_FILTERS.transportRouteId &&
-      filters.overdue === EMPTY_DEFAULTER_FILTERS.overdue &&
-      filters.prevYearDues === EMPTY_DEFAULTER_FILTERS.prevYearDues &&
-      filters.minPendingAmount === EMPTY_DEFAULTER_FILTERS.minPendingAmount &&
-      filters.searchQuery === EMPTY_DEFAULTER_FILTERS.searchQuery;
-    if (isAllEmpty) {
-      try {
-        window.sessionStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // ignore
-      }
-      return;
-    }
-    writeStored(filters);
-  }, [filters, sessionLabel, searchParams, router]);
+      // `replace`, never `push`: rehydrating is restoring where the reader
+      // already was, so it must not become a step the back button walks
+      // through.
+      router.replace(`/protected/defaulters?${query}`);
+    },
+  });
 
   return null;
 }

@@ -18,6 +18,7 @@ import { getReceiptDetail } from "@/lib/receipts/data";
 import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
 import { isUuid } from "@/lib/helpers/uuid";
+import { safeReturnTo } from "@/lib/navigation/return-to";
 
 type ReceiptDetailPageProps = {
   params: Promise<{
@@ -37,9 +38,12 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const receiptId = resolvedParams.receiptId.trim();
-  const returnTo = resolvedSearchParams?.returnTo?.startsWith("/protected/transactions")
-    ? resolvedSearchParams.returnTo
-    : "/protected/transactions?view=receipts";
+  // Any workspace path: a receipt is opened from a student profile as often as
+  // from Transactions, and the old check sent the first case to the wrong list.
+  const returnTo = safeReturnTo(
+    resolvedSearchParams?.returnTo,
+    "/protected/transactions?view=receipts",
+  );
   const shouldAutoPrint = resolvedSearchParams?.print === "1";
 
   if (!isUuid(receiptId)) {

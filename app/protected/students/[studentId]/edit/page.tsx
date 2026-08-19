@@ -26,6 +26,7 @@ import {
 } from "@/lib/supabase/session";
 
 import { updateStudentAction } from "../../actions";
+import { safeReturnTo } from "@/lib/navigation/return-to";
 
 const REPAYMENT_SCOPES = REPAYMENT_PLAN_SCOPES;
 
@@ -99,9 +100,7 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
     notFound();
   }
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const returnTo = resolvedSearchParams?.returnTo?.startsWith("/protected/students")
-    ? resolvedSearchParams.returnTo
-    : "/protected/students";
+  const returnTo = safeReturnTo(resolvedSearchParams?.returnTo, "/protected/students");
   const student = await getStudentDetail(resolvedParams.studentId);
 
   if (!student) {

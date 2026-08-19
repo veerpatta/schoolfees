@@ -53,6 +53,7 @@ import {
 } from "@/lib/students/info-fields";
 import { getStudentWorkspaceData } from "@/lib/students/workspace";
 import { hasStaffPermission, requireStaffPermission } from "@/lib/supabase/session";
+import { safeReturnTo } from "@/lib/navigation/return-to";
 
 type StudentDetailPageProps = {
   params: Promise<{
@@ -119,9 +120,10 @@ export default async function StudentDetailPage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const activeTab = normalizeTab(resolvedSearchParams?.tab);
   const mobileTab = normalizeMobileTab(resolvedSearchParams?.tab);
-  const returnTo = resolvedSearchParams?.returnTo?.startsWith("/protected/students")
-    ? resolvedSearchParams.returnTo
-    : "/protected/students";
+  // Any workspace path, not just the students list: a child is opened from
+  // Transactions and from dashboard cards too, and rejecting those sent the
+  // Back link to a bare, unfiltered list. See lib/navigation/return-to.ts.
+  const returnTo = safeReturnTo(resolvedSearchParams?.returnTo, "/protected/students");
   const encodedReturnTo = encodeURIComponent(returnTo);
   // All three loaders are independent, so they overlap. familyMembersDetail used
   // to be chained after this batch because it took the policy session label from

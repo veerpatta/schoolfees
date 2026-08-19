@@ -437,14 +437,34 @@ function MobileStudentCard({
 // Installment tracker table
 // ---------------------------------------------------------------------------
 
+/**
+ * Build a link from a Transactions row to a student, carrying where to come
+ * back to.
+ *
+ * Without `returnTo` the student page's guard falls through to a bare
+ * `/protected/students`, so opening a child from a filtered Transactions view
+ * lost the filter even when the reader used the in-page Back link rather than
+ * the browser button. `appendSessionParam` alone was never enough here.
+ */
+function studentLinkFactory(sessionLabel: string, returnTo?: string) {
+  return (href: string) => {
+    const withSession = appendSessionParam(href, sessionLabel);
+    if (!returnTo || !href.startsWith("/protected/students/")) return withSession;
+    const separator = withSession.includes("?") ? "&" : "?";
+    return `${withSession}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+  };
+}
+
 export function InstallmentTrackerTable({
   rows,
   sessionLabel,
+  returnTo,
 }: {
   rows: OfficeWorkbookStudentRow[];
   sessionLabel: string;
+  returnTo?: string;
 }) {
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  const withSession = studentLinkFactory(sessionLabel, returnTo);
   const { isExpanded, toggle } = useExpandedRows();
   const colSpan = 6;
   return (
@@ -647,11 +667,13 @@ export function InstallmentTrackerTable({
 export function StudentDuesTable({
   rows,
   sessionLabel,
+  returnTo,
 }: {
   rows: OfficeWorkbookStudentRow[];
   sessionLabel: string;
+  returnTo?: string;
 }) {
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  const withSession = studentLinkFactory(sessionLabel, returnTo);
   const { isExpanded, toggle } = useExpandedRows();
   const colSpan = 6;
   return (
@@ -862,11 +884,13 @@ export function StudentDuesTable({
 export function ClassRegisterTable({
   rows,
   sessionLabel,
+  returnTo,
 }: {
   rows: OfficeWorkbookStudentRow[];
   sessionLabel: string;
+  returnTo?: string;
 }) {
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  const withSession = studentLinkFactory(sessionLabel, returnTo);
   const { isExpanded, toggle } = useExpandedRows();
   const colSpan = 6;
   return (
@@ -1108,10 +1132,12 @@ export function ClassRegisterTable({
 export function DefaultersTable({
   rows,
   sessionLabel,
+  returnTo,
   bulkSelectable = false,
 }: {
   rows: OfficeWorkbookStudentRow[];
   sessionLabel: string;
+  returnTo?: string;
   /**
    * When true, the desktop table renders an extra leading checkbox column
    * driven by `BulkWhatsappProvider`. Caller is responsible for wrapping
@@ -1121,7 +1147,7 @@ export function DefaultersTable({
    */
   bulkSelectable?: boolean;
 }) {
-  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
+  const withSession = studentLinkFactory(sessionLabel, returnTo);
   const { isExpanded, toggle } = useExpandedRows();
   const colSpan = bulkSelectable ? 7 : 6;
   return (

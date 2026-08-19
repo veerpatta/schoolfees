@@ -19,9 +19,11 @@ import { Label } from "@/components/ui/label";
 import { Sheet } from "@/components/ui/sheet";
 import { appendSessionParam } from "@/lib/navigation/session-href";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useUrlFilterState } from "@/hooks/use-url-filter-state";
 import {
   EMPTY_SEGMENT_COUNTS,
   SEGMENT_BY_ID,
+  parseSegments,
   segmentsEqual,
   serializeSegments,
   type SegmentCounts,
@@ -65,6 +67,28 @@ const STUDENT_SORTS: readonly { id: StudentListSort; labelKey: "sortName" | "sor
 ];
 
 type StudentQuickLoadFilters = Omit<StudentListFilters, "sessionLabel">;
+type StudentListStatus = StudentListFilters["status"];
+
+const STUDENT_STATUSES: readonly StudentListStatus[] = [
+  "active",
+  "inactive",
+  "left",
+  "graduated",
+];
+
+function parseStatus(raw: string | null): StudentListStatus {
+  if (raw === null) return "active";
+  if (raw === "all") return "";
+  return STUDENT_STATUSES.includes(raw as StudentListStatus)
+    ? (raw as StudentListStatus)
+    : "active";
+}
+
+/** Everything this screen puts in the address bar, in one object. */
+type StudentUrlState = {
+  filters: StudentQuickLoadFilters;
+  page: number;
+};
 
 /** Status pills read as words, not enum values. */
 // Desktop-only, and only once a row is selected -- which most visits to
@@ -248,21 +272,61 @@ export function StudentQuickLoad({
     return appendSessionParam(href, initialFilters.sessionLabel);
   };
 
-  const params = useMemo(() => {
-    const searchParams = new URLSearchParams();
-    if (filters.query) searchParams.set("query", filters.query);
-    if (initialFilters.sessionLabel) searchParams.set("session", initialFilters.sessionLabel);
-    if (filters.classId) searchParams.set("classId", filters.classId);
-    if (filters.transportRouteId) searchParams.set("transportRouteId", filters.transportRouteId);
-    // "" (every status) must survive the round trip as an explicit "all":
-    // omitted, the server normalizes it back to "active", which is how the
-    // "All students" and "Left but owing" views silently narrowed to the roll.
-    if (filters.status !== "active") searchParams.set("status", filters.status || "all");
-    if (filters.segments.length > 0) searchParams.set("seg", serializeSegments(filters.segments));
-    if (filters.sort !== "name") searchParams.set("sort", filters.sort);
-    if (page > 1) searchParams.set("page", String(page));
-    return searchParams;
-  }, [filters, initialFilters.sessionLabel, page]);
+  // State -> query string, and its exact inverse below. The pair is what
+  // `useUrlFilterState` round-trips through to decide whether the address bar
+  // and the props still agree, so a key added to one belongs in both.
+  const toParams = useCallback(
+    ({ filters: value, page: pageValue }: StudentUrlState) => {
+      const searchParams = new URLSearchParams();
+      if (value.query) searchParams.set("query", value.query);
+      if (initialFilters.sessionLabel) searchParams.set("session", initialFilters.sessionLabel);
+      if (value.classId) searchParams.set("classId", value.classId);
+      if (value.transportRouteId) searchParams.set("transportRouteId", value.transportRouteId);
+      // "" (every status) must survive the round trip as an explicit "all":
+      // omitted, the server normalizes it back to "active", which is how the
+      // "All students" and "Left but owing" views silently narrowed to the roll.
+      if (value.status !== "active") searchParams.set("status", value.status || "all");
+      if (value.segments.length > 0) searchParams.set("seg", serializeSegments(value.segments));
+      if (value.sort !== "name") searchParams.set("sort", value.sort);
+      if (pageValue > 1) searchParams.set("page", String(pageValue));
+      return searchParams;
+    },
+    [initialFilters.sessionLabel],
+  );
+
+  const fromParams = useCallback((searchParams: URLSearchParams): StudentUrlState => {
+    const status = searchParams.get("status");
+    const sort = searchParams.get("sort");
+    return {
+      filters: {
+        query: searchParams.get("query") ?? "",
+        classId: searchParams.get("classId") ?? "",
+        transportRouteId: searchParams.get("transportRouteId") ?? "",
+        // The mirror image of the "all" sentinel above: an absent status means
+        // the default roll, and the literal "all" means every status. Anything
+        // else is validated rather than cast — a hand-typed `?status=x` should
+        // fall back to the roll, not travel into the query as itself.
+        status: parseStatus(status),
+        segments: parseSegments(searchParams.get("seg")),
+        sort: sort === "class" ? "class" : "name",
+      },
+      page: Math.max(1, Number(searchParams.get("page") ?? 1) || 1),
+    };
+  }, []);
+
+  const urlState = useMemo<StudentUrlState>(() => ({ filters, page }), [filters, page]);
+  const params = useMemo(() => toParams(urlState), [toParams, urlState]);
+
+  useUrlFilterState<StudentUrlState>({
+    pathname: "/protected/students",
+    value: urlState,
+    toParams,
+    fromParams,
+    onAdopt: (next) => {
+      setFilters(next.filters);
+      setPage(next.page);
+    },
+  });
 
   // Client-side instant filter on top of whatever the server has loaded so
   // typing in the search box never blocks on a network round-trip. The server
@@ -276,16 +340,15 @@ export function StudentQuickLoad({
   }, [students, filters.query, onlyWithDues]);
 
   useEffect(() => {
-    const nextUrl = `/protected/students${params.toString() ? `?${params.toString()}` : ""}`;
-    window.history.replaceState(null, "", nextUrl);
-  }, [params]);
-
-  useEffect(() => {
     const isInitialHydration = isFirstRender.current;
     isFirstRender.current = false;
-    if (isInitialHydration && !initialStudents.some((student) => student.financialLoading)) {
-      return;
-    }
+    // There used to be an early return here for "the server already sent
+    // complete rows". It could never fire: the identity page sets
+    // financialLoading = true on every row (lib/students/data.ts), in the only
+    // place that field is assigned, because money figures are deliberately a
+    // second pass. A guard whose condition is never false is worse than none —
+    // it reads like the first mount sometimes skips this fetch, and it never
+    // does.
     const controller = new AbortController();
     // Tight debounce so the list keeps up with typing without blocking each
     // keystroke on a network roundtrip. The previous 300 ms was perceptibly
