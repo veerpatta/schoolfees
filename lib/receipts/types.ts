@@ -105,6 +105,12 @@ export type ReceiptDetail = {
   admissionNo: string;
   fatherName: string | null;
   fatherPhone: string | null;
+  /** `students.secondary_phone`. Needed so the share sheet can offer both
+   *  parents rather than assuming the primary number. */
+  motherPhone: string | null;
+  /** The family group for THIS receipt's session, or null when the student is
+   *  not in a confirmed group. Gates the family-statement share scope. */
+  familyGroupId: string | null;
   parentEmail: string | null;
   classLabel: string;
   sessionLabel: string;

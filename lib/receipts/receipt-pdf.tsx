@@ -180,10 +180,10 @@ function Label({ label }: { label: { en: string; hi: string } }) {
   );
 }
 
-export function receiptPdfFilename(receipt: ReceiptDetail): string {
-  const safe = receipt.receiptNumber.replace(/[^A-Za-z0-9._-]/g, "-");
-  return `${receipt.isVoided ? "REVERSED-" : ""}receipt-${safe}.pdf`;
-}
+// Re-exported rather than defined here: the share sheet is a client component
+// and cannot import this `server-only` module, but the name it downloads must
+// match the one this route sends in Content-Disposition.
+export { receiptPdfFilename } from "@/lib/receipts/document-names";
 
 export type ReceiptPdfInput = {
   receipt: ReceiptDetail;

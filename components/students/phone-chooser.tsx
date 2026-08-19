@@ -10,28 +10,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export type PhoneEntry = { label: string; phone: string };
+// Re-exported for the call sites that want both. The definitions live in a
+// Radix-free module so importing the helper alone does not pull this file's
+// dropdown into the bundle.
+import type { PhoneEntry } from "@/components/students/phone-entries";
 
-/**
- * Build the list of usable parent phone numbers for a student. The student
- * record stores at most two numbers (primary → "Father", secondary →
- * "Mother"); placeholders/blanks are dropped.
- */
-export function buildStudentPhoneEntries(
-  student: {
-    fatherPhone?: string | null;
-    motherPhone?: string | null;
-  },
-  /** Translated role labels. Callers inside a locale context should pass these. */
-  labels?: { father: string; mother: string },
-): PhoneEntry[] {
-  const entries: PhoneEntry[] = [];
-  const father = student.fatherPhone?.trim();
-  const mother = student.motherPhone?.trim();
-  if (father) entries.push({ label: labels?.father ?? "Father", phone: father });
-  if (mother) entries.push({ label: labels?.mother ?? "Mother", phone: mother });
-  return entries;
-}
+export {
+  buildStudentPhoneEntries,
+  type PhoneEntry,
+} from "@/components/students/phone-entries";
 
 type PhoneActionMenuProps = {
   /** Non-empty phone entries. When empty the component renders nothing. */

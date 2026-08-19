@@ -44,6 +44,13 @@ type StudentRouteRow = {
   route_code: string | null;
 };
 
+/** Family membership is session-scoped, so a student carries one row per year
+ *  and the caller has to pick the one matching the receipt's session. */
+type StudentFamilyLinkRow = {
+  family_group_id: string;
+  academic_session_label: string;
+};
+
 type StudentRow = {
   id: string;
   full_name: string;
@@ -51,6 +58,10 @@ type StudentRow = {
   father_name: string | null;
   primary_phone: string | null;
   email: string | null;
+  // Optional: the receipt-list select is narrower than the detail select and
+  // shares this row type. Only the detail query asks for these two.
+  secondary_phone?: string | null;
+  family_links?: StudentFamilyLinkRow[] | null;
   class_ref: StudentClassRow | StudentClassRow[] | null;
   route_ref: StudentRouteRow | StudentRouteRow[] | null;
 };
@@ -683,7 +694,7 @@ export async function getReceiptDetailWith(
   const { data: receiptRaw, error: receiptError } = await supabase
     .from("receipts")
     .select(
-      "id, student_id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, father_name, primary_phone, email, class_ref:classes(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
+      "id, student_id, receipt_number, payment_date, payment_mode, total_amount, reference_number, notes, received_by, created_at, created_by, student_ref:students(id, full_name, admission_no, father_name, primary_phone, secondary_phone, email, family_links:student_family_members(family_group_id, academic_session_label), class_ref:classes(session_label, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code))",
     )
     .eq("id", receiptId)
     .maybeSingle();
@@ -960,6 +971,13 @@ export async function getReceiptDetailWith(
     admissionNo: student?.admission_no ?? "N/A",
     fatherName: student?.father_name ?? null,
     fatherPhone: student?.primary_phone ?? null,
+    motherPhone: student?.secondary_phone ?? null,
+    // Scoped to this receipt's session on purpose: a student can sit in a
+    // different family group year to year, and a statement built from last
+    // year's group would show the wrong siblings.
+    familyGroupId:
+      student?.family_links?.find((link) => link.academic_session_label === sessionLabel)
+        ?.family_group_id ?? null,
     parentEmail: student?.email ?? null,
     classLabel: buildClassLabel(student?.class_ref ?? null),
     sessionLabel,

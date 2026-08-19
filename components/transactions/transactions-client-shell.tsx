@@ -129,6 +129,11 @@ export type TransactionsClientShellProps = {
    * list carries neither figure.
    */
   canReverseReceipts?: boolean;
+  /**
+   * `receipts:print`. Forwarded to the receipt preview sheet, which used to
+   * default it to `true` and so offered Print A4 to every read-only role.
+   */
+  canPrintReceipts: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -700,6 +705,7 @@ export function TransactionsClientShell({
   todaySnapshot,
   whatsappTemplates,
   canReverseReceipts = false,
+  canPrintReceipts,
 }: TransactionsClientShellProps) {
   const t = useTranslations("Transactions");
   const tCommon = useTranslations("Common");
@@ -1768,6 +1774,8 @@ export function TransactionsClientShell({
           onClose={() => setPreviewReceiptId(null)}
           receiptId={previewReceiptId}
           sessionLabel={effectiveSession}
+          canPrint={canPrintReceipts}
+          whatsappTemplates={[...whatsappTemplates]}
         />
       ) : null}
 

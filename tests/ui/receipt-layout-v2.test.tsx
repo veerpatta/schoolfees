@@ -27,6 +27,8 @@ function receipt(overrides: Partial<ReceiptDetail> = {}): ReceiptDetail {
     admissionNo: "SR-V2",
     fatherName: "TEST Father",
     fatherPhone: "8123456789",
+    motherPhone: null,
+    familyGroupId: null,
     parentEmail: null,
     classLabel: "Class 9",
     sessionLabel: "TEST-2026-27",

@@ -1,79 +1,79 @@
 {
   "generatedAt": "2026-07-18",
-  "currentGeneratedAt": "2026-08-13T00:00:00.000Z",
-  "generatedFrom": "Re-measured after taking the Sentry browser SDK and the Supabase realtime client off the critical path. Two static imports were doing almost all of the damage. (1) `instrumentation-client.ts` imported @sentry/nextjs at module scope, which put core+tracing+logs into rootMainFiles: every route paid 151.6 KB gzip before it could render, the login screen as much as the Payment Desk. It now loads on requestIdleCallback after `load`, with a synchronous window.onerror/unhandledrejection buffer so errors thrown during boot are still captured and replayed into the SDK when it arrives; `app/global-error.tsx` imports it inside the effect for the same reason. The cost is the pageload transaction, which tracing no longer sees. (2) `office-sync-listener.tsx` imported @/lib/supabase/client at module scope for one listener that renders null, dragging supabase-js WITH realtime (~60 KB gzip) into the eager chunk of every protected route; `voice-note-recorder.tsx` did the same to Defaulters. Both now import inside the handler that needs them. rootMainFiles: 217.6 -> 129.2 KB gzip. Route entry JS: -60 KB on every route. First-load JS (shared + route) is down ~144 KB gzip, about 35%, on all eight. Ceilings ratchet DOWN to the new figures with the usual ~1.5% runner variance, and `shared` is now gated too -- it never was, which is how half of first-load JS stayed outside the budget for the gate's whole life.",
+  "currentGeneratedAt": "2026-08-19T00:00:00.000Z",
+  "generatedFrom": "2026-08-19, one-tap WhatsApp send. Five ceilings raised and four lowered in one pass, which needs explaining because the rule here is that ceilings only ratchet down. The feature's own code is not what moved them: every share surface loads the sheet through next/dynamic, and /protected/dashboard -- which grew most, +1947 -- contains none of it (grep its chunks). Adding one more consumer of ui/sheet and ui/dropdown-menu tipped webpack's splitChunks threshold, so both were hoisted OUT of per-route chunks and INTO the shared app/protected layout chunk (53,801 -> 59,798 raw). fee-setup, payments, exports and admin-tools each shed ~735 bytes and are ratcheted down accordingly; dashboard, students, transactions, defaulters and receipts each gained ~1.3-2.0 KB because this gate counts that shared layout chunk once per route. A browser downloads it once, so the real cost is roughly its +1947 gzip per session, not the +5,865 the per-route sum implies. `shared` rootMainFiles is unchanged within noise (129,260 -> 129,335) and its ceiling is untouched. Ceilings carry ~1.5% headroom over the measured figure, as they always have -- a ceiling pinned to the exact measurement fails on the next build, because consecutive builds of identical source differ by 20-40 bytes.",
   "metric": "initial entry JS, unique chunks",
   "shared": {
     "route": "(shared) rootMainFiles",
     "note": "Loaded by every route before its own entry JS. Was invisible to --check until 2026-08-13.",
     "chunks": 4,
-    "rawBytes": 437011,
+    "rawBytes": 436880,
     "gzipBytes": 131000,
-    "currentGzipBytes": 129230
+    "currentGzipBytes": 129335
   },
   "measurements": [
     {
       "route": "/protected/dashboard",
       "chunks": 17,
-      "rawBytes": 359157,
-      "gzipBytes": 124400,
-      "currentGzipBytes": 122541
+      "rawBytes": 367280,
+      "gzipBytes": 127200,
+      "currentGzipBytes": 125230
     },
     {
       "route": "/protected/students",
       "chunks": 19,
-      "rawBytes": 417769,
-      "gzipBytes": 140100,
-      "currentGzipBytes": 138059
+      "rawBytes": 426689,
+      "gzipBytes": 142600,
+      "currentGzipBytes": 140471
     },
     {
       "route": "/protected/fee-setup",
-      "chunks": 19,
-      "rawBytes": 398512,
-      "gzipBytes": 130200,
-      "currentGzipBytes": 128294
+      "chunks": 18,
+      "rawBytes": 399717,
+      "gzipBytes": 130000,
+      "currentGzipBytes": 128065
     },
     {
       "route": "/protected/payments",
-      "chunks": 16,
-      "rawBytes": 336605,
-      "gzipBytes": 116100,
-      "currentGzipBytes": 114408
+      "chunks": 15,
+      "rawBytes": 337240,
+      "gzipBytes": 115800,
+      "currentGzipBytes": 114044
     },
     {
       "route": "/protected/transactions",
       "chunks": 21,
-      "rawBytes": 440815,
-      "gzipBytes": 148300,
-      "currentGzipBytes": 146079
+      "rawBytes": 448943,
+      "gzipBytes": 151000,
+      "currentGzipBytes": 148755
     },
     {
       "route": "/protected/defaulters",
       "chunks": 19,
-      "rawBytes": 428641,
-      "gzipBytes": 143500,
-      "currentGzipBytes": 141408
+      "rawBytes": 435850,
+      "gzipBytes": 145600,
+      "currentGzipBytes": 143448
     },
     {
       "route": "/protected/exports",
-      "chunks": 17,
-      "rawBytes": 339395,
-      "gzipBytes": 117300,
-      "currentGzipBytes": 115585
+      "chunks": 16,
+      "rawBytes": 339996,
+      "gzipBytes": 117000,
+      "currentGzipBytes": 115205
     },
     {
       "route": "/protected/admin-tools",
-      "chunks": 17,
-      "rawBytes": 342286,
-      "gzipBytes": 118800,
-      "currentGzipBytes": 117085
+      "chunks": 16,
+      "rawBytes": 342925,
+      "gzipBytes": 118500,
+      "currentGzipBytes": 116713
     },
     {
       "route": "/protected/receipts",
       "chunks": 19,
-      "rawBytes": 440719,
-      "gzipBytes": 141300,
-      "currentGzipBytes": 139759
+      "rawBytes": 447282,
+      "gzipBytes": 144700,
+      "currentGzipBytes": 142512
     }
   ]
 }

@@ -7,8 +7,11 @@ import { Mail, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { schoolProfile } from "@/lib/config/school";
-import { formatInr } from "@/lib/helpers/currency";
-import { buildWaMeLink, renderWhatsappTemplate } from "@/lib/whatsapp-templates/render";
+import { buildWaMeLink } from "@/lib/whatsapp-templates/render";
+import {
+  DEFAULT_RECEIPT_BODY,
+  buildReceiptShareMessage,
+} from "@/lib/receipts/share-message";
 import type { WhatsappTemplate } from "@/lib/whatsapp-templates/types";
 import type { ReceiptDetail } from "@/lib/receipts/types";
 
@@ -27,29 +30,9 @@ type Props = {
   templates: WhatsappTemplate[];
 };
 
-const DEFAULT_BODY = [
-  "Namaste {{fatherName}} ji,",
-  "",
-  "We have received your payment for {{studentName}} ({{className}}).",
-  "Receipt number: {{receiptNumber}}, Amount: {{amount}}.",
-  "",
-  "Thank you for your prompt payment.",
-  "",
-  "— — —",
-  "",
-  "नमस्ते,",
-  "",
-  "{{studentName}} ({{className}}) की आपकी फीस प्राप्त हो गई है।",
-  "रसीद संख्या: {{receiptNumber}}, राशि: {{amount}}।",
-  "",
-  "समय पर भुगतान के लिए धन्यवाद।",
-  "",
-  "Regards / सादर,",
-  "{{schoolName}}",
-].join("\n");
-
 export function ReceiptShareActions({ receipt, templates }: Props) {
   const t = useTranslations("Receipts");
+  const tShare = useTranslations("MobileApp");
   const receiptTemplates = templates.filter(
     (template) => template.category === "receipt" && template.isActive,
   );
@@ -58,26 +41,23 @@ export function ReceiptShareActions({ receipt, templates }: Props) {
   const [activeId, setActiveId] = useState<string>(initialTemplateId);
 
   const activeBody =
-    receiptTemplates.find((template) => template.id === activeId)?.body ?? DEFAULT_BODY;
+    receiptTemplates.find((template) => template.id === activeId)?.body ??
+    DEFAULT_RECEIPT_BODY;
 
-  const vars = {
-    studentName: receipt.studentFullName,
-    fatherName: receipt.fatherName ?? "Parent",
-    className: receipt.classLabel,
-    receiptNumber: receipt.receiptNumber,
-    amount: formatInr(receipt.totalAmount),
-    schoolName: schoolProfile.shortName,
-  };
-
-  const rendered = renderWhatsappTemplate(activeBody, vars);
+  // Shared with the phone's one-tap send, so the same receipt cannot compose
+  // two different messages depending on which surface it was opened from. It
+  // also substitutes the reversal notice for a voided receipt, whichever
+  // template is selected above.
+  const rendered = buildReceiptShareMessage({ receipt, templateBody: activeBody });
   const hasPhone = Boolean(receipt.fatherPhone);
   const hasEmail = Boolean(receipt.parentEmail);
   const mailtoHref = hasEmail
     ? `mailto:${encodeURIComponent(receipt.parentEmail!)}?subject=${encodeURIComponent(
         `Receipt ${receipt.receiptNumber} — ${schoolProfile.shortName}`,
-      )}&body=${encodeURIComponent(
-        `${rendered}\n\n(Please find the official receipt PDF attached.)`,
-      )}`
+      // No "PDF attached" line: a mailto: link cannot carry an attachment, and
+      // the note under the buttons already tells staff to attach it themselves.
+      // The body claimed otherwise for as long as this sheet has existed.
+      )}&body=${encodeURIComponent(rendered)}`
     : null;
 
   const whatsappHref = hasPhone
@@ -115,11 +95,10 @@ export function ReceiptShareActions({ receipt, templates }: Props) {
               role="alert"
               className="rounded-md bg-destructive-soft px-4 py-3 text-sm leading-6 text-destructive-soft-foreground"
             >
-              <p className="font-semibold">This receipt has been reversed</p>
-              <p>
-                It is no longer proof of payment. Sending it would tell the family a payment
-                stands when it does not.
-              </p>
+              {/* Was hardcoded English in a sheet every other string of which
+                  is translated. Same two keys the phone's share sheet uses. */}
+              <p className="font-semibold">{tShare("shareReversedCautionTitle")}</p>
+              <p>{tShare("shareReversedCautionBody")}</p>
             </div>
           ) : null}
           {receiptTemplates.length > 0 ? (

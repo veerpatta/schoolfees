@@ -162,6 +162,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
 
       <TransactionsClientShell
         canReverseReceipts={hasStaffPermission(staff, "payments:reverse_any")}
+        canPrintReceipts={hasStaffPermission(staff, "receipts:print")}
         activeView={activeView}
         initialFilters={{
           classId,
