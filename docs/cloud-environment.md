@@ -20,18 +20,27 @@ scripts/cloud/mcp.cloud.json   headless MCP config (token auth, no browser)
 Containers are reclaimed. When you land in a new one with nothing:
 
 ```bash
-git clone https://github.com/veerpatta/schoolfees.git ~/veerpatta-fees-app
-cd ~/veerpatta-fees-app
-bash scripts/cloud/add-secrets.sh          # paste the vault block, then Ctrl-D
-bash scripts/cloud/bootstrap.sh
+curl -fsSL https://raw.githubusercontent.com/veerpatta/schoolfees/main/scripts/cloud/init.sh -o /tmp/init.sh
+bash /tmp/init.sh          # paste the whole vault, then Ctrl-D
 ```
 
-Three commands, about three minutes, and `doctor.sh` prints green. The vault
-block is **not in this repository** — this repo is public. Keep it wherever you
-keep passwords; it is also in the conversation that first built the container.
+`init.sh` clones the repo, splits the vault into its two files, writes the
+wrangler config, and runs `bootstrap.sh`. About three minutes, ending in
+`doctor.sh` printing **17 ready, 0 broken**. Verified end to end from an empty
+`HOME` on 19 Aug 2026.
 
-Everything else rebuilds from git, so nothing needs to be carried between
-containers except that one block.
+**Download it, do not pipe it.** `curl … | bash` looks tidier and silently does
+nothing: when bash is reading the script from stdin, the script's own
+`cat > vault` consumes the rest of its source as your "paste", and the run ends
+with status 0 having accomplished nothing. `init.sh` now detects that case and
+refuses, but the download form avoids it entirely. (`raw.githubusercontent.com`
+also caches for a few minutes, so straight after a push you may fetch a stale
+copy — cloning the repo and running `scripts/cloud/init.sh` sidesteps both
+problems.)
+
+The vault is **not in this repository** — this repo is public. Keep it wherever
+you keep passwords; it is also in the conversation that first built it.
+Everything else rebuilds from git.
 
 ## First run in a new container
 
