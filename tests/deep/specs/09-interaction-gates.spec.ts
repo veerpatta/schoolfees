@@ -217,3 +217,103 @@ test("every student segment renders for this role", async ({
     }
   }
 });
+
+/**
+ * The student photo viewer's dismissal contract, in a real browser.
+ *
+ * This lives here rather than in tests/ui/interaction because the defect it
+ * guards is unreachable from jsdom. The viewer pushes a history entry so the
+ * Android back gesture closes the photo instead of leaving the students list,
+ * and it pops that entry again on every other dismissal so the back button does
+ * not go dead. Getting either half wrong is invisible to a render test: jsdom
+ * does not deliver popstate from history.back(), so the broken implementation
+ * passed all five unit tests.
+ *
+ * It broke twice while being written, both times only visible here. First the
+ * viewer closed itself the frame it opened, because the history effect was
+ * keyed on mount and StrictMode's remount turned its own teardown into what
+ * looked like a back gesture. Then, once suppressed with a module flag, a stale
+ * flag swallowed a real back and the whole page navigated away instead.
+ */
+test("the student photo viewer opens, and every dismissal leaves history balanced", async ({
+  page,
+  findings,
+  target,
+}) => {
+  await page.goto(`/protected/students?session=${encodeURIComponent(TEST_SESSION)}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
+
+  if (new URL(page.url()).pathname !== "/protected/students") return;
+
+  // Both list shapes are in the DOM at once, one hidden by CSS at any width.
+  const avatar = page.locator('button[aria-label$="photo"]:visible').first();
+  if ((await avatar.count()) === 0) {
+    // No student in this session carries a photo, so there is nothing to open.
+    // Reported rather than passed silently: a green here would otherwise read
+    // as "the viewer works" when nothing was exercised.
+    findings.record({
+      rule: "harness.gate-unreachable",
+      surface: "/protected/students · photo-viewer",
+      title: "The photo viewer went unasserted: no student in this session has a photo",
+      expected: "At least one student carries photo_path so the viewer can be opened.",
+      actual: `No visible avatar button on /protected/students in ${TEST_SESSION}.`,
+      target,
+      session: TEST_SESSION,
+      evidence: { screenshot: await screenshot(page, "photo-viewer-unreachable") },
+    });
+    return;
+  }
+
+  const dialog = page.locator('[role="dialog"][aria-modal="true"]');
+  const listUrl = page.url();
+
+  for (const dismissal of ["escape", "backdrop", "back"] as const) {
+    await avatar.click();
+    await dialog.waitFor({ state: "visible", timeout: 10_000 });
+
+    // Tapping the photo must not also open the student.
+    if (page.url() !== listUrl) {
+      findings.record({
+        rule: "ui.photo-viewer-navigated",
+        surface: "/protected/students · photo-viewer",
+        title: "Tapping a student's photo opened the student instead of the photo",
+        expected:
+          "The avatar carries data-row-action, so the row's click handler ignores it.",
+        actual: `The row navigated to ${new URL(page.url()).pathname}.`,
+        target,
+        session: TEST_SESSION,
+        evidence: { screenshot: await screenshot(page, "photo-viewer-navigated") },
+      });
+      return;
+    }
+
+    if (dismissal === "escape") await page.keyboard.press("Escape");
+    if (dismissal === "backdrop") await page.mouse.click(8, 8);
+    if (dismissal === "back") await page.goBack();
+
+    await dialog.waitFor({ state: "detached", timeout: 5000 }).catch(() => {});
+
+    const stillOpen = (await dialog.count()) > 0;
+    const leftTheList = new URL(page.url()).pathname !== "/protected/students";
+
+    if (stillOpen || leftTheList) {
+      findings.record({
+        rule: "ui.photo-viewer-dismissal",
+        surface: `/protected/students · photo-viewer · ${dismissal}`,
+        title: `Dismissing the photo with ${dismissal} left the app in the wrong place`,
+        expected:
+          "Every dismissal closes the photo and leaves the browser on the students "
+          + "list — the viewer pops the history entry it pushed.",
+        actual: stillOpen
+          ? "The viewer was still open afterwards."
+          : `The browser left the list and landed on ${page.url()}.`,
+        target,
+        session: TEST_SESSION,
+        evidence: { screenshot: await screenshot(page, `photo-viewer-${dismissal}`) },
+      });
+      return;
+    }
+  }
+});

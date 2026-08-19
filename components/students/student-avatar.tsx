@@ -30,7 +30,13 @@ function getInitials(fullName: string) {
 const urlCache = new Map<string, string>();
 const inFlight = new Map<string, Promise<string | null>>();
 
-async function fetchSignedUrl(path: string): Promise<string | null> {
+/**
+ * Exported so the photo viewer reuses this cache rather than asking for a
+ * second signed URL for a photo already on screen. Signed URLs are minted per
+ * request and expire, so two callers fetching the same path independently is
+ * two round trips and two URLs for one image.
+ */
+export async function fetchSignedUrl(path: string): Promise<string | null> {
   const cached = urlCache.get(path);
   if (cached) return cached;
 

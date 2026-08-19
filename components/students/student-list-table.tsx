@@ -8,7 +8,7 @@ import { Users, GraduationCap, ShieldAlert, AlertTriangle, CheckCircle2, Clock }
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { StudentAvatar } from "@/components/students/student-avatar";
+import { StudentAvatarButton } from "@/components/students/student-photo-viewer";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import type { StudentListItem } from "@/lib/students/types";
@@ -375,7 +375,12 @@ const MobileStudentListItem = React.memo(function MobileStudentListItem({
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 66px" } as React.CSSProperties}
     >
       <span className="relative shrink-0">
-        <StudentAvatar photoPath={student.photoPath} fullName={student.fullName} size="md" />
+        <StudentAvatarButton
+          photoPath={student.photoPath}
+          fullName={student.fullName}
+          admissionNo={student.admissionNo}
+          size="md"
+        />
         {hasDataQualityWarning(student) ? (
           <span
             title={t("flagDuplicateSr")}
@@ -608,7 +613,12 @@ export const StudentListTable = React.memo(function StudentListTable({
                 </td>
                 <td className="px-4 py-3.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <StudentAvatar photoPath={student.photoPath} fullName={student.fullName} size="sm" />
+                    <StudentAvatarButton
+                      photoPath={student.photoPath}
+                      fullName={student.fullName}
+                      admissionNo={student.admissionNo}
+                      size="sm"
+                    />
                     <p className="text-sm font-semibold text-foreground">{student.fullName}</p>
                     {student.status !== "active" && (
                       <StudentStatusBadge status={student.status} />

@@ -1,0 +1,218 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
+import { X } from "lucide-react";
+
+import { StudentAvatar, fetchSignedUrl } from "@/components/students/student-avatar";
+import { cn } from "@/lib/utils";
+
+/**
+ * Tap a student's photo in the list and it opens, the way a photo does in
+ * WhatsApp: the picture, the child's name, and nothing else to read.
+ *
+ * Deliberately NOT full-screen. The photos imported from the Sampark export are
+ * 96 pixels tall, so a viewport-filling lightbox would upscale a thumbnail
+ * about eight times and show the office a block of mush. Capped near the
+ * source's own resolution it reads as a photograph. If higher-resolution
+ * originals ever land, raising VIEWER_MAX_PX is the whole change.
+ *
+ * It is not a Sheet. A Sheet is a work surface — it has a title, a body that
+ * scrolls and a footer that acts — and this is a glance that wants dismissing
+ * as fast as it was opened.
+ */
+const VIEWER_MAX_PX = 320;
+
+/** History-dismiss marker. Mirrors the mechanism in components/ui/sheet.tsx —
+ *  edit both or neither. Kept separate from the sheet's own sequence so a photo
+ *  opened from inside a sheet cannot be mistaken for the sheet's entry. */
+const PHOTO_HISTORY_MARKER = "vppsPhotoViewer";
+let photoHistorySeq = 0;
+
+function StudentPhotoOverlay({
+  open,
+  photoPath,
+  fullName,
+  admissionNo,
+  onClose,
+}: {
+  open: boolean;
+  photoPath: string;
+  fullName: string;
+  admissionNo?: string | null;
+  onClose: () => void;
+}) {
+  const t = useTranslations("Common");
+  const [src, setSrc] = useState<string | null>(null);
+  const closeRef = useRef(onClose);
+  const poppedRef = useRef(false);
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void fetchSignedUrl(photoPath).then((url) => {
+      if (!cancelled) setSrc(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, photoPath]);
+
+  // Escape closes, and so does the Android back gesture — a photo that swallows
+  // the back button is the fastest way to make a phone feel broken.
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeRef.current();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (typeof window === "undefined") return;
+    poppedRef.current = false;
+    photoHistorySeq += 1;
+    const entryId = photoHistorySeq;
+    window.history.pushState(
+      { ...(window.history.state ?? {}), [PHOTO_HISTORY_MARKER]: entryId },
+      "",
+    );
+
+    const onPopState = (event: PopStateEvent) => {
+      const stillOurs = (event.state as Record<string, unknown> | null)?.[PHOTO_HISTORY_MARKER];
+      if (stillOurs === entryId) return;
+      poppedRef.current = true;
+      closeRef.current();
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      // Closed by Escape, the button or the backdrop rather than by going back:
+      // pop the entry we pushed, or it piles up and the back button reads dead.
+      if (!poppedRef.current) window.history.back();
+    };
+  }, [open]);
+
+  // Background scroll lock. A photo is a glance; the list underneath should be
+  // exactly where it was when it closes.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="anim-fade-in fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${fullName} photo`}
+    >
+      <div
+        className="animate-pop-in flex flex-col items-center gap-3"
+        // The card is a target, not a dismiss area: clicking the photo itself
+        // should not close what you just opened.
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div
+          className="overflow-hidden rounded-2xl border border-white/10 bg-surface-2 shadow-2xl"
+          style={{ width: `min(72vw, ${VIEWER_MAX_PX}px)`, height: `min(72vw, ${VIEWER_MAX_PX}px)` }}
+        >
+          {src ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={src} alt={`${fullName} photo`} className="size-full object-cover" />
+          ) : (
+            <div className="size-full animate-pulse bg-surface-2" aria-hidden="true" />
+          )}
+        </div>
+
+        <div className="text-center">
+          <p className="text-base font-semibold text-white">{fullName}</p>
+          {admissionNo ? (
+            <p className="text-sm text-white/70">SR {admissionNo}</p>
+          ) : null}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={t("close")}
+        className="focus-ring absolute right-4 top-4 rounded-full bg-black/40 p-2 text-white transition-colors hover:bg-black/60"
+      >
+        <X className="size-5" aria-hidden="true" />
+      </button>
+    </div>,
+    document.body,
+  );
+}
+
+/**
+ * Drop-in replacement for `StudentAvatar` on any surface where the photo should
+ * open. Without a photo it renders the plain avatar and stays inert — an empty
+ * box is not worth a tap, and a control that does nothing is worse than none.
+ *
+ * `data-row-action` is what keeps the tap from also opening the student, which
+ * is the convention the list rows already use for their inline controls.
+ */
+export function StudentAvatarButton({
+  photoPath,
+  fullName,
+  admissionNo,
+  size = "md",
+  className,
+}: {
+  photoPath: string | null | undefined;
+  fullName: string;
+  admissionNo?: string | null;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+
+  if (!photoPath) {
+    return <StudentAvatar photoPath={photoPath} fullName={fullName} size={size} className={className} />;
+  }
+
+  return (
+    <>
+      <span data-row-action="true" onClick={(event) => event.stopPropagation()}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`${fullName} photo`}
+          aria-haspopup="dialog"
+          className={cn(
+            "focus-ring block rounded-full transition-transform active:scale-95",
+            className,
+          )}
+        >
+          <StudentAvatar photoPath={photoPath} fullName={fullName} size={size} />
+        </button>
+      </span>
+
+      <StudentPhotoOverlay
+        open={open}
+        photoPath={photoPath}
+        fullName={fullName}
+        admissionNo={admissionNo}
+        onClose={close}
+      />
+    </>
+  );
+}
