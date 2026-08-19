@@ -60,3 +60,21 @@ students, test payments, or experimental fee changes to `2026-27`.
 - **The whole app is `force-dynamic` from the root layout.** `app/layout.tsx` sets it, so it
   propagates to every route, and `export const revalidate` anywhere below it is dead config.
   Changing it changes the caching behaviour of every page at once.
+- **`create view` silently drops `security_invoker`, and a CASCADE rebuild is where that
+  bites.** `20260718090711` hardened the five Notion projections; `20260807120000` dropped
+  the financial view stack with CASCADE and recreated three of them with plain
+  `create view ... as`, which carries no reloptions; `20260812120000` then restored "the
+  grants the cascade took with it" from the pre-hardening list, handing `anon` and
+  `authenticated` back `all`. Net effect until `20260819120000`: ten RLS-less relations were
+  selectable by `anon`, so the publishable key alone — which ships in the browser bundle —
+  read every student's financials and, through `v_notion_student_fee_summary`, their parents'
+  names, phones and dates of birth. **RLS defends a table; it defends neither a matview (which
+  cannot carry it) nor a view without `security_invoker`. For those the GRANT is the whole
+  control.** Any migration that rebuilds one must re-apply the option and re-derive the grants
+  from the current intent, not from an older file. `select … from pg_class where relkind in
+  ('v','m') and has_table_privilege('anon', oid, 'select')` answers this in one query.
+- **A scan that reads migration text cannot see an `ALTER` in a DO-loop.** All seven
+  `scan.sql-risk` "unpinned search_path" findings are false positives: six were pinned by the
+  `20260523164957` loop, which the text scanner cannot follow, and the seventh
+  (`private.derive_family_child_client_request_id`) was dropped in `20260727113603`. Confirm
+  against `pg_proc.proconfig` before acting on that rule.
