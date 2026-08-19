@@ -410,7 +410,7 @@ make it trustworthy rather than just large:
   working guards as broken. The harness waits for the destination instead. That
   mistake produced 41 false P0s before it was found; do not reintroduce it.
 
-`npm run test` runs **291 vitest files / 1,777 tests** across two projects: `node` for
+`npm run test` runs **333 vitest files / 2,250 tests** across two projects: `node` for
 everything, and `interaction` (jsdom + Testing Library) for `tests/ui/interaction/**`.
 Playwright is separate — `npm run smoke:readiness`.
 
