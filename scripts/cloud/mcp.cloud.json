@@ -1,0 +1,15 @@
+{
+  "_comment": "Headless variant of ../../.mcp.json for cloud containers. The committed .mcp.json points Supabase at an OAuth endpoint, which cannot complete a browser sign-in here; this file authenticates with a personal access token instead. Use with: claude --mcp-config scripts/cloud/mcp.cloud.json",
+  "mcpServers": {
+    "schoolfees": {
+      "type": "http",
+      "url": "https://schoolfees-live-mcp.raj-39e.workers.dev/svc/mcp",
+      "bearer_token_env_var": "SCHOOLFEES_WORKER_MCP_TOKEN"
+    },
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=vgqyilgstjvgohrsiwkb&features=docs%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cstorage",
+      "bearer_token_env_var": "SUPABASE_ACCESS_TOKEN"
+    }
+  }
+}
