@@ -150,6 +150,8 @@ export function useUrlFilterState<T>({
   onAdoptRef.current = onAdopt;
   const stickyRef = useRef(sticky);
   stickyRef.current = sticky;
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   /**
    * The gate on writing the URL, and it has to be state rather than a ref.
@@ -237,6 +239,30 @@ export function useUrlFilterState<T>({
   // In-page back/forward, for as long as the screen stays mounted.
   useEffect(() => {
     function onPopState() {
+      const urlQuery = canonical(window.location.search);
+      const currentQuery = toParamsRef.current(valueRef.current).toString();
+
+      /**
+       * A popstate that lands on the same filters has nothing to adopt.
+       *
+       * `onAdopt` is not a cheap setter — every caller uses it to replace the
+       * rows on screen, because the rows belong to the value being replaced.
+       * On Students it calls setFilters with a freshly parsed object, whose new
+       * identity refires the fetch effect and reloads the whole list.
+       *
+       * Not every popstate is a filter change. Anything that pushes a history
+       * entry to make the back gesture dismiss it — the photo viewer on the
+       * students list, and any sheet using historyDismiss — pops an entry whose
+       * query string is identical to the one already on screen. Adopting that
+       * threw the list away and refetched it, so closing a photo looked like
+       * the page reloading under you.
+       *
+       * Comparing through `canonical` rather than the raw search string means a
+       * param this screen does not own (`tab`, `returnTo`) is not mistaken for
+       * a filter change either.
+       */
+      if (urlQuery === currentQuery) return;
+
       onAdoptRef.current(
         fromParamsRef.current(new URLSearchParams(window.location.search)),
         "url",
@@ -245,7 +271,7 @@ export function useUrlFilterState<T>({
 
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+  }, [canonical]);
 
   return { adopted };
 }

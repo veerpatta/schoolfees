@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -27,14 +27,24 @@ function getInitials(fullName: string) {
   return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
 }
 
+/** The thumbnail endpoint. Returns image bytes, not a signed URL — see the route. */
+export function studentThumbSrc(photoPath: string) {
+  return `/protected/students/photo?variant=thumb&path=${encodeURIComponent(photoPath)}`;
+}
+
 const urlCache = new Map<string, string>();
 const inFlight = new Map<string, Promise<string | null>>();
 
 /**
- * Exported so the photo viewer reuses this cache rather than asking for a
- * second signed URL for a photo already on screen. Signed URLs are minted per
- * request and expire, so two callers fetching the same path independently is
- * two round trips and two URLs for one image.
+ * A signed URL for the FULL-SIZE photo, for the viewer.
+ *
+ * The list does not use this and no longer mints anything: an avatar is a plain
+ * `<img>` pointed at the route above, which is one browser-cached request
+ * instead of a mint round trip plus an image fetch. This exists for the one
+ * place that wants the original at full quality, straight from Storage.
+ *
+ * Cached in the module so opening the same photo twice — or opening it from a
+ * list where it is already on screen — mints one URL rather than two.
  */
 export async function fetchSignedUrl(path: string): Promise<string | null> {
   const cached = urlCache.get(path);
@@ -67,60 +77,31 @@ export async function fetchSignedUrl(path: string): Promise<string | null> {
   return promise;
 }
 
+/**
+ * A student's photo at list size.
+ *
+ * This used to resolve a signed URL per avatar — an IntersectionObserver, a
+ * module cache, a fetch and a piece of state each — and then load a 600x800
+ * original to paint a 32-pixel circle. A page of 27 rows moved about 4 MB and
+ * made 54 requests.
+ *
+ * Now the src is a URL the server answers with a 192px rendition, so the
+ * platform does the work: `loading="lazy"` defers off-screen rows, and the HTTP
+ * cache keeps them for a week, which an expiring signed URL could never do. The
+ * only state left is whether the image failed, so initials can take over.
+ */
 export function StudentAvatar({
   photoPath,
   fullName,
   size = "md",
   className,
 }: Props) {
-  const [src, setSrc] = useState<string | null>(() =>
-    photoPath ? urlCache.get(photoPath) ?? null : null,
-  );
-  const observerRef = useRef<HTMLDivElement | null>(null);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    if (!photoPath) {
-      setSrc(null);
-      return;
-    }
-
-    if (urlCache.has(photoPath)) {
-      setSrc(urlCache.get(photoPath) ?? null);
-      return;
-    }
-
-    if (typeof IntersectionObserver === "undefined") {
-      void fetchSignedUrl(photoPath).then(setSrc);
-      return;
-    }
-
-    const element = observerRef.current;
-    if (!element) {
-      void fetchSignedUrl(photoPath).then(setSrc);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            void fetchSignedUrl(photoPath).then(setSrc);
-            observer.disconnect();
-            break;
-          }
-        }
-      },
-      { rootMargin: "200px" },
-    );
-
-    observer.observe(element);
-
-    return () => observer.disconnect();
-  }, [photoPath]);
+  const showPhoto = Boolean(photoPath) && !failed;
 
   return (
     <div
-      ref={observerRef}
       className={cn(
         "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-2 font-semibold uppercase text-muted-foreground",
         SIZE_CLASS[size],
@@ -129,9 +110,18 @@ export function StudentAvatar({
       role="img"
       aria-label={`${fullName} photo`}
     >
-      {src ? (
+      {showPhoto ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="size-full object-cover" loading="lazy" />
+        <img
+          src={studentThumbSrc(photoPath as string)}
+          alt=""
+          className="size-full object-cover"
+          loading="lazy"
+          decoding="async"
+          // A 404 here is a student whose photo_path points at nothing. Fall
+          // back to initials rather than showing a broken-image glyph.
+          onError={() => setFailed(true)}
+        />
       ) : photoPath ? (
         <span aria-hidden="true">{getInitials(fullName)}</span>
       ) : (

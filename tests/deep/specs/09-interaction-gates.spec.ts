@@ -269,9 +269,19 @@ test("the student photo viewer opens, and every dismissal leaves history balance
   const dialog = page.locator('[role="dialog"][aria-modal="true"]');
   const listUrl = page.url();
 
+  // Closing the photo must not reload the list underneath it. The viewer pushes
+  // a history entry, and useUrlFilterState adopts on popstate — so before that
+  // hook learned to ignore a popstate landing on unchanged filters, going back
+  // refetched every row and the list visibly rebuilt itself under the user.
+  const indexRefetches: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/protected/students/index")) indexRefetches.push(request.url());
+  });
+
   for (const dismissal of ["escape", "backdrop", "back"] as const) {
     await avatar.click();
     await dialog.waitFor({ state: "visible", timeout: 10_000 });
+    indexRefetches.length = 0;
 
     // Tapping the photo must not also open the student.
     if (page.url() !== listUrl) {
@@ -297,6 +307,24 @@ test("the student photo viewer opens, and every dismissal leaves history balance
 
     const stillOpen = (await dialog.count()) > 0;
     const leftTheList = new URL(page.url()).pathname !== "/protected/students";
+
+    if (indexRefetches.length > 0) {
+      findings.record({
+        rule: "ui.photo-viewer-refetched-list",
+        surface: `/protected/students · photo-viewer · ${dismissal}`,
+        title: `Closing the photo with ${dismissal} reloaded the whole student list`,
+        expected:
+          "Dismissing an overlay changes nothing about the filters, so the list under "
+          + "it keeps the rows it already has.",
+        actual:
+          `${indexRefetches.length} refetch(es) of /protected/students/index fired, so the `
+          + "list rebuilt itself under the user.",
+        target,
+        session: TEST_SESSION,
+        evidence: { screenshot: await screenshot(page, `photo-viewer-refetch-${dismissal}`) },
+      });
+      return;
+    }
 
     if (stillOpen || leftTheList) {
       findings.record({
