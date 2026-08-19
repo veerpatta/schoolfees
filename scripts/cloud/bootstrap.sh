@@ -122,14 +122,12 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
   # The container routes egress through a local git proxy that only signs
   # requests for repos in the session's authorised set, and refuses everything
   # else before it reaches GitHub — including a valid token of our own. Send
-  # github.com straight out instead, so our credential is the one that is used.
-  for rc in "$HOME/.bashrc" "$HOME/.profile"; do
-    grep -q 'veerpatta github direct egress' "$rc" 2>/dev/null || cat >> "$rc" <<'RC2'
-# veerpatta github direct egress
-export NO_PROXY="${NO_PROXY:+$NO_PROXY,}github.com,api.github.com,codeload.github.com"
-export no_proxy="$NO_PROXY"
-RC2
-  done
+  # github.com straight out so our credential is the one that is used.
+  #
+  # This goes in git config, not NO_PROXY in a shell rc: rc files are not
+  # sourced for every non-interactive shell, and a push that works in one shell
+  # and 403s in the next is worse than one that never worked.
+  git config --global 'http.https://github.com/.proxy' ""
   export NO_PROXY="${NO_PROXY:+$NO_PROXY,}github.com,api.github.com,codeload.github.com"
   export no_proxy="$NO_PROXY"
   ok "push configured for github.com/veerpatta/schoolfees"

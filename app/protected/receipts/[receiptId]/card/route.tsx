@@ -15,6 +15,13 @@ import { requireStaffPermission } from "@/lib/supabase/session";
  * Ink background, school brand, PAID badge, display amount, student/date/
  * receipt line, cleared-items summary, balance progress, verify URL. Staff
  * download this and attach it in WhatsApp alongside the wa.me text message.
+ *
+ * Satori rule, learned the hard way: any element with MORE THAN ONE child node
+ * needs an explicit `display`. `{a} · {b}` is three child nodes, not one string,
+ * so every composed line here is built as a single template literal instead.
+ * Getting this wrong throws at render time, which the route surfaces as
+ * "failed to pipe response" — see SCHOOLFEES-J. tests/integration/
+ * receipt-card-render.test.ts renders this for real and will catch a relapse.
  */
 
 // Ink palette resolved to hex — ImageResponse has no CSS variables.
@@ -126,10 +133,10 @@ export async function GET(
             {formatInr(receipt.totalAmount)}
           </div>
           <div style={{ marginTop: 10, fontSize: 34, color: INK_MUTED }}>
-            {receipt.studentFullName} · {receipt.classLabel}
+            {`${receipt.studentFullName} · ${receipt.classLabel}`}
           </div>
           <div style={{ marginTop: 6, fontSize: 30, color: INK_MUTED }}>
-            {formatMediumDate(receipt.paymentDate)} · Receipt {receipt.receiptNumber}
+            {`${formatMediumDate(receipt.paymentDate)} · Receipt ${receipt.receiptNumber}`}
           </div>
         </div>
 
@@ -172,7 +179,7 @@ export async function GET(
             }}
           >
             <div>
-              Paid so far {formatInr(receipt.totalPaidToDate)} of {formatInr(receipt.totalDue)}
+              {`Paid so far ${formatInr(receipt.totalPaidToDate)} of ${formatInr(receipt.totalDue)}`}
             </div>
             <div style={{ color: receipt.currentOutstanding > 0 ? "#e8b04b" : GREEN }}>
               {receipt.currentOutstanding > 0
@@ -192,7 +199,7 @@ export async function GET(
             color: INK_MUTED,
           }}
         >
-          <div>Verify: {verifyUrl}</div>
+          <div>{`Verify: ${verifyUrl}`}</div>
           <div style={{ color: SAFFRON, fontWeight: 700 }}>
             {schoolProfile.shortName ?? "VPPS"}
           </div>
