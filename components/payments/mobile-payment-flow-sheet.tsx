@@ -10,6 +10,7 @@ import { UpiQrCode } from "@/components/payments/upi-qr-code";
 import { buildStudentFeeUpiPayment } from "@/lib/payments/upi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { splitAmountWithRemainderLast } from "@/lib/fees/workbook";
 import { formatInr } from "@/lib/helpers/currency";
 import { formatShortDate } from "@/lib/helpers/date";
 import { sanitizeDecimalInput } from "@/lib/payments/payment-desk-client-helpers";
@@ -1106,19 +1107,49 @@ export function MobilePaymentFlowSheet({
               const overdueIncludesFirst = overdueInstallments.some(
                 (item) => item.installmentNo === 1,
               );
-              const proratedShare = overdueInstallments.length / installmentCount;
+              // Sum the real per-installment slices for the overdue installments
+              // instead of scaling each annual head by a ratio.
+              //
+              // Scaling rounded four heads independently against one fraction,
+              // and independent roundings of one ratio compound — so the head
+              // rows could miss the overdue total printed directly above them,
+              // by up to a rupee per head, in either direction. That is the
+              // figure a cashier reads out with a parent standing at the
+              // counter, so the parts have to add up to the whole.
+              //
+              // splitAmountWithRemainderLast is the splitter the workbook engine
+              // builds the installments with, and indexing it by the overdue
+              // installment numbers also handles the case a ratio cannot: which
+              // installments are overdue, not merely how many.
+              const overdueSplitIndexes = overdueInstallments.map((item) =>
+                Math.min(
+                  Math.max((item.installmentNo ?? 1) - 1, 0),
+                  Math.max(installmentCount - 1, 0),
+                ),
+              );
+              const prorateHead = (annualAmount: number) => {
+                const parts = splitAmountWithRemainderLast(
+                  Math.abs(annualAmount),
+                  installmentCount,
+                );
+                const slice = overdueSplitIndexes.reduce(
+                  (total, index) => total + (parts[index] ?? 0),
+                  0,
+                );
+                return annualAmount < 0 ? -slice : slice;
+              };
               const overdueHeads = dist
                 ? ([
-                    { label: "Tuition", amount: Math.round(dist.tuitionFee * proratedShare) },
+                    { label: "Tuition", amount: prorateHead(dist.tuitionFee) },
                     overdueIncludesFirst
                       ? { label: "Academic", amount: dist.academicFee }
                       : null,
-                    { label: "Transport", amount: Math.round(dist.transportFee * proratedShare) },
+                    { label: "Transport", amount: prorateHead(dist.transportFee) },
                     dist.otherAdjustmentHead && dist.otherAdjustmentAmount > 0
-                      ? { label: dist.otherAdjustmentHead, amount: Math.round(dist.otherAdjustmentAmount * proratedShare) }
+                      ? { label: dist.otherAdjustmentHead, amount: prorateHead(dist.otherAdjustmentAmount) }
                       : null,
                     totalDiscount > 0
-                      ? { label: `Discount${discountReasonSuffix}`, amount: -Math.round(totalDiscount * proratedShare) }
+                      ? { label: `Discount${discountReasonSuffix}`, amount: -prorateHead(totalDiscount) }
                       : null,
                   ].filter(Boolean) as Array<{ label: string; amount: number }>).filter((h) => h.amount !== 0)
                 : [];

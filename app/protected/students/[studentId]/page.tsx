@@ -31,6 +31,7 @@ import { Money } from "@/components/ui/money";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
+import { splitAmountWithRemainderLast } from "@/lib/fees/workbook";
 import { getDefaultAcademicSessionLabel } from "@/lib/config/fee-rules";
 import {
   getDisplayInstallmentLabel,
@@ -487,6 +488,18 @@ export default async function StudentDetailPage({
   // so the per-installment slice (mobile dues) stays consistent with the
   // pre-conventional-discount tuition + discount-line presentation.
   const annualBreakdownRows = glanceBreakdownRows;
+  // One remainder-preserving split per breakdown row, computed once and indexed
+  // by installment below.
+  //
+  // Rounding each part independently does not conserve the total it was split
+  // from: Math.round(19502 / 4) x 4 = 19504, so the head rows a parent is shown
+  // added up to two rupees more than the head above them. This is the same
+  // splitter the workbook engine uses to build the installments themselves
+  // (lib/fees/workbook.ts), so the screen now shows the ledger's own arithmetic
+  // rather than a second opinion about it.
+  const perInstallmentHeadSplits = annualBreakdownRows.map((row) =>
+    splitAmountWithRemainderLast(Math.abs(row.amount), installmentCount),
+  );
 
   function buildPerInstallmentHeads(item: typeof installmentBalances[number]) {
     if (isCarryForwardInstallment(item)) {
@@ -496,27 +509,33 @@ export default async function StudentDetailPage({
       return [] as Array<{ label: string; amount: number }>;
     }
     const isFirstInstallment = item.installmentNo === 1;
+    // Installments are numbered from 1. Clamped so a number outside the policy's
+    // range reads a real slice rather than undefined.
+    const splitIndex = Math.min(
+      Math.max((item.installmentNo ?? 1) - 1, 0),
+      Math.max(installmentCount - 1, 0),
+    );
     const headRows: Array<{ label: string; amount: number }> = [];
-    for (const row of annualBreakdownRows) {
+    annualBreakdownRows.forEach((row, rowIndex) => {
+      const share = perInstallmentHeadSplits[rowIndex]?.[splitIndex] ?? 0;
       if (row.kind === "charge") {
-        if (row.amount <= 0) continue;
+        if (row.amount <= 0) return;
         // Academic fee is bundled into installment 1 only (workbook model).
         if (row.id === "academic_fee") {
           if (isFirstInstallment) {
             headRows.push({ label: row.label, amount: row.amount });
           }
         } else {
-          headRows.push({ label: row.label, amount: Math.round(row.amount / installmentCount) });
+          headRows.push({ label: row.label, amount: share });
         }
       } else {
         // Conventional + student discount rows split evenly across installments.
         // Labels are preserved so RTE/Staff Child/3rd Child stay legible per row.
-        const slice = -Math.round(Math.abs(row.amount) / installmentCount);
-        if (slice !== 0) {
-          headRows.push({ label: row.label, amount: slice });
+        if (share !== 0) {
+          headRows.push({ label: row.label, amount: -share });
         }
       }
-    }
+    });
     if (item.finalLateFee > 0) {
       headRows.push({ label: "Late fee", amount: item.finalLateFee });
     }

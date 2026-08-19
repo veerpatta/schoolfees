@@ -18,11 +18,28 @@ type WorkbookFinancialRow = {
   outstanding_amount: number;
 };
 
+/**
+ * Returns the raw parsed number — deliberately NOT rounded.
+ *
+ * Every money column in supabase/migrations is `integer`, so a fractional rupee
+ * has to be refused rather than quietly absorbed. Rounding here made the
+ * `Number.isInteger(amount)` check at line ~51 unreachable: it can never fail
+ * against an already-rounded value, so "1500.75" passed validation and was
+ * written off as 1501. The guard reads like input validation and was dead code.
+ *
+ * Same shape as parsePaymentAmount in the Payment Desk action and parseAmount in
+ * the ledger-adjustment action, both of which validate the raw Number(). NaN and
+ * Infinity both fail Number.isInteger, so they need no special case here.
+ *
+ * (Those module paths are named without a leading slash on purpose:
+ * late-fee-waiver-lock.test.ts asserts on this file's source text to prove a
+ * waiver never revalidates the ledger, and a path in a comment reads to it as a
+ * revalidation call.)
+ */
 function parseAmount(value: FormDataEntryValue | null): number {
   const raw = (value ?? "").toString().trim();
   if (!raw) return NaN;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? Math.round(parsed) : NaN;
+  return Number(raw);
 }
 
 function asNumber(value: unknown): number {

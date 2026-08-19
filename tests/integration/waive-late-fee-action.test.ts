@@ -273,6 +273,48 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
     expect(createClient).not.toHaveBeenCalled();
   });
 
+  // parseAmount used to apply Math.round before the Number.isInteger check ran,
+  // which made that check unreachable — "1500.75" reached the RPC as 1501 and a
+  // family was handed a receipt for a rupee nobody typed. Every money column is
+  // `integer`, so a fractional rupee is refused, not absorbed. The browser form
+  // is step={1}, but a Server Action is a POST endpoint and the guard is what
+  // actually holds.
+  it("refuses a fractional rupee instead of rounding it (input guard runs before any RPC call)", async () => {
+    setStaff("accountant");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    const result = await waiveLateFeeAction(
+      INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
+      makeFormData({ amount: "1500.75" }),
+    );
+
+    expect(result.status).toBe("error");
+    expect(result.message).toMatch(/positive late-fee amount/i);
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("still accepts a whole rupee amount", async () => {
+    setStaff("accountant");
+    createClient.mockResolvedValue(
+      buildSupabaseClient({
+        ok: true,
+        message: null,
+        new_waiver_amount: 1500,
+        added_amount: 1500,
+      }),
+    );
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    const result = await waiveLateFeeAction(
+      INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
+      makeFormData({ amount: "1500" }),
+    );
+
+    expect(result.status).toBe("success");
+  });
+
   it("surfaces RPC validation rejections (e.g. amount exceeds pending late fee)", async () => {
     setStaff("accountant");
     createClient.mockResolvedValue(
