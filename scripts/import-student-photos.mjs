@@ -392,6 +392,19 @@ async function main() {
       return { admissionNo: row.student.admission_no, ok: false, why: `photo_path not set: ${updateError.message}` };
     }
 
+    // The row now points at the new object, so the old one is unreferenced.
+    // Remove it, or every re-import leaves another copy of every child behind.
+    // Deliberately after the update and never before: an orphan in the bucket is
+    // inert, whereas deleting first would destroy the only copy if the update
+    // then failed. A failure to tidy up is reported, not fatal.
+    let cleanupNote = null;
+    if (row.student.photo_path && row.student.photo_path !== objectName) {
+      const { error: removeError } = await supabase.storage
+        .from(BUCKET)
+        .remove([row.student.photo_path]);
+      if (removeError) cleanupNote = removeError.message;
+    }
+
     const { error: auditError } = await supabase.from("audit_logs").insert({
       table_name: "students",
       record_id: row.student.id,
@@ -414,13 +427,23 @@ async function main() {
       return { admissionNo: row.student.admission_no, ok: false, why: `written, but audit failed: ${auditError.message}` };
     }
 
-    return { admissionNo: row.student.admission_no, ok: true };
+    return { admissionNo: row.student.admission_no, ok: true, cleanupNote };
   });
 
   const failed = outcomes.filter((outcome) => !outcome.ok);
   console.log(`Uploaded and linked ${outcomes.length - failed.length} of ${outcomes.length}.`);
   for (const outcome of failed) {
     console.log(`  FAILED ${outcome.admissionNo}: ${outcome.why}`);
+  }
+
+  const notTidied = outcomes.filter((outcome) => outcome.ok && outcome.cleanupNote);
+  if (notTidied.length) {
+    console.log(`
+${notTidied.length} replaced photo(s) left their old object in the bucket:`);
+    for (const outcome of notTidied) {
+      console.log(`  ${outcome.admissionNo}: ${outcome.cleanupNote}`);
+    }
+    console.log("  Harmless — the student record points at the new photo either way.");
   }
   console.log("");
 }

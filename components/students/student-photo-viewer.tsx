@@ -12,17 +12,24 @@ import { cn } from "@/lib/utils";
  * Tap a student's photo in the list and it opens, the way a photo does in
  * WhatsApp: the picture, the child's name, and nothing else to read.
  *
- * Deliberately NOT full-screen. The photos imported from the Sampark export are
- * 96 pixels tall, so a viewport-filling lightbox would upscale a thumbnail
- * about eight times and show the office a block of mush. Capped near the
- * source's own resolution it reads as a photograph. If higher-resolution
- * originals ever land, raising VIEWER_MAX_PX is the whole change.
+ * Sized to the photo rather than to the screen. The first Sampark export gave
+ * 96-pixel thumbnails, so this was capped at 320px to keep a lightbox from
+ * upscaling mush; the 2026-08-20 re-export is 600x800, so the cap moved up to
+ * match. It is still not viewport-filling — a portrait shown whole, with the
+ * name under it, is what a person opening a photo wants, and it keeps the
+ * students list visible behind so closing feels like stepping back rather than
+ * navigating.
+ *
+ * `object-contain` and a max-height, not a square crop: these are 3:4
+ * portraits, and cropping them to a square in the VIEWER would cut off the top
+ * of a child's head. The small round avatar in the list still crops, which is
+ * what a round avatar is for.
  *
  * It is not a Sheet. A Sheet is a work surface — it has a title, a body that
  * scrolls and a footer that acts — and this is a glance that wants dismissing
  * as fast as it was opened.
  */
-const VIEWER_MAX_PX = 320;
+const VIEWER_MAX_PX = 420;
 
 /** History-dismiss marker. Mirrors the mechanism in components/ui/sheet.tsx —
  *  edit both or neither. Kept separate from the sheet's own sequence so a photo
@@ -130,13 +137,22 @@ function StudentPhotoOverlay({
       >
         <div
           className="overflow-hidden rounded-2xl border border-white/10 bg-surface-2 shadow-2xl"
-          style={{ width: `min(72vw, ${VIEWER_MAX_PX}px)`, height: `min(72vw, ${VIEWER_MAX_PX}px)` }}
+          style={{ maxWidth: `min(88vw, ${VIEWER_MAX_PX}px)` }}
         >
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt={`${fullName} photo`} className="size-full object-cover" />
+            <img
+              src={src}
+              alt={`${fullName} photo`}
+              className="max-h-[68dvh] w-auto object-contain"
+              style={{ maxWidth: `min(88vw, ${VIEWER_MAX_PX}px)` }}
+            />
           ) : (
-            <div className="size-full animate-pulse bg-surface-2" aria-hidden="true" />
+            <div
+              className="animate-pulse bg-surface-2"
+              style={{ width: `min(88vw, ${VIEWER_MAX_PX}px)`, aspectRatio: "3 / 4" }}
+              aria-hidden="true"
+            />
           )}
         </div>
 
