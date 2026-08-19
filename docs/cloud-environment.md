@@ -9,7 +9,9 @@ plus one secret file.
 ```
 scripts/cloud/bootstrap.sh     rebuild everything from nothing
 scripts/cloud/use-env.sh       switch between the TEST and LIVE profiles
+scripts/cloud/deploy.sh        ship main to production (a push alone will not)
 scripts/cloud/doctor.sh        one screen: what works, what does not
+scripts/cloud/add-secrets.sh   merge vault values in without echoing them
 scripts/cloud/mcp.cloud.json   headless MCP config (token auth, no browser)
 ```
 

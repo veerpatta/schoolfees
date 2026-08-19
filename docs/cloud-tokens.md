@@ -44,16 +44,30 @@ Why the App ignores that push is not visible from inside the container, and the
 answer matters less than the consequence: **a container push is not a deploy.**
 
 So `VERCEL_TOKEN` is load-bearing, not a convenience, for anyone working without
-a workstation to push from. Mint one at https://vercel.com/account/tokens scoped
-to `veerpattas-projects`, add it to the vault, and ship explicitly:
+a workstation to push from. **It is now in the vault**, scoped to the
+`schoolfees` project alone rather than the whole account. Ship with:
 
 ```bash
-vercel deploy --prod --token "$VERCEL_TOKEN" --yes
+bash scripts/cloud/deploy.sh              # current HEAD
+bash scripts/cloud/deploy.sh --ref main
 ```
 
-Until then, a fix committed from the container reaches GitHub and stops there,
-and nothing about that failure is loud — CI goes green and the branch looks
-shipped.
+That script is not a wrapper around `vercel deploy`, for two reasons found the
+hard way:
+
+- **The CLI cannot use a project-scoped token.** `vercel env pull` and
+  `vercel deploy` resolve the account before doing anything, and a token scoped
+  to one project 404s on `/v2/user` — the CLI reports *"Not able to load user…
+  User not found"*, which reads like a broken token rather than a correctly
+  narrow one. Widening the token to Full Account to satisfy a lookup we do not
+  need is the wrong trade, so the script calls `POST /v13/deployments` directly.
+- **It deploys from git, not from the working tree.** `vercel deploy` uploads
+  whatever is in the container. Passing `gitSource` makes Vercel build the
+  commit, so what ships is what is on `main` — the same artefact the webhook
+  would have produced. The script refuses a sha that is not on an origin branch
+  rather than shipping something GitHub has never seen.
+
+`doctor.sh` checks this token against the project endpoint for the same reason.
 
 ## The two that are absent
 

@@ -92,8 +92,12 @@ else
   row skip "github" "read-only clone (no GITHUB_TOKEN)"
 fi
 if [ -n "${VERCEL_TOKEN:-}" ]; then
-  c="$(http -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/user)"
-  [ "$c" = "200" ] && row ok "vercel" "token valid" || row no "vercel" "api returned $c"
+  # Deliberately NOT /v2/user: a token scoped to one project 404s there, which
+  # would report a correctly-narrow token as broken. Ask what it should know.
+  c="$(http -H "Authorization: Bearer $VERCEL_TOKEN" \
+      "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}")"
+  [ "$c" = "200" ] && row ok "vercel" "token valid — scripts/cloud/deploy.sh can ship" \
+                   || row no "vercel" "api returned $c"
 else
   row no "vercel" "NO TOKEN — container pushes do NOT deploy (docs/cloud-tokens.md)"
 fi
