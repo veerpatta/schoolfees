@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-08-19T16:10:36.463Z",
+  "_comment": [
+    "The noise budget and the waiver list for tests/scan.",
+    "",
+    "Same policy as tests/deep/baseline/known-findings.json, same gate code:",
+    "P0 always fails; deterministic P1 fails; P2/P3 fail only when the count",
+    "for a rule exceeds the budget here. That is what lets a hard gate run",
+    "today against a repo that already carries 59 dead exports — 60 fails and",
+    "names only the new one.",
+    "",
+    "A waiver needs an owner and an expiresOn. An expired waiver fails the run",
+    "by itself, so nothing here can mute a finding forever by being forgotten.",
+    "",
+    "Regenerate from a clean run with:  npm run scan -- --write-baseline"
+  ],
+  "waivers": [],
+  "noiseBudget": {
+    "scan.dead-export": 59,
+    "scan.money-format-raw": 32,
+    "scan.config-risk": 2,
+    "scan.rounding-policy-mixed": 4,
+    "scan.sql-risk": 10,
+    "scan.observation": 11
+  }
+}

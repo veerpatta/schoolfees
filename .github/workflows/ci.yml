@@ -7,6 +7,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  # The dependency job below reads an advisory database that changes without
+  # anybody touching this repository. It runs here, daily, rather than on the
+  # pull-request gate, where a CVE published overnight would fail a change its
+  # author did not cause.
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -71,3 +78,66 @@ jobs:
 
       - name: Route bundle budgets
         run: npm run quality:bundles:check
+
+  # The source scan. A separate job because it answers a different question
+  # from the tests: not "does the code do what its tests say" but "is there a
+  # route handler nobody guarded, a money split that loses a rupee, a rule that
+  # has drifted away from its own SQL copy".
+  #
+  # It needs no database, no build and no browser, so it is the fastest signal
+  # in this file — and `--skip deps` keeps it that way. The dependency audit is
+  # its own job below, because a new CVE published overnight is not a reason to
+  # fail a pull request that touched a component's padding.
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # mirror-drift pins a hash of each side of a declared TS/SQL pair, and
+          # the report records the sha it ran against. A shallow clone gives
+          # both; full history is not needed.
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Source scan
+        run: npm run scan -- --skip deps
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-report
+          path: docs/qa/scan/
+          retention-days: 14
+
+  # Dependency advisories, on a schedule rather than on every push.
+  #
+  # `npm audit` reads a database that changes without anybody touching this
+  # repository, so wiring it into the PR gate means a pull request can go red
+  # for a reason its author did not cause and cannot fix. It still has to be
+  # somebody's problem, so it runs daily and on demand and fails loudly there.
+  dependencies:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency advisories
+        run: npm run scan -- --only deps

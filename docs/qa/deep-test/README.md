@@ -40,6 +40,37 @@ node tests/deep/run-all.mjs --targets local --writes
 | Malformed input | 25 cases | exhaustive |
 | Payment Desk | 18 scenarios by equivalence class | targeted |
 | MCP tools × sessions | 32 × 2, plus 6 auth lanes | exhaustive |
+| In-page gates behind a popover or drawer | 2 | exhaustive, spec 09 |
+| Segments × role | 27 × 5 | 2-wise, spec 09 |
+| Injected network failure × route family | 4 × 6 | 2-wise, spec 10 |
+| Filter survival across back / reload / double-submit | 3 | exhaustive, spec 10 |
+
+### Specs 09 and 10
+
+Spec 09 closes the two gates this report used to declare uncovered. The
+contact-log form lives inside a popover and the drawer's payment history behind
+a row click, so a locator run against a freshly loaded page matched nothing and
+once reported two confident P0s about permissions that were working. The spec
+drives the interaction first — and when it cannot, records
+`harness.gate-unreachable` rather than passing quietly. A green run whose green
+covers a permission nobody checked is the failure the coverage ledger exists to
+prevent, and the fix for a gap should not reintroduce it.
+
+Spec 10 breaks the network on purpose: abort, 500, 3s latency, and offline,
+against six route families. Every other spec here loads pages on a working
+connection, so "what does the cashier see when Supabase times out" had no answer
+anywhere. It also asserts the thing commit `f5ad190` fixed — a filter you set,
+navigate away from, and come back to — which needed three steps in order and no
+single page load could ever have shown.
+
+Nothing in spec 10 writes. Its double-submit case drives the desk's read-only
+preview so it needs none of the four write locks; the write-path version of that
+assertion belongs in spec 07, behind `@write`.
+
+```bash
+npm run deep:gates        # spec 09, all five roles
+npm run deep:resilience   # spec 10
+```
 
 **Coverage is a claim the harness has to earn.** Every dimension declares a
 strategy in `tests/deep/surface/`, and `assertNoSilentGaps()` fails the run if
@@ -86,6 +117,19 @@ financial table teaches the wrong reflex. Instead the footprint is bounded and
 `scripts/verify-deep-test-footprint.mjs` fails when a run exceeds it — a run over
 budget means `client_request_id` stopped deduping, which in production is a
 family charged twice.
+
+## The scan is the other half
+
+`tests/scan` sweeps the source the way this sweeps the app: 11 deterministic
+checks over 1,126 modules and 193 migrations, an adversarially-verified AI
+review, and an HTTP fuzzer. It shares this harness's severity table, finding
+shape and gate — the same `rules.mjs`, the same `gate.mjs` — because a P0 is a
+P0 whether a browser found it or a parser did. See `tests/scan/README.md`.
+
+The division is not arbitrary. This harness can only find a bug on a path it
+walked; the scan can only find one that is visible without running. A permission
+missing from a route handler no role in the matrix exercises is the scan's; a
+Server Component that throws only on a duplicated query param is this one's.
 
 ## Where things go
 

@@ -394,6 +394,24 @@ tests/smoke-2026-05/   # Playwright — the older crawl, superseded by tests/dee
 tests/setup.ts         # Global afterEach: clears and restores mocks
 ```
 
+**`npm run scan` is the source-level half, and it is the cheapest signal here.**
+No database, no build, no browser — 11 deterministic checks over every module,
+migration, locale file, route handler and server action, in about two minutes.
+It answers the questions a browser sweep structurally cannot: a route handler
+nobody guarded, a money split that loses a rupee, a TypeScript rule that has
+drifted away from its own SQL copy, a secret that would reach the browser
+bundle. Two optional layers sit behind flags — `--layers ai` (subsystem
+reviewers, then three adversarial refuters per claim) and `--layers fuzz` (51
+malformed payloads at each route handler, against a running server). All three
+stream into one report, gated by the same severity table as `tests/deep`. See
+`tests/scan/README.md`.
+
+```bash
+npm run scan           # static, ~2 min
+npm run scan:fast      # same, minus the npm-audit check
+npm run scan:baseline  # after a deliberate change to P2 volume
+```
+
 **`tests/deep` is the harness a new bug should surface in first.** One command
 (`npm run deep`) sweeps every route, every switcher value, every export, the
 5 × 29 role/route matrix, three viewports, 25 malformed inputs and all 32 MCP

@@ -1,0 +1,190 @@
+{
+  "note": "Pinned hashes for the TS/SQL pairs the source declares must move together. Each hash is sha1 of the excerpt with comments removed, whitespace collapsed and case folded — a reformat does not move it, an operator or a literal does. Regenerate with `node tests/scan/checks/mirror-drift.mjs --write-baseline`, and only after confirming by hand that both sides of every changed pair agree again.",
+  "lastReconciledMigration": "supabase/migrations/20260819120000_restore_view_hardening_lost_to_cascade.sql",
+  "pairs": [
+    {
+      "id": "late-fee-rule",
+      "rule": "An overdue installment carries its flat late fee unless it is waived, is a carry-forward row (flat 0), or was settled by its due date -- and an EMI late-fee row is the charge, so it is tested before the zero-base guard that would otherwise cancel it.",
+      "declaredAt": "supabase/migrations/20260812120000_late_fee_is_a_separate_charge.sql:218 (\"Byte-identical to private.workbook_installment_snapshot ... edit the other in the same migration\")",
+      "sides": [
+        {
+          "name": "v_workbook_installment_balances",
+          "file": "supabase/migrations/20260812120000_late_fee_is_a_separate_charge.sql",
+          "startLine": 217,
+          "endLine": 242,
+          "chars": 433,
+          "hash": "1ae89b2439c345b5"
+        },
+        {
+          "name": "private.workbook_installment_snapshot",
+          "file": "supabase/migrations/20260812120000_late_fee_is_a_separate_charge.sql",
+          "startLine": 564,
+          "endLine": 578,
+          "chars": 433,
+          "hash": "1ae89b2439c345b5"
+        }
+      ]
+    },
+    {
+      "id": "repayment-plan-schedule",
+      "rule": "An EMI schedule: term = ceil(opening / monthly) with a floor of 1, one row per month with the day-of-month clamped to the shortest month, and the final instalment absorbing the remainder rather than the term rounding up.",
+      "declaredAt": "lib/repayment-plans/schedule.ts:2-8 (\"The database is authoritative ... Any change here must be mirrored in the migration, and vice versa\")",
+      "sides": [
+        {
+          "name": "buildRepaymentSchedule + addMonthsClamped + calculateRepaymentTermMonths",
+          "file": "lib/repayment-plans/schedule.ts",
+          "startLine": 30,
+          "endLine": 94,
+          "chars": 1381,
+          "hash": "1e416f4c723c6c70"
+        },
+        {
+          "name": "private.repayment_plan_schedule",
+          "file": "supabase/migrations/20260811073515_repayment_plan_schedule_pins_search_path.sql",
+          "startLine": 13,
+          "endLine": 31,
+          "chars": 664,
+          "hash": "eb60e7098686164c"
+        }
+      ]
+    },
+    {
+      "id": "conventional-discount-tuition",
+      "rule": "A conventional discount policy resolves to a tuition figure: zero, a percentage of base tuition rounded to whole rupees with the percentage clamped to 0-100, or a fixed amount. `percentage` is the RETAINED share, not the discount share.",
+      "declaredAt": "supabase/migrations/20260807120000_workbook_financials_conventional_discount.sql:131-141 (\"Mirrors applyConventionalDiscountsToTuition ... see calculateConventionalPolicyTuition\")",
+      "sides": [
+        {
+          "name": "calculateConventionalPolicyTuition",
+          "file": "lib/fees/conventional-discount-rules.ts",
+          "startLine": 49,
+          "endLine": 67,
+          "chars": 575,
+          "hash": "c75702bc4c47ed62"
+        },
+        {
+          "name": "v_workbook_student_financials conventional-discount lateral",
+          "file": "supabase/migrations/20260807120000_workbook_financials_conventional_discount.sql",
+          "startLine": 145,
+          "endLine": 148,
+          "chars": 371,
+          "hash": "9635738e2b0f8adb"
+        }
+      ]
+    },
+    {
+      "id": "installment-amount-due",
+      "rule": "amount_due = (base_amount + transport_amount) - discount_amount.",
+      "declaredAt": "lib/fees/generator.ts:357-360 (\"`installments.amount_due` is a generated column ... Mirror the generation expression here\")",
+      "sides": [
+        {
+          "name": "plannedAmountDue",
+          "file": "lib/fees/generator.ts",
+          "startLine": 362,
+          "endLine": 364,
+          "chars": 127,
+          "hash": "57c34beaf38cc3a6"
+        },
+        {
+          "name": "installments.amount_due generated column",
+          "file": "supabase/migrations/20260421054019_initial_fee_management_schema.sql",
+          "startLine": 247,
+          "endLine": 247,
+          "chars": 99,
+          "hash": "d0f7aa9d2cc51a25"
+        }
+      ]
+    },
+    {
+      "id": "pending-late-fee",
+      "rule": "The late fee a student still owes for the session, summed across installments, net of waivers and of any payment that already covered it.",
+      "declaredAt": "supabase/migrations/20260809110000_late_fee_waived_means_manually_waived.sql:54 (\"Mirrors calculatePendingLateFeeAmount (lib/fees/due-amounts.ts:40-45)\")",
+      "sides": [
+        {
+          "name": "calculatePendingLateFeeAmount",
+          "file": "lib/fees/due-amounts.ts",
+          "startLine": 68,
+          "endLine": 72,
+          "chars": 232,
+          "hash": "cda6d8bb23d129ca"
+        },
+        {
+          "name": "v_student_installment_facets.pending_late_fee_amount",
+          "file": "supabase/migrations/20260812120000_late_fee_is_a_separate_charge.sql",
+          "startLine": 357,
+          "endLine": 357,
+          "chars": 93,
+          "hash": "7ec9fe78d7d0388a"
+        }
+      ]
+    },
+    {
+      "id": "year-clear",
+      "rule": "\"Year clear\" = nothing outstanding AND something actually settled, where a discount close-out counts as settlement -- so a student whose dues were never prepared is not stamped clear.",
+      "declaredAt": "supabase/migrations/20260810090000_money_segments_read_money_not_status_label.sql:103 (\"Mirrors isYearCleared() in lib/fees/year-clear.ts, including the reason it exists\")",
+      "sides": [
+        {
+          "name": "isYearCleared",
+          "file": "lib/fees/year-clear.ts",
+          "startLine": 30,
+          "endLine": 37,
+          "chars": 239,
+          "hash": "e8d178ae5266f436"
+        },
+        {
+          "name": "seg_year_clear",
+          "file": "supabase/migrations/20260811080026_student_directory_emi_segments.sql",
+          "startLine": 48,
+          "endLine": 48,
+          "chars": 192,
+          "hash": "5d5ee0dcb467abee"
+        }
+      ]
+    },
+    {
+      "id": "fee-exception",
+      "rule": "A student has a fee exception when an active override row sets any of: custom tuition, custom transport, a positive discount, a positive late-fee waiver, an other-adjustment amount, or a non-blank other-adjustment head.",
+      "declaredAt": "supabase/migrations/20260809100000_student_segment_facets.sql:210 (\"Mirrors hasFeeException in lib/students/data.ts\")",
+      "sides": [
+        {
+          "name": "hasFeeException",
+          "file": "lib/students/data.ts",
+          "startLine": 894,
+          "endLine": 901,
+          "chars": 307,
+          "hash": "61dc9977f5962d46"
+        },
+        {
+          "name": "seg_fee_exception",
+          "file": "supabase/migrations/20260811080026_student_directory_emi_segments.sql",
+          "startLine": 72,
+          "endLine": 72,
+          "chars": 337,
+          "hash": "4de437668d4d08e4"
+        }
+      ]
+    },
+    {
+      "id": "collectable-scope",
+      "rule": "Money counts `record_status = 'active' OR total_paid > 0`. A student who left owing money still owes it -- and headcount, which is active-only, must never borrow this predicate.",
+      "declaredAt": "workers/schoolfees-mcp/src/scope.mjs:23-24 (\"Mirrors lib/workbook/data.ts:680, lib/defaulters/data.ts:133 and lib/recovery/types.ts:11\")",
+      "sides": [
+        {
+          "name": "STUDENT_SCOPES.collectable",
+          "file": "workers/schoolfees-mcp/src/scope.mjs",
+          "startLine": 38,
+          "endLine": 40,
+          "chars": 242,
+          "hash": "e0c77eeb823fc2ca"
+        },
+        {
+          "name": "workbook activeOnly filter",
+          "file": "lib/workbook/data.ts",
+          "startLine": 692,
+          "endLine": 692,
+          "chars": 60,
+          "hash": "7d93e8db1a2b2d75"
+        }
+      ]
+    }
+  ]
+}

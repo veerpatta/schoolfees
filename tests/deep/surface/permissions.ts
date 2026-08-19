@@ -184,7 +184,19 @@ export const IN_PAGE_GATES: readonly InPageGate[] = [
  * name under "what this run did not test", which is the honest outcome. Closing
  * the gap means driving the drawer open first — worth doing, not worth faking.
  */
-export const UNCOVERED_IN_PAGE_GATES: readonly { id: string; reason: string }[] = [
+export const UNCOVERED_IN_PAGE_GATES: readonly { id: string; reason: string }[] = [];
+
+/**
+ * The two entries that used to live above, and where they went.
+ *
+ * `defaulters.contact-log` and `defaulters.payment-history` were declared
+ * uncovered here because both controls only exist after a popover or drawer is
+ * opened. Spec 09 now drives that interaction, so they are asserted rather
+ * than named — see `surface/interaction-gates.ts`. They are kept in the record
+ * below rather than deleted, because "this was a known gap and here is the
+ * commit that closed it" is worth more to a future reader than a clean file.
+ */
+export const FORMERLY_UNCOVERED_IN_PAGE_GATES: readonly { id: string; reason: string }[] = [
   {
     id: "defaulters.contact-log",
     reason:
@@ -252,7 +264,9 @@ export const UNCOVERED_GATE_DIMENSION = registerDimension({
   domain: UNCOVERED_IN_PAGE_GATES.map((gate) => gate.id),
   strategy: "declared-uncovered",
   note:
-    "Controls that only exist after a popover or drawer is opened. Asserting " +
-    "them means driving that interaction per role first; until then the report " +
-    "names them rather than implying they were checked.",
+    "Empty. The two gates that lived here — the contact-log form and the " +
+    "drawer's payment history — are now asserted by spec 09, which drives the " +
+    "popover open first and records harness.gate-unreachable if it cannot. " +
+    "The dimension is kept registered so the report still has a place to name " +
+    "the next gate somebody cannot reach, rather than dropping it silently.",
 });

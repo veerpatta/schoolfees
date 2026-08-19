@@ -129,12 +129,30 @@ export default defineConfig({
       use: deviceProject("desktop"),
     },
 
+    // Resilience runs as one role, on a desk, because the question it asks —
+    // what does this page do when its data never arrives — has the same answer
+    // for everybody. Making it a role matrix would multiply the slowest specs
+    // in the suite (each one deliberately waits out a 6s abort and a 3s
+    // throttle) by five for no new information.
+    //
+    // Its own project rather than a line in `desktop` so a network-injection
+    // spec can be run, and skipped, on its own: `--project=resilience`.
+    {
+      name: "resilience",
+      testMatch: /10-resilience\.spec\.ts/,
+      dependencies: ["setup"],
+      use: deviceProject("desktop"),
+    },
+
     // One project per role that has credentials. The RBAC and in-page-gate
     // specs read their role from the project name, so each run of the same file
     // is a different staff member looking at the same screens.
     ...roles.map((role) => ({
       name: `rbac-${role.key}`,
-      testMatch: /(03-rbac-matrix|04-inpage-gates)\.spec\.ts/,
+      // 09 joins 03 and 04 here rather than in `desktop`: the gates it drives
+      // only mean something as a particular staff member, and the spec reads
+      // its role from the project name exactly as the other two do.
+      testMatch: /(03-rbac-matrix|04-inpage-gates|09-interaction-gates)\.spec\.ts/,
       dependencies: ["setup"],
       use: {
         channel: "chrome" as const,
