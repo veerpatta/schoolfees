@@ -13,7 +13,9 @@ import {
 
 // Daily WhatsApp fee reminder.
 //
-// Scheduled in vercel.json at 03:30 UTC (09:00 IST). Sends the approved
+// Scheduled in vercel.json at 03:30 UTC (09:00 IST). This project is on
+// Vercel Hobby, where cron has a one-hour flexible window — the run lands
+// somewhere between 09:00 and 09:59 IST, not on the hour. Sends the approved
 // AiSensy template to every family that has paid ₹1,100 or less and still owes
 // installments 1 and 2. The audience is recomputed from the ledger on every
 // run, so a parent who paid yesterday is simply not in today's list.
@@ -28,11 +30,24 @@ import {
 //   GET /api/cron/whatsapp-reminders?secret=…&force=1         past the deadline
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+// Hobby caps a function at 60s. Other routes here declare 300 and are silently
+// clamped; declaring the real ceiling is what lets DEADLINE_MS below be honest.
+export const maxDuration = 60;
 
-/** Concurrent provider calls. Enough to clear 200 in seconds, gentle enough
- *  not to look like a burst to AiSensy or Meta. */
-const SEND_CONCURRENCY = 6;
+/** Concurrent provider calls. Enough to clear ~165 well inside the cap, gentle
+ *  enough not to look like a burst to AiSensy or Meta. */
+const SEND_CONCURRENCY = 10;
+
+/**
+ * Stop starting new sends this far into the run.
+ *
+ * Being killed at the 60s wall mid-send leaves rows stuck at status pending:
+ * the day is claimed, so the parent is never retried, and nobody can tell
+ * whether the message went. Stopping early instead leaves those families
+ * simply unclaimed — and because a claimed student is skipped, hitting the
+ * endpoint again finishes the remainder rather than starting over.
+ */
+const DEADLINE_MS = 50_000;
 
 function authorize(request: Request): { ok: boolean; reason?: string } {
   const expectedSecret = process.env.CRON_SECRET;
@@ -150,7 +165,14 @@ export async function GET(request: Request) {
   };
   const failures: Array<{ admissionNo: string; destination: string; error: string }> = [];
 
+  const startedAt = Date.now();
+  let ranOutOfTime = 0;
+
   for (let index = 0; index < queue.length; index += SEND_CONCURRENCY) {
+    if (Date.now() - startedAt > DEADLINE_MS) {
+      ranOutOfTime = queue.length - index;
+      break;
+    }
     const batch = queue.slice(index, index + SEND_CONCURRENCY);
     const outcomes = await Promise.all(
       batch.map((recipient) =>
@@ -166,6 +188,10 @@ export async function GET(request: Request) {
     sent: counts.sent,
     failed: counts.failed,
     alreadySentToday: counts["already-sent-today"],
+    // Non-zero means the function stopped short of its time limit. Call the
+    // endpoint again to finish these — everyone already sent is skipped.
+    notAttemptedRanOutOfTime: ranOutOfTime,
+    elapsedMs: Date.now() - startedAt,
     failures: failures.slice(0, 25),
   });
 }
