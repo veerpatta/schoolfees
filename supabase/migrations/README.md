@@ -412,6 +412,16 @@ express the school's rule and never fired once:
   migration asserts the block reconciles to `v_workbook_student_financials`
   to the rupee before committing, claiming the service role transaction-locally
   because the RPC's permission gate would otherwise refuse `db push` itself.
+- `20260820140000_whatsapp_reminder_sends` — the app starts sending, not
+  just drafting. One row per WhatsApp fee reminder attempt, claimed *before*
+  the AiSensy call so the unique `(student_id, session_label, sent_on)` index
+  decides a race between two staff members rather than both passing a
+  check-then-send. `sent_on` is an IST date: staff reading "sent today" mean
+  their today, and the 09:00 IST sends are 03:30 UTC. Read-only to staff via
+  RLS, no insert or update policy, so nothing in a browser can fabricate a
+  record of having messaged a parent. Narrows — does not contradict — the
+  claim on `whatsapp_templates` that "the app never sends": that remains true
+  of the staff wa.me lane, which is a separate thing.
 
 ## When you add a new migration
 

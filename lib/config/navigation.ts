@@ -11,6 +11,7 @@ import {
   FolderCog,
   MessageCircle,
   ScrollText,
+  Send,
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
@@ -185,11 +186,18 @@ const routeMetaItems: Array<
     description: "Review every academic session and reconcile missing dues.",
   },
   {
+    match: "/protected/admin-tools/whatsapp-reminders",
+    href: "/protected/admin-tools",
+    label: "WhatsApp fee reminders",
+    description: "Send the approved WhatsApp reminder to selected families with pending dues.",
+  },
+  {
     match: "/protected/admin-tools/whatsapp-templates",
     href: "/protected/admin-tools",
     label: "WhatsApp templates",
     description: "Pre-canned message templates with placeholder variables for parent outreach.",
   },
+
   {
     match: "/protected/admin-tools/activity",
     href: "/protected/admin-tools",
@@ -823,6 +831,14 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         description: "Review spreadsheet uploads, row results, and saved batches.",
         icon: FileSpreadsheet,
         requiredPermission: "imports:view",
+      },
+      {
+        href: "/protected/admin-tools/whatsapp-reminders",
+        label: "WhatsApp fee reminders",
+        description:
+          "Pick families off the live dues list and send the approved reminder. Manual, one message each.",
+        icon: Send,
+        requiredPermission: "settings:view",
       },
       {
         href: "/protected/admin-tools/whatsapp-templates",
