@@ -95,9 +95,10 @@ export function MobileStudentProfile({
           <StudentPhotoAvatarButton
             studentId={studentId}
             studentName={studentName}
+            admissionNo={admissionNo}
             photoPath={photoPath}
             canEditStudent={canEditStudent}
-            size="md"
+            size="xl"
           />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[16.5px] font-extrabold leading-tight text-foreground">

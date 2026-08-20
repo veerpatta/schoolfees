@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { NextIntlClientProvider } from "next-intl";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -106,6 +106,42 @@ describe("student photo viewer", () => {
 
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("offers the action under the photo, and closes before running it", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <StudentAvatarButton
+          photoPath="student-1/photo.jpg"
+          fullName="AANSH KUMAWAT"
+          admissionNo="2665"
+          action={{ label: "Change photo", onSelect }}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "AANSH KUMAWAT photo" }));
+    await screen.findByRole("dialog");
+
+    await user.click(screen.getByRole("button", { name: "Change photo" }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    // The uploader is itself an overlay; stacking two scrims reads as the app
+    // losing its place, so the viewer gets out of the way first.
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("shows no action when none is given", async () => {
+    const user = userEvent.setup();
+    renderViewer();
+
+    await user.click(screen.getByRole("button", { name: "AANSH KUMAWAT photo" }));
+    const dialog = await screen.findByRole("dialog");
+
+    expect(within(dialog).queryByRole("button", { name: /change photo/i })).not.toBeInTheDocument();
   });
 
   it("renders a plain avatar, and no control, when there is no photo", () => {

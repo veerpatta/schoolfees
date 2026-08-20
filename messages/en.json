@@ -1979,6 +1979,7 @@
     "studentInfoNotFilled": "{count, plural, =1 {# more detail not filled} other {# more details not filled}}",
     "studentPhotoSheetTitle": "Student photo",
     "studentPhotoSheetBody": "Take a photo or choose one from this device. It is resized before it is saved.",
+    "studentPhotoChange": "Change photo",
     "studentPhotoSave": "Save photo",
     "studentPhotoSaving": "Saving…",
     "studentPhotoCancel": "Cancel",

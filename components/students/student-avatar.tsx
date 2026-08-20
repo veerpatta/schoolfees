@@ -9,6 +9,12 @@ const SIZE_CLASS = {
   sm: "size-8 text-[11px]",
   md: "size-10 text-sm",
   lg: "size-14 text-base",
+  /**
+   * The student profile header, on both phone and desk. 64px is the largest
+   * size the 192px thumbnail still covers at a 3x device pixel ratio, so the
+   * profile gets a bigger photo without a second rendition or a second fetch.
+   */
+  xl: "size-16 text-lg",
 } as const;
 
 type Size = keyof typeof SIZE_CLASS;

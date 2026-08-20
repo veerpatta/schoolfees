@@ -1,181 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
-import { X } from "lucide-react";
+import { useCallback, useState } from "react";
+import dynamic from "next/dynamic";
 
-import { StudentAvatar, fetchSignedUrl } from "@/components/students/student-avatar";
+import { StudentAvatar } from "@/components/students/student-avatar";
 import { cn } from "@/lib/utils";
 
 /**
- * Tap a student's photo in the list and it opens, the way a photo does in
- * WhatsApp: the picture, the child's name, and nothing else to read.
+ * The overlay is loaded on demand, and that is a size decision.
  *
- * Sized to the photo rather than to the screen. The first Sampark export gave
- * 96-pixel thumbnails, so this was capped at 320px to keep a lightbox from
- * upscaling mush; the 2026-08-20 re-export is 600x800, so the cap moved up to
- * match. It is still not viewport-filling — a portrait shown whole, with the
- * name under it, is what a person opening a photo wants, and it keeps the
- * students list visible behind so closing feels like stepping back rather than
- * navigating.
+ * Everything it needs — a portal, the history-dismiss dance, the full-size
+ * fetch, the action button — only ever runs after somebody taps a photo, but it
+ * was being shipped to every student list on first load. The list route sits
+ * under a gzip ceiling in quality/route-bundle-baseline.json that is ratcheted
+ * down and never raised, and this code was the wrong thing to be spending it
+ * on. Split out, the tap pays for it — by which point the tap is already
+ * waiting on a signed URL and an image anyway.
  *
- * `object-contain` and a max-height, not a square crop: these are 3:4
- * portraits, and cropping them to a square in the VIEWER would cut off the top
- * of a child's head. The small round avatar in the list still crops, which is
- * what a round avatar is for.
- *
- * It is not a Sheet. A Sheet is a work surface — it has a title, a body that
- * scrolls and a footer that acts — and this is a glance that wants dismissing
- * as fast as it was opened.
+ * `ssr: false` because it renders into document.body and only ever exists in
+ * response to a click; there is nothing for the server to produce.
  */
-const VIEWER_MAX_PX = 420;
-
-/** History-dismiss marker. Mirrors the mechanism in components/ui/sheet.tsx —
- *  edit both or neither. Kept separate from the sheet's own sequence so a photo
- *  opened from inside a sheet cannot be mistaken for the sheet's entry. */
-const PHOTO_HISTORY_MARKER = "vppsPhotoViewer";
-let photoHistorySeq = 0;
-
-function StudentPhotoOverlay({
-  open,
-  photoPath,
-  fullName,
-  admissionNo,
-  onClose,
-}: {
-  open: boolean;
-  photoPath: string;
-  fullName: string;
-  admissionNo?: string | null;
-  onClose: () => void;
-}) {
-  const t = useTranslations("Common");
-  const [src, setSrc] = useState<string | null>(null);
-  const closeRef = useRef(onClose);
-  const poppedRef = useRef(false);
-
-  useEffect(() => {
-    closeRef.current = onClose;
-  });
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    void fetchSignedUrl(photoPath).then((url) => {
-      if (!cancelled) setSrc(url);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, photoPath]);
-
-  // Escape closes, and so does the Android back gesture — a photo that swallows
-  // the back button is the fastest way to make a phone feel broken.
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeRef.current();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (typeof window === "undefined") return;
-    poppedRef.current = false;
-    photoHistorySeq += 1;
-    const entryId = photoHistorySeq;
-    window.history.pushState(
-      { ...(window.history.state ?? {}), [PHOTO_HISTORY_MARKER]: entryId },
-      "",
-    );
-
-    const onPopState = (event: PopStateEvent) => {
-      const stillOurs = (event.state as Record<string, unknown> | null)?.[PHOTO_HISTORY_MARKER];
-      if (stillOurs === entryId) return;
-      poppedRef.current = true;
-      closeRef.current();
-    };
-
-    window.addEventListener("popstate", onPopState);
-    return () => {
-      window.removeEventListener("popstate", onPopState);
-      // Closed by Escape, the button or the backdrop rather than by going back:
-      // pop the entry we pushed, or it piles up and the back button reads dead.
-      if (!poppedRef.current) window.history.back();
-    };
-  }, [open]);
-
-  // Background scroll lock. A photo is a glance; the list underneath should be
-  // exactly where it was when it closes.
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [open]);
-
-  if (!open || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div
-      className="anim-fade-in fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${fullName} photo`}
-    >
-      <div
-        className="animate-pop-in flex flex-col items-center gap-3"
-        // The card is a target, not a dismiss area: clicking the photo itself
-        // should not close what you just opened.
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div
-          className="overflow-hidden rounded-2xl border border-white/10 bg-surface-2 shadow-2xl"
-          style={{ maxWidth: `min(88vw, ${VIEWER_MAX_PX}px)` }}
-        >
-          {src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={src}
-              alt={`${fullName} photo`}
-              className="max-h-[68dvh] w-auto object-contain"
-              style={{ maxWidth: `min(88vw, ${VIEWER_MAX_PX}px)` }}
-            />
-          ) : (
-            <div
-              className="animate-pulse bg-surface-2"
-              style={{ width: `min(88vw, ${VIEWER_MAX_PX}px)`, aspectRatio: "3 / 4" }}
-              aria-hidden="true"
-            />
-          )}
-        </div>
-
-        <div className="text-center">
-          <p className="text-base font-semibold text-white">{fullName}</p>
-          {admissionNo ? (
-            <p className="text-sm text-white/70">SR {admissionNo}</p>
-          ) : null}
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label={t("close")}
-        className="focus-ring absolute right-4 top-4 rounded-full bg-black/40 p-2 text-white transition-colors hover:bg-black/60"
-      >
-        <X className="size-5" aria-hidden="true" />
-      </button>
-    </div>,
-    document.body,
-  );
-}
+const StudentPhotoOverlay = dynamic(
+  () => import("@/components/students/student-photo-overlay").then((m) => m.StudentPhotoOverlay),
+  { ssr: false },
+);
 
 /**
  * Drop-in replacement for `StudentAvatar` on any surface where the photo should
@@ -191,12 +39,14 @@ export function StudentAvatarButton({
   admissionNo,
   size = "md",
   className,
+  action,
 }: {
   photoPath: string | null | undefined;
   fullName: string;
   admissionNo?: string | null;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
+  action?: { label: string; onSelect: () => void } | null;
 }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
@@ -228,6 +78,7 @@ export function StudentAvatarButton({
         fullName={fullName}
         admissionNo={admissionNo}
         onClose={close}
+        action={action}
       />
     </>
   );

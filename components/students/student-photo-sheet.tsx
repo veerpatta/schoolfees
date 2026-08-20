@@ -9,6 +9,7 @@ import { Notice } from "@/components/ui/notice";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "@/components/ui/toast";
 import { StudentAvatar } from "@/components/students/student-avatar";
+import { StudentAvatarButton } from "@/components/students/student-photo-viewer";
 import { StudentPhotoUpload } from "@/components/students/student-photo-upload";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { updateStudentPhotoAction } from "@/app/protected/students/actions";
@@ -119,15 +120,28 @@ export function StudentPhotoSheet({
 }
 
 /**
- * The avatar, made tappable.
+ * The avatar on a student's profile, made tappable.
+ *
+ * What a tap does depends on what is there, because "view" and "change" are
+ * different intentions and only one of them is ever available:
+ *
+ *   photo            -> the pop-out viewer, with Change photo inside it when
+ *                       the staff member may edit. Looking is the common act;
+ *                       jumping straight into an uploader to see a face was
+ *                       the wrong default, and there was no way to just look.
+ *   no photo, may edit -> the sheet directly. There is nothing to view, and an
+ *                       empty pop-out with one button in it is a worse route to
+ *                       the uploader than the uploader.
+ *   no photo, may not -> a plain tile. A control that looks pressable and
+ *                       refuses is worse than a picture.
  *
  * Owns the sheet's open state so the server-rendered header around it stays a
- * server component. Falls back to a plain avatar when the staff member cannot
- * edit — a control that looks pressable and refuses is worse than a picture.
+ * server component.
  */
 export function StudentPhotoAvatarButton({
   studentId,
   studentName,
+  admissionNo,
   photoPath,
   canEditStudent,
   size = "md",
@@ -135,15 +149,16 @@ export function StudentPhotoAvatarButton({
 }: {
   studentId: string;
   studentName: string;
+  admissionNo?: string | null;
   photoPath: string | null;
   canEditStudent: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
   const t = useTranslations("MobileApp");
   const [open, setOpen] = useState(false);
 
-  if (!canEditStudent) {
+  if (!canEditStudent && !photoPath) {
     return (
       <StudentAvatar
         photoPath={photoPath}
@@ -151,6 +166,34 @@ export function StudentPhotoAvatarButton({
         size={size}
         className={className}
       />
+    );
+  }
+
+  if (photoPath) {
+    return (
+      <>
+        <StudentAvatarButton
+          photoPath={photoPath}
+          fullName={studentName}
+          admissionNo={admissionNo}
+          size={size}
+          className={className}
+          action={
+            canEditStudent
+              ? { label: t("studentPhotoChange"), onSelect: () => setOpen(true) }
+              : null
+          }
+        />
+        {/* Mounted outside any `hidden md:block` / `md:hidden` twin — a sheet
+            inside a display:none subtree never opens. */}
+        <StudentPhotoSheet
+          open={open}
+          onClose={() => setOpen(false)}
+          studentId={studentId}
+          studentName={studentName}
+          photoPath={photoPath}
+        />
+      </>
     );
   }
 
@@ -167,8 +210,6 @@ export function StudentPhotoAvatarButton({
       >
         <StudentAvatar photoPath={photoPath} fullName={studentName} size={size} />
       </button>
-      {/* Mounted outside any `hidden md:block` / `md:hidden` twin — a sheet
-          inside a display:none subtree never opens. */}
       <StudentPhotoSheet
         open={open}
         onClose={() => setOpen(false)}

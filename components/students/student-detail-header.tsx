@@ -86,15 +86,16 @@ export function StudentDetailHeader({
             <StudentPhotoAvatarButton
               studentId={student.id}
               studentName={student.fullName}
+              admissionNo={student.admissionNo}
               photoPath={student.photoPath ?? null}
               canEditStudent={canEditStudent}
-              size="md"
+              size="xl"
               className="shrink-0 rounded-lg"
             />
           ) : (
             <div
               aria-hidden="true"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-primary text-sm font-bold tracking-wider text-primary-foreground"
+              className="flex size-16 shrink-0 items-center justify-center rounded-lg border border-border bg-primary text-lg font-bold tracking-wider text-primary-foreground"
             >
               {initials}
             </div>

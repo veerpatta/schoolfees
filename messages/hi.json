@@ -1979,6 +1979,7 @@
     "studentInfoNotFilled": "{count, plural, =1 {# और जानकारी नहीं भरी} other {# और जानकारियाँ नहीं भरीं}}",
     "studentPhotoSheetTitle": "विद्यार्थी फोटो",
     "studentPhotoSheetBody": "फोटो लें या इस डिवाइस से चुनें। सहेजने से पहले आकार छोटा किया जाता है।",
+    "studentPhotoChange": "फोटो बदलें",
     "studentPhotoSave": "फोटो सहेजें",
     "studentPhotoSaving": "सहेजा जा रहा है…",
     "studentPhotoCancel": "रद्द करें",
