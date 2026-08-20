@@ -30,6 +30,27 @@ import { fetchSignedUrl } from "@/components/students/student-avatar";
  */
 const VIEWER_MAX_PX = 420;
 
+/**
+ * One frame, the same shape for every child.
+ *
+ * The frame used to take its shape from the photo — `object-contain` on the
+ * image's own aspect — and the Sampark export does not shoot to one framing:
+ * the 2026-08-20 file alone carries four aspect ratios, so opening one child
+ * after another gave a different rectangle each time. scripts/import-student-photos.mjs
+ * now stores every photo as a face-anchored 600x800, which fixes it at the
+ * source; this fixes it at the surface too, so a photo that arrives some other
+ * way — the in-app uploader, a future export — cannot make the viewer jump
+ * about again.
+ *
+ * Height-led rather than width-led: a portrait is bounded by the screen's
+ * height first, and driving the height keeps `aspect-ratio` free to hold the
+ * shape instead of fighting a max-height.
+ */
+const FRAME_STYLE = {
+  height: `min(68dvh, ${Math.round((VIEWER_MAX_PX * 4) / 3)}px, calc(88vw * 4 / 3))`,
+  aspectRatio: "3 / 4",
+} as const;
+
 /** History-dismiss marker. Mirrors the mechanism in components/ui/sheet.tsx —
  *  edit both or neither. Kept separate from the sheet's own sequence so a photo
  *  opened from inside a sheet cannot be mistaken for the sheet's entry. */
@@ -181,22 +202,17 @@ export function StudentPhotoOverlay({
       >
         <div
           className="overflow-hidden rounded-2xl border border-white/10 bg-surface-2 shadow-2xl"
-          style={{ maxWidth: `min(88vw, ${VIEWER_MAX_PX}px)` }}
+          style={FRAME_STYLE}
         >
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={src}
               alt={`${fullName} photo`}
-              className="max-h-[68dvh] w-auto object-contain"
-              style={{ maxWidth: `min(88vw, ${VIEWER_MAX_PX}px)` }}
+              className="size-full object-cover"
             />
           ) : (
-            <div
-              className="animate-pulse bg-surface-2"
-              style={{ width: `min(88vw, ${VIEWER_MAX_PX}px)`, aspectRatio: "3 / 4" }}
-              aria-hidden="true"
-            />
+            <div className="size-full animate-pulse bg-surface-2" aria-hidden="true" />
           )}
         </div>
 

@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { inflateRawSync } from "node:zlib";
 
+import { cropToFace } from "./lib/face-crop.mjs";
+
 /**
  * Import student photos out of a Sampark export workbook.
  *
@@ -57,6 +59,8 @@ function readFlag(name, fallback = null) {
 const filePath = readFlag("file");
 const apply = process.argv.includes("--apply");
 const overwrite = process.argv.includes("--overwrite");
+const noCrop = process.argv.includes("--no-crop");
+const contactSheetPath = readFlag("contact-sheet");
 const actor = readFlag("actor", process.env.BULK_APPLY_ACTOR ?? "agent");
 
 const BUCKET = "student-photos";
@@ -77,6 +81,13 @@ Import student photos from a Sampark export — dry run by default.
   --apply       actually upload and write. Without it, nothing changes.
   --overwrite   replace a photo on a student who already has one
                 (default: those students are skipped and listed)
+  --no-crop     store the export's own framing instead of a face-anchored
+                600x800 crop. The export ships four different aspect ratios, so
+                this makes the photo viewer a different shape per child.
+  --contact-sheet <file.jpg>
+                write every crop as one reviewable image. Worth doing before
+                --apply: no automatic check separates a good crop from a bad one
+                here (see below), but a person can see 80 of them at a glance.
   --actor       recorded in the audit trail (default "agent")
 `);
   process.exit(filePath ? 0 : 1);
@@ -237,6 +248,40 @@ function namesAgree(sheetName, studentName) {
   return shared >= Math.min(a.size, b.size);
 }
 
+/**
+ * Every crop about to be written, as one image a person can scan.
+ *
+ * This exists because the obvious automatic check does not work. Three were
+ * tried — the centroid of all skin, the widest skin row, the amount of skin in
+ * the top of the frame — and each confidently flagged between 19 and 56
+ * perfectly good crops while missing genuinely headless ones, because a
+ * washed-out photo of a pale child and a photo of a shirt look much the same to
+ * a threshold. A contact sheet is not a clever check; it is the only one here
+ * that is actually reliable.
+ */
+async function writeContactSheet(rows, destination) {
+  const { createRequire } = await import("node:module");
+  const sharp = createRequire(import.meta.url)("sharp");
+
+  const CW = 108, CH = 144, COLS = 8;
+  const tiles = await Promise.all(rows.map(async (row, index) => ({
+    input: await sharp(row.bytes).resize(CW, CH).toBuffer(),
+    left: (index % COLS) * CW,
+    top: Math.floor(index / COLS) * CH,
+  })));
+
+  await sharp({
+    create: {
+      width: CW * COLS,
+      height: CH * Math.ceil(rows.length / COLS),
+      channels: 3,
+      background: "#111",
+    },
+  }).composite(tiles).jpeg({ quality: 82 }).toFile(destination);
+
+  console.log(`  contact sheet: ${destination} — ${rows.length} crop(s). Look at it before --apply.`);
+}
+
 async function mapWithConcurrency(items, limit, worker) {
   const results = new Array(items.length);
   let cursor = 0;
@@ -356,6 +401,30 @@ async function main() {
     return;
   }
 
+  /**
+   * Normalise every photo to one face-anchored 3:4 frame.
+   *
+   * Done here rather than at display time because the shape is a property of
+   * the photo, not of the surface showing it: once every stored image is
+   * 600x800 with the face where a face goes, the list avatar, the pop-out and
+   * any future document all agree without each re-deciding how to crop.
+   */
+  if (!noCrop) {
+    process.stdout.write("  cropping to faces… ");
+    let fallbacks = 0;
+    for (const row of toUpload) {
+      const cropped = await cropToFace(row.bytes);
+      row.bytes = cropped.buffer;
+      row.cropped = true;
+      if (cropped.how !== "face") fallbacks += 1;
+    }
+    console.log(`${toUpload.length} done` + (fallbacks ? `, ${fallbacks} by fallback framing` : ""));
+  }
+
+  if (contactSheetPath) {
+    await writeContactSheet(toUpload, contactSheetPath);
+  }
+
   if (!apply) {
     console.log("\n  Sample of what would be written:");
     for (const row of toUpload.slice(0, 5)) {
@@ -369,12 +438,14 @@ async function main() {
   console.log(`\nApplying — run ${runId}\n`);
 
   const outcomes = await mapWithConcurrency(toUpload, UPLOAD_CONCURRENCY, async (row) => {
-    const objectName = `${row.student.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${extensionFor(row.imagePart)}`;
+    // A cropped photo is always a jpeg, whatever the export shipped.
+    const extension = row.cropped ? ".jpg" : extensionFor(row.imagePart);
+    const objectName = `${row.student.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${extension}`;
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
       .upload(objectName, row.bytes, {
-        contentType: contentTypeFor(row.imagePart),
+        contentType: row.cropped ? "image/jpeg" : contentTypeFor(row.imagePart),
         upsert: false,
       });
     if (uploadError) {

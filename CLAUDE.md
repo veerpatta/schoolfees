@@ -68,8 +68,15 @@ node scripts/audit-test-data-in-public.mjs # TEST- data leaking into live (read-
 # sets students.photo_path. It REFUSES any row whose sheet name disagrees with
 # the matched student's name -- PENDING-SR-* placeholders are positional, not
 # identifying, and one of them named a different child on the first real run.
+# Photos are cropped to a face-anchored 600x800 before upload, because the
+# export ships four different aspect ratios and an un-cropped set makes the
+# photo viewer a different shape for every child. --no-crop keeps the export's
+# own framing. No automatic check can tell a good crop from a headless one here
+# (three were tried and all mislabelled dozens), so review --contact-sheet
+# before --apply.
 node scripts/import-student-photos.mjs --file <export.xlsx>
-node scripts/import-student-photos.mjs --file <export.xlsx> --apply
+node scripts/import-student-photos.mjs --file <export.xlsx> --contact-sheet crops.jpg
+node scripts/import-student-photos.mjs --file <export.xlsx> --apply --overwrite
 node scripts/prev-year-dues-dry-run.mjs   # Carry-forward matching, no writes
 
 # Students whose ledger disagrees with their resolved fee policy. Read-only by
