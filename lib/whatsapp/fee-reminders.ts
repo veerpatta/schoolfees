@@ -1,6 +1,12 @@
 import "server-only";
 
 import { toWhatsappDestination } from "@/lib/whatsapp/phone";
+import {
+  addDays,
+  cadenceGapDays,
+  DEFAULT_CADENCE,
+  type ReminderCadence,
+} from "@/lib/whatsapp/reminder-cadence";
 import { TEMPLATE_INSTALLMENTS } from "@/lib/whatsapp/reminder-template";
 
 /**
@@ -98,6 +104,11 @@ export type ReminderCandidate = {
   totalPaid: number;
   /** Set when this student already has a send logged for today. */
   sentToday: { status: string; at: string } | null;
+  /** How often this family may be messaged, and any temporary skip. */
+  cadence: ReminderCadence;
+  snoozedUntil: string | null;
+  /** Last date a reminder actually went out, from the send log. */
+  lastSentOn: string | null;
 };
 
 export type ReminderSkipCounts = {
@@ -108,6 +119,35 @@ export type ReminderSkipCounts = {
   belowMinimum: number;
   noPhoneOnRecord: number;
   phoneUnusable: number;
+  /** Cadence is `never`. */
+  whatsappNever: number;
+  /** Snoozed to a date still in the future. */
+  whatsappSnoozed: number;
+  /** Messaged too recently for their cadence. */
+  whatsappTooSoon: number;
+};
+
+/**
+ * A family held back by the office's own settings rather than by the ledger.
+ *
+ * Surfaced separately from `skipped` because these are reversible decisions a
+ * human made, and a decision you cannot see is a decision you cannot undo.
+ */
+export type PausedFamily = {
+  studentId: string;
+  admissionNo: string;
+  studentName: string;
+  studentClass: string;
+  reason: "never" | "snoozed" | "too_soon";
+  cadence: ReminderCadence;
+  /** When they come back, for `snoozed` and `too_soon`. */
+  returnsOn: string | null;
+  dueAmount: number;
+};
+
+export type ReminderFlags = {
+  cadence: ReminderCadence;
+  snoozedUntil: string | null;
 };
 
 export type ClassOption = { classId: string; label: string; count: number };
@@ -117,6 +157,8 @@ export type ReminderAudience = {
   skipped: ReminderSkipCounts;
   /** Named, because WhatsApp can never reach these families at all. */
   unreachable: Array<{ admissionNo: string; studentName: string; studentClass: string }>;
+  /** Held back by a cadence or a snooze — reversible, so shown and undoable. */
+  paused: PausedFamily[];
   classOptions: ClassOption[];
 };
 
@@ -196,7 +238,7 @@ export async function loadReminderAudience(
   supabase: any,
   filters: ReminderFilters,
 ): Promise<ReminderAudience> {
-  const [{ data: rows, error }, noCallIds, sentToday] = await Promise.all([
+  const [{ data: rows, error }, noCallIds, sentToday, reminderFlags, lastSent] = await Promise.all([
     supabase
       .from("v_workbook_student_financials")
       .select(SELECT_COLUMNS)
@@ -204,6 +246,8 @@ export async function loadReminderAudience(
       .lte("total_paid", filters.maxTotalPaid),
     loadNoCallStudentIds(supabase, filters.sessionLabel),
     loadSentToday(supabase, filters.sessionLabel),
+    loadReminderFlags(supabase, filters.sessionLabel),
+    loadLastSentOn(supabase, filters.sessionLabel),
   ]);
 
   if (error) throw new Error(`Could not read student financials: ${error.message}`);
@@ -216,10 +260,15 @@ export async function loadReminderAudience(
     belowMinimum: 0,
     noPhoneOnRecord: 0,
     phoneUnusable: 0,
+    whatsappNever: 0,
+    whatsappSnoozed: 0,
+    whatsappTooSoon: 0,
   };
   const unreachable: ReminderAudience["unreachable"] = [];
+  const paused: PausedFamily[] = [];
   const candidates: ReminderCandidate[] = [];
   const classCounts = new Map<string, ClassOption>();
+  const today = istToday();
 
   const wanted = filters.installments.length > 0 ? filters.installments : [...TEMPLATE_INSTALLMENTS];
 
@@ -285,6 +334,48 @@ export async function loadReminderAudience(
 
     if (filters.classId && row.class_id !== filters.classId) continue;
 
+    // The office's own judgement, applied last: everything above is the ledger
+    // deciding who owes money, this is a human deciding how often to ask.
+    const flags = reminderFlags.get(row.student_id);
+    const cadence = flags?.cadence ?? DEFAULT_CADENCE;
+    const snoozedUntil = flags?.snoozedUntil ?? null;
+    const lastSentOn = lastSent.get(row.student_id) ?? null;
+
+    const pause = (reason: PausedFamily["reason"], returnsOn: string | null) => {
+      paused.push({
+        studentId: row.student_id,
+        admissionNo,
+        studentName: titleCase(row.student_name),
+        studentClass,
+        reason,
+        cadence,
+        returnsOn,
+        dueAmount,
+      });
+    };
+
+    if (cadence === "never") {
+      skipped.whatsappNever += 1;
+      pause("never", null);
+      continue;
+    }
+
+    if (snoozedUntil && snoozedUntil >= today) {
+      skipped.whatsappSnoozed += 1;
+      pause("snoozed", snoozedUntil);
+      continue;
+    }
+
+    const gapDays = cadenceGapDays(cadence);
+    if (gapDays > 0 && lastSentOn) {
+      const nextAllowed = addDays(lastSentOn, gapDays);
+      if (nextAllowed > today) {
+        skipped.whatsappTooSoon += 1;
+        pause("too_soon", nextAllowed);
+        continue;
+      }
+    }
+
     candidates.push({
       studentId: row.student_id,
       admissionNo,
@@ -297,17 +388,90 @@ export async function loadReminderAudience(
       dueAmount,
       totalPaid,
       sentToday: sentToday.get(row.student_id) ?? null,
+      cadence,
+      snoozedUntil,
+      lastSentOn,
     });
   }
 
   candidates.sort((left, right) => right.dueAmount - left.dueAmount);
+  paused.sort((left, right) => right.dueAmount - left.dueAmount);
 
   return {
     candidates,
     skipped,
     unreachable,
+    paused,
     classOptions: [...classCounts.values()].sort((a, b) => a.label.localeCompare(b.label)),
   };
+}
+
+/**
+ * Per-family WhatsApp cadence and snooze.
+ *
+ * Read separately from the no-call flags even though both live on
+ * `student_collection_flags`: `no_call` silences every channel, these two are
+ * WhatsApp only, and conflating them is how "remind them monthly" would quietly
+ * stop the fee collectors calling.
+ */
+async function loadReminderFlags(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  sessionLabel: string,
+): Promise<Map<string, ReminderFlags>> {
+  const { data, error } = await supabase
+    .from("student_collection_flags")
+    .select("student_id, whatsapp_cadence, whatsapp_snoozed_until")
+    .eq("session_label", sessionLabel);
+
+  // Failing open here would message families the office asked us to hold back,
+  // which is the whole thing this feature exists to prevent.
+  if (error) throw new Error(`Could not read reminder cadence: ${error.message}`);
+
+  return new Map(
+    (
+      (data ?? []) as Array<{
+        student_id: string;
+        whatsapp_cadence: ReminderCadence | null;
+        whatsapp_snoozed_until: string | null;
+      }>
+    ).map((row) => [
+      row.student_id,
+      {
+        cadence: row.whatsapp_cadence ?? DEFAULT_CADENCE,
+        snoozedUntil: row.whatsapp_snoozed_until,
+      },
+    ]),
+  );
+}
+
+/**
+ * The last date a reminder actually reached each family.
+ *
+ * Derived from the send log rather than stored on the student, so the cadence
+ * gap is measured against what was really sent and cannot drift. Only `sent`
+ * rows count — a failed attempt did not reach anybody, so it must not push the
+ * next reminder out.
+ */
+async function loadLastSentOn(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  sessionLabel: string,
+): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from("whatsapp_reminder_sends")
+    .select("student_id, sent_on")
+    .eq("session_label", sessionLabel)
+    .eq("status", "sent")
+    .order("sent_on", { ascending: false });
+
+  if (error) throw new Error(`Could not read the send history: ${error.message}`);
+
+  const latest = new Map<string, string>();
+  for (const row of (data ?? []) as Array<{ student_id: string; sent_on: string }>) {
+    if (!latest.has(row.student_id)) latest.set(row.student_id, row.sent_on);
+  }
+  return latest;
 }
 
 /**

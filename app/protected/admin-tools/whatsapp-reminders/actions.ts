@@ -19,6 +19,7 @@ import {
   type ReminderCandidate,
   type ReminderFilters,
 } from "@/lib/whatsapp/fee-reminders";
+import { addDays, CADENCE_VALUES } from "@/lib/whatsapp/reminder-cadence";
 import { toWhatsappDestination } from "@/lib/whatsapp/phone";
 import {
   buildReminderParams,
@@ -257,6 +258,159 @@ async function sendOne(args: {
     .eq("id", claim.id);
 
   return result.ok ? { kind: "sent" } : { kind: "failed", error: result.error };
+}
+
+export type CadenceState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+};
+
+/** Default length of a one-tap "not this time". */
+const SNOOZE_DAYS = 7;
+
+/**
+ * Write a WhatsApp cadence / snooze without touching `no_call`.
+ *
+ * Update first, insert only if there was no row. A plain upsert would be wrong:
+ * `student_collection_flags.no_call` DEFAULTS TO TRUE, so an insert that did not
+ * name it would quietly drop the family from the Defaulters call queue — the
+ * exact opposite of "message them less often, keep calling them".
+ */
+async function writeReminderFlags(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  studentId: string,
+  sessionLabel: string,
+  patch: { whatsapp_cadence?: string; whatsapp_snoozed_until?: string | null },
+): Promise<void> {
+  const { data: updated, error: updateError } = await supabase
+    .from("student_collection_flags")
+    .update(patch)
+    .eq("student_id", studentId)
+    .eq("session_label", sessionLabel)
+    .select("id");
+
+  if (updateError) throw new Error(updateError.message);
+  if (updated && updated.length > 0) return;
+
+  const { error: insertError } = await supabase.from("student_collection_flags").insert({
+    student_id: studentId,
+    session_label: sessionLabel,
+    no_call: false, // never infer this — see above
+    ...patch,
+  });
+
+  if (insertError) throw new Error(insertError.message);
+}
+
+/**
+ * "Remind this family every run / weekly / fortnightly / monthly / never."
+ *
+ * WhatsApp only. The Defaulters call queue reads `no_call`, which this never
+ * writes, so a family set to `monthly` still gets called on the usual cadence.
+ */
+export async function setReminderCadenceAction(
+  _prev: CadenceState,
+  formData: FormData,
+): Promise<CadenceState> {
+  try {
+    await requireStaffPermission("settings:write");
+  } catch {
+    return { status: "error", message: "Permission denied." };
+  }
+
+  const studentId = String(formData.get("studentId") ?? "").trim();
+  const cadence = String(formData.get("cadence") ?? "").trim();
+  // Same list the database's check constraint enforces, from one source.
+  if (!studentId || !CADENCE_VALUES.includes(cadence)) {
+    return { status: "error", message: "Pick a family and a cadence." };
+  }
+
+  const supabase = createAdminClient();
+  try {
+    const sessionLabel = await resolveCurrentSessionLabel(supabase);
+    // Changing the cadence clears any snooze: the office just made a fresh,
+    // more considered decision about this family, and leaving a stale snooze
+    // underneath it would silently outrank what they chose.
+    await writeReminderFlags(supabase, studentId, sessionLabel, {
+      whatsapp_cadence: cadence,
+      whatsapp_snoozed_until: null,
+    });
+  } catch (caught) {
+    return {
+      status: "error",
+      message: caught instanceof Error ? caught.message : "Could not save that.",
+    };
+  }
+
+  revalidatePath(PAGE_PATH);
+  return { status: "success", message: "Reminder setting saved." };
+}
+
+/** One tap: hold this family back for a week, then let them return on their own. */
+export async function snoozeReminderAction(
+  _prev: CadenceState,
+  formData: FormData,
+): Promise<CadenceState> {
+  try {
+    await requireStaffPermission("settings:write");
+  } catch {
+    return { status: "error", message: "Permission denied." };
+  }
+
+  const studentId = String(formData.get("studentId") ?? "").trim();
+  if (!studentId) return { status: "error", message: "No student." };
+
+  const days = Number(formData.get("days")) || SNOOZE_DAYS;
+  const until = addDays(istToday(), days);
+
+  const supabase = createAdminClient();
+  try {
+    const sessionLabel = await resolveCurrentSessionLabel(supabase);
+    await writeReminderFlags(supabase, studentId, sessionLabel, {
+      whatsapp_snoozed_until: until,
+    });
+  } catch (caught) {
+    return {
+      status: "error",
+      message: caught instanceof Error ? caught.message : "Could not snooze that family.",
+    };
+  }
+
+  revalidatePath(PAGE_PATH);
+  return { status: "success", message: `Held back until ${until}.` };
+}
+
+/** Undo: back to every run, no snooze. */
+export async function resumeReminderAction(
+  _prev: CadenceState,
+  formData: FormData,
+): Promise<CadenceState> {
+  try {
+    await requireStaffPermission("settings:write");
+  } catch {
+    return { status: "error", message: "Permission denied." };
+  }
+
+  const studentId = String(formData.get("studentId") ?? "").trim();
+  if (!studentId) return { status: "error", message: "No student." };
+
+  const supabase = createAdminClient();
+  try {
+    const sessionLabel = await resolveCurrentSessionLabel(supabase);
+    await writeReminderFlags(supabase, studentId, sessionLabel, {
+      whatsapp_cadence: "every_run",
+      whatsapp_snoozed_until: null,
+    });
+  } catch (caught) {
+    return {
+      status: "error",
+      message: caught instanceof Error ? caught.message : "Could not resume that family.",
+    };
+  }
+
+  revalidatePath(PAGE_PATH);
+  return { status: "success", message: "Back on the list." };
 }
 
 export type TestSendState = {

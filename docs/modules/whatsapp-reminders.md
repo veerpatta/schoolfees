@@ -45,6 +45,41 @@ costs money and reaches a real parent with a child's name and fee balance on it.
   Logging a test would claim that student's day and silently drop them from the
   real send.
 
+## Cadence — how often one family hears from us
+
+The list is rebuilt from the ledger every load, so families who pay drop off by
+themselves. What was *not* persisted was the office's own judgement — "this
+family pays eventually, don't chase them every few days" — so the same twenty
+rows got unticked by hand, every run. Two controls on each row fix that:
+
+| Control | Effect |
+|---|---|
+| **Cadence** — every run / weekly / fortnightly / monthly / never | Minimum gap before this family may be messaged again |
+| **Skip 7d** | A one-tap snooze; they return on their own, nothing to remember |
+
+Three things hold together here:
+
+- **The gap is measured against `whatsapp_reminder_sends.sent_on`,** not a
+  "last reminded" column. The send log already knows what actually went out, so
+  the cadence cannot drift away from reality. Only rows with `status = 'sent'`
+  count — a failed attempt reached nobody and must not delay the next reminder.
+- **This is WhatsApp only.** It writes `whatsapp_cadence` and
+  `whatsapp_snoozed_until` on `student_collection_flags` and never `no_call`,
+  which is what the Defaulters call queue reads. A family set to *monthly* still
+  gets called on the usual cadence — that separation is the whole point.
+- **`no_call` DEFAULTS TO TRUE on that table.** A row inserted to record a
+  cadence must pass `no_call: false` explicitly or it would silently drop the
+  family from the call queue. `writeReminderFlags` in `actions.ts` updates first
+  and inserts only when there is no row, for exactly this reason. Anything else
+  writing that table needs the same care.
+
+The ledger is applied *before* the cadence, so a family who has paid is simply
+absent rather than being reported as "held back by your settings".
+
+Anything held back appears in a **"N families are being held back by your
+settings"** disclosure with a one-tap undo, because a decision you cannot see is
+a decision you cannot reverse.
+
 ## The template — read this before changing anything about the message
 
 The approved body has **exactly four variables**, confirmed empirically by sending

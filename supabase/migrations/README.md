@@ -432,6 +432,16 @@ express the school's rule and never fired once:
   `<English name> (हिंदी)` so each sorts directly after its twin under the
   list's `(category, name)` ordering. Idempotent, guarded by name.
 
+- `20260820210000_whatsapp_reminder_cadence` — per-family WhatsApp cadence
+  (`every_run` … `never`) plus a snooze date, so the office stops re-unticking
+  the same children every run. Deliberately NOT `no_call`: that silences the
+  Defaulters call queue too, and the point is to keep calling families you
+  message less often. No "last reminded" column — the gap is derived from
+  `whatsapp_reminder_sends.sent_on`, so it cannot drift from what was sent.
+  **Beware `no_call default true` on this table:** a row inserted only to record
+  a cadence must set `no_call => false` explicitly or it silently stops the
+  collectors calling that family.
+
 ## When you add a new migration
 
 1. Create the file via `supabase migration new <name>` so the timestamp is

@@ -9,6 +9,10 @@ import {
 } from "@/app/protected/admin-tools/whatsapp-reminders/actions";
 import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
 import { MobileEmptyRows, MobileNote, MobileRecordCard } from "@/components/mobile-app/mobile-kit";
+import {
+  ReminderCadenceControl,
+  ResumeReminderButton,
+} from "@/components/whatsapp-reminders/reminder-controls";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -17,6 +21,7 @@ import { Notice } from "@/components/ui/notice";
 import { SelectNative } from "@/components/ui/select-native";
 import { useActionFeedback } from "@/hooks/use-action-feedback";
 import { formatInr } from "@/lib/helpers/currency";
+import { cadenceLabel } from "@/lib/whatsapp/reminder-cadence";
 import { renderReminderPreview } from "@/lib/whatsapp/reminder-template";
 import type { ReminderAudience, ReminderFilters } from "@/lib/whatsapp/fee-reminders";
 
@@ -38,6 +43,9 @@ const SKIP_LABELS: Array<{ key: keyof ReminderAudience["skipped"]; label: string
   { key: "belowMinimum", label: "below the minimum amount" },
   { key: "noPhoneOnRecord", label: "no phone on record" },
   { key: "phoneUnusable", label: "phone number unusable" },
+  { key: "whatsappNever", label: "set to never remind" },
+  { key: "whatsappSnoozed", label: "skipped for now" },
+  { key: "whatsappTooSoon", label: "messaged too recently for their cadence" },
 ];
 
 /**
@@ -230,6 +238,45 @@ export function RemindersWorkspace({
         .
       </p>
 
+      {/* ------------------------------------------------------------ paused */}
+      {audience.paused.length > 0 ? (
+        <details className="rounded-lg border border-border bg-surface-2 p-4 text-sm max-md:order-5">
+          <summary className="cursor-pointer font-medium">
+            {audience.paused.length} famil{audience.paused.length === 1 ? "y is" : "ies are"} being
+            held back by your settings — tap to review or undo
+          </summary>
+          <p className="mt-2 text-xs text-muted-foreground">
+            These owe money and would otherwise be on the list. Nothing here is permanent: a skip
+            expires on its own, and a cadence can be changed back at any time.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {audience.paused.map((family) => (
+              <li
+                key={family.studentId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-foreground">
+                    {family.studentName}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      · {family.studentClass} · {formatInr(family.dueAmount)}
+                    </span>
+                  </p>
+                  <p className="text-[11.5px] text-muted-foreground">
+                    {family.reason === "never"
+                      ? "Set to never remind"
+                      : family.reason === "snoozed"
+                        ? `Skipped until ${family.returnsOn}`
+                        : `${cadenceLabel(family.cadence)} — next reminder from ${family.returnsOn}`}
+                  </p>
+                </div>
+                {canSend ? <ResumeReminderButton studentId={family.studentId} /> : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
       {audience.unreachable.length > 0 ? (
         <details className="rounded-lg border border-border bg-surface-2 p-4 text-sm max-md:order-5">
           <summary className="cursor-pointer font-medium">
@@ -359,6 +406,7 @@ export function RemindersWorkspace({
                   { label: "Paid so far", value: formatInr(candidate.totalPaid) },
                 ]}
                 actions={
+                  <>
                   <label className="flex min-h-11 w-full cursor-pointer items-center gap-2.5 text-[12.5px] font-semibold">
                     {/* No `name` — the selection travels via the hidden
                         studentId inputs above. A name here would post a second,
@@ -383,6 +431,13 @@ export function RemindersWorkspace({
                             : "Select for this send"}
                     </span>
                   </label>
+                  <ReminderCadenceControl
+                    studentId={candidate.studentId}
+                    cadence={candidate.cadence}
+                    disabled={!canSend}
+                    className="w-full justify-between border-t border-border pt-2.5"
+                  />
+                  </>
                 }
               />
             );
@@ -407,6 +462,7 @@ export function RemindersWorkspace({
                 <th className="px-3 py-2 text-right">Paid</th>
                 <th className="px-3 py-2 text-right">Message says due</th>
                 <th className="px-3 py-2">Today</th>
+                <th className="px-3 py-2">Remind</th>
               </tr>
             </thead>
             <tbody>
@@ -450,12 +506,19 @@ export function RemindersWorkspace({
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
+                    <td className="px-3 py-2">
+                      <ReminderCadenceControl
+                        studentId={candidate.studentId}
+                        cadence={candidate.cadence}
+                        disabled={!canSend}
+                      />
+                    </td>
                   </tr>
                 );
               })}
               {audience.candidates.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
                     Nobody matches these filters. Either everyone has paid, or the filters are too
                     narrow.
                   </td>
