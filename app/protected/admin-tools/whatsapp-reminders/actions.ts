@@ -10,17 +10,20 @@ import {
   configuredCampaignName,
   isAisensyConfigured,
   sendAisensyCampaignMessage,
-  toWhatsappDestination,
 } from "@/lib/whatsapp/aisensy";
 import {
-  buildReminderParams,
   istToday,
   loadReminderAudience,
+  parseReminderFilters,
   resolveCurrentSessionLabel,
-  FEE_REMINDER_TEMPLATE_DEADLINE,
   type ReminderCandidate,
   type ReminderFilters,
 } from "@/lib/whatsapp/fee-reminders";
+import { toWhatsappDestination } from "@/lib/whatsapp/phone";
+import {
+  buildReminderParams,
+  FEE_REMINDER_TEMPLATE_DEADLINE,
+} from "@/lib/whatsapp/reminder-template";
 
 const PAGE_PATH = "/protected/admin-tools/whatsapp-reminders";
 
@@ -37,23 +40,10 @@ export type SendRemindersState = {
 const SEND_CONCURRENCY = 6;
 
 function filtersFromForm(formData: FormData, sessionLabel: string): ReminderFilters {
-  const number = (name: string, fallback: number) => {
-    const parsed = Number(formData.get(name));
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
-  };
-  const installments = String(formData.get("installments") ?? "1,2")
-    .split(",")
-    .map((value) => Number(value.trim()))
-    .filter((value) => value >= 1 && value <= 4);
-
-  return {
-    sessionLabel,
-    maxTotalPaid: number("maxTotalPaid", 1100),
-    installments: installments.length > 0 ? installments : [1, 2],
-    minDueAmount: number("minDueAmount", 1),
-    classId: (formData.get("classId") as string | null)?.trim() || null,
-    includeRte: formData.get("includeRte") === "on",
-  };
+  return parseReminderFilters((key) => {
+    const value = formData.get(key);
+    return typeof value === "string" ? value : null;
+  }, sessionLabel);
 }
 
 export async function sendRemindersAction(
@@ -271,15 +261,39 @@ async function sendOne(args: {
 
 export type TestSendState = {
   status: "idle" | "success" | "error";
+  /** One-line human summary. The only field the original UI read. */
   message?: string;
+  /**
+   * The provider's HTTP status. 0 means the request never completed — a network
+   * failure, which is NOT the same as a 4xx AiSensy actually answered with.
+   * Absent when the call was refused here before it was ever made (permission,
+   * no API key, unusable number), which is itself the diagnosis.
+   */
+  httpStatus?: number;
+  /** `submitted_message_id` — an acceptance receipt, not proof of delivery. */
+  messageId?: string | null;
+  /** E.164 exactly as posted, after `toWhatsappDestination`. */
+  destination?: string;
+  campaignName?: string;
+  /** The four slot values as sent, in template order. */
+  templateParams?: string[];
+  /** AiSensy's own error string, verbatim and unwrapped. */
+  providerError?: string;
 };
 
 /**
- * One message to a number the office controls, using a real student's values.
+ * One message to a number the office controls, using values the caller chose.
  *
  * Deliberately not written to `whatsapp_reminder_sends`: a test is not a
  * reminder to that family, and logging it would claim the student's day and
- * quietly exclude them from the real send.
+ * quietly exclude them from the real send. There is no Supabase call anywhere
+ * in this function, and that is the whole guarantee — do not add one.
+ *
+ * Also deliberately free of the `FEE_REMINDER_TEMPLATE_DEADLINE` guard that
+ * `sendRemindersAction` carries. A test to a staff phone after the deadline is
+ * exactly what you want while a replacement template is in approval: it costs
+ * one message and reaches no parent. The screen passes this a `canTest` that
+ * omits `templateExpired` for the same reason.
  */
 export async function sendTestReminderAction(
   _prev: TestSendState,
@@ -301,7 +315,11 @@ export async function sendTestReminderAction(
 
   const destination = toWhatsappDestination(formData.get("testPhone") as string | null);
   if (!destination) {
-    return { status: "error", message: "Enter a valid 10-digit Indian mobile number." };
+    return {
+      status: "error",
+      message: "Enter a valid 10-digit Indian mobile number.",
+      campaignName,
+    };
   }
 
   const templateParams = buildReminderParams({
@@ -319,7 +337,24 @@ export async function sendTestReminderAction(
     source: "veerpatta-fees-app/admin-tools-test",
   });
 
+  // Everything the provider told us, passed through rather than summarised, so
+  // staff can tell a rejected campaign name from a bad number without opening
+  // the AiSensy dashboard.
+  const sent = { destination, campaignName, templateParams } as const;
+
   return result.ok
-    ? { status: "success", message: `Test message accepted for ${destination}. Check that phone.` }
-    : { status: "error", message: `AiSensy refused it: ${result.error}` };
+    ? {
+        status: "success",
+        message: `AiSensy accepted it for ${destination}. Check that phone.`,
+        httpStatus: result.status,
+        messageId: result.messageId,
+        ...sent,
+      }
+    : {
+        status: "error",
+        message: `AiSensy refused it (HTTP ${result.status}).`,
+        httpStatus: result.status,
+        providerError: result.error,
+        ...sent,
+      };
 }

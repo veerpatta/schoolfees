@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,18 @@ type SectionProps = {
   variant?: "card" | "plain";
   /** Padding density. */
   padding?: "default" | "tight" | "none";
+  /**
+   * Render as a `<details>` disclosure. Default false, and the default path
+   * emits exactly the markup it always has — this is an early return, not a
+   * rewrite, because 45 `SectionCard` call sites depend on the current shape.
+   *
+   * `actions` are ignored when collapsible: a button inside a `<summary>`
+   * toggles the disclosure on every stray tap, and this is a server component,
+   * so there is no `stopPropagation` available to stop it.
+   */
+  collapsible?: boolean;
+  /** Only meaningful with `collapsible`. Default false: starts closed. */
+  defaultOpen?: boolean;
 };
 
 /**
@@ -38,7 +51,42 @@ export function Section({
   className,
   variant = "card",
   padding = "default",
+  collapsible = false,
+  defaultOpen = false,
 }: SectionProps) {
+  if (collapsible) {
+    return (
+      <details
+        id={id}
+        open={defaultOpen}
+        className={cn(
+          "group",
+          variant === "card" && "rounded-lg border border-border bg-card",
+          paddingClasses[padding],
+          className,
+        )}
+      >
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-4 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0">
+            <h2 className="text-[13.5px] font-extrabold tracking-tight text-foreground md:text-lg md:font-semibold">
+              {title}
+            </h2>
+            {description ? (
+              <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-muted-foreground md:block">
+                {description}
+              </p>
+            ) : null}
+          </div>
+          <ChevronDown
+            className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+            aria-hidden="true"
+          />
+        </summary>
+        <div className="mt-3 md:mt-5">{children}</div>
+      </details>
+    );
+  }
+
   return (
     <section
       id={id}

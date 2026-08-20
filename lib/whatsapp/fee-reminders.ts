@@ -1,7 +1,7 @@
 import "server-only";
 
-import { formatRupeesPlain } from "@/lib/helpers/currency";
-import { toWhatsappDestination } from "@/lib/whatsapp/aisensy";
+import { toWhatsappDestination } from "@/lib/whatsapp/phone";
+import { TEMPLATE_INSTALLMENTS } from "@/lib/whatsapp/reminder-template";
 
 /**
  * Who is eligible for a WhatsApp fee reminder, and what the message says.
@@ -15,42 +15,10 @@ import { toWhatsappDestination } from "@/lib/whatsapp/aisensy";
  */
 
 /**
- * The deadline printed inside the approved template body.
- *
- * "Fees Collection August" reads `अंतिम तिथि: 25 अगस्त 2026` and warns of a
- * ₹1,000-per-installment late fee "after that". There is no date variable to
- * override. From the 26th the message is factually wrong, so the screen warns
- * and the server action refuses. Approve a replacement template before moving
- * this date.
+ * The template's own constants — the deadline it hardcodes, the installments it
+ * names, the slot order — live in `./reminder-template`, which carries no
+ * `server-only` because the screen previews the message live as staff type.
  */
-export const FEE_REMINDER_TEMPLATE_DEADLINE = "2026-08-25";
-
-/**
- * The installments the approved template's wording actually names: it says
- * "किश्त 1 एवं किश्त 2" in fixed text. Filter on anything else and the message
- * will still claim installments 1 and 2, so the screen warns when the selection
- * differs.
- */
-export const TEMPLATE_INSTALLMENTS = [1, 2] as const;
-
-/**
- * Slot order inside the template, confirmed on 2026-08-20 by sending P1..P4
- * markers to a staff number and reading what arrived:
- *
- *   प्रिय P1,                       -> parent name
- *   P2 (P3) की ... किश्त 1 एवं 2    -> student name, class
- *   देय राशि: रु. P4                -> amount, plain grouped digits; the
- *                                      template supplies the "रु." itself
- *
- * Four slots. Sending five is rejected with "Template params does not match
- * the campaign", which is how the count was established.
- */
-export const FEE_REMINDER_PARAM_ORDER = [
-  "parentName",
-  "studentName",
-  "studentClass",
-  "dueAmount",
-] as const;
 
 export const DEFAULT_MAX_TOTAL_PAID = 1100;
 
@@ -73,6 +41,47 @@ export const DEFAULT_REMINDER_FILTERS: Omit<ReminderFilters, "sessionLabel"> = {
   classId: null,
   includeRte: false,
 };
+
+/**
+ * The one place a reminder filter set is parsed.
+ *
+ * The screen reads these off the query string; `sendRemindersAction` reads them
+ * back off the posted form and rebuilds the audience from scratch. The two MUST
+ * agree, because the action's rebuild is what actually decides who gets a
+ * message — a default that differs here would message a different set of
+ * families than the office ticked. They used to be two copies, and the action's
+ * copy hardcoded 1100 / [1,2] / 1 instead of reading the constants.
+ *
+ * `read` returns the raw value for a key, or null when it is absent — which is
+ * how a missing field reaches its default rather than being read as `Number(null)`,
+ * i.e. 0, i.e. an audience of nobody.
+ */
+export function parseReminderFilters(
+  read: (key: string) => string | null,
+  sessionLabel: string,
+): ReminderFilters {
+  const number = (key: string, fallback: number) => {
+    const raw = read(key);
+    if (raw === null || raw.trim() === "") return fallback;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  };
+
+  const installments = (read("installments") || TEMPLATE_INSTALLMENTS.join(","))
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((value) => value >= 1 && value <= 4);
+
+  return {
+    sessionLabel,
+    maxTotalPaid: number("maxTotalPaid", DEFAULT_REMINDER_FILTERS.maxTotalPaid),
+    installments:
+      installments.length > 0 ? installments : [...DEFAULT_REMINDER_FILTERS.installments],
+    minDueAmount: number("minDueAmount", DEFAULT_REMINDER_FILTERS.minDueAmount),
+    classId: read("classId")?.trim() || null,
+    includeRte: read("includeRte") === "on",
+  };
+}
 
 export type ReminderCandidate = {
   studentId: string;
@@ -350,16 +359,4 @@ async function loadSentToday(
       (row) => [row.student_id, { status: row.status, at: row.created_at }],
     ),
   );
-}
-
-/** Values for the template's four slots, in the order the template expects. */
-export function buildReminderParams(
-  candidate: Pick<ReminderCandidate, "parentName" | "studentName" | "studentClass" | "dueAmount">,
-): string[] {
-  return [
-    candidate.parentName,
-    candidate.studentName,
-    candidate.studentClass,
-    formatRupeesPlain(candidate.dueAmount),
-  ];
 }

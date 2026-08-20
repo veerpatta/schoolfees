@@ -19,7 +19,7 @@ import { getOptionalEnvVar } from "@/lib/env";
 const AISENSY_ENDPOINT = "https://backend.aisensy.com/campaign/t1/api/v2";
 
 export type AisensySendResult =
-  | { ok: true; messageId: string | null }
+  | { ok: true; status: number; messageId: string | null }
   | { ok: false; status: number; error: string };
 
 export type AisensySendArgs = {
@@ -96,23 +96,5 @@ export async function sendAisensyCampaignMessage(
       ? String((body as { submitted_message_id: unknown }).submitted_message_id)
       : null;
 
-  return { ok: true, messageId };
-}
-
-/**
- * AiSensy wants a country code. Indian mobiles are stored here as ten bare
- * digits, sometimes with spaces, a leading zero, or a +91 already attached.
- *
- * Returns null for anything not recognisably an Indian mobile. That null is
- * load-bearing: every send costs money, and a message to a wrong number is a
- * stranger receiving a child's name and the family's fee balance.
- */
-export function toWhatsappDestination(raw: string | null | undefined): string | null {
-  const digits = String(raw ?? "").replace(/[^0-9]/g, "");
-  if (digits.length === 10 && /^[6-9]/.test(digits)) return `+91${digits}`;
-  if (digits.length === 11 && digits.startsWith("0")) return toWhatsappDestination(digits.slice(1));
-  if (digits.length === 12 && digits.startsWith("91") && /^[6-9]/.test(digits.slice(2))) {
-    return `+${digits}`;
-  }
-  return null;
+  return { ok: true, status: response.status, messageId };
 }

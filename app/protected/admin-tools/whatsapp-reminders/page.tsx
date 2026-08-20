@@ -2,21 +2,23 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
-import { MobileDesktopOnlyNotice } from "@/components/mobile-app/mobile-kit";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { RemindersWorkspace } from "@/components/whatsapp-reminders/reminders-workspace";
+import { TestSendPanel } from "@/components/whatsapp-reminders/test-send-panel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/lib/supabase/session";
 import { configuredCampaignName, isAisensyConfigured } from "@/lib/whatsapp/aisensy";
 import {
-  DEFAULT_REMINDER_FILTERS,
-  FEE_REMINDER_TEMPLATE_DEADLINE,
-  TEMPLATE_INSTALLMENTS,
   istToday,
   loadReminderAudience,
+  parseReminderFilters,
   resolveCurrentSessionLabel,
   type ReminderFilters,
 } from "@/lib/whatsapp/fee-reminders";
+import {
+  FEE_REMINDER_TEMPLATE_DEADLINE,
+  TEMPLATE_INSTALLMENTS,
+} from "@/lib/whatsapp/reminder-template";
 
 // The list is only ever as good as the ledger it was read from, and staff will
 // send money-bearing messages off it. Never serve it from a cache.
@@ -26,14 +28,12 @@ type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function readNumber(
-  params: Record<string, string | string[] | undefined>,
-  key: string,
-  fallback: number,
-): number {
-  const raw = Array.isArray(params[key]) ? params[key][0] : params[key];
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+/** One value out of the query string, or null when it is absent. */
+function reader(params: Record<string, string | string[] | undefined>) {
+  return (key: string) => {
+    const value = params[key];
+    return (Array.isArray(value) ? value[0] : value) ?? null;
+  };
 }
 
 export default async function WhatsappRemindersPage({ searchParams }: PageProps) {
@@ -44,14 +44,6 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   const canSend = hasStaffPermission(staff, "settings:write");
 
   const params = (await searchParams) ?? {};
-  const installmentsRaw = Array.isArray(params.installments)
-    ? params.installments[0]
-    : params.installments;
-  const installments = (installmentsRaw ?? TEMPLATE_INSTALLMENTS.join(","))
-    .split(",")
-    .map((value) => Number(value.trim()))
-    .filter((value) => value >= 1 && value <= 4);
-
   const supabase = createAdminClient();
 
   let sessionLabel: string;
@@ -61,15 +53,9 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
 
   try {
     sessionLabel = await resolveCurrentSessionLabel(supabase);
-    filters = {
-      sessionLabel,
-      maxTotalPaid: readNumber(params, "maxTotalPaid", DEFAULT_REMINDER_FILTERS.maxTotalPaid),
-      installments: installments.length > 0 ? installments : [...TEMPLATE_INSTALLMENTS],
-      minDueAmount: readNumber(params, "minDueAmount", DEFAULT_REMINDER_FILTERS.minDueAmount),
-      classId:
-        (Array.isArray(params.classId) ? params.classId[0] : params.classId)?.trim() || null,
-      includeRte: (Array.isArray(params.includeRte) ? params.includeRte[0] : params.includeRte) === "on",
-    };
+    // The same parser sendRemindersAction uses, so the audience this screen
+    // shows and the one the send rebuilds cannot disagree.
+    filters = parseReminderFilters(reader(params), sessionLabel);
     audience = await loadReminderAudience(supabase, filters);
   } catch (caught) {
     loadError = caught instanceof Error ? caught.message : "Could not build the recipient list.";
@@ -95,28 +81,28 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     filters.installments.length !== TEMPLATE_INSTALLMENTS.length ||
     !TEMPLATE_INSTALLMENTS.every((installment) => filters.installments.includes(installment));
 
+  const familyCount = audience.candidates.length;
+  const familyLabel = `${familyCount} famil${familyCount === 1 ? "y" : "ies"}`;
+
   return (
-    <div className="space-y-6">
+    // flex, not space-y: `order-*` needs a flex container, and space-y also puts
+    // margins around `display:none` children, leaving a visible band where a
+    // desktop-only notice used to be.
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow={t("eyebrow")}
         title="WhatsApp fee reminders"
         description="Pick families off the live dues list and send them the approved reminder. Nothing sends on its own."
+        // The section description below is `hidden md:block`, so without this the
+        // phone never learns which session or how many families it is looking at.
+        mobileEyebrow={`Session ${sessionLabel} · ${familyLabel}`}
       />
 
-      <MobileDesktopOnlyNotice
-        title="WhatsApp fee reminders"
-        reason="Reviewing a few hundred families and ticking the right ones is not a phone job. Open this on a computer."
-      />
-
-      <OfficeNotice title="How this list works" tone="info">
-        The list is rebuilt from the ledger every time this page loads, so a family who paid is
-        simply gone from it — there is nothing to un-tick. Sending is manual: tick the families you
-        mean, press Send, and each one gets the message once. A family already messaged today is
-        marked and cannot be sent to again until tomorrow.
-      </OfficeNotice>
-
+      {/* Phone order: the two blocking warnings, then the list, then the test
+          panel, then the advisory warning, then the standing explanation. On
+          `md:` and up no order class applies, so the desk keeps source order. */}
       {!providerReady ? (
-        <OfficeNotice title="Sending is not configured" tone="warning">
+        <OfficeNotice title="Sending is not configured" tone="warning" className="max-md:order-1">
           {isAisensyConfigured()
             ? "AISENSY_CAMPAIGN is not set on the server, so there is no campaign to send through."
             : "AISENSY_API_KEY is not set on the server. The list below is live, but Send will refuse."}
@@ -124,24 +110,17 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       ) : null}
 
       {templateExpired ? (
-        <OfficeNotice title="This template has expired" tone="danger">
+        <OfficeNotice title="This template has expired" tone="danger" className="max-md:order-1">
           The approved message hardcodes <strong>25 August 2026</strong> as the deadline and warns
-          of a ₹1,000 late fee after it. Today is {today}, so every word of it is now wrong. Sending
-          is blocked until a replacement template is approved.
-        </OfficeNotice>
-      ) : null}
-
-      {wordingMismatch ? (
-        <OfficeNotice title="The message will not match your filter" tone="warning">
-          The approved template says <strong>&ldquo;किश्त 1 एवं किश्त 2&rdquo;</strong> in fixed
-          text. You have filtered on installment {filters.installments.join(", ")}, so the amount
-          will be right but the wording will still name installments 1 and 2.
+          of a ₹1,000 late fee after it. Today is {today}, so every word of it is now wrong.
+          Sending is blocked until a replacement template is approved.
         </OfficeNotice>
       ) : null}
 
       <SectionCard
         title="Who is eligible"
-        description={`Session ${sessionLabel}. ${audience.candidates.length} famil${audience.candidates.length === 1 ? "y" : "ies"} match the filters below.`}
+        description={`Session ${sessionLabel}. ${familyLabel} match the filters below.`}
+        className="max-md:order-2"
       >
         <RemindersWorkspace
           sessionLabel={sessionLabel}
@@ -151,6 +130,45 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           campaignName={campaignName}
         />
       </SectionCard>
+
+      <SectionCard
+        collapsible
+        title="Send yourself a test"
+        description="One message to a number you control, using values you can edit. Never recorded against a family."
+        className="max-md:order-3"
+      >
+        <TestSendPanel
+          sessionLabel={sessionLabel}
+          // No `!templateExpired`: testing an expired template on a staff phone
+          // is exactly what you need while a replacement is in approval.
+          canTest={canSend && providerReady}
+          campaignName={campaignName}
+          sample={audience.candidates[0] ?? null}
+        />
+      </SectionCard>
+
+      {wordingMismatch ? (
+        <OfficeNotice
+          title="The message will not match your filter"
+          tone="warning"
+          className="max-md:order-4"
+        >
+          The approved template says <strong>&ldquo;किश्त 1 एवं किश्त 2&rdquo;</strong> in fixed
+          text. You have filtered on installment {filters.installments.join(", ")}, so the amount
+          will be right but the wording will still name installments 1 and 2.
+        </OfficeNotice>
+      ) : null}
+
+      {/* Four paragraphs of standing explanation is a desk read. The phone gets
+          the one line that changes a decision, from the note above the list. */}
+      <div className="hidden md:block">
+        <OfficeNotice title="How this list works" tone="info">
+          The list is rebuilt from the ledger every time this page loads, so a family who paid is
+          simply gone from it — there is nothing to un-tick. Sending is manual: tick the families
+          you mean, press Send, and each one gets the message once. A family already messaged today
+          is marked and cannot be sent to again until tomorrow.
+        </OfficeNotice>
+      </div>
     </div>
   );
 }

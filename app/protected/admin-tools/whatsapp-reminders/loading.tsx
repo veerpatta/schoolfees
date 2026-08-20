@@ -6,7 +6,7 @@ export default function Loading() {
       badgeLabel="Loading dues"
       title="WhatsApp fee reminders"
       description="Rebuilding the eligible list from the ledger."
-      cards={2}
+      cards={3}
     />
   );
 }
