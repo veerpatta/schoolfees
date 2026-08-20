@@ -65,21 +65,6 @@ export function formatInr(
 }
 
 /**
- * Grouped rupee digits with no glyph and no fallback dash — "9,100".
- *
- * For the few places where the symbol comes from somewhere this codebase does
- * not control: a Meta-approved WhatsApp template whose body already reads
- * "देय राशि: रु. {{4}}", a bank upload file, a printed challan. Anywhere a
- * screen shows money, use formatInr() or <Money /> instead — this one is
- * deliberately unsuitable for display, since it renders null as "0".
- */
-export function formatRupeesPlain(value: number | null | undefined): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return "0";
-  const rounded = Math.round(value);
-  return `${rounded < 0 ? "-" : ""}${INDIAN_PLAIN_FORMATTER.format(Math.abs(rounded))}`;
-}
-
-/**
  * Structured rupee parts for tabular layouts that want to control glyph,
  * integer group, paise, and sign independently.
  */
