@@ -120,7 +120,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       <SectionCard
         title="Who is eligible"
         description={`Session ${sessionLabel}. ${familyLabel} match the filters below.`}
-        className="max-md:order-2"
+        className="max-md:order-4"
       >
         <RemindersWorkspace
           sessionLabel={sessionLabel}
@@ -135,6 +135,10 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
         collapsible
         title="Send yourself a test"
         description="One message to a number you control, using values you can edit. Never recorded against a family."
+        // Above the list on a phone. Below it, the panel landed 42 screens down
+        // past 170 cards — present, and effectively unreachable. Collapsed, it
+        // costs one row here. The desk keeps source order: no `order` applies
+        // at md and up, so it stays below the table where there is room.
         className="max-md:order-3"
       >
         <TestSendPanel
@@ -151,7 +155,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
         <OfficeNotice
           title="The message will not match your filter"
           tone="warning"
-          className="max-md:order-4"
+          className="max-md:order-2"
         >
           The approved template says <strong>&ldquo;किश्त 1 एवं किश्त 2&rdquo;</strong> in fixed
           text. You have filtered on installment {filters.installments.join(", ")}, so the amount
