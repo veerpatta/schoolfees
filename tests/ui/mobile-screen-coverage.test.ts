@@ -127,7 +127,6 @@ describe("desktop-only surfaces say so on the phone", () => {
     "app/protected/admin-tools/promotion/page.tsx",
     "app/protected/admin-tools/promotion/[runId]/page.tsx",
     "app/protected/admin-tools/session-health/page.tsx",
-    "app/protected/admin-tools/whatsapp-templates/page.tsx",
   ])("%s carries a MobileDesktopOnlyNotice", (path) => {
     // Being honest that a task belongs on a computer beats shipping a cramped
     // table that invites a mistake on live money.

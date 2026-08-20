@@ -1675,6 +1675,8 @@
     "whatsappNewTemplate": "New template",
     "whatsappEmpty": "No templates yet. Create one to enable bulk WhatsApp drafts from the defaulters page.",
     "whatsappInactive": "Inactive",
+    "whatsappShowFullMessage": "पूरा संदेश देखें",
+    "whatsappHideMessage": "संदेश छिपाएँ",
     "whatsappVariables": "Variables: {tokens}",
     "whatsappEdit": "Edit",
     "whatsappDelete": "Delete",

@@ -422,6 +422,15 @@ express the school's rule and never fired once:
   record of having messaged a parent. Narrows — does not contradict — the
   claim on `whatsapp_templates` that "the app never sends": that remains true
   of the staff wa.me lane, which is a separate thing.
+- `20260820190000_hindi_whatsapp_templates` — a Hindi twin for each of the four
+  templates in the library, which was entirely English. Parents already get the
+  fee reminder in Hindi from the AiSensy campaign, so every manual wa.me
+  follow-up arrived in a different language from the automated one. Uses the
+  approved template's register, and `{{dueDate}}` where the campaign body has to
+  hardcode "25 अगस्त 2026" — a Meta-approved template cannot take a date
+  variable, this library can, so it does not go stale. Named
+  `<English name> (हिंदी)` so each sorts directly after its twin under the
+  list's `(category, name)` ordering. Idempotent, guarded by name.
 
 ## When you add a new migration
 
