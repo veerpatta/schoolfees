@@ -56,6 +56,19 @@ export const BLOOD_GROUP_OPTIONS = [
   "O-",
 ] as const;
 
+/**
+ * The school's four houses, named for the rulers of Mewar.
+ *
+ * `translateOptions: false` on the field below: these are proper nouns, and a
+ * house does not become a different house in Hindi.
+ */
+export const HOUSE_OPTIONS = [
+  "Bappa Rawal",
+  "Rana Kumbha",
+  "Rana Pratap",
+  "Rana Sanga",
+] as const;
+
 export const GUARDIAN_RELATION_OPTIONS = [
   "Father",
   "Mother",
@@ -183,10 +196,12 @@ const RAW_STUDENT_INFO_FIELDS = [
     name: "house",
     column: "house",
     group: "school",
-    control: "text",
+    control: "select",
     labelKey: "infoHouse",
     header: "House",
     maxLength: 40,
+    options: HOUSE_OPTIONS,
+    translateOptions: false,
   },
   {
     name: "rollNo",

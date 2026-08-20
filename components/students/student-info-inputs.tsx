@@ -61,6 +61,20 @@ export function StudentInfoGroupInputs({
                 {/* Blank first: every one of these fields is optional, and
                     "not recorded" has to stay reachable after a value is set. */}
                 <option value="">{t("infoOptionNotSet")}</option>
+                {/*
+                  A stored value the list does not contain is carried as its own
+                  option, and this is data loss prevention rather than tidiness.
+                  A native <select> given a defaultValue it has no option for
+                  silently selects the FIRST option instead — here the blank —
+                  so opening a student and pressing Save would quietly erase the
+                  field. That is live today: 22 students carry a category of
+                  "GENERAL" or "SBC", neither of which is in CATEGORY_OPTIONS.
+                */}
+                {values[field.name] && !field.options.includes(values[field.name] as never) ? (
+                  <option value={values[field.name] as string}>
+                    {values[field.name]}
+                  </option>
+                ) : null}
                 {field.options.map((option) => (
                   <option key={option} value={option}>
                     {field.translateOptions === false

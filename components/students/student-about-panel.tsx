@@ -97,10 +97,16 @@ export async function StudentAboutPanel({
             <DetailList columns={2}>
               {fields.map((field) => {
                 const value = student[field.name];
-                const display =
+                // A value outside the option list has no translation key, and
+                // asking for one renders the key itself — "Students.infoOptionSBC"
+                // where a category should be. 22 students are in exactly that
+                // position, so fall back to what is actually recorded.
+                const optionKey =
                   value && field.options && field.translateOptions !== false
-                    ? t(getStudentInfoOptionKey(value))
-                    : value;
+                    ? getStudentInfoOptionKey(value)
+                    : null;
+                const display =
+                  optionKey && t.has(optionKey) ? t(optionKey) : value;
 
                 return (
                   <DetailRow

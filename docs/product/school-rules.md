@@ -112,6 +112,24 @@ Rules:
 - family/sibling grouping supports 3rd-child logic
 - manual discount/override remains separate from conventional policies
 
+## Houses
+
+Four, named for the rulers of Mewar:
+
+- `Bappa Rawal`
+- `Rana Kumbha`
+- `Rana Pratap`
+- `Rana Sanga`
+
+`students.house` is a picker over exactly these (`HOUSE_OPTIONS` in
+`lib/students/info-fields.ts`), and the names are never translated — a house
+does not become a different house in Hindi.
+
+Allocation is not universal: 131 of the roll carried a house when it was first
+imported from the Sampark export on 2026-08-20, and the rest are blank rather
+than guessed at. A house has no effect on fees, dues or any figure — it is for
+sports and assembly.
+
 ## Transport Rules
 
 - route-wise annual transport defaults come from active fee setup
