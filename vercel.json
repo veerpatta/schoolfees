@@ -1,7 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["bom1"],
+  "regions": [
+    "bom1"
+  ],
   "github": {
     "silent": true
   },
@@ -13,6 +15,10 @@
     {
       "path": "/api/cron/auto-day-close",
       "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/cron/whatsapp-reminders",
+      "schedule": "30 3 * * *"
     }
   ]
 }

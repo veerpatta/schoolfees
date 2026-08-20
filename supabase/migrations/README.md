@@ -412,6 +412,19 @@ express the school's rule and never fired once:
   migration asserts the block reconciles to `v_workbook_student_financials`
   to the rupee before committing, claiming the service role transaction-locally
   because the RPC's permission gate would otherwise refuse `db push` itself.
+- `20260820094500_whatsapp_reminder_sends` — the app starts sending, not just
+  drafting. One row per automated WhatsApp fee reminder, claimed *before* the
+  AiSensy call so the unique `(student_id, session_label, sent_on)` index is
+  what actually stops a double-fired cron re-messaging 200 parents. `sent_on`
+  is an IST date, not UTC: the 09:00 IST send is 03:30 UTC, so the two agree
+  only by luck. Read-only to staff via RLS; there is deliberately no insert or
+  update policy, so nothing outside the service role can fabricate a send
+  record. Note this narrows the claim on `whatsapp_templates` that "the app
+  never sends" — that remains true of the staff wa.me lane, which is separate.
+- `20260820102000_whatsapp_reminder_sends_rls_initplan` — fix forward. The
+  policy one migration earlier used bare `auth.role()`, re-evaluating it per
+  row: exactly the `auth_rls_initplan` pattern `20260527090443` had already
+  swept out of every other table. Restores the `(select auth.role())` form.
 
 ## When you add a new migration
 
