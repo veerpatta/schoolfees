@@ -31,16 +31,16 @@ vi.mock("@/lib/students/data", () => ({
   getStudentFormOptions,
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
   hasStaffPermission,
 }));
 
-vi.mock("@/lib/session/cookie", () => ({
+vi.mock("@/platform/session/cookie", () => ({
   getViewSessionCookie,
 }));
 
-vi.mock("@/lib/session/resolver", () => ({
+vi.mock("@/platform/session/resolver", () => ({
   resolveViewSession,
 }));
 
@@ -49,7 +49,7 @@ vi.mock("@/components/imports/student-import-workflow", () => ({
     React.createElement("div", null, data.selectedBatch ? "batch" : "empty"),
 }));
 
-vi.mock("@/components/office/office-ui", () => ({
+vi.mock("@/ui/office/office-ui", () => ({
   WorkflowGuard: ({ title, detail }: { title: string; detail: string }) =>
     React.createElement("div", null, `${title} ${detail}`),
 }));

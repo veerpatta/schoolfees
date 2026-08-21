@@ -20,12 +20,20 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 const ROOT = process.cwd();
-const SCAN_DIRS = ["app", "components"];
+// The UI half of the tree. `src/lib`, `src/platform` and `workers/` are
+// deliberately NOT here: tests/scan/checks/money.mjs runs these same four
+// patterns over those, and a line reported by both tools is two failure
+// messages for one problem.
+//
+// `src/ui` is in scope because the money primitives this file allowlists
+// (money.tsx and friends) moved there from components/ui. Drop it and the
+// allowlist below points at files nothing walks.
+const SCAN_DIRS = ["src/app", "src/components", "src/ui"];
 
 const ALLOWLIST = new Set([
-  path.normalize("components/ui/money.tsx"),
-  path.normalize("components/ui/money-with-definition.tsx"),
-  path.normalize("components/ui/money-glossary.tsx"),
+  path.normalize("src/ui/primitives/money.tsx"),
+  path.normalize("src/ui/primitives/money-with-definition.tsx"),
+  path.normalize("src/ui/primitives/money-glossary.tsx"),
 ]);
 
 const RULES = [

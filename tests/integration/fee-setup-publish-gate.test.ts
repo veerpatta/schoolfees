@@ -16,9 +16,9 @@ function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-const client = read("components/fees/fee-setup-client.tsx");
-const actions = read("app/protected/fee-setup/actions.ts");
-const gate = read("components/fees/fee-setup-impact-preview.tsx");
+const client = read("src/components/fees/fee-setup-client.tsx");
+const actions = read("src/app/protected/fee-setup/actions.ts");
+const gate = read("src/components/fees/fee-setup-impact-preview.tsx");
 
 describe("fee setup publish gate", () => {
   it("routes both save buttons through the preview intent", () => {

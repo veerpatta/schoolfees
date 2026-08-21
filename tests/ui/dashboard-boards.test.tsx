@@ -293,11 +293,11 @@ describe("dashboard boards", () => {
 
   it("switching boards does not throw the page to the top", () => {
     const switcher = readFileSync(
-      join(process.cwd(), "components/dashboard/view-switcher.tsx"),
+      join(process.cwd(), "src/components/dashboard/view-switcher.tsx"),
       "utf8",
     );
     const page = readFileSync(
-      join(process.cwd(), "app/protected/dashboard/page.tsx"),
+      join(process.cwd(), "src/app/protected/dashboard/page.tsx"),
       "utf8",
     );
 

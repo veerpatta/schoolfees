@@ -15,7 +15,7 @@
  * Everything else that mentions the label is P3, and the split is not squeamish
  * — it is the difference between a value that steers a write and a value that
  * fills a default. `FALLBACK_OFFICE_SESSION_LABEL = "2026-27"` in
- * `lib/session/available-sessions.ts` is correct, documented, and deliberately
+ * `src/platform/session/available-sessions.ts` is correct, documented, and deliberately
  * named rather than indexed out of a list; reporting it as a defect would be
  * wrong. Reporting it as *inventory* is useful, because "where is the live
  * label baked in" is a question worth being able to answer in one place.
@@ -23,12 +23,12 @@
  * Three things this check refuses to accuse, each learned from a real line in
  * the tree:
  *
- *   - **The shape is not the label.** `components/dashboard/boards.tsx` has
+ *   - **The shape is not the label.** `src/components/dashboard/boards.tsx` has
  *     `months.at(-1)?.month ?? "2026-04"`, which matches `\d{4}-\d{2}` and is a
  *     month. So the year arithmetic from `parseAcademicSessionLabel` is applied
  *     too: the suffix must be the start year plus one. `2026-04` is not a
  *     session and is not reported.
- *   - **Comments are not code.** `lib/config/fee-rules.ts` explains the format
+ *   - **Comments are not code.** `src/platform/config/fee-rules.ts` explains the format
  *     with `2026-27` and `TEST-2026-27` in prose, and half the migrations
  *     narrate the live session in a header. Comments are masked before the
  *     search.
@@ -113,7 +113,7 @@ const PROSE_ATTRIBUTE = /\b(?:placeholder|title|aria-label|aria-describedby|alt|
 /**
  * Blank out comments, leave string literals alone.
  *
- * A session label in a comment is documentation — `lib/config/fee-rules.ts`
+ * A session label in a comment is documentation — `src/platform/config/fee-rules.ts`
  * and `workers/schoolfees-mcp/src/tools/orientation.mjs` both explain
  * themselves with one — and a session label in a string literal is the whole
  * finding. Offsets are preserved so a match index still maps to a line.

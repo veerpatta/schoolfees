@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildOfficeWorkflowReadiness } from "@/lib/office/readiness";
+import { buildOfficeWorkflowReadiness } from "@/platform/readiness";
 
 describe("office workflow readiness", () => {
   it("blocks student entry until classes exist", () => {

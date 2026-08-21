@@ -6,7 +6,7 @@ import type { StaffRoleName } from "./permissions";
  *
  * `surface/permissions.ts` declared these two uncovered, and the reason it
  * gave was honest: the contact-log form lives inside
- * `components/defaulters/contact-popover.tsx` and the payment history inside
+ * `src/components/defaulters/contact-popover.tsx` and the payment history inside
  * the worklist drawer, so a locator run against a freshly loaded
  * `/protected/defaulters` matched nothing and reported two confident P0s about
  * permissions that were working. Naming the gap beat faking the assertion.

@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import qualityBudgets from "@/quality/office-quality-budgets.json";
-import { officeDesignTokens } from "@/lib/design/office-tokens";
+import qualityBudgets from "../../quality/office-quality-budgets.json";
+import { officeDesignTokens } from "@/ui/design/office-tokens";
 
 describe("Phase D/E quality budgets and design tokens", () => {
   it("sets explicit operational performance budgets", () => {
@@ -45,7 +45,7 @@ describe("Phase D/E quality budgets and design tokens", () => {
   });
 
   it("maps formal design token names to real CSS variables", () => {
-    const css = readFileSync("app/globals.css", "utf8");
+    const css = readFileSync("src/app/globals.css", "utf8");
 
     for (const token of Object.values(officeDesignTokens).flatMap(Object.values)) {
       expect(css).toContain(token.cssVariable);

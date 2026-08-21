@@ -9,7 +9,7 @@ import {
   staffRoles,
   type StaffPermission,
   type StaffRole,
-} from "@/lib/auth/roles";
+} from "@/platform/auth/roles";
 
 describe("staff RBAC matrix", () => {
   it("includes all 5 canonical roles", () => {

@@ -51,7 +51,7 @@ describe("office workbook helpers", () => {
     // i18n port — assert against the catalog and against the i18n-prefix map
     // that wires those keys to OfficeWorkbookView ids.
     const englishMessages = JSON.parse(
-      readFileSync(join(process.cwd(), "messages/en.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "src/messages/en.json"), "utf-8"),
     ) as { Common: { workbookViews: Record<string, string> } };
     const views = englishMessages.Common.workbookViews;
 
@@ -84,10 +84,10 @@ describe("office workbook helpers", () => {
 
   it("transactions UI exposes a payment-mode filter and one-click receipt reprint links", () => {
     const source = readFileSync(
-      join(process.cwd(), "components/transactions/transactions-client-shell.tsx"),
+      join(process.cwd(), "src/components/transactions/transactions-client-shell.tsx"),
       "utf8",
     );
-    const workbookData = readFileSync(join(process.cwd(), "lib/workbook/data.ts"), "utf8");
+    const workbookData = readFileSync(join(process.cwd(), "src/lib/workbook/data.ts"), "utf8");
 
     // The phone header still filters by mode with chips; the desk toolbar now
     // uses a select instead, because the chip row was single-select anyway and

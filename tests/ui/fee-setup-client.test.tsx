@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 const noopFeeSetupAction = async (): Promise<FeeSetupActionState> => ({

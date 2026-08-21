@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/platform/supabase/server", () => ({ createClient: vi.fn() }));
 
 import { summarizeBatchRows, type PrevYearImportRowView } from "@/lib/prev-year-dues/data";
 

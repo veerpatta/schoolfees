@@ -34,8 +34,8 @@ describe("sibling picker exclusions", () => {
     const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
     for (const path of [
-      "components/students/family-panel.tsx",
-      "components/students/mobile-student-family-tab.tsx",
+      "src/components/students/family-panel.tsx",
+      "src/components/students/mobile-student-family-tab.tsx",
     ]) {
       const source = read(path);
       expect(source, path).toContain("resolveSiblingPickerExclusions");

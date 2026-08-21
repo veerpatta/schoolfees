@@ -86,7 +86,7 @@ describe("reverse_receipt_admin migration", () => {
     expect(sql).toContain("'admin_reversal:' || p_receipt_id::text");
     expect(sql).toContain("'reversal'");
 
-    const queue = read("lib/finance-controls/data.ts");
+    const queue = read("src/lib/finance-controls/data.ts");
     expect(queue).toContain('(row.notes ?? "").startsWith("refund_request:")');
   });
 
@@ -114,7 +114,7 @@ describe("reverse_receipt_admin migration", () => {
 });
 
 describe("reverseReceiptAdmin data layer", () => {
-  const source = read("lib/payments/data.ts");
+  const source = read("src/lib/payments/data.ts");
 
   it("calls the RPC via the user-JWT client, never the service-role admin client", () => {
     const fn = source.slice(source.indexOf("export async function reverseReceiptAdmin"));
@@ -126,7 +126,7 @@ describe("reverseReceiptAdmin data layer", () => {
 });
 
 describe("reverseReceiptAdminAction server action", () => {
-  const source = read("app/protected/payments/actions.ts");
+  const source = read("src/app/protected/payments/actions.ts");
   const fn = source.slice(source.indexOf("export async function reverseReceiptAdminAction"));
 
   it("requires payments:reverse_any upstream of the RPC (defense-in-depth)", () => {
@@ -154,7 +154,7 @@ describe("reverseReceiptAdminAction server action", () => {
 });
 
 describe("the two correction paths never appear together", () => {
-  const page = read("app/protected/receipts/[receiptId]/page.tsx");
+  const page = read("src/app/protected/receipts/[receiptId]/page.tsx");
 
   it("offers undo inside the window and the admin reversal only after it", () => {
     expect(page).toContain("isUndoWindowOpen(receipt.createdAt)");
@@ -170,7 +170,7 @@ describe("the two correction paths never appear together", () => {
 
 describe("the unguarded per-row reversal backdoor is closed", () => {
   it("drops reversal from the manual ledger adjustment form", () => {
-    const client = read("components/ledger/ledger-client.tsx");
+    const client = read("src/components/ledger/ledger-client.tsx");
     const options = client.slice(
       client.indexOf("const adjustmentTypeOptions"),
       client.indexOf("];", client.indexOf("const adjustmentTypeOptions")),
@@ -181,7 +181,7 @@ describe("the unguarded per-row reversal backdoor is closed", () => {
   it("and refuses it server-side with a pointer to the receipt-level path", () => {
     // A per-payment-row reversal could leave a receipt PARTLY reversed, which
     // isReceiptReversed then counts at face value on every board.
-    const actions = read("app/protected/ledger/actions.ts");
+    const actions = read("src/app/protected/ledger/actions.ts");
     expect(actions).toContain('normalized === "reversal"');
     expect(actions).toMatch(/Reversing is done on the whole receipt/);
   });

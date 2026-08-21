@@ -9,7 +9,7 @@ import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
 import type { StudentFormActionState } from "@/lib/students/types";
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 const useActionState = vi.fn();

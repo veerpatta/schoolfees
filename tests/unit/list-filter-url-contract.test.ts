@@ -24,22 +24,22 @@ function read(path: string) {
 const SCREENS = [
   {
     name: "Students",
-    path: "components/students/student-quick-load.tsx",
+    path: "src/components/students/student-quick-load.tsx",
     pathname: "/protected/students",
   },
   {
     name: "Receipts",
-    path: "components/receipts/receipts-quick-load.tsx",
+    path: "src/components/receipts/receipts-quick-load.tsx",
     pathname: "/protected/receipts",
   },
   {
     name: "Transactions",
-    path: "components/transactions/transactions-client-shell.tsx",
+    path: "src/components/transactions/transactions-client-shell.tsx",
     pathname: "/protected/transactions",
   },
   {
     name: "Defaulters",
-    path: "components/defaulters/defaulter-filter-rehydrator.tsx",
+    path: "src/components/defaulters/defaulter-filter-rehydrator.tsx",
     pathname: "/protected/defaulters",
   },
 ] as const;
@@ -75,7 +75,7 @@ describe("list filters and the address bar", () => {
     // saved view are places you can go back FROM. A filter change is not, and
     // an entry per keystroke would also compete with the single history entry
     // components/ui/sheet.tsx pushes per open.
-    const shell = read("components/transactions/transactions-client-shell.tsx");
+    const shell = read("src/components/transactions/transactions-client-shell.tsx");
     const pushes = shell.match(/window\.history\.pushState/g)?.length ?? 0;
 
     expect(pushes).toBe(2);
@@ -89,7 +89,7 @@ describe("list filters and the address bar", () => {
     // Typing into a search box must not become a step the back button walks
     // backwards through, and it must not compete with the one history entry
     // components/ui/sheet.tsx pushes per open.
-    const hook = read("hooks/use-url-filter-state.ts");
+    const hook = read("src/ui/hooks/use-url-filter-state.ts");
 
     expect(hook).toContain("window.history.replaceState");
     expect(hook).not.toContain("window.history.pushState");
@@ -97,7 +97,7 @@ describe("list filters and the address bar", () => {
   });
 
   it("lets the address bar win over the props on a back-navigation", () => {
-    const hook = read("hooks/use-url-filter-state.ts");
+    const hook = read("src/ui/hooks/use-url-filter-state.ts");
 
     expect(hook).toContain("if (urlQuery && urlQuery !== propsQuery)");
     expect(hook).toContain('"url"');
@@ -119,7 +119,7 @@ describe("where Back goes", () => {
   it("accepts any workspace path, from one guard", () => {
     // Three pages each hardcoded the parent they expected, so a student opened
     // from Transactions failed the check and Back fell through to a bare list.
-    const guard = read("lib/navigation/return-to.ts");
+    const guard = read("src/platform/navigation/return-to.ts");
 
     expect(guard).toContain('const WORKSPACE_PREFIX = "/protected/"');
     // An unchecked returnTo is an open redirect wearing a Back button.
@@ -127,9 +127,9 @@ describe("where Back goes", () => {
     expect(guard).toContain("/^[a-z][a-z0-9+.-]*:/i");
 
     for (const page of [
-      "app/protected/students/[studentId]/page.tsx",
-      "app/protected/students/[studentId]/edit/page.tsx",
-      "app/protected/receipts/[receiptId]/page.tsx",
+      "src/app/protected/students/[studentId]/page.tsx",
+      "src/app/protected/students/[studentId]/edit/page.tsx",
+      "src/app/protected/receipts/[receiptId]/page.tsx",
     ]) {
       const source = read(page);
       expect(source).toContain("safeReturnTo(");
@@ -138,8 +138,8 @@ describe("where Back goes", () => {
   });
 
   it("gives every Transactions student row somewhere to come back to", () => {
-    const tables = read("components/transactions/transactions-lazy-tables.tsx");
-    const shell = read("components/transactions/transactions-client-shell.tsx");
+    const tables = read("src/components/transactions/transactions-lazy-tables.tsx");
+    const shell = read("src/components/transactions/transactions-client-shell.tsx");
 
     expect(tables).toContain("function studentLinkFactory(sessionLabel: string, returnTo?: string)");
     expect(tables).toContain('href.startsWith("/protected/students/")');

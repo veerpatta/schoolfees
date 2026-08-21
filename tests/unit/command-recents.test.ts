@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { clearRecents, listRecents, pushRecent } from "@/lib/command/recents";
+import { clearRecents, listRecents, pushRecent } from "@/ui/command/recents";
 
 /**
  * The recents module is intentionally tolerant of missing window/

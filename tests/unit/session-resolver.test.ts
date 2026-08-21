@@ -4,13 +4,13 @@ vi.mock("server-only", () => ({}));
 
 const getActiveSessionLabel = vi.fn(async () => "2026-27");
 
-vi.mock("@/lib/session/active", () => ({
+vi.mock("@/platform/session/active", () => ({
   getActiveSessionLabel,
 }));
 
 describe("resolveViewSession", () => {
   it("marks production sessions editable and collectable", async () => {
-    const { resolveViewSession } = await import("@/lib/session/resolver");
+    const { resolveViewSession } = await import("@/platform/session/resolver");
 
     const session = await resolveViewSession({ searchParamSession: "2025-26" });
 
@@ -25,7 +25,7 @@ describe("resolveViewSession", () => {
   });
 
   it("marks test sessions editable and collectable but not production", async () => {
-    const { resolveViewSession } = await import("@/lib/session/resolver");
+    const { resolveViewSession } = await import("@/platform/session/resolver");
 
     const session = await resolveViewSession({
       searchParamSession: "TEST-2026-27",
@@ -42,7 +42,7 @@ describe("resolveViewSession", () => {
   });
 
   it("falls back to default active session when URL and cookie are invalid", async () => {
-    const { resolveViewSession } = await import("@/lib/session/resolver");
+    const { resolveViewSession } = await import("@/platform/session/resolver");
 
     const session = await resolveViewSession({
       searchParamSession: "2026-26",

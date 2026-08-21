@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("conventional-discount policy filter UUID guard (audit 1.24)", () => {
   const source = readFileSync(
-    join(process.cwd(), "lib/fees/conventional-discounts.ts"),
+    join(process.cwd(), "src/lib/fees/conventional-discounts.ts"),
     "utf8",
   );
 

@@ -132,9 +132,9 @@ describe("repayment plan scopes", () => {
 });
 
 describe("surfaces warn about dues outside a plan only when there are some", () => {
-  const BANNER = join(process.cwd(), "components/payments/payment-desk-emi-banner.tsx");
-  const CARD = join(process.cwd(), "components/students/student-repayment-plan-card.tsx");
-  const PICKER = join(process.cwd(), "components/students/student-repayment-plan-section.tsx");
+  const BANNER = join(process.cwd(), "src/components/payments/payment-desk-emi-banner.tsx");
+  const CARD = join(process.cwd(), "src/components/students/student-repayment-plan-card.tsx");
+  const PICKER = join(process.cwd(), "src/components/students/student-repayment-plan-section.tsx");
 
   it("gates the Payment Desk banner on the amount", () => {
     const source = readFileSync(BANNER, "utf8");

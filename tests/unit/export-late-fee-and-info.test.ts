@@ -23,7 +23,7 @@ import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
  * workbook inline and there is no seam to render it through.
  */
 const route = readFileSync(
-  resolve(process.cwd(), "app/protected/exports/[exportType]/route.ts"),
+  resolve(process.cwd(), "src/app/protected/exports/[exportType]/route.ts"),
   "utf8",
 );
 

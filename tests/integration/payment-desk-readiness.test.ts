@@ -8,7 +8,7 @@ vi.mock("server-only", () => ({}));
 const createClient = vi.fn();
 const getFeePolicyForSession = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
@@ -141,7 +141,7 @@ describe("payment desk readiness", () => {
 
   it("payment_desk_page_no_longer_imports_setup_wizard_data", () => {
     const page = readFileSync(
-      join(process.cwd(), "app/protected/payments/page.tsx"),
+      join(process.cwd(), "src/app/protected/payments/page.tsx"),
       "utf8",
     );
 

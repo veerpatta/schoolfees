@@ -4,7 +4,7 @@ import {
   getOfficeMetricSessionKind,
   isSafeOfficeMetricMetadata,
   officeMetricEventNames,
-} from "@/lib/quality/office-telemetry";
+} from "@/platform/telemetry/office-telemetry";
 import { describe, expect, it } from "vitest";
 
 describe("office telemetry contract", () => {

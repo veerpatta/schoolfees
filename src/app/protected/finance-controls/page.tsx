@@ -1,0 +1,118 @@
+import Link from "next/link";
+
+import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
+import { PageHeader } from "@/ui/shell/page-header";
+import { StatusBadge } from "@/ui/shell/status-badge";
+import { DownloadAnchor } from "@/ui/primitives/download-anchor";
+import { Button } from "@/ui/primitives/button";
+import { Input } from "@/ui/primitives/input";
+import { FinanceControlsClient } from "@/components/finance-controls/finance-controls-client";
+import {
+  getFinanceControlsPageData,
+  normalizeFinanceDateFilter,
+} from "@/lib/finance-controls/data";
+import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
+import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
+import {
+  submitCorrectionReviewAction,
+  submitRefundWorkflowAction,
+} from "./actions";
+import { getViewSessionCookie } from "@/platform/session/cookie";
+import { resolveViewSession } from "@/platform/session/resolver";
+import { appendSessionParam } from "@/platform/navigation/session-href";
+
+type FinanceControlsPageProps = {
+  searchParams?: Promise<{
+    date?: string;
+    session?: string | string[];
+  }>;
+};
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
+
+const INITIAL_FINANCE_CONTROLS_ACTION_STATE: FinanceControlsActionState = {
+  status: "idle",
+  message: "",
+};
+
+export default async function FinanceControlsPage({ searchParams }: FinanceControlsPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolvedSearchParams?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
+  const selectedDate = normalizeFinanceDateFilter(resolvedSearchParams?.date ?? null);
+
+  const [staff, data] = await Promise.all([
+    requireStaffPermission("finance:view", { onDenied: "redirect" }),
+    getFinanceControlsPageData(selectedDate, viewSession.sessionLabel),
+  ]);
+
+  const canWrite = hasStaffPermission(staff, "finance:write");
+  const canApprove = hasStaffPermission(staff, "finance:approve");
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
+  const exportHref = withSession(`/protected/finance-controls/export?date=${data.selectedDate}`);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Finance"
+        title="Finance controls"
+        description="Automatic day close, refund approvals, correction review visibility, cashier totals, and a day-book export in one office workflow."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge
+              label={canApprove ? "Admin approval enabled" : canWrite ? "Draft and request access" : "Read only"}
+              tone={canApprove ? "good" : canWrite ? "accent" : "neutral"}
+            />
+            <Button asChild variant="outline">
+              <DownloadAnchor href={exportHref} download>
+                Export day book
+              </DownloadAnchor>
+            </Button>
+          </div>
+        }
+      />
+
+      <section className="rounded-2xl border border-border bg-card p-4">
+        <form action="/protected/finance-controls" method="get" className="flex flex-wrap items-end gap-3">
+          {viewSession.sessionLabel ? (
+            <input type="hidden" name="session" value={viewSession.sessionLabel} />
+          ) : null}
+          <div>
+            <Input
+              name="date"
+              type="date"
+              defaultValue={data.selectedDate}
+              className="w-48"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <PendingSubmitButton>Load day</PendingSubmitButton>
+            <Button asChild variant="outline">
+              <Link href={withSession("/protected/finance-controls")}>Today</Link>
+            </Button>
+          </div>
+        </form>
+      </section>
+
+      <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-foreground">
+        Selected day: {data.selectedDate}. The day close runs automatically overnight; refund approvals and correction review rows stay visible without changing the original receipts.
+      </div>
+
+      <FinanceControlsClient
+        data={data}
+        canWrite={canWrite}
+        canApprove={canApprove}
+        initialActionState={INITIAL_FINANCE_CONTROLS_ACTION_STATE}
+        actions={{
+          submitRefundWorkflowAction,
+          submitCorrectionReviewAction,
+        }}
+      />
+    </div>
+  );
+}

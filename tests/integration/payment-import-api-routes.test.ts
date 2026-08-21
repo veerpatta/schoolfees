@@ -8,7 +8,7 @@ const createPaymentImportBatch = vi.fn();
 const getPaymentImportBatchSummary = vi.fn();
 const commitPaymentImportRows = vi.fn();
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   getAuthenticatedStaff,
   hasStaffPermission,
 }));

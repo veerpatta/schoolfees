@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const getCacheSafeClient = vi.fn();
-vi.mock("@/lib/supabase/cache-safe", () => ({ getCacheSafeClient }));
+vi.mock("@/platform/supabase/cache-safe", () => ({ getCacheSafeClient }));
 
 type DriftRow = {
   drift: number;

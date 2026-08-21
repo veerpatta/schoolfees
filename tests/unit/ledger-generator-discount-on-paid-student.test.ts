@@ -27,7 +27,7 @@ vi.mock("@/lib/fees/policy", () => ({
 }));
 
 vi.mock("@/lib/fees/workbook", () => ({ buildWorkbookInstallmentCharges }));
-vi.mock("@/lib/supabase/server", () => ({ createClient }));
+vi.mock("@/platform/supabase/server", () => ({ createClient }));
 
 function queryResult<T>(data: T) {
   return {

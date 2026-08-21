@@ -18,7 +18,7 @@ vi.mock("next/cache", () => ({
   revalidatePath,
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
@@ -31,11 +31,11 @@ vi.mock("@/lib/fees/conventional-discounts", () => ({
   upsertConventionalDiscountPolicies,
 }));
 
-vi.mock("@/lib/session/active", () => ({
+vi.mock("@/platform/session/active", () => ({
   getActiveSessionLabel,
 }));
 
-vi.mock("@/lib/session/set-active", () => ({
+vi.mock("@/platform/session/set-active", () => ({
   setActiveSessionLabel,
 }));
 

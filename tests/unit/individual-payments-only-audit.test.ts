@@ -28,7 +28,7 @@ function readRepoFile(path: string) {
 
 describe("individual student payment boundary", () => {
   it("does not expose family pay-together payment routes or CTAs in app source", () => {
-    const appSourceFiles = ["app", "components", "lib"].flatMap(collectFiles).filter((file) =>
+    const appSourceFiles = ["src"].flatMap(collectFiles).filter((file) =>
       /\.(ts|tsx)$/.test(file),
     );
 

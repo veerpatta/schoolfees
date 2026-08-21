@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { strFromU8, unzipSync } from "fflate";
 import * as XLSX from "xlsx";
 
-import { applyListValidations, columnLetter } from "@/lib/excel/data-validation";
+import { applyListValidations, columnLetter } from "@/platform/excel/data-validation";
 
 function buildWorkbook() {
   const workbook = XLSX.utils.book_new();

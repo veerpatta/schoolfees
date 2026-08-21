@@ -29,7 +29,7 @@ function stripComments(source: string) {
 }
 
 describe("DownloadAnchor stays a real navigation", () => {
-  const source = stripComments(read("components", "ui", "download-anchor.tsx"));
+  const source = stripComments(read("src/ui", "primitives", "download-anchor.tsx"));
 
   it("renders a real anchor, not a Link", () => {
     expect(source).toMatch(/<a\s/);
@@ -54,7 +54,7 @@ describe("DownloadAnchor stays a real navigation", () => {
 });
 
 describe("exports page", () => {
-  const source = read("app", "protected", "exports", "page.tsx");
+  const source = read("src/app", "protected", "exports", "page.tsx");
 
   it("does not import next/link", () => {
     expect(source).not.toMatch(/from\s+["']next\/link["']/);
@@ -93,24 +93,24 @@ const DOWNLOAD_ROUTES = [
  * each with a reason recording that someone checked.
  */
 const ALLOWED: Record<string, string> = {
-  "app/protected/dashboard/page.tsx":
+  "src/app/protected/dashboard/page.tsx":
     "template quick action uses DownloadAnchor; the other quick actions are pages",
   // The dialog body moved out of student-bulk-import-dialog.tsx when the
   // trigger was made lazy; the trigger itself now has no download href at all.
-  "components/students/student-bulk-import-dialog-body.tsx":
+  "src/components/students/student-bulk-import-dialog-body.tsx":
     "template button uses DownloadAnchor; remaining Links are pages",
   // Builds its own href and hands it to DownloadAnchor; the string literal
   // lives here rather than at the anchor.
-  "components/students/bulk-update-workspace.tsx": "href built here, rendered by DownloadAnchor",
-  "components/imports/batch-upload-card.tsx": "href built here, rendered by DownloadAnchor",
-  "app/protected/reports/page.tsx": "href built here, rendered by DownloadAnchor",
-  "app/protected/finance-controls/page.tsx": "href built here, rendered by DownloadAnchor",
-  "components/defaulters/defaulters-workspace.tsx": "href built here, rendered by DownloadAnchor",
-  "app/protected/students/page.tsx": "href built here, rendered by DownloadAnchor",
-  "app/protected/exports/page.tsx": "href built here, rendered by DownloadAnchor",
-  "app/protected/defaulters/page.tsx": "builds exportHref, passed to defaulters-workspace",
-  "app/protected/admin-tools/recovery/page.tsx": "href built here, rendered by DownloadAnchor",
-  "components/payments/bulk/bulk-payment-workflow.tsx":
+  "src/components/students/bulk-update-workspace.tsx": "href built here, rendered by DownloadAnchor",
+  "src/components/imports/batch-upload-card.tsx": "href built here, rendered by DownloadAnchor",
+  "src/app/protected/reports/page.tsx": "href built here, rendered by DownloadAnchor",
+  "src/app/protected/finance-controls/page.tsx": "href built here, rendered by DownloadAnchor",
+  "src/components/defaulters/defaulters-workspace.tsx": "href built here, rendered by DownloadAnchor",
+  "src/app/protected/students/page.tsx": "href built here, rendered by DownloadAnchor",
+  "src/app/protected/exports/page.tsx": "href built here, rendered by DownloadAnchor",
+  "src/app/protected/defaulters/page.tsx": "builds exportHref, passed to defaulters-workspace",
+  "src/app/protected/admin-tools/recovery/page.tsx": "href built here, rendered by DownloadAnchor",
+  "src/components/payments/bulk/bulk-payment-workflow.tsx":
     "href built here, rendered by DownloadAnchor",
 };
 
@@ -131,7 +131,7 @@ describe("no download link bypasses the primitive", () => {
   it("has no <Link> pointing at a download route", () => {
     const offenders: string[] = [];
 
-    for (const dir of ["app", "components"]) {
+    for (const dir of ["src"]) {
       for (const file of walk(join(root, dir))) {
         const relative = file.slice(root.length + 1).split("\\").join("/");
         const code = readFileSync(file, "utf8");

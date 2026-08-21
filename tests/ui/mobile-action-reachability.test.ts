@@ -40,9 +40,9 @@ const NAV_CLEARANCE = "var(--mobile-bottom-nav-offset,0px)";
 
 describe("mobile primary actions stay reachable", () => {
   it("publishes the keyboard offset for the whole workspace, not just the payment desk", () => {
-    const provider = read("components/system/keyboard-offset-provider.tsx");
-    const layout = read("app/protected/layout.tsx");
-    const desk = read("components/payments/payment-desk-mobile.tsx");
+    const provider = read("src/ui/system/keyboard-offset-provider.tsx");
+    const layout = read("src/app/protected/layout.tsx");
+    const desk = read("src/components/payments/payment-desk-mobile.tsx");
 
     expect(provider).toContain("visualViewport");
     expect(provider).toContain("--keyboard-offset");
@@ -53,7 +53,7 @@ describe("mobile primary actions stay reachable", () => {
   });
 
   it("lifts bottom sheets above the keyboard and supports a pinned footer", () => {
-    const sheet = read("components/ui/sheet.tsx");
+    const sheet = read("src/ui/primitives/sheet.tsx");
 
     expect(sheet).toContain('marginBottom: "var(--keyboard-offset, 0px)"');
     expect(sheet).toContain("data-sheet-footer");
@@ -62,20 +62,20 @@ describe("mobile primary actions stay reachable", () => {
   });
 
   it.each([
-    ["components/payments/waive-late-fee-sheet.tsx", "waiveSubmit"],
-    ["components/defaulters/contact-popover.tsx", "popoverSubmit"],
-    ["components/students/close-due-as-discount-sheet.tsx", "Close balance"],
+    ["src/components/payments/waive-late-fee-sheet.tsx", "waiveSubmit"],
+    ["src/components/defaulters/contact-popover.tsx", "popoverSubmit"],
+    ["src/components/students/close-due-as-discount-sheet.tsx", "Close balance"],
     // The sibling picker autofocuses its search field, so on a phone the
     // keyboard is up the moment the sheet opens and a submit left at the end
     // of the scroll body sits under it.
-    ["components/students/link-sibling-sheet.tsx", "linkSiblingConfirm"],
+    ["src/components/students/link-sibling-sheet.tsx", "linkSiblingConfirm"],
     // The student information quick-edit is a form of text inputs, so on a
     // phone the keyboard is up for most of the time the sheet is open.
-    ["components/students/student-info-sheet.tsx", "studentInfoSave"],
+    ["src/components/students/student-info-sheet.tsx", "studentInfoSave"],
     // The photo sheet's body grows by a preview image once a picture is
     // chosen, which is exactly when Save has to still be reachable.
-    ["components/students/student-photo-sheet.tsx", "studentPhotoSave"],
-    ["components/whatsapp-templates/template-editor.tsx", "whatsappEditorCreate"],
+    ["src/components/students/student-photo-sheet.tsx", "studentPhotoSave"],
+    ["src/components/whatsapp-templates/template-editor.tsx", "whatsappEditorCreate"],
   ])("%s pins its submit action outside the scroll body", (path, submitMarker) => {
     const source = read(path);
 
@@ -86,12 +86,12 @@ describe("mobile primary actions stay reachable", () => {
   });
 
   it.each([
-    "components/students/bulk-student-edit-bar.tsx",
-    "components/defaulters/bulk-whatsapp-provider.tsx",
-    "components/fees/fee-setup-client.tsx",
-    "components/students/student-form.tsx",
-    "components/forms/save-bar.tsx",
-    "components/students/student-quick-load.tsx",
+    "src/components/students/bulk-student-edit-bar.tsx",
+    "src/components/defaulters/bulk-whatsapp-provider.tsx",
+    "src/components/fees/fee-setup-client.tsx",
+    "src/components/students/student-form.tsx",
+    "src/ui/forms/save-bar.tsx",
+    "src/components/students/student-quick-load.tsx",
   ])("%s clears the fixed mobile bottom nav", (path) => {
     expect(read(path)).toContain(NAV_CLEARANCE);
   });
@@ -106,18 +106,18 @@ describe("mobile primary actions stay reachable", () => {
     // feel; and it shared z-40 with both the tab bar and the bulk-selection
     // bar inside the same 76px band. The design has no such bar: it advances
     // via "Skip for now" under the family card and self-advancing call mode.
-    const source = read("components/defaulters/defaulters-workspace.tsx");
+    const source = read("src/components/defaulters/defaulters-workspace.tsx");
     expect(source).not.toMatch(/sticky bottom-\[/);
     expect(source).not.toContain(NAV_CLEARANCE);
   });
 
   it("uses dynamic viewport units for full-height overlays", () => {
     const overlays = [
-      "components/payments/confirm-receipt-sheet.tsx",
-      "components/payments/success-receipt-sheet.tsx",
-      "components/payments/duplicate-receipt-sheet.tsx",
-      "components/students/student-bulk-import-dialog.tsx",
-      "components/command/command-palette.tsx",
+      "src/components/payments/confirm-receipt-sheet.tsx",
+      "src/components/payments/success-receipt-sheet.tsx",
+      "src/components/payments/duplicate-receipt-sheet.tsx",
+      "src/components/students/student-bulk-import-dialog.tsx",
+      "src/ui/command/command-palette.tsx",
     ];
 
     for (const path of overlays) {
@@ -129,7 +129,7 @@ describe("mobile primary actions stay reachable", () => {
   });
 
   it("keeps all three payment panels stretched to the keyboard edge", () => {
-    const sheet = read("components/payments/mobile-payment-flow-sheet.tsx");
+    const sheet = read("src/components/payments/mobile-payment-flow-sheet.tsx");
     const offsets = sheet.match(/bottom: "var\(--keyboard-offset, 0px\)"/g) ?? [];
 
     // Class picker, student picker AND payment entry. Entry was the one left
@@ -144,7 +144,7 @@ describe("mobile primary actions stay reachable", () => {
     // offset floats the Collect button a full keyboard-height into mid-screen.
     // Two edits that are only correct together; this is the guard that stops
     // one of them being reverted alone.
-    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+    const sheet = readCode("src/components/payments/mobile-payment-flow-sheet.tsx");
 
     // Safe area only — the keyboard is already accounted for by the panel.
     expect(sheet).toContain(
@@ -157,8 +157,8 @@ describe("mobile primary actions stay reachable", () => {
   });
 
   it("reacts to the keyboard instead of guessing at it with a timer", () => {
-    const provider = readCode("components/system/keyboard-offset-provider.tsx");
-    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+    const provider = readCode("src/ui/system/keyboard-offset-provider.tsx");
+    const sheet = readCode("src/components/payments/mobile-payment-flow-sheet.tsx");
 
     // iOS fires visualViewport `scroll` at touch frequency while the keyboard
     // is up; each unthrottled write re-resolves every var() that reads it.

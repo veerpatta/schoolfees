@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("payment posting revalidates affected paths (audit 1.8)", () => {
   const actions = readFileSync(
-    join(process.cwd(), "app/protected/payments/actions.ts"),
+    join(process.cwd(), "src/app/protected/payments/actions.ts"),
     "utf8",
   );
 
@@ -23,7 +23,7 @@ describe("payment posting revalidates affected paths (audit 1.8)", () => {
 
   it("PAYMENT_AFFECTED_PATHS still lists Dashboard/Transactions/Receipts/Defaulters", () => {
     const helper = readFileSync(
-      join(process.cwd(), "lib/system-sync/finance-revalidation.ts"),
+      join(process.cwd(), "src/lib/system-sync/finance-revalidation.ts"),
       "utf8",
     );
     expect(helper).toContain('"/protected/dashboard"');

@@ -9,7 +9,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // Mock server modules that are unavailable in the test environment.
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission: vi.fn().mockResolvedValue({}),
 }));
 vi.mock("@/lib/defaulters/contacts", () => ({
@@ -21,7 +21,7 @@ vi.mock("@/lib/activity/events", () => ({
 }));
 
 import { logContactAction, quickLogContact, setNoCallFlagAction } from "@/app/protected/defaulters/actions";
-import { requireStaffPermission } from "@/lib/supabase/session";
+import { requireStaffPermission } from "@/platform/supabase/session";
 import { insertDefaulterContact, setNoCallFlag } from "@/lib/defaulters/contacts";
 
 function makeFormData(fields: Record<string, string>): FormData {

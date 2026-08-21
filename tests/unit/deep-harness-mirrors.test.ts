@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { rolePermissions, staffRoles } from "@/lib/auth/roles";
+import { rolePermissions, staffRoles } from "@/platform/auth/roles";
 import { STUDENT_SEGMENTS } from "@/lib/segments/student-segments";
 import { officeWorkbookViews } from "@/lib/transactions/workbook";
 
@@ -30,7 +30,7 @@ const read = (relative: string) => readFileSync(path.join(repoRoot, relative), "
 describe("deep harness: role matrix mirror", () => {
   it("matches lib/auth/roles.ts role for role", async () => {
     const { EXPECTED_ROLE_PERMISSIONS, STAFF_ROLES } = await import(
-      "@/tests/deep/surface/permissions"
+      "../deep/surface/permissions"
     );
 
     expect([...STAFF_ROLES].sort()).toEqual([...staffRoles].sort());
@@ -47,7 +47,7 @@ describe("deep harness: role matrix mirror", () => {
   });
 
   it("keeps the MCP registry's copy of the matrix in step too", async () => {
-    const { ROLE_PERMISSIONS } = await import("@/tests/deep/mcp/registry.mjs");
+    const { ROLE_PERMISSIONS } = await import("../deep/mcp/registry.mjs");
 
     for (const role of staffRoles) {
       expect(
@@ -60,7 +60,7 @@ describe("deep harness: role matrix mirror", () => {
 
 describe("deep harness: surface enumerations", () => {
   it("covers every student segment the app defines", async () => {
-    const { SEGMENT_IDS } = await import("@/tests/deep/surface/params");
+    const { SEGMENT_IDS } = await import("../deep/surface/params");
     const appIds = STUDENT_SEGMENTS.map((segment) => segment.id);
 
     expect(
@@ -71,18 +71,18 @@ describe("deep harness: surface enumerations", () => {
   });
 
   it("covers every transactions view the app defines", async () => {
-    const { TRANSACTION_VIEW_VALUES } = await import("@/tests/deep/surface/params");
+    const { TRANSACTION_VIEW_VALUES } = await import("../deep/surface/params");
     expect([...TRANSACTION_VIEW_VALUES].sort()).toEqual([...officeWorkbookViews].sort());
   });
 
   it("lists the dashboard boards the analytics module actually declares", async () => {
-    const { DASHBOARD_VIEW_VALUES } = await import("@/tests/deep/surface/params");
+    const { DASHBOARD_VIEW_VALUES } = await import("../deep/surface/params");
 
-    // `lib/dashboard/analytics.ts` opens with `import "server-only"`, which
+    // `src/lib/dashboard/analytics.ts` opens with `import "server-only"`, which
     // throws in any Node process outside the React Server build — so the
     // harness cannot import it and writes the five values out instead. This
     // reads them back out of the source so the copy cannot drift.
-    const source = read("lib/dashboard/analytics.ts");
+    const source = read("src/lib/dashboard/analytics.ts");
     const declared = source
       .match(/export const DASHBOARD_VIEWS = \[([\s\S]*?)\]/)?.[1]
       ?.match(/"([a-z]+)"/g)
@@ -93,10 +93,10 @@ describe("deep harness: surface enumerations", () => {
   });
 
   it("lists every export the exports page offers", async () => {
-    const { EXPORT_TYPES } = await import("@/tests/deep/surface/params");
+    const { EXPORT_TYPES } = await import("../deep/surface/params");
 
     const declared = [
-      ...read("app/protected/exports/page.tsx").matchAll(/key: "([a-z-]+)"/g),
+      ...read("src/app/protected/exports/page.tsx").matchAll(/key: "([a-z-]+)"/g),
     ].map((match) => match[1]);
 
     expect(declared.length, "no export keys found — the page shape changed").toBeGreaterThan(0);
@@ -109,7 +109,7 @@ describe("deep harness: surface enumerations", () => {
 
   it("globs at least as many protected pages as the old hand-list carried", async () => {
     const { STATIC_PROTECTED_PAGES, ALL_PROTECTED_PAGES } = await import(
-      "@/tests/deep/surface/routes"
+      "../deep/surface/routes"
     );
 
     // The point of globbing is that this number moves on its own when the app
@@ -146,7 +146,7 @@ describe("deep harness: MCP tool registry", () => {
   }
 
   it("has a fixture for every tool the Worker registers", async () => {
-    const { TOOL_NAMES } = await import("@/tests/deep/mcp/registry.mjs");
+    const { TOOL_NAMES } = await import("../deep/mcp/registry.mjs");
     const declared = declaredToolNames();
 
     const missing = declared.filter((name) => !TOOL_NAMES.includes(name));
@@ -161,7 +161,7 @@ describe("deep harness: MCP tool registry", () => {
   });
 
   it("gates the receipt PDF behind receipts:print, which only two roles hold", async () => {
-    const { TOOLS, expectedToolsFor } = await import("@/tests/deep/mcp/registry.mjs");
+    const { TOOLS, expectedToolsFor } = await import("../deep/mcp/registry.mjs");
 
     expect(TOOLS.get_receipt_pdf.requires).toEqual(["receipts:print"]);
     expect(expectedToolsFor("admin")).toContain("get_receipt_pdf");
@@ -171,7 +171,7 @@ describe("deep harness: MCP tool registry", () => {
   });
 
   it("treats requires as an OR, matching identityCan", async () => {
-    const { expectedToolsFor } = await import("@/tests/deep/mcp/registry.mjs");
+    const { expectedToolsFor } = await import("../deep/mcp/registry.mjs");
 
     // view_only holds defaulters:view, so every recovery tool is visible to a
     // viewer — including the ones that return parent phone numbers. That is the
@@ -185,7 +185,7 @@ describe("deep harness: MCP tool registry", () => {
 
 describe("deep harness: documentation drift", () => {
   it("notices when docs/modules/mcp-server.md miscounts the tools", async () => {
-    const { TOOL_NAMES } = await import("@/tests/deep/mcp/registry.mjs");
+    const { TOOL_NAMES } = await import("../deep/mcp/registry.mjs");
     const doc = read("docs/modules/mcp-server.md");
     const claimed = doc.match(/(\d+)\s+tools?\b/i)?.[1];
 

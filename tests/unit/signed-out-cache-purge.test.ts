@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { purgeSignedOutCaches } from "@/lib/cache/signed-out-purge";
+import { purgeSignedOutCaches } from "@/platform/cache/signed-out-purge";
 
 /**
  * The office counter is a shared device. Before this existed, the previous

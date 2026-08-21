@@ -37,23 +37,23 @@ const repoRoot = path.resolve(__dirname, "..", "..");
  */
 const MONEY_MOVERS = [
   // Posting, reversing and closing out — the obvious ones.
-  "app/protected/payments/actions.ts",
-  "app/protected/finance-controls/actions.ts",
-  "app/protected/students/close-due-actions.ts",
-  "app/api/imports/payments/batch/[batchId]/commit/route.ts",
+  "src/app/protected/payments/actions.ts",
+  "src/app/protected/finance-controls/actions.ts",
+  "src/app/protected/students/close-due-actions.ts",
+  "src/app/api/imports/payments/batch/[batchId]/commit/route.ts",
   // Repairs and reconciles.
-  "app/api/admin/repair-discount-drift/route.ts",
-  "app/protected/admin-tools/session-health/actions.ts",
+  "src/app/api/admin/repair-discount-drift/route.ts",
+  "src/app/protected/admin-tools/session-health/actions.ts",
   // The four that were missing when this list was first written, each found by
   // reading the call sites rather than by anything failing:
   //   waive-late-fee      moves late_fee_pending and total_pending
   //   repayment-plan      rewrites the schedule; also calls waive_late_fee
   //   fee-setup           rewrites dues for every student in scope
   //   student import      adds students AND prepares their dues
-  "app/protected/payments/waive-late-fee-actions.ts",
-  "app/protected/students/repayment-plan-actions.ts",
-  "app/protected/fee-setup/actions.ts",
-  "app/api/imports/students/batch/[batchId]/commit/route.ts",
+  "src/app/protected/payments/waive-late-fee-actions.ts",
+  "src/app/protected/students/repayment-plan-actions.ts",
+  "src/app/protected/fee-setup/actions.ts",
+  "src/app/api/imports/students/batch/[batchId]/commit/route.ts",
 ] as const;
 
 /**
@@ -106,10 +106,10 @@ describe("every money-moving path busts the session cache tag", () => {
     // pg_cron changes money from inside Postgres, where revalidateTag does not
     // exist: sync_repayment_plan_late_fees charges EMI late fees nightly. No
     // amount of care at the call sites covers that, so the caches also expire.
-    const contract = readFileSync(path.join(repoRoot, "lib/dashboard/cache-contract.ts"), "utf8");
+    const contract = readFileSync(path.join(repoRoot, "src/lib/dashboard/cache-contract.ts"), "utf8");
     expect(contract).toMatch(/DASHBOARD_STALENESS_CEILING_SECONDS\s*=\s*\d+/);
 
-    for (const file of ["lib/dashboard/data.ts", "lib/dashboard/analytics.ts"]) {
+    for (const file of ["src/lib/dashboard/data.ts", "src/lib/dashboard/analytics.ts"]) {
       const source = readFileSync(path.join(repoRoot, file), "utf8");
       expect(source, `${file} must tag on the session`).toContain("session:${sessionLabel}");
       expect(source, `${file} must also bound staleness`).toContain(
@@ -123,7 +123,7 @@ describe("every money-moving path busts the session cache tag", () => {
     // database, revalidateSessionFinance fixes what the office sees. Doing only
     // the first is what made the repair look like it had not worked.
     const source = readFileSync(
-      path.join(repoRoot, "app/api/admin/repair-discount-drift/route.ts"),
+      path.join(repoRoot, "src/app/api/admin/repair-discount-drift/route.ts"),
       "utf8",
     );
 

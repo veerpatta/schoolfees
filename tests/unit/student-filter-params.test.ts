@@ -9,8 +9,8 @@ import {
 
 /**
  * There used to be two of these, and they disagreed on the one thing that
- * matters. `app/protected/students/page.tsx` defaulted `status` to "active"
- * while `app/protected/students/index/route.ts` defaulted it to "" — so the
+ * matters. `src/app/protected/students/page.tsx` defaulted `status` to "active"
+ * while `src/app/protected/students/index/route.ts` defaulted it to "" — so the
  * server rendered the 509-student active roll and the client's very first
  * refetch silently widened it to all 537, header count included.
  *

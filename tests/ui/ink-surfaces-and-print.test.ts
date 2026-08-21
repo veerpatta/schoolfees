@@ -18,7 +18,7 @@ function read(path: string) {
 }
 
 describe("print output survives dark mode", () => {
-  const globals = read("app/globals.css");
+  const globals = read("src/app/globals.css");
 
   it("resets the dark palette inside @media print", () => {
     const printBlock = globals.slice(globals.lastIndexOf("@media print"));
@@ -31,7 +31,7 @@ describe("print output survives dark mode", () => {
 });
 
 describe("receipt v3 ink header", () => {
-  const receipt = read("components/receipts/receipt-document-v3.tsx");
+  const receipt = read("src/components/receipts/receipt-document-v3.tsx");
 
   it("inverts to paper with a saffron rule when printed", () => {
     expect(receipt).toContain("receipt-ink-band");
@@ -50,12 +50,12 @@ describe("receipt v3 ink header", () => {
 
 describe("ink surfaces stay legible", () => {
   it("does not put a light chip on the dashboard ink hero", () => {
-    const dashboard = read("app/protected/dashboard/page.tsx");
+    const dashboard = read("src/app/protected/dashboard/page.tsx");
 
     // The ink surface is <MoneyBand> now, so the recipe lives there. Its delta
     // line and captions read nav-muted rather than a light chip: in dark mode
     // bg-surface-2 is the same lightness as --nav and disappears against it.
-    const moneyBand = read("components/dashboard/money-band.tsx");
+    const moneyBand = read("src/components/dashboard/money-band.tsx");
     expect(dashboard).toContain("<MoneyBand");
     expect(moneyBand).toContain("text-nav-muted");
     // And the ink hero must not try to print.
@@ -63,9 +63,9 @@ describe("ink surfaces stay legible", () => {
   });
 
   it("uses an ink-appropriate focus ring on the sidebar", () => {
-    const globals = read("app/globals.css");
-    const nav = read("components/admin/sidebar-nav.tsx");
-    const shell = read("components/admin/dashboard-shell.tsx");
+    const globals = read("src/app/globals.css");
+    const nav = read("src/ui/shell/sidebar-nav.tsx");
+    const shell = read("src/ui/shell/dashboard-shell.tsx");
 
     expect(globals).toContain(".focus-ring-ink");
     // The paper recipe offsets against --background (cream) and would draw a
@@ -76,7 +76,7 @@ describe("ink surfaces stay legible", () => {
   });
 
   it("keeps the brand eyebrow off failing saffron-on-ink contrast", () => {
-    const brand = read("components/branding/school-brand.tsx");
+    const brand = read("src/ui/branding/school-brand.tsx");
     // Anchor on the style-object key, not the earlier prop type union.
     const inkVariant = brand.slice(brand.indexOf('"sidebar-ink": {'));
     const eyebrowLine = inkVariant.slice(0, inkVariant.indexOf("title:"));

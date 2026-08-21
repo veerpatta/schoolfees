@@ -26,7 +26,7 @@ vi.mock("@/lib/workbook/data", () => ({
   getWorkbookTransactions,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 

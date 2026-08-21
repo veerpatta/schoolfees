@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { fetchAllPages } from "@/lib/helpers/chunk";
+import { fetchAllPages } from "@/platform/helpers/chunk";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
@@ -128,7 +128,7 @@ describe("fetchAllPages", () => {
 });
 
 describe("workbook loaders read every row", () => {
-  const workbook = read("lib/workbook/data.ts");
+  const workbook = read("src/lib/workbook/data.ts");
 
   it("pages the installment view", () => {
     // 4 rows per student plus carry-forward — the first view to cross the cap.

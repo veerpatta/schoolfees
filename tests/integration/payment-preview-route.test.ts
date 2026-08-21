@@ -6,11 +6,11 @@ vi.mock("server-only", () => ({}));
 const requireStaffPermission = vi.fn();
 const createClient = vi.fn();
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 

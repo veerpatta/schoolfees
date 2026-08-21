@@ -13,7 +13,7 @@ vi.mock("@/app/protected/session/actions", () => ({
 
 describe("test session body visual", () => {
   it("sets the body marker when SessionPill receives isTest=true", async () => {
-    const { syncTestSessionBodyAttribute } = await import("@/components/admin/session-pill");
+    const { syncTestSessionBodyAttribute } = await import("@/ui/shell/session-pill");
     const body = { dataset: {} as Record<string, string> };
 
     const cleanup = syncTestSessionBodyAttribute(body, {
@@ -28,7 +28,7 @@ describe("test session body visual", () => {
   });
 
   it("sets the body marker when the resolved display label is a TEST session", async () => {
-    const { syncTestSessionBodyAttribute } = await import("@/components/admin/session-pill");
+    const { syncTestSessionBodyAttribute } = await import("@/ui/shell/session-pill");
     const body = { dataset: {} as Record<string, string> };
 
     syncTestSessionBodyAttribute(body, {
@@ -40,7 +40,7 @@ describe("test session body visual", () => {
   });
 
   it("removes the body marker when SessionPill resolves a production session", async () => {
-    const { syncTestSessionBodyAttribute } = await import("@/components/admin/session-pill");
+    const { syncTestSessionBodyAttribute } = await import("@/ui/shell/session-pill");
     const body = { dataset: { vppsTestSession: "true" } as Record<string, string> };
 
     syncTestSessionBodyAttribute(body, {

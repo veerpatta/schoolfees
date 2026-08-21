@@ -51,7 +51,7 @@ vi.mock("@/lib/students/data", () => ({
   getStudentDeletionSafety: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireAnyStaffPermission: vi.fn(async () => ({ id: "staff-1", appRole: "admin" })),
   requireStaffPermission: vi.fn(async () => ({ id: "staff-1", appRole: "admin" })),
   // Admin: every permission granted, so the legacy low-privilege restore path
@@ -59,7 +59,7 @@ vi.mock("@/lib/supabase/session", () => ({
   hasStaffPermission: vi.fn(() => true),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
+vi.mock("@/platform/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
 vi.mock("next/server", () => ({ after: (fn: () => unknown) => fn }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 vi.mock("@/lib/activity/events", () => ({ recordActivity: vi.fn() }));

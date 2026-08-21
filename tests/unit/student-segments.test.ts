@@ -70,11 +70,11 @@ describe("student segment definitions", () => {
 
   it("every segment label resolves in all three locales", () => {
     for (const locale of LOCALES) {
-      const messages = JSON.parse(readRepoFile(`messages/${locale}.json`)) as {
+      const messages = JSON.parse(readRepoFile(`src/messages/${locale}.json`)) as {
         Segments?: Record<string, unknown>;
       };
       const segments = messages.Segments;
-      expect(segments, `messages/${locale}.json has no Segments namespace`).toBeTruthy();
+      expect(segments, `src/messages/${locale}.json has no Segments namespace`).toBeTruthy();
 
       for (const segment of STUDENT_SEGMENTS) {
         expect(

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createClient = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
@@ -106,8 +106,8 @@ describe("receipts + ledger session scope", () => {
     // come from serialising a uuid list into a PostgREST filter: e97f283
     // (receipt-id batch), d0d43b9 (today's snapshot), and the Ledger page.
     const sources = [
-      readFileSync(join(process.cwd(), "lib/receipts/data.ts"), "utf8"),
-      readFileSync(join(process.cwd(), "lib/ledger/data.ts"), "utf8"),
+      readFileSync(join(process.cwd(), "src/lib/receipts/data.ts"), "utf8"),
+      readFileSync(join(process.cwd(), "src/lib/ledger/data.ts"), "utf8"),
     ];
 
     for (const source of sources) {

@@ -9,7 +9,7 @@ import {
   readDownloadToken,
   stripDownloadToken,
   withDownloadToken,
-} from "@/lib/helpers/download-token";
+} from "@/platform/helpers/download-token";
 
 const url = (query: string) => `https://vpps.test/protected/exports/dues${query}`;
 
@@ -63,13 +63,13 @@ describe("download token", () => {
 
 describe("every download route echoes the token", () => {
   const routes = [
-    "app/protected/exports/[exportType]/route.ts",
-    "app/protected/finance-controls/export/route.ts",
-    "app/protected/imports/template/route.ts",
-    "app/protected/payments/bulk/template/route.ts",
-    "app/protected/reports/export/route.ts",
-    "app/protected/students/bulk-update/template/route.ts",
-    "app/protected/transactions/export/route.ts",
+    "src/app/protected/exports/[exportType]/route.ts",
+    "src/app/protected/finance-controls/export/route.ts",
+    "src/app/protected/imports/template/route.ts",
+    "src/app/protected/payments/bulk/template/route.ts",
+    "src/app/protected/reports/export/route.ts",
+    "src/app/protected/students/bulk-update/template/route.ts",
+    "src/app/protected/transactions/export/route.ts",
   ];
 
   it.each(routes)("%s calls withDownloadToken", (route) => {

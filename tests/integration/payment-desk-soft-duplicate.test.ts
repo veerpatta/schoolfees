@@ -35,7 +35,7 @@ describe("postStudentPayment wires the soft daily-amount check (audit 1.4)", () 
   // simulate in a unit test. These guard the code path that the cashier walks
   // through when they fat-finger an amount or paste the wrong UPI reference.
   const source = readFileSync(
-    join(process.cwd(), "lib/payments/data.ts"),
+    join(process.cwd(), "src/lib/payments/data.ts"),
     "utf8",
   );
 
@@ -86,7 +86,7 @@ describe("postStudentPayment wires the soft daily-amount check (audit 1.4)", () 
 
 describe("submitPaymentEntryAction passes acknowledgeDailyDuplicate (audit 1.4)", () => {
   const source = readFileSync(
-    join(process.cwd(), "app/protected/payments/actions.ts"),
+    join(process.cwd(), "src/app/protected/payments/actions.ts"),
     "utf8",
   );
 
@@ -119,7 +119,7 @@ describe("DuplicateReceiptSheet Continue-anyway path (audit 1.4 hotfix)", () => 
   // set the hidden input's DOM value to "true" before submitting so
   // FormData snapshots the acknowledged flag.
   const source = readFileSync(
-    join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+    join(process.cwd(), "src/components/payments/payment-desk-mobile.tsx"),
     "utf8",
   );
 

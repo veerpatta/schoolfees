@@ -49,7 +49,7 @@ Added since this index was written:
 - `measure-route-bundles.mjs` — route JS against `quality/route-bundle-baseline.json`.
   `--check` fails CI. Ceilings ratchet **down**.
 - `audit-money-formatting.mjs` — fails on raw `toLocaleString('en-IN')` / `Intl` /
-  hand-written `₹` outside `lib/helpers/currency.ts`. Run via `quality:budgets`.
+  hand-written `₹` outside `src/platform/helpers/currency.ts`. Run via `quality:budgets`.
 - `capture-readiness-auth.mjs` — captures the Playwright auth state.
 - `prev-year-dues-core.mjs` + `prev-year-dues-dry-run.mjs` — carry-forward matching, no writes.
 - `verify-mcp-health.mjs` — cross-checks the deployed MCP server's totals against the

@@ -13,7 +13,7 @@ import type { RepaymentDashboardSummary } from "@/lib/repayment-plans/data";
 vi.mock("next-intl/server", async () => {
   const actual = await vi.importActual<typeof import("next-intl")>("next-intl");
   const messages = JSON.parse(
-    readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+    readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
   );
   return {
     getTranslations: async (namespace: string) =>
@@ -350,22 +350,22 @@ describe("phone analytics boards", () => {
     // One fetch per render. unstable_cache does not de-duplicate concurrent
     // callers, so a loader inside a board would fire a second Mumbai round
     // trip alongside the first on every cold cache.
-    const boards = readRepoFile("components/dashboard/mobile-boards.tsx");
+    const boards = readRepoFile("src/components/dashboard/mobile-boards.tsx");
     expect(boards).not.toContain("getDashboardAnalytics");
     expect(boards).not.toContain("getDashboardPageData");
     expect(boards).not.toContain("getRepaymentDashboardSummary");
 
-    const page = readRepoFile("app/protected/dashboard/page.tsx");
+    const page = readRepoFile("src/app/protected/dashboard/page.tsx");
     expect(page.match(/getDashboardAnalytics\(/g) ?? []).toHaveLength(1);
     expect(page.match(/getRepaymentDashboardSummary\(/g) ?? []).toHaveLength(1);
   });
 
   it("gives the phone the board switcher the desk has had all along", () => {
-    const home = readRepoFile("components/dashboard/mobile-dashboard-screen.tsx");
+    const home = readRepoFile("src/components/dashboard/mobile-dashboard-screen.tsx");
     expect(home).toContain("<ViewSwitcher");
     // Both switchers read one label map, so the same ?view= cannot read as two
     // different boards depending on the screen it was opened on.
-    const page = readRepoFile("app/protected/dashboard/page.tsx");
+    const page = readRepoFile("src/app/protected/dashboard/page.tsx");
     expect(page).toContain("boardLabels");
     expect(page.match(/labels=\{boardLabels\}/g) ?? []).toHaveLength(1);
   });

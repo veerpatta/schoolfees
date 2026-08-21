@@ -18,7 +18,7 @@ vi.mock("@/lib/ledger/data", () => ({
   getLedgerPageData: (...args: unknown[]) => getLedgerPageData(...args),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 

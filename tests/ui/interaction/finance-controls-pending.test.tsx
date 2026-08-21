@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { PendingSubmitButton } from "@/components/admin/pending-submit-button";
+import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
 
 /**
  * Approve / Reject / Mark processed move a parent's money. Each sits in its

@@ -1,7 +1,7 @@
 /**
  * Trying to kill a claim before believing it.
  *
- * A reviewer that has just spent its whole turn budget reading `lib/fees` is
+ * A reviewer that has just spent its whole turn budget reading `src/lib/fees` is
  * the worst possible judge of whether what it found is real. It has already
  * committed to the reading, it has no memory of the twelve other places the
  * value gets clamped, and asking it "are you sure?" gets "yes" for the same
@@ -34,7 +34,7 @@
  * being read.
  *
  * Before any of that costs a token, the citation is checked mechanically. A
- * claim naming `lib/fees/late-fee.ts` — a file this repo does not have — is
+ * claim naming `src/lib/fees/late-fee.ts` — a file this repo does not have — is
  * dead on arrival, and so is one pointing at line 400 of a 120-line module. No
  * model can vouch for a citation that is not there, and asking three of them to
  * try costs three invocations to learn something `statSync` knows for free.

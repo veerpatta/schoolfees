@@ -19,7 +19,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next-intl/server", async () => {
   const actual = await vi.importActual<typeof import("next-intl")>("next-intl");
   const messages = JSON.parse(
-    readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+    readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
   );
   return {
     getTranslations: async (namespace: string) =>
@@ -52,16 +52,16 @@ vi.mock("@/lib/students/data", async () => {
   };
 });
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
   hasStaffPermission,
 }));
 
-vi.mock("@/lib/session/cookie", () => ({
+vi.mock("@/platform/session/cookie", () => ({
   getViewSessionCookie: vi.fn(async () => null),
 }));
 
-vi.mock("@/lib/session/resolver", () => ({
+vi.mock("@/platform/session/resolver", () => ({
   resolveViewSession: vi.fn(async () => ({
     sessionLabel: "2026-27",
     source: "policy",

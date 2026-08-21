@@ -17,9 +17,9 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  * "Existing" is a perfectly plausible thing for the field to say.
  */
 describe("Add Student defaults to a new admission", () => {
-  const addPage = read("app/protected/students/new/page.tsx");
-  const editPage = read("app/protected/students/[studentId]/edit/page.tsx");
-  const form = read("components/students/student-form.tsx");
+  const addPage = read("src/app/protected/students/new/page.tsx");
+  const editPage = read("src/app/protected/students/[studentId]/edit/page.tsx");
+  const form = read("src/components/students/student-form.tsx");
 
   it("preselects New on the add form", () => {
     expect(addPage).toMatch(/studentTypeOverride:\s*"new"/);

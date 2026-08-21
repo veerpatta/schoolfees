@@ -9,7 +9,7 @@ function readRepoFile(path: string) {
 
 describe("office performance guardrails", () => {
   it("keeps dashboard overdue counts on the already-loaded installment rows", () => {
-    const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
 
     expect(dashboardData).not.toContain("overdue workbook installments");
     expect(dashboardData).not.toContain('"active students"');
@@ -21,8 +21,8 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps dashboard health checks scoped to the dashboard path", () => {
-    const dashboardData = readRepoFile("lib/dashboard/data.ts");
-    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
+    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
 
     expect(dashboardData).toContain("getDashboardSyncHealth(sessionLabel)");
     expect(dashboardData).toContain('"dashboard sync health"');
@@ -41,10 +41,10 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps interactive Transactions limited while allowing full exports", () => {
-    const officeDues = readRepoFile("lib/transactions/dues.ts");
-    const exportRoute = readRepoFile("app/protected/transactions/export/route.ts");
-    const workbookData = readRepoFile("lib/workbook/data.ts");
-    const transactionsShell = readRepoFile("components/transactions/transactions-client-shell.tsx");
+    const officeDues = readRepoFile("src/lib/transactions/dues.ts");
+    const exportRoute = readRepoFile("src/app/protected/transactions/export/route.ts");
+    const workbookData = readRepoFile("src/lib/workbook/data.ts");
+    const transactionsShell = readRepoFile("src/components/transactions/transactions-client-shell.tsx");
 
     expect(officeDues).toContain("exportAll?: boolean");
     expect(officeDues).toContain("const OFFICE_WORKBOOK_PAGE_SIZE = 100");
@@ -92,10 +92,10 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Defaulters bounded: session-scoped fetch, single pass, short call queue render", () => {
-    const defaultersData = readRepoFile("lib/defaulters/data.ts");
-    const defaultersTypes = readRepoFile("lib/defaulters/types.ts");
-    const defaultersPage = readRepoFile("app/protected/defaulters/page.tsx");
-    const defaultersWorkspace = readRepoFile("components/defaulters/defaulters-workspace.tsx");
+    const defaultersData = readRepoFile("src/lib/defaulters/data.ts");
+    const defaultersTypes = readRepoFile("src/lib/defaulters/types.ts");
+    const defaultersPage = readRepoFile("src/app/protected/defaulters/page.tsx");
+    const defaultersWorkspace = readRepoFile("src/components/defaulters/defaulters-workspace.tsx");
 
     // Pagination metadata type is retained (drives the listed-count badge).
     expect(defaultersTypes).toContain("export type DefaultersPagination");
@@ -115,9 +115,9 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Defaulters reads free of blocking writes and duplicated payload", () => {
-    const defaultersData = readRepoFile("lib/defaulters/data.ts");
-    const defaultersActions = readRepoFile("app/protected/defaulters/actions.ts");
-    const defaultersPage = readRepoFile("app/protected/defaulters/page.tsx");
+    const defaultersData = readRepoFile("src/lib/defaulters/data.ts");
+    const defaultersActions = readRepoFile("src/app/protected/defaulters/actions.ts");
+    const defaultersPage = readRepoFile("src/app/protected/defaulters/page.tsx");
 
     // refresh_defaulter_recovery_state is a WRITE. It used to be awaited in the
     // middle of the page loader, between two Promise.all batches, which forced
@@ -140,7 +140,7 @@ describe("office performance guardrails", () => {
   });
 
   it("fetches workbook pages in a window without weakening the short-page stop", () => {
-    const chunk = readRepoFile("lib/helpers/chunk.ts");
+    const chunk = readRepoFile("src/platform/helpers/chunk.ts");
 
     // Page 0 stays a lone request: most queries fit in one page, and
     // speculating there would triple the traffic of the common case.
@@ -153,9 +153,9 @@ describe("office performance guardrails", () => {
   });
 
   it("scopes workbook reads to the active office session and visible receipts", () => {
-    const dashboardData = readRepoFile("lib/dashboard/data.ts");
-    const officeData = readRepoFile("lib/office/data.ts");
-    const workbookData = readRepoFile("lib/workbook/data.ts");
+    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const officeData = readRepoFile("src/lib/office/data.ts");
+    const workbookData = readRepoFile("src/lib/workbook/data.ts");
 
     expect(dashboardData).toContain(
       "getWorkbookStudentFinancials({ sessionLabel, activeOnly: true })",
@@ -209,10 +209,10 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Payment Desk dues loading scoped to the selected student", () => {
-    const paymentsData = readRepoFile("lib/payments/data.ts");
-    const paymentsPage = readRepoFile("app/protected/payments/page.tsx");
-    const paymentClient = readRepoFile("components/payments/payment-desk-mobile.tsx");
-    const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
+    const paymentsData = readRepoFile("src/lib/payments/data.ts");
+    const paymentsPage = readRepoFile("src/app/protected/payments/page.tsx");
+    const paymentClient = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
 
     expect(paymentsData).toContain("getPaymentDeskStudentIndex(payload:");
     expect(paymentsData).toContain("getPaymentDeskStudentIndex({ sessionLabel })");
@@ -239,12 +239,12 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Tier 1 performance quick wins in place", () => {
-    const revalidation = readRepoFile("lib/system-sync/finance-revalidation.ts");
-    const parser = readRepoFile("lib/import/parser.ts");
-    const templates = readRepoFile("lib/import/templates.ts");
-    const dashboardData = readRepoFile("lib/dashboard/data.ts");
-    const sidebarNav = readRepoFile("components/admin/sidebar-nav.tsx");
-    const paymentsData = readRepoFile("lib/payments/data.ts");
+    const revalidation = readRepoFile("src/lib/system-sync/finance-revalidation.ts");
+    const parser = readRepoFile("src/lib/import/parser.ts");
+    const templates = readRepoFile("src/lib/import/templates.ts");
+    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const sidebarNav = readRepoFile("src/ui/shell/sidebar-nav.tsx");
+    const paymentsData = readRepoFile("src/lib/payments/data.ts");
 
     expect(revalidation).toContain("const PAYMENT_AFFECTED_PATHS = [");
     expect(revalidation).toContain("const FULL_FINANCE_PATHS = [");
@@ -275,7 +275,7 @@ describe("office performance guardrails", () => {
     expect(dashboardData).toContain("tags: [`session:${sessionLabel}`]");
     // And a refund has to bust that tag too, or the cache serves pre-refund
     // numbers until the next posting happens to clear it.
-    expect(readRepoFile("app/protected/finance-controls/actions.ts")).toContain(
+    expect(readRepoFile("src/app/protected/finance-controls/actions.ts")).toContain(
       "revalidateSessionFinance(sessionLabel)",
     );
 
@@ -297,14 +297,14 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Tier 2 architecture wins in place", () => {
-    const dashboardData = readRepoFile("lib/dashboard/data.ts");
-    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
-    const dashboardPrefetcher = readRepoFile("components/dashboard/dashboard-prefetcher.tsx");
-    const transactionsShell = readRepoFile("components/transactions/transactions-client-shell.tsx");
-    const transactionsLazyTables = readRepoFile("components/transactions/transactions-lazy-tables.tsx");
-    const paymentClient = readRepoFile("components/payments/payment-desk-mobile.tsx");
-    const feePolicy = readRepoFile("lib/fees/policy.ts");
-    const staffSession = readRepoFile("lib/supabase/session.ts");
+    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
+    const dashboardPrefetcher = readRepoFile("src/components/dashboard/dashboard-prefetcher.tsx");
+    const transactionsShell = readRepoFile("src/components/transactions/transactions-client-shell.tsx");
+    const transactionsLazyTables = readRepoFile("src/components/transactions/transactions-lazy-tables.tsx");
+    const paymentClient = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
+    const feePolicy = readRepoFile("src/lib/fees/policy.ts");
+    const staffSession = readRepoFile("src/platform/supabase/session.ts");
 
     expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
     expect(feePolicy).toContain('import { cache } from "react"');
@@ -333,7 +333,7 @@ describe("office performance guardrails", () => {
     expect(dashboardPrefetcher).toContain('"/protected/payments"');
     expect(dashboardPrefetcher).toContain('"/protected/defaulters"');
 
-    const idlePrefetch = readRepoFile("hooks/use-idle-prefetch.ts");
+    const idlePrefetch = readRepoFile("src/ui/hooks/use-idle-prefetch.ts");
     expect(idlePrefetch).toContain("router.prefetch");
     // Waiting for idle is the whole point; so is not firing N at once.
     expect(idlePrefetch).toContain("requestIdleCallback");
@@ -342,19 +342,19 @@ describe("office performance guardrails", () => {
     // The sidebar's three daily routes are warmed the same way. `prefetch` on a
     // force-dynamic Link fetches the fully rendered page, so leaving it true
     // put three complete server renders on every page load.
-    const sidebarNav = readRepoFile("components/admin/sidebar-nav.tsx");
+    const sidebarNav = readRepoFile("src/ui/shell/sidebar-nav.tsx");
     expect(sidebarNav).toContain("useIdlePrefetch(EAGER_PREFETCH_HREFS)");
     expect(sidebarNav).not.toContain("prefetch={isEager}");
   });
 
   it("keeps payment desk student index privately cacheable within the staff session", () => {
-    const route = readRepoFile("app/protected/students/index/route.ts");
+    const route = readRepoFile("src/app/protected/students/index/route.ts");
 
     expect(route).toContain('"Cache-Control": "private, max-age=300, stale-while-revalidate=900"');
   });
 
   it("keeps the workspace shell from blocking the first paint", () => {
-    const shell = readRepoFile("components/admin/dashboard-shell.tsx");
+    const shell = readRepoFile("src/ui/shell/dashboard-shell.tsx");
 
     // DashboardShell used to `await Promise.all([...])` on fee policy, the
     // session list and the shell pulse before emitting a single byte of
@@ -398,10 +398,10 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps payment posting revalidation focused", () => {
-    const paymentActions = readRepoFile("app/protected/payments/actions.ts");
-    const revalidation = readRepoFile("lib/system-sync/finance-revalidation.ts");
-    const syncFacade = readRepoFile("lib/system-sync/finance-sync.ts");
-    const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    const paymentActions = readRepoFile("src/app/protected/payments/actions.ts");
+    const revalidation = readRepoFile("src/lib/system-sync/finance-revalidation.ts");
+    const syncFacade = readRepoFile("src/lib/system-sync/finance-sync.ts");
+    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
 
     expect(paymentActions).toContain("revalidateSessionFinance(");
     expect(paymentActions).not.toContain("revalidateCoreFinancePaths([studentId])");

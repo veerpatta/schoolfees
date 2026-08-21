@@ -17,8 +17,8 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: state.createAdminClient }));
-vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/platform/supabase/admin", () => ({ createAdminClient: state.createAdminClient }));
+vi.mock("@/platform/supabase/server", () => ({ createClient: vi.fn() }));
 
 class MockQuery {
   select() {

@@ -69,7 +69,7 @@ describe("an enrolment chip wins over the status dropdown", () => {
     // Source assertion: both student list queries must gate their status
     // narrowing on the chip check, or chip AND default-"active" is the empty
     // set again.
-    const data = readFileSync(join(process.cwd(), "lib/students/data.ts"), "utf8");
+    const data = readFileSync(join(process.cwd(), "src/lib/students/data.ts"), "utf8");
     const gated = data.match(/filters\.status && !segmentsImplyEnrolment\(filters\.segments\)/g);
     expect(gated, "both list queries gate status on the enrolment chips").toHaveLength(2);
   });
@@ -100,9 +100,9 @@ describe("student populations are named, not re-spelled", () => {
     const inlineEq = /\.eq\(\s*["']status["']\s*,\s*["'](left|graduated|inactive)["']\s*\)/;
 
     const offenders: string[] = [];
-    for (const file of [...walk(join(repoRoot, "lib")), ...walk(join(repoRoot, "app"))]) {
+    for (const file of walk(join(repoRoot, "src"))) {
       const rel = relative(repoRoot, file).replace(/\\/g, "/");
-      if (rel === "lib/students/populations.ts") continue;
+      if (rel === "src/lib/students/populations.ts") continue;
       const source = readFileSync(file, "utf8");
 
       if (inlineEq.test(source)) {

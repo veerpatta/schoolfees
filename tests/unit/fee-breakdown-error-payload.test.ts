@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("fee-breakdown route error payload (audit 1.28)", () => {
   const source = readFileSync(
-    join(process.cwd(), "app/protected/defaulters/fee-breakdown/route.ts"),
+    join(process.cwd(), "src/app/protected/defaulters/fee-breakdown/route.ts"),
     "utf8",
   );
 
@@ -23,7 +23,7 @@ describe("fee-breakdown route error payload (audit 1.28)", () => {
    */
   it("defaulter export workflow sorts by what the family owes (audit 1.26 cross-check)", () => {
     const exportRoute = readFileSync(
-      join(process.cwd(), "app/protected/exports/[exportType]/route.ts"),
+      join(process.cwd(), "src/app/protected/exports/[exportType]/route.ts"),
       "utf8",
     );
     expect(exportRoute).toMatch(/sort\(\([^)]+\)\s*=>/);

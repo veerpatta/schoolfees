@@ -10,7 +10,7 @@ const updateCalls: Array<{
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from(table: string) {
       if (table !== "import_rows") {

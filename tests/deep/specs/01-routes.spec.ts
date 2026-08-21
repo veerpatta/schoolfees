@@ -17,7 +17,7 @@ import { TEST_SESSION } from "../lib/identity";
 /**
  * Every route the app has, visited once as an admin.
  *
- * The list is globbed off `app/protected/**` at import time, not typed out, so
+ * The list is globbed off `src/app/protected/**` at import time, not typed out, so
  * a page added next month is either covered or shows up by name in the ledger.
  * The suite this replaces carried a hand-list that had already drifted: it
  * probed two paths that have no `page.tsx` at all and counted both as covered.

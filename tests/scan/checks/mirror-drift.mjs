@@ -120,12 +120,12 @@ const MIRRORS = [
       + "the day-of-month clamped to the shortest month, and the final instalment absorbing the "
       + "remainder rather than the term rounding up.",
     declaredAt:
-      "lib/repayment-plans/schedule.ts:2-8 (\"The database is authoritative ... Any change here "
+      "src/lib/repayment-plans/schedule.ts:2-8 (\"The database is authoritative ... Any change here "
       + "must be mirrored in the migration, and vice versa\")",
     sides: [
       {
         name: "buildRepaymentSchedule + addMonthsClamped + calculateRepaymentTermMonths",
-        file: "lib/repayment-plans/schedule.ts",
+        file: "src/lib/repayment-plans/schedule.ts",
         from: "export function addMonthsClamped",
         to: "}));",
       },
@@ -150,7 +150,7 @@ const MIRRORS = [
     sides: [
       {
         name: "calculateConventionalPolicyTuition",
-        file: "lib/fees/conventional-discount-rules.ts",
+        file: "src/lib/fees/conventional-discount-rules.ts",
         from: "export function calculateConventionalPolicyTuition",
         to: "return toWholeNumber(payload.policy.fixedTuitionAmount);",
       },
@@ -167,12 +167,12 @@ const MIRRORS = [
     id: "installment-amount-due",
     rule: "amount_due = (base_amount + transport_amount) - discount_amount.",
     declaredAt:
-      "lib/fees/generator.ts:357-360 (\"`installments.amount_due` is a generated column ... "
+      "src/lib/fees/generator.ts:357-360 (\"`installments.amount_due` is a generated column ... "
       + "Mirror the generation expression here\")",
     sides: [
       {
         name: "plannedAmountDue",
-        file: "lib/fees/generator.ts",
+        file: "src/lib/fees/generator.ts",
         from: "function plannedAmountDue",
         to: "}",
       },
@@ -196,7 +196,7 @@ const MIRRORS = [
     sides: [
       {
         name: "calculatePendingLateFeeAmount",
-        file: "lib/fees/due-amounts.ts",
+        file: "src/lib/fees/due-amounts.ts",
         from: "export function calculatePendingLateFeeAmount",
         to: "}",
       },
@@ -233,7 +233,7 @@ const MIRRORS = [
     sides: [
       {
         name: "isYearCleared",
-        file: "lib/fees/year-clear.ts",
+        file: "src/lib/fees/year-clear.ts",
         from: "export function isYearCleared",
         to: "return input.outstandingAmount",
       },
@@ -258,7 +258,7 @@ const MIRRORS = [
     sides: [
       {
         name: "hasFeeException",
-        file: "lib/students/data.ts",
+        file: "src/lib/students/data.ts",
         from: "const hasFeeException =",
         to: "Boolean(override.other_adjustment_head?.trim())",
       },
@@ -278,7 +278,7 @@ const MIRRORS = [
       + "still owes it -- and headcount, which is active-only, must never borrow this predicate.",
     declaredAt:
       "workers/schoolfees-mcp/src/scope.mjs:23-24 (\"Mirrors lib/workbook/data.ts:680, "
-      + "lib/defaulters/data.ts:133 and lib/recovery/types.ts:11\")",
+      + "src/lib/defaulters/data.ts:133 and lib/recovery/types.ts:11\")",
     sides: [
       {
         name: "STUDENT_SCOPES.collectable",
@@ -288,7 +288,7 @@ const MIRRORS = [
       },
       {
         name: "workbook activeOnly filter",
-        file: "lib/workbook/data.ts",
+        file: "src/lib/workbook/data.ts",
         from: "query.or(\"record_status.eq.active,total_paid.gt.0\")",
         to: "query.or(\"record_status.eq.active,total_paid.gt.0\")",
       },

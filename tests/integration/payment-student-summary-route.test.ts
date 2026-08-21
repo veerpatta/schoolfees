@@ -6,7 +6,7 @@ vi.mock("server-only", () => ({}));
 const requireStaffPermission = vi.fn();
 const getPaymentDeskStudentSummary = vi.fn();
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 

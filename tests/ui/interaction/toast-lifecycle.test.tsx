@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ToastViewport, toast } from "@/components/ui/toast";
+import { ToastViewport, toast } from "@/ui/primitives/toast";
 
 function show(payload: Parameters<typeof toast>[0]) {
   act(() => {

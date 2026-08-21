@@ -1,0 +1,421 @@
+import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+
+import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
+import { PageHeader } from "@/ui/shell/page-header";
+import { SectionCard } from "@/ui/shell/section-card";
+import { MobileRecordCard } from "@/ui/mobile/mobile-kit";
+import { Button } from "@/ui/primitives/button";
+import { Input } from "@/ui/primitives/input";
+import { Label } from "@/ui/primitives/label";
+import { formatInr } from "@/platform/helpers/currency";
+import { formatDateTimeIst } from "@/platform/helpers/date";
+import {
+  getClassLabelMap,
+  getFeeSetupSnapshotAt,
+} from "@/lib/fees/time-travel";
+import { requireStaffPermission } from "@/platform/supabase/session";
+import { getViewSessionCookie } from "@/platform/session/cookie";
+import { resolveViewSession } from "@/platform/session/resolver";
+import { appendSessionParam } from "@/platform/navigation/session-href";
+
+type Props = {
+  searchParams?: Promise<{
+    asOf?: string | string[];
+    session?: string | string[];
+  }>;
+};
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
+
+function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * A date that exists, not merely one shaped like a date.
+ *
+ * `/^\d{4}-\d{2}-\d{2}$/` accepts `9999-99-99`, which sailed through to
+ * `getFeeSetupSnapshotAt` and came back as Postgres `date/time field value out
+ * of range` — a Server Component throw, so the page rendered as a blank error
+ * with the reason redacted in production (SCHOOLFEES-E).
+ *
+ * Round-tripping through `Date` is what closes it: month 99 does not survive.
+ * The year is bounded too, because `0001-01-01` is a valid date and a pointless
+ * query against a school that opened this century.
+ */
+function normalizeAsOf(value: string | string[] | undefined): string {
+  const requested = asString(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(requested)) return todayIso();
+
+  const parsed = new Date(`${requested}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return todayIso();
+
+  // `new Date("2026-02-31")` rolls forward to March rather than failing, so the
+  // only reliable check is whether the date prints back as what was asked for.
+  if (parsed.toISOString().slice(0, 10) !== requested) return todayIso();
+
+  const year = parsed.getUTCFullYear();
+  if (year < 2000 || year > 2100) return todayIso();
+
+  return requested;
+}
+
+const formatDateTime = (value: string) => formatDateTimeIst(value, value);
+
+function formatNumberCell(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return formatInr(value);
+  }
+  return "—";
+}
+
+function safeString(value: unknown, fallback = "—") {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return fallback;
+}
+
+export default async function FeeSetupTimeTravelPage({ searchParams }: Props) {
+  const t = await getTranslations("FeeSetup");
+  await requireStaffPermission("fees:view", { onDenied: "redirect" });
+  const resolved = searchParams ? await searchParams : undefined;
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolved?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
+  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
+
+  const asOf = normalizeAsOf(resolved?.asOf);
+
+  const [snapshot, classLabels] = await Promise.all([
+    getFeeSetupSnapshotAt(asOf),
+    getClassLabelMap(),
+  ]);
+
+  const policy = snapshot.policy;
+  const policyData = policy?.data ?? null;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={t("timeTravelEyebrow")}
+        title={t("timeTravelTitle")}
+        description={t("timeTravelDescription")}
+        actions={
+          <Button asChild variant="outline">
+            <Link href={withSession("/protected/fee-setup")}>{t("timeTravelBackAction")}</Link>
+          </Button>
+        }
+      />
+
+
+      <SectionCard
+        title={t("timeTravelChooseTitle")}
+        description={t("timeTravelChooseDescription")}
+      >
+        <form className="flex flex-wrap items-end gap-3">
+          {viewSession.sessionLabel ? (
+            <input type="hidden" name="session" value={viewSession.sessionLabel} />
+          ) : null}
+          <div>
+            <Label htmlFor="asOf">{t("timeTravelDateLabel")}</Label>
+            <Input
+              id="asOf"
+              name="asOf"
+              type="date"
+              defaultValue={asOf}
+              max={todayIso()}
+              className="mt-2 h-10"
+            />
+          </div>
+          <PendingSubmitButton>{t("timeTravelLoad")}</PendingSubmitButton>
+        </form>
+      </SectionCard>
+
+      <SectionCard
+        title={t("timeTravelPolicyTitle", { date: asOf })}
+        description={t("timeTravelPolicyDescription")}
+      >
+        {policy && policyData ? (
+          <div className="space-y-3 text-sm">
+            <p className="text-xs text-muted-foreground">
+              {t("timeTravelCapturedRecord", {
+                when: formatDateTime(policy.capturedAt),
+                id: policy.recordId,
+              })}
+            </p>
+            <dl className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("timeTravelAcademicSession")}
+                </dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  {safeString(policyData.academic_session_label)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("timeTravelReceiptPrefix")}
+                </dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  {safeString(policyData.receipt_prefix)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("timeTravelFlatLateFee")}
+                </dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  {formatNumberCell(policyData.late_fee_flat_amount)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("timeTravelAcceptedModes")}
+                </dt>
+                <dd className="mt-1 text-foreground">
+                  {Array.isArray(policyData.accepted_payment_modes)
+                    ? (policyData.accepted_payment_modes as unknown[]).join(", ")
+                    : "—"}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("timeTravelInstallmentSchedule")}
+                </dt>
+                <dd className="mt-1">
+                  {Array.isArray(policyData.installment_schedule) ? (
+                    <ul className="space-y-1 text-sm">
+                      {(policyData.installment_schedule as Array<Record<string, unknown>>).map(
+                        (entry, index) => (
+                          <li key={index} className="rounded-md border border-border bg-surface-2 px-3 py-2">
+                            <span className="font-medium">
+                              {safeString(
+                                entry.label,
+                                t("timeTravelInstallmentFallback", { index: index + 1 }),
+                              )}
+                            </span>
+                            <span className="ml-2 text-muted-foreground">
+                              {t("timeTravelDueOn", { date: safeString(entry.due_date) })}
+                            </span>
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground">—</p>
+                  )}
+                </dd>
+              </div>
+              {typeof policyData.notes === "string" && policyData.notes.trim().length > 0 ? (
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("timeTravelNotes")}
+                  </dt>
+                  <dd className="mt-1 whitespace-pre-wrap text-foreground">
+                    {policyData.notes}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-center text-sm text-muted-foreground">
+            {t("timeTravelPolicyEmpty")}
+          </p>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title={t("timeTravelClassFeesTitle", { date: asOf })}
+        description={t("timeTravelClassFeesDescription")}
+      >
+        {snapshot.feeSettings.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-center text-sm text-muted-foreground">
+            {t("timeTravelClassFeesEmpty")}
+          </p>
+        ) : (
+          <div className="hidden overflow-x-auto md:block">
+            <table className="min-w-full divide-y divide-border text-sm">
+              <thead className="bg-surface-2 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2">{t("timeTravelTableClass")}</th>
+                  <th className="px-3 py-2 text-right">{t("timeTravelTableTuition")}</th>
+                  <th className="px-3 py-2 text-right">{t("timeTravelTableTransport")}</th>
+                  <th className="px-3 py-2 text-right">{t("timeTravelTableBooks")}</th>
+                  <th className="px-3 py-2 text-right">{t("timeTravelTableAdmAct")}</th>
+                  <th className="px-3 py-2">{t("timeTravelTableCaptured")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {snapshot.feeSettings
+                  .slice()
+                  .sort((a, b) => {
+                    const labelA = a.classId ? classLabels.get(a.classId) ?? a.classId : a.recordId;
+                    const labelB = b.classId ? classLabels.get(b.classId) ?? b.classId : b.recordId;
+                    return labelA.localeCompare(labelB);
+                  })
+                  .map((row) => (
+                  <tr key={row.recordId} className="hover:bg-surface-2/40">
+                    <td className="px-3 py-2 font-medium text-foreground">
+                      {row.classId ? classLabels.get(row.classId) ?? row.classId : t("timeTravelUnknownClass")}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatNumberCell(row.data.tuition_fee_amount)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatNumberCell(row.data.transport_fee_amount)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatNumberCell(row.data.books_fee_amount)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatNumberCell(row.data.admission_activity_misc_fee_amount)}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {formatDateTime(row.capturedAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Phone: one card per class. Browsing a past policy is a read-only
+            look-up, which suits a phone — it is the six-column table that does
+            not, so that stays behind md. */}
+        {snapshot.feeSettings.length > 0 ? (
+          <ul className="flex flex-col gap-2.5 md:hidden">
+            {snapshot.feeSettings
+              .slice()
+              .sort((a, b) =>
+                (a.classId ? classLabels.get(a.classId) ?? a.classId : "").localeCompare(
+                  b.classId ? classLabels.get(b.classId) ?? b.classId : "",
+                ),
+              )
+              .map((row) => (
+                <MobileRecordCard
+                  key={row.recordId}
+                  title={
+                    row.classId
+                      ? classLabels.get(row.classId) ?? row.classId
+                      : t("timeTravelUnknownClass")
+                  }
+                  subtitle={formatDateTime(row.capturedAt)}
+                  amount={formatNumberCell(row.data.tuition_fee_amount)}
+                  fields={[
+                    {
+                      label: t("timeTravelTableTransport"),
+                      value: formatNumberCell(row.data.transport_fee_amount),
+                    },
+                    {
+                      label: t("timeTravelTableBooks"),
+                      value: formatNumberCell(row.data.books_fee_amount),
+                    },
+                    {
+                      label: t("timeTravelTableAdmAct"),
+                      value: formatNumberCell(row.data.admission_activity_misc_fee_amount),
+                    },
+                  ]}
+                />
+              ))}
+          </ul>
+        ) : null}
+      </SectionCard>
+
+      <SectionCard
+        title={t("timeTravelStudentOverridesTitle", { date: asOf })}
+        description={t("timeTravelStudentOverridesDescription", {
+          count: snapshot.studentOverrides.length,
+        })}
+      >
+        {snapshot.studentOverrides.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-6 text-center text-sm text-muted-foreground">
+            {t("timeTravelStudentOverridesEmpty")}
+          </p>
+        ) : (
+          <div className="hidden overflow-x-auto md:block">
+            <table className="min-w-full divide-y divide-border text-sm">
+              <thead className="bg-surface-2 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2">{t("timeTravelTableStudentId")}</th>
+                  <th className="px-3 py-2 text-right">{t("timeTravelTableTuitionOverride")}</th>
+                  <th className="px-3 py-2 text-right">{t("timeTravelTableDiscount")}</th>
+                  <th className="px-3 py-2 text-right">{t("timeTravelTableLateWaiver")}</th>
+                  <th className="px-3 py-2">{t("timeTravelTableReason")}</th>
+                  <th className="px-3 py-2">{t("timeTravelTableCaptured")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {snapshot.studentOverrides.slice(0, 20).map((row) => (
+                  <tr key={row.recordId} className="hover:bg-surface-2/40">
+                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                      {row.studentId ?? row.recordId}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatNumberCell(row.data.custom_tuition_fee_amount)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatNumberCell(row.data.discount_amount)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatNumberCell(row.data.late_fee_waiver_amount)}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {safeString(row.data.reason, "—")}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {formatDateTime(row.capturedAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Same cap as the table above it (20) — this is an audit sample, not
+            a full export, and the footnote already states the real counts. */}
+        {snapshot.studentOverrides.length > 0 ? (
+          <ul className="flex flex-col gap-2.5 md:hidden">
+            {snapshot.studentOverrides.slice(0, 20).map((row) => (
+              <MobileRecordCard
+                key={row.recordId}
+                title={row.studentId ?? row.recordId}
+                subtitle={formatDateTime(row.capturedAt)}
+                amount={formatNumberCell(row.data.custom_tuition_fee_amount)}
+                fields={[
+                  {
+                    label: t("timeTravelTableDiscount"),
+                    value: formatNumberCell(row.data.discount_amount),
+                  },
+                  {
+                    label: t("timeTravelTableLateWaiver"),
+                    value: formatNumberCell(row.data.late_fee_waiver_amount),
+                  },
+                ]}
+                footnote={safeString(row.data.reason, "—")}
+              />
+            ))}
+          </ul>
+        ) : null}
+      </SectionCard>
+
+      <p className="text-xs text-muted-foreground">
+        {t("timeTravelFootnote", {
+          policyCount: snapshot.policyHistoryCount,
+          feeSettingCount: snapshot.feeSettingHistoryCount,
+          overrideCount: snapshot.overrideHistoryCount,
+          date: asOf,
+        })}
+      </p>
+    </div>
+  );
+}

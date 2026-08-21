@@ -95,7 +95,7 @@ vi.mock("@/lib/fees/data", () => ({
   getFeePolicySummary,
 }));
 
-vi.mock("@/lib/supabase/cache-safe", () => ({
+vi.mock("@/platform/supabase/cache-safe", () => ({
   cacheSafeUnstableCache,
   getCacheSafeClient,
 }));

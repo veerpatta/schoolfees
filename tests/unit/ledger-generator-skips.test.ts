@@ -32,7 +32,7 @@ vi.mock("@/lib/fees/workbook", () => ({
   })),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 

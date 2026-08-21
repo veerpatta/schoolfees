@@ -6,7 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 function renderWithLocale(node: React.ReactElement): string {
@@ -75,19 +75,19 @@ vi.mock("@/lib/fees/data", () => ({
   getFeePolicySummary,
 }));
 
-vi.mock("@/lib/office/readiness", () => ({
+vi.mock("@/platform/readiness", () => ({
   getOfficeWorkflowReadiness,
 }));
 
-vi.mock("@/lib/session/cookie", () => ({
+vi.mock("@/platform/session/cookie", () => ({
   getViewSessionCookie,
 }));
 
-vi.mock("@/lib/session/resolver", () => ({
+vi.mock("@/platform/session/resolver", () => ({
   resolveViewSession,
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireAnyStaffPermission,
   hasStaffPermission,
 }));

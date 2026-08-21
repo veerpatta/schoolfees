@@ -68,11 +68,11 @@ describe("shared parsers survive a repeated parameter", () => {
 
 describe("id filters that would outgrow a URL are chunked", () => {
   it("the receipt search caps how many student ids it inlines", () => {
-    const source = read("lib/workbook/data.ts");
+    const source = read("src/lib/workbook/data.ts");
 
     expect(
       source,
-      "lib/workbook/data.ts no longer bounds the inlined student-id search. " +
+      "src/lib/workbook/data.ts no longer bounds the inlined student-id search. " +
         "A one-character query matches the whole roster and rebuilds the 20 KB " +
         "URL that Postgres rejects.",
     ).toContain("SEARCH_STUDENT_ID_INLINE_LIMIT");
@@ -87,7 +87,7 @@ describe("id filters that would outgrow a URL are chunked", () => {
   });
 
   it("a search too broad to narrow falls back rather than truncating", () => {
-    const source = read("lib/workbook/data.ts");
+    const source = read("src/lib/workbook/data.ts");
     // Truncating the id list would silently hide a family's receipts, which is
     // worse than the page being slow.
     expect(source).toContain("searchIsTooBroadToNarrow");
@@ -95,7 +95,7 @@ describe("id filters that would outgrow a URL are chunked", () => {
   });
 
   it("the promotion run detail chunks its student and class lookups", () => {
-    const source = read("lib/promotion/data.ts");
+    const source = read("src/lib/promotion/data.ts");
 
     expect(
       source,
@@ -113,7 +113,7 @@ describe("id filters that would outgrow a URL are chunked", () => {
   });
 
   it("the receipt-id session scope keeps its original guard", () => {
-    const source = read("lib/workbook/data.ts");
+    const source = read("src/lib/workbook/data.ts");
     expect(source).toContain("RECEIPT_ID_FILTER_CHUNK_SIZE");
     expect(source).toContain("fetchInChunks");
   });

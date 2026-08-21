@@ -15,17 +15,17 @@ import { describe, expect, it } from "vitest";
  */
 
 const root = process.cwd();
-const protectedRoot = join(root, "app", "protected");
+const protectedRoot = join(root, "src/app", "protected");
 
 /**
  * Routes that legitimately have no loading state. Each needs a reason — this
  * is an escape hatch, not a dumping ground.
  */
 const NO_LOADING_NEEDED: Record<string, string> = {
-  "app/protected/advanced": "redirect-only shim to admin-tools",
-  "app/protected/setup": "redirect-only shim to admin-tools",
-  "app/protected/access-denied": "static message, nothing to fetch",
-  "app/protected/reports/ledger/[studentId]/print":
+  "src/app/protected/advanced": "redirect-only shim to admin-tools",
+  "src/app/protected/setup": "redirect-only shim to admin-tools",
+  "src/app/protected/access-denied": "static message, nothing to fetch",
+  "src/app/protected/reports/ledger/[studentId]/print":
     "print surface opened in a new tab; a skeleton would land in the printout",
 };
 

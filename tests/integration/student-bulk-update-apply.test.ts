@@ -31,7 +31,7 @@ const supabaseStub = {
   },
 };
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => supabaseStub),
 }));
 

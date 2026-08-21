@@ -11,13 +11,13 @@ function readRepoFile(path: string) {
 
 describe("mobile office workflow source markers", () => {
   it("keeps Find students search and class filtering visible on mobile", () => {
-    const quickLoad = readRepoFile("components/students/student-quick-load.tsx");
+    const quickLoad = readRepoFile("src/components/students/student-quick-load.tsx");
     // The phone screen moved into its own file when Students adopted the
     // mobile-v2 search header; the search box and the class-chip row still
     // exist, they are just no longer inline in the orchestrator.
-    const phoneScreen = readRepoFile("components/students/mobile-students-screen.tsx");
+    const phoneScreen = readRepoFile("src/components/students/mobile-students-screen.tsx");
     // "Route and status" lives in the Students namespace now.
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Students: Record<string, string>;
     };
 
@@ -30,8 +30,8 @@ describe("mobile office workflow source markers", () => {
   });
 
   it("keeps Payment Desk mobile class-first collection and late fee waiver visible", () => {
-    const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
-    const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
+    const paymentDesk = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
 
     expect(paymentDesk).toContain("<MobilePaymentFlowSheet");
     expect(paymentDesk).toContain("mobileSheetView");

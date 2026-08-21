@@ -32,7 +32,7 @@ const REQUIRED_DARK_TOKENS = [
 describe("dark-mode tokens", () => {
   it("globals.css defines a .dark scope containing every semantic token", async () => {
     const css = await readFile(
-      resolve(process.cwd(), "app/globals.css"),
+      resolve(process.cwd(), "src/app/globals.css"),
       "utf8",
     );
 

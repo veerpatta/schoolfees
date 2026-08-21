@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("defaulter recovery review guards", () => {
   const contactsSource = readFileSync(
-    join(process.cwd(), "lib/defaulters/contacts.ts"),
+    join(process.cwd(), "src/lib/defaulters/contacts.ts"),
     "utf8",
   );
   const packageJson = JSON.parse(

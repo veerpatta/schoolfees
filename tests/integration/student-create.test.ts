@@ -26,7 +26,7 @@ vi.mock("@/lib/master-data/data", () => ({
   getMasterDataOptions: vi.fn(async () => ({ classOptions: [], routeOptions: [] })),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from(table: string) {
       if (table === "office_sync_events") {

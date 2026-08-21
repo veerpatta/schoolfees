@@ -5,7 +5,7 @@ vi.mock("server-only", () => ({}));
 const createClient = vi.fn();
 const postStudentPayment = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({ createClient }));
+vi.mock("@/platform/supabase/server", () => ({ createClient }));
 vi.mock("@/lib/payments/data", async () => {
   const actual = await vi.importActual<typeof import("@/lib/payments/data")>(
     "@/lib/payments/data",

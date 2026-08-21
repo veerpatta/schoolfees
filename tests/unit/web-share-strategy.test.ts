@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { selectShareStrategy, toShareData } from "@/lib/helpers/web-share";
+import { selectShareStrategy, toShareData } from "@/platform/helpers/web-share";
 
 /**
  * The degradation ladder behind the one-tap WhatsApp send.

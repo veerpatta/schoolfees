@@ -8,7 +8,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase/server", () => ({ createClient: state.createClient }));
+vi.mock("@/platform/supabase/server", () => ({ createClient: state.createClient }));
 
 class MockQuery {
   constructor(private table: string) {}

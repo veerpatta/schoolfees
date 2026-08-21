@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(join(process.cwd(), "lib/workbook/data.ts"), "utf8");
+const source = readFileSync(join(process.cwd(), "src/lib/workbook/data.ts"), "utf8");
 
 /**
  * Regression: /protected/transactions returned "SOMETHING FAILED" for every

@@ -17,7 +17,7 @@ const requireStaffPermission = vi.fn();
 const prepareDuesForStudentsAutomatically = vi.fn();
 const revalidateFinanceSurfaces = vi.fn();
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
@@ -25,7 +25,7 @@ const from = vi.fn(() => ({
   insert: vi.fn().mockResolvedValue({ error: null }),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     rpc,
     from,

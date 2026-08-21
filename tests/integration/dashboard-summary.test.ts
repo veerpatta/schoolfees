@@ -475,7 +475,7 @@ describe("dashboard summary", () => {
   });
 
   it("above-fold dashboard data reads overdue KPI from the summary RPC", () => {
-    const dashboardData = readRepoFile("lib/dashboard/data.ts");
+    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
     // The RPC call now lives in a shared `_getDashboardSummaryCached` helper
     // (React.cache wrapper) that both above-fold and below-fold consume —
     // the dedupe keeps each request to a single round trip. Assert the wire
@@ -497,8 +497,8 @@ describe("dashboard summary", () => {
   });
 
   it("dashboard labels make overdue amount distinct from late fee", () => {
-    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
-    const moneyBand = readRepoFile("components/dashboard/money-band.tsx");
+    const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
+    const moneyBand = readRepoFile("src/components/dashboard/money-band.tsx");
 
     // The band gives the two their own slots rather than captioning one
     // combined number, and the class table keeps saying which one it means.
@@ -509,7 +509,7 @@ describe("dashboard summary", () => {
   });
 
   it("dashboard hero keeps this-year collection separate from previous-year recovery", () => {
-    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
+    const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
 
     // The money band carries the current-year split and nothing else.
     // Previous-year recovery lives on its own board, so the two can never blend
@@ -526,8 +526,8 @@ describe("dashboard summary", () => {
   });
 
   it("dashboard wires collection heatmap and class collection progress data", () => {
-    const dashboardData = readRepoFile("lib/dashboard/data.ts");
-    const dashboardPage = readRepoFile("app/protected/dashboard/page.tsx");
+    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
 
     expect(dashboardData).toContain("collectionHeatmap");
     expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');

@@ -17,12 +17,12 @@ function readRepoFile(path: string) {
  * Undo must reverse, never delete. Hard Safety Rule 1.
  */
 describe("mobile collect step 5", () => {
-  const sheet = readRepoFile("components/payments/success-receipt-sheet.tsx");
-  const paper = readRepoFile("components/payments/mobile-printed-receipt.tsx");
+  const sheet = readRepoFile("src/components/payments/success-receipt-sheet.tsx");
+  const paper = readRepoFile("src/components/payments/mobile-printed-receipt.tsx");
 
   it("routes Undo through the reversal action, never a delete", () => {
-    const action = readRepoFile("app/protected/payments/actions.ts");
-    const data = readRepoFile("lib/payments/data.ts");
+    const action = readRepoFile("src/app/protected/payments/actions.ts");
+    const data = readRepoFile("src/lib/payments/data.ts");
 
     // The sheet only ever calls the injected handler; the desk wires it to
     // undoRecentPaymentAction, which calls the undo_recent_payment RPC.
@@ -47,10 +47,10 @@ describe("mobile collect step 5", () => {
     // shared module now defines it, and both surfaces import it, which is what
     // this was really trying to guarantee.
     expect(sheet).toContain('from "@/lib/receipts/undo-window"');
-    expect(readRepoFile("components/receipts/receipt-undo-action.tsx")).toContain(
+    expect(readRepoFile("src/components/receipts/receipt-undo-action.tsx")).toContain(
       'from "@/lib/receipts/undo-window"',
     );
-    expect(readRepoFile("lib/receipts/undo-window.ts")).toContain("10 * 60_000");
+    expect(readRepoFile("src/lib/receipts/undo-window.ts")).toContain("10 * 60_000");
 
     // …and the module still agrees with the only authority, the RPC's own check.
     const migrations = join(process.cwd(), "supabase", "migrations");
@@ -66,7 +66,7 @@ describe("mobile collect step 5", () => {
   // The two paths are the same decision at two different ages, so a receipt is
   // never offered both at once.
   it("hands an expired undo over to the admin reversal, and never shows both", () => {
-    const page = readRepoFile("app/protected/receipts/[receiptId]/page.tsx");
+    const page = readRepoFile("src/app/protected/receipts/[receiptId]/page.tsx");
     expect(page).toContain("isUndoWindowOpen(receipt.createdAt)");
     expect(page).toContain("&& undoWindowOpen");
     expect(page).toContain("&& !undoWindowOpen");

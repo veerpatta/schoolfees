@@ -65,7 +65,7 @@ const action = vi.fn(
 // namespace, so the form now needs the intl context the phone surfaces already
 // had.
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 function renderForm(overrides: Partial<typeof EMPTY_VALUES> = {}) {

@@ -80,7 +80,7 @@ export type SmokeRoleKey =
 export type SmokeRole = {
   key: SmokeRoleKey;
   email: string;
-  /** The role as `lib/auth/roles.ts` names it. */
+  /** The role as `src/platform/auth/roles.ts` names it. */
   role: string;
   /** Where `getDefaultProtectedHref()` should land this role. */
   landing: string;

@@ -5,7 +5,7 @@
  * The ledger is append-only — a correction is a `payment_adjustment`, never a
  * delete — so there is no cleanup step and there should not be one: a test
  * harness that deletes from a financial table teaches exactly the wrong reflex,
- * and `lib/students/delete-policy.ts` blocks a hard delete once a student has
+ * and `src/lib/students/delete-policy.ts` blocks a hard delete once a student has
  * receipts anyway.
  *
  * So the harness bounds its footprint instead, and this is the check. One

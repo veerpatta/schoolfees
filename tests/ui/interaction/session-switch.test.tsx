@@ -37,7 +37,7 @@ vi.mock("@/app/protected/session/actions", () => ({
   listAvailableSessionsAction: () => Promise.resolve([]),
 }));
 
-vi.mock("@/lib/session/switching-context", () => ({
+vi.mock("@/platform/session/switching-context", () => ({
   useSessionSwitching: () => ({ setIsSwitching: vi.fn(), isSwitching: false }),
 }));
 
@@ -47,7 +47,7 @@ const SESSIONS = [
 ];
 
 async function loadPill() {
-  const mod = await import("@/components/admin/session-pill");
+  const mod = await import("@/ui/shell/session-pill");
   return mod.SessionPill;
 }
 
@@ -60,7 +60,7 @@ describe("session switching", () => {
     // each meant two setViewSessionAction calls per switch. Module state
     // outlives a test, so reset it here or the third case inherits the label
     // the first case selected.
-    (await import("@/components/admin/session-pill")).sessionSyncGuard.label = null;
+    (await import("@/ui/shell/session-pill")).sessionSyncGuard.label = null;
     searchParams = new URLSearchParams();
     setViewSessionAction.mockResolvedValue({
       success: true,
@@ -178,8 +178,8 @@ describe("session switching", () => {
     // each ran its own URL->cookie sync effect and one tap wrote the cookie
     // and revalidated the session tag twice.
     searchParams = new URLSearchParams("session=TEST-2026-27");
-    const mod = await import("@/components/admin/session-pill");
-    const mobileMod = await import("@/components/admin/mobile-session-pill");
+    const mod = await import("@/ui/shell/session-pill");
+    const mobileMod = await import("@/ui/shell/mobile-session-pill");
 
     render(
       <>

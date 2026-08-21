@@ -9,10 +9,10 @@ const supabaseState = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: supabaseState.createClient,
 }));
-vi.mock("@/lib/supabase/admin", () => ({
+vi.mock("@/platform/supabase/admin", () => ({
   createAdminClient: supabaseState.createAdminClient,
 }));
 

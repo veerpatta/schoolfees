@@ -1,12 +1,12 @@
 import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/session/switching-context", () => ({
+vi.mock("@/platform/session/switching-context", () => ({
   useSessionSwitching: () => ({ isSwitching: false, setGlobalSessionSwitching: vi.fn() }),
 }));
 
-const { NAV_EVENT } = await import("@/components/admin/nav-link");
-const { RouteProgress } = await import("@/components/admin/route-progress");
+const { NAV_EVENT } = await import("@/ui/shell/nav-link");
+const { RouteProgress } = await import("@/ui/shell/route-progress");
 
 function emit(pending: boolean) {
   act(() => {

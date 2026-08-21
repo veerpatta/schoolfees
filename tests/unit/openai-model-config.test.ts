@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { DEFAULT_OPENAI_MODEL, getOpenAIModel } from "@/lib/config/openai";
+import { DEFAULT_OPENAI_MODEL, getOpenAIModel } from "@/platform/config/openai";
 
 describe("OpenAI model configuration", () => {
   afterEach(() => {

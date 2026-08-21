@@ -37,8 +37,8 @@ describe("receipt-specific payment desk adjustments", () => {
   });
 
   it("receipt detail reads discount from this receipt instead of current aggregate discount", () => {
-    const receiptData = readFileSync(join(process.cwd(), "lib", "receipts", "data.ts"), "utf8");
-    const receiptAmounts = readFileSync(join(process.cwd(), "lib", "receipts", "amounts.ts"), "utf8");
+    const receiptData = readFileSync(join(process.cwd(), "src/lib", "receipts", "data.ts"), "utf8");
+    const receiptAmounts = readFileSync(join(process.cwd(), "src/lib", "receipts", "amounts.ts"), "utf8");
 
     expect(receiptData).toContain('.from("receipt_adjustments")');
     expect(receiptData).toContain("buildReceiptAdjustmentTotals");

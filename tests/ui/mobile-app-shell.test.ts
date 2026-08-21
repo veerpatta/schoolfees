@@ -18,9 +18,9 @@ function readRepoFile(path: string) {
  * one constraint that must survive them: desktop is untouched.
  */
 describe("phone app shell", () => {
-  const globals = readRepoFile("app/globals.css");
-  const main = readRepoFile("components/admin/scroll-restoring-main.tsx");
-  const shell = readRepoFile("components/admin/dashboard-shell.tsx");
+  const globals = readRepoFile("src/app/globals.css");
+  const main = readRepoFile("src/ui/shell/scroll-restoring-main.tsx");
+  const shell = readRepoFile("src/ui/shell/dashboard-shell.tsx");
 
   it("makes main the scroll region on phones only", () => {
     // An unscoped rule (or an inline style) would beat the md: reset and lock
@@ -60,7 +60,7 @@ describe("phone app shell", () => {
     // Rendering it above main would add its height on top of 100dvh.
     expect(shell).toContain("mobileBar={<MobileTakeoverBar />}");
     expect(main).toContain("{mobileBar}");
-    expect(readRepoFile("components/admin/mobile-takeover-bar.tsx")).toContain("sticky top-0");
+    expect(readRepoFile("src/ui/shell/mobile-takeover-bar.tsx")).toContain("sticky top-0");
   });
 
   it("keeps no persistent phone app bar", () => {

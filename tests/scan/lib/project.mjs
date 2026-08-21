@@ -128,7 +128,12 @@ export function lineAt(file, index) {
  */
 function resolveImport(specifier, fromRel, byRel) {
   let base;
-  if (specifier.startsWith("@/")) base = specifier.slice(2);
+  // `@/` is tsconfig.json's only path alias and it points at ./src/*. Get
+  // this wrong and nothing throws: every alias import silently fails to
+  // resolve, `imports`/`importers` come back empty, and the checks built on
+  // them — client-boundary above all — report zero findings because they saw
+  // zero edges, not because the code is clean.
+  if (specifier.startsWith("@/")) base = `src/${specifier.slice(2)}`;
   else if (specifier.startsWith(".")) base = path.posix.normalize(path.posix.join(path.posix.dirname(fromRel), specifier));
   else return null;
 
@@ -229,10 +234,10 @@ export async function createProject(root = process.cwd()) {
       return byRel.get(rel) ?? null;
     },
     /** App Router surfaces, pre-split because four checks want them. */
-    routeHandlers: source.filter((file) => /^app\/.*\/route\.[tj]sx?$/.test(file.rel)),
-    pages: source.filter((file) => /^app\/.*\/page\.tsx$/.test(file.rel)),
+    routeHandlers: source.filter((file) => /^src\/app\/.*\/route\.[tj]sx?$/.test(file.rel)),
+    pages: source.filter((file) => /^src\/app\/.*\/page\.tsx$/.test(file.rel)),
     serverActions: source.filter(
-      (file) => file.rel.startsWith("app/") && /actions\.ts$/.test(file.rel),
+      (file) => file.rel.startsWith("src/app/") && /actions\.ts$/.test(file.rel),
     ),
     migrations: files.filter((file) => file.isMigration),
     isClientReachable(rel) {

@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createFakeSupabase, type FakeSupabase } from "@/tests/helpers/fake-supabase";
+import { createFakeSupabase, type FakeSupabase } from "../helpers/fake-supabase";
 
 vi.mock("server-only", () => ({}));
 
 let supabase: FakeSupabase;
 
-vi.mock("@/lib/supabase/admin", () => ({
+vi.mock("@/platform/supabase/admin", () => ({
   createAdminClient: vi.fn(() => supabase),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => supabase),
 }));
 

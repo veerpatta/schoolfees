@@ -18,8 +18,8 @@ function readRepoFile(path: string) {
  */
 describe("dashboard intl placeholders", () => {
   it("never calls a placeholder message without its values", () => {
-    const source = readRepoFile("app/protected/dashboard/page.tsx");
-    const messages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const source = readRepoFile("src/app/protected/dashboard/page.tsx");
+    const messages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Dashboard: Record<string, string>;
     };
 

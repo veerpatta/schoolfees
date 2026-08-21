@@ -11,19 +11,19 @@ const updateAcademicSession = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
-vi.mock("@/lib/session/active", () => ({
+vi.mock("@/platform/session/active", () => ({
   getActiveSessionLabel,
 }));
 
-vi.mock("@/lib/session/set-active", () => ({
+vi.mock("@/platform/session/set-active", () => ({
   setActiveSessionLabel,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 

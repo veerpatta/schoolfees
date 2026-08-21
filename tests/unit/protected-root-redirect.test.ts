@@ -3,8 +3,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { staffRoles } from "@/lib/auth/roles";
-import { getDefaultProtectedHref } from "@/lib/config/navigation";
+import { staffRoles } from "@/platform/auth/roles";
+import { getDefaultProtectedHref } from "@/platform/config/navigation";
 
 /**
  * `/protected` is redirected by the middleware, and why that matters.
@@ -18,12 +18,12 @@ import { getDefaultProtectedHref } from "@/lib/config/navigation";
  *
  * Moving it to the middleware makes it a real 307 before anything renders. The
  * cost is a second copy of the role→landing map, because
- * `lib/config/navigation.ts` imports the whole lucide-react icon set and the
+ * `src/platform/config/navigation.ts` imports the whole lucide-react icon set and the
  * middleware runs on every request. This file is what stops that copy drifting.
  */
 
 const middlewareSource = readFileSync(
-  path.join(process.cwd(), "lib/supabase/middleware.ts"),
+  path.join(process.cwd(), "src/platform/supabase/middleware.ts"),
   "utf8",
 );
 
@@ -49,7 +49,7 @@ describe("the /protected root redirect", () => {
     for (const role of staffRoles) {
       expect(
         landings[role],
-        `lib/supabase/middleware.ts sends "${role}" somewhere other than ` +
+        `src/platform/supabase/middleware.ts sends "${role}" somewhere other than ` +
           "getDefaultProtectedHref() does. One of them is wrong.",
       ).toBe(getDefaultProtectedHref(role));
     }
@@ -85,7 +85,7 @@ describe("the /protected root redirect", () => {
 
   it("keeps the page redirect as the fallback", () => {
     const pageSource = readFileSync(
-      path.join(process.cwd(), "app/protected/page.tsx"),
+      path.join(process.cwd(), "src/app/protected/page.tsx"),
       "utf8",
     );
     expect(

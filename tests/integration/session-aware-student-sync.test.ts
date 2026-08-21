@@ -22,7 +22,7 @@ vi.mock("@/lib/fees/generator", () => ({
   generateSessionLedgersAction,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 

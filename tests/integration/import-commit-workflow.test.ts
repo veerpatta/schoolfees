@@ -139,7 +139,7 @@ vi.mock("@/lib/students/data", () => ({
   updateStudent,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from(table: string) {
       if (table === "import_batches") {

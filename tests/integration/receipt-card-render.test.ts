@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * are a PNG, across the branches that change the tree.
  */
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission: vi.fn().mockResolvedValue({ id: "staff-1" }),
 }));
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { chunkArray, fetchInChunks } from "@/lib/helpers/chunk";
+import { chunkArray, fetchInChunks } from "@/platform/helpers/chunk";
 
 describe("chunkArray", () => {
   it("returns no chunks for an empty list", () => {

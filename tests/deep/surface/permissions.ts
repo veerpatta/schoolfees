@@ -3,7 +3,7 @@ import { registerDimension } from "../lib/coverage";
 /**
  * The permission matrix, deliberately kept as a second copy.
  *
- * This is NOT imported from `lib/auth/roles.ts` on purpose. A permission test
+ * This is NOT imported from `src/platform/auth/roles.ts` on purpose. A permission test
  * that reads its expectations from the code under test can only ever prove the
  * code agrees with itself. If the two drift, `tests/unit/rbac-matrix-mirror.test.ts`
  * fails in two seconds and somebody has to decide which one is right — the same
@@ -175,7 +175,7 @@ export const IN_PAGE_GATES: readonly InPageGate[] = [
  * Gates this suite deliberately does NOT assert, and why.
  *
  * Both live behind an interaction: the contact-log form is inside
- * `components/defaulters/contact-popover.tsx` and the payment history inside the
+ * `src/components/defaulters/contact-popover.tsx` and the payment history inside the
  * worklist drawer, so neither control exists on a freshly loaded page. Locators
  * written against them matched nothing and produced two confident P0s about
  * permissions that are, as far as anyone can tell, working.

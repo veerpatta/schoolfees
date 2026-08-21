@@ -16,9 +16,9 @@ describe("office sync events", () => {
   // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
   // assertions describe the schema, not its capitalisation.
   const schema = readRepoFile("supabase/schema.sql").toLowerCase();
-    const publisher = readRepoFile("lib/system-sync/office-sync-events.ts");
-    const subscriber = readRepoFile("components/admin/office-sync-listener.tsx");
-    const shell = readRepoFile("components/admin/dashboard-shell.tsx");
+    const publisher = readRepoFile("src/lib/system-sync/office-sync-events.ts");
+    const subscriber = readRepoFile("src/ui/shell/office-sync-listener.tsx");
+    const shell = readRepoFile("src/ui/shell/dashboard-shell.tsx");
 
     expect(migration).toContain("create table if not exists public.office_sync_events");
     expect(migration).toContain("alter publication supabase_realtime add table public.office_sync_events");

@@ -14,7 +14,7 @@ vi.mock("@/app/protected/session/actions", () => ({
 import {
   buildSessionSwitchHref,
   SESSION_SWITCHER_STALE_PARAM_NAMES,
-} from "@/components/admin/session-pill";
+} from "@/ui/shell/session-pill";
 
 describe("session switcher navigation", () => {
   it("switches by URL session param without carrying stale page filters", () => {

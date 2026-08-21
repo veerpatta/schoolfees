@@ -85,7 +85,7 @@ describe("waive_late_fee Postgres RPC (audit 1.5)", () => {
 
 describe("waiveLateFeeAction calls the RPC (audit 1.5)", () => {
   const source = readFileSync(
-    join(process.cwd(), "app/protected/payments/waive-late-fee-actions.ts"),
+    join(process.cwd(), "src/app/protected/payments/waive-late-fee-actions.ts"),
     "utf8",
   );
 
@@ -101,8 +101,8 @@ describe("waiveLateFeeAction calls the RPC (audit 1.5)", () => {
   });
 
   it("imports createClient (user JWT) — never the service-role admin client", () => {
-    expect(source).toContain('from "@/lib/supabase/server"');
-    expect(source).not.toContain('from "@/lib/supabase/admin"');
+    expect(source).toContain('from "@/platform/supabase/server"');
+    expect(source).not.toContain('from "@/platform/supabase/admin"');
   });
 
   it("no longer reads v_workbook_student_financials separately before writing", () => {

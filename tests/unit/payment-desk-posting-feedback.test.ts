@@ -20,8 +20,8 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  * These tests exist so a refactor cannot quietly restore the dead interval.
  */
 describe("payment desk shows that a post is in flight", () => {
-  const desk = read("components/payments/payment-desk-mobile.tsx");
-  const flowSheet = read("components/payments/mobile-payment-flow-sheet.tsx");
+  const desk = read("src/components/payments/payment-desk-mobile.tsx");
+  const flowSheet = read("src/components/payments/mobile-payment-flow-sheet.tsx");
 
   it("derives a posting phase distinct from review and receipt", () => {
     const posting = derivePaymentDeskControllerView({ phase: "posting" } as never);
@@ -53,7 +53,7 @@ describe("payment desk shows that a post is in flight", () => {
   it("delays the sheet so a fast post does not strobe, and escalates when slow", () => {
     // The timing lives in its own hook — the desk client is already past its
     // size budget and slated for a split, so new logic goes outside it.
-    const indicator = read("hooks/use-posting-indicator.ts");
+    const indicator = read("src/ui/hooks/use-posting-indicator.ts");
 
     // Same anti-flash constant RouteProgress uses.
     expect(indicator).toContain("SHOW_DELAY_MS = 120");
@@ -82,7 +82,7 @@ describe("payment desk shows that a post is in flight", () => {
     // Optimistic UI stays banned for financial mutations
     // (docs/design/design-system.md §5.7). The posting screen may show the
     // amount and the student — both already true — but no receipt number.
-    const posting = read("components/payments/posting-receipt-sheet.tsx");
+    const posting = read("src/components/payments/posting-receipt-sheet.tsx");
 
     expect(posting).not.toContain("receiptNumber");
     expect(posting).not.toMatch(/Payment Successful|Receipt saved/);

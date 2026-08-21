@@ -1,0 +1,372 @@
+"use server";
+
+import { revalidatePath, updateTag } from "next/cache";
+
+import { recordActivity } from "@/lib/activity/events";
+import { snoozeIso } from "@/lib/defaulters/cadence";
+import {
+  insertDefaulterContact,
+  refreshDefaulterRecoveryState,
+  setNoCallFlag,
+  type ContactChannel,
+  type ContactOutcome,
+} from "@/lib/defaulters/contacts";
+import { requireStaffPermission } from "@/platform/supabase/session";
+
+export type LogContactState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+};
+
+const VALID_CHANNELS: ContactChannel[] = [
+  "call",
+  "whatsapp",
+  "sms",
+  "in_person",
+  "email",
+];
+const VALID_OUTCOMES: ContactOutcome[] = [
+  "reached",
+  "no_answer",
+  "promised_pay",
+  "dispute",
+  "other",
+];
+
+/**
+ * Best-effort cache invalidation for the defaulters surface. Wrapped in
+ * try/catch because `revalidateTag` should never crash the action even if
+ * the cache backend hiccups — the user has already been told their log
+ * was saved.
+ */
+async function safeRevalidate(sessionLabel: string | null | undefined) {
+  // Roll up promise-kept / promise-broken counts BEFORE invalidating the page,
+  // so the render the user is about to see reflects the call they just logged.
+  //
+  // This refresh used to live in getDefaultersPageData, awaited on every page
+  // render between two Promise.all batches — a write RPC on the read path,
+  // forcing them to run in series. It belongs here instead: the rollup reads
+  // defaulter_contacts, and this is the only place defaulter_contacts changes.
+  // Paying for it once per logged call rather than once per page view is both
+  // cheaper and more timely. Wrapped, like everything else here, because the
+  // contact is already saved and a rollup hiccup must not surface as failure.
+  try {
+    if (sessionLabel) await refreshDefaulterRecoveryState(sessionLabel);
+  } catch (caught) {
+    console.warn("[defaulter-actions] recovery state refresh failed", caught);
+  }
+
+  // Belt-and-braces: invalidate the cached financial query (which tags by
+  // session) and the defaulters route. updateTag is preferred from server
+  // actions (read-your-own-writes), revalidatePath catches any uncached
+  // stragglers. Both calls are wrapped because a cache backend hiccup should
+  // never crash the user's flow after the contact has already been saved.
+  try {
+    if (sessionLabel) updateTag(`session:${sessionLabel}`);
+    updateTag("defaulter-contacts");
+  } catch (caught) {
+    console.warn("[defaulter-actions] updateTag failed", caught);
+  }
+  try {
+    revalidatePath("/protected/defaulters");
+  } catch (caught) {
+    console.warn("[defaulter-actions] revalidatePath failed", caught);
+  }
+}
+
+export async function logContactAction(
+  _prevState: LogContactState,
+  formData: FormData,
+): Promise<LogContactState> {
+  let staffId: string | null = null;
+  try {
+    const staff = await requireStaffPermission("defaulters:view");
+    staffId = (staff?.id as string | undefined) ?? null;
+  } catch {
+    return { status: "error", message: "Permission denied." };
+  }
+
+  const studentId = formData.get("studentId") as string | null;
+  const channel = formData.get("channel") as string | null;
+  const outcome = formData.get("outcome") as string | null;
+  const snoozeStr = formData.get("snoozeDays") as string | null;
+  const promisedDate = (formData.get("promisedDate") as string | null)?.trim() || null;
+  const note = (formData.get("note") as string | null)?.trim() || null;
+  const sessionLabel = formData.get("sessionLabel") as string | null;
+  const voiceNotePath = (formData.get("voiceNotePath") as string | null)?.trim() || null;
+  const contactedPhone = (formData.get("contactedPhone") as string | null)?.trim() || null;
+  const phoneLabel = (formData.get("phoneLabel") as string | null)?.trim() || null;
+
+  if (!studentId || !channel || !outcome || !sessionLabel) {
+    return { status: "error", message: "Missing required fields." };
+  }
+  if (!VALID_CHANNELS.includes(channel as ContactChannel)) {
+    return { status: "error", message: "Invalid channel." };
+  }
+  if (!VALID_OUTCOMES.includes(outcome as ContactOutcome)) {
+    return { status: "error", message: "Invalid outcome." };
+  }
+
+  // Promised-pay date takes priority over generic snooze; we store it in
+  // snooze_until so the cadence engine resurfaces the student on that day.
+  let snoozeUntil: string | null = null;
+  if (outcome === "promised_pay" && promisedDate) {
+    snoozeUntil = promisedDate;
+  } else if (snoozeStr) {
+    const days = Number(snoozeStr);
+    if (Number.isFinite(days) && days > 0) snoozeUntil = snoozeIso(days);
+  }
+
+  try {
+    await insertDefaulterContact({
+      studentId,
+      sessionLabel,
+      channel: channel as ContactChannel,
+      outcome: outcome as ContactOutcome,
+      snoozeUntil,
+      note,
+      voiceNotePath,
+      contactedPhone,
+      phoneLabel,
+    });
+  } catch (caught) {
+    console.error("[defaulter-actions] insert contact failed", caught);
+    return {
+      status: "error",
+      message: caught instanceof Error ? caught.message : "Could not save contact.",
+    };
+  }
+
+  try {
+    await recordActivity({
+      userId: staffId,
+      kind: "defaulter_contacted",
+      refId: studentId,
+      payload: {
+        channel,
+        outcome,
+        hasVoiceNote: Boolean(voiceNotePath),
+        sessionLabel,
+        promisedDate: snoozeUntil,
+      },
+    });
+  } catch (caught) {
+    console.warn("[defaulter-actions] activity record failed", caught);
+  }
+
+  await safeRevalidate(sessionLabel);
+  return { status: "success", message: "Contact logged." };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Quick-log: one-tap log from the card (no form, no sheet)                    */
+/* -------------------------------------------------------------------------- */
+
+export type QuickLogArgs = {
+  studentId: string;
+  sessionLabel: string;
+  outcome: ContactOutcome;
+  /** Channel hint — defaults to "call" for quick-log buttons. */
+  channel?: ContactChannel;
+  /** When outcome=promised_pay, the promised yyyy-mm-dd. */
+  promisedDate?: string | null;
+  /** The number actually dialed, when known. */
+  contactedPhone?: string | null;
+  /** Which stored number was used, e.g. "Father" / "Mother". */
+  phoneLabel?: string | null;
+};
+
+export type QuickLogResult = {
+  ok: boolean;
+  message?: string;
+};
+
+export async function quickLogContact(args: QuickLogArgs): Promise<QuickLogResult> {
+  let staffId: string | null = null;
+  try {
+    const staff = await requireStaffPermission("defaulters:view");
+    staffId = (staff?.id as string | undefined) ?? null;
+  } catch {
+    return { ok: false, message: "Permission denied." };
+  }
+
+  if (!args.studentId || !args.sessionLabel) {
+    return { ok: false, message: "Missing student or session." };
+  }
+  if (!VALID_OUTCOMES.includes(args.outcome)) {
+    return { ok: false, message: "Invalid outcome." };
+  }
+  const channel: ContactChannel = args.channel ?? "call";
+  if (!VALID_CHANNELS.includes(channel)) {
+    return { ok: false, message: "Invalid channel." };
+  }
+
+  const snoozeUntil = args.outcome === "promised_pay" ? args.promisedDate ?? null : null;
+
+  try {
+    await insertDefaulterContact({
+      studentId: args.studentId,
+      sessionLabel: args.sessionLabel,
+      channel,
+      outcome: args.outcome,
+      snoozeUntil,
+      contactedPhone: args.contactedPhone ?? null,
+      phoneLabel: args.phoneLabel ?? null,
+    });
+  } catch (caught) {
+    console.error("[defaulter-actions] quick-log insert failed", caught);
+    return {
+      ok: false,
+      message: caught instanceof Error ? caught.message : "Could not save contact.",
+    };
+  }
+
+  try {
+    await recordActivity({
+      userId: staffId,
+      kind: "defaulter_contacted",
+      refId: args.studentId,
+      payload: {
+        channel,
+        outcome: args.outcome,
+        quickLog: true,
+        sessionLabel: args.sessionLabel,
+        promisedDate: snoozeUntil,
+      },
+    });
+  } catch (caught) {
+    console.warn("[defaulter-actions] activity record failed", caught);
+  }
+
+  await safeRevalidate(args.sessionLabel);
+  return { ok: true };
+}
+
+/* -------------------------------------------------------------------------- */
+/* WhatsApp send auto-log                                                       */
+/* -------------------------------------------------------------------------- */
+
+export type WhatsAppAutoLogArgs = {
+  sessionLabel: string;
+  studentIds: string[];
+  templateName?: string | null;
+};
+
+export async function logWhatsAppSendAttempts(
+  args: WhatsAppAutoLogArgs,
+): Promise<QuickLogResult> {
+  let staffId: string | null = null;
+  try {
+    const staff = await requireStaffPermission("defaulters:view");
+    staffId = (staff?.id as string | undefined) ?? null;
+  } catch {
+    return { ok: false, message: "Permission denied." };
+  }
+
+  if (!args.sessionLabel || args.studentIds.length === 0) {
+    return { ok: false, message: "Missing session or students." };
+  }
+
+  const note = args.templateName
+    ? `WhatsApp sent (${args.templateName})`
+    : "WhatsApp sent";
+
+  let failures = 0;
+  for (const studentId of args.studentIds) {
+    try {
+      await insertDefaulterContact({
+        studentId,
+        sessionLabel: args.sessionLabel,
+        channel: "whatsapp",
+        outcome: "other",
+        note,
+      });
+    } catch (caught) {
+      failures += 1;
+      console.warn("[defaulter-actions] wa auto-log row failed", caught);
+    }
+  }
+
+  try {
+    await recordActivity({
+      userId: staffId,
+      kind: "defaulter_contacted",
+      payload: {
+        channel: "whatsapp",
+        outcome: "other",
+        wabulk: true,
+        count: args.studentIds.length,
+        sessionLabel: args.sessionLabel,
+        templateName: args.templateName ?? null,
+      },
+    });
+  } catch (caught) {
+    console.warn("[defaulter-actions] activity record failed", caught);
+  }
+
+  await safeRevalidate(args.sessionLabel);
+  return {
+    ok: failures === 0,
+    message: failures === 0 ? undefined : `${failures} of ${args.studentIds.length} could not be logged.`,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* No-call flag (admin-only) — "this parent will pay anyway, don't call"        */
+/* -------------------------------------------------------------------------- */
+
+export type SetNoCallArgs = {
+  studentId: string;
+  sessionLabel: string;
+  noCall: boolean;
+  reason?: string | null;
+};
+
+export async function setNoCallFlagAction(args: SetNoCallArgs): Promise<QuickLogResult> {
+  // Admin-only: students:write is held by admin alone (roles.ts + has_permission).
+  // The DB RLS policy enforces the same — this is the upstream guard.
+  let staffId: string | null = null;
+  try {
+    const staff = await requireStaffPermission("students:write");
+    staffId = (staff?.id as string | undefined) ?? null;
+  } catch {
+    return { ok: false, message: "Permission denied." };
+  }
+
+  if (!args.studentId || !args.sessionLabel) {
+    return { ok: false, message: "Missing student or session." };
+  }
+
+  try {
+    await setNoCallFlag({
+      studentId: args.studentId,
+      sessionLabel: args.sessionLabel,
+      noCall: args.noCall,
+      reason: args.reason ?? null,
+    });
+  } catch (caught) {
+    console.error("[defaulter-actions] set no-call flag failed", caught);
+    return {
+      ok: false,
+      message: caught instanceof Error ? caught.message : "Could not update flag.",
+    };
+  }
+
+  try {
+    await recordActivity({
+      userId: staffId,
+      kind: "defaulter_no_call_set",
+      refId: args.studentId,
+      payload: {
+        noCall: args.noCall,
+        reason: args.reason ?? null,
+        sessionLabel: args.sessionLabel,
+      },
+    });
+  } catch (caught) {
+    console.warn("[defaulter-actions] activity record failed", caught);
+  }
+
+  await safeRevalidate(args.sessionLabel);
+  return { ok: true };
+}

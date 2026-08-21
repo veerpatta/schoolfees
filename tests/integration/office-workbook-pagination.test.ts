@@ -39,7 +39,7 @@ vi.mock("@/lib/reports/data", () => ({
 }));
 // getBaseOfficeStudents merges students with no generated dues into these
 // views. Empty here -- the fixtures above already carry generated rows.
-vi.mock("@/lib/supabase/server", () => {
+vi.mock("@/platform/supabase/server", () => {
   const builder: Record<string, unknown> = {};
   for (const method of ["select", "eq", "in", "order"]) {
     builder[method] = () => builder;

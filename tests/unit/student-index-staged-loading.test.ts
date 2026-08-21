@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("Students identity-first loading contract", () => {
-  const route = readFileSync("app/protected/students/index/route.ts", "utf8");
-  const page = readFileSync("app/protected/students/page.tsx", "utf8");
-  const client = readFileSync("components/students/student-quick-load.tsx", "utf8");
-  const data = readFileSync("lib/students/data.ts", "utf8");
+  const route = readFileSync("src/app/protected/students/index/route.ts", "utf8");
+  const page = readFileSync("src/app/protected/students/page.tsx", "utf8");
+  const client = readFileSync("src/components/students/student-quick-load.tsx", "utf8");
+  const data = readFileSync("src/lib/students/data.ts", "utf8");
 
   it("keeps the legacy full response while adding identity and financial modes", () => {
     expect(route).toContain('mode === "identity"');

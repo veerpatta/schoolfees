@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readerFromRecord, readerFromSearchParams } from "@/lib/navigation/search-params";
+import { readerFromRecord, readerFromSearchParams } from "@/platform/navigation/search-params";
 import {
   EMPTY_RECEIPT_FILTERS,
   countActiveReceiptFilters,

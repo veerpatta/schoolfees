@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
  */
 
 const repoRoot = process.cwd();
-const messages = JSON.parse(readFileSync(join(repoRoot, "messages/en.json"), "utf8"));
+const messages = JSON.parse(readFileSync(join(repoRoot, "src/messages/en.json"), "utf8"));
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
@@ -37,7 +37,7 @@ function hasKey(namespace: string, key: string): boolean {
 
 describe("translation keys resolve", () => {
   it("finds every t(...) key in the en catalogue", () => {
-    const files = ["app", "components"]
+    const files = ["src"]
       .flatMap((root) => walk(join(repoRoot, root)))
       .filter((file) => /\.tsx?$/.test(file));
 

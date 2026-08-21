@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { appendSessionParam } from "@/lib/navigation/session-href";
+import { appendSessionParam } from "@/platform/navigation/session-href";
 
 describe("appendSessionParam", () => {
   it("adds the selected session to protected links", () => {

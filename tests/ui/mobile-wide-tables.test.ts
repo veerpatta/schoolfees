@@ -26,19 +26,19 @@ function walk(dir: string, out: string[] = []): string[] {
  */
 const DESKTOP_ONLY = new Map<string, string>([
   [
-    "components/dashboard/class-collection-progress.tsx",
+    "src/components/dashboard/class-collection-progress.tsx",
     "renders only inside the dashboard's hidden md:block branch",
   ],
   [
-    "components/payments/bulk/bulk-payment-workflow.tsx",
+    "src/components/payments/bulk/bulk-payment-workflow.tsx",
     "admin bulk-entry desk surface — a keyboard-and-mouse workflow by design",
   ],
   [
-    "app/protected/students/[studentId]/page.tsx",
+    "src/app/protected/students/[studentId]/page.tsx",
     "the whole desktop tree sits inside one `hidden md:block` branch; the phone renders MobileStudentProfile instead",
   ],
   [
-    "components/students/student-receipts-panel.tsx",
+    "src/components/students/student-receipts-panel.tsx",
     "exactly one consumer — the student page's desktop tree, itself `hidden md:block`. It used to carry a md:hidden card twin that could therefore never render; that dead branch was deleted rather than kept to satisfy this rule.",
   ],
 ]);
@@ -47,7 +47,7 @@ describe("wide tables on phones", () => {
   it("hides every wide table behind md: unless it is listed as desktop-only", () => {
     const offenders: string[] = [];
 
-    for (const root of ["components", "app"]) {
+    for (const root of ["src"]) {
       for (const file of walk(join(process.cwd(), root))) {
         const relative = file.slice(process.cwd().length + 1).split("\\").join("/");
         const lines = readFileSync(file, "utf8").split("\n");

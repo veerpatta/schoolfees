@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { computeKeyboardOffset } from "@/lib/system/keyboard-offset-store";
+import { computeKeyboardOffset } from "@/ui/system/keyboard-offset-store";
 
 /**
  * How much of the layout viewport the on-screen keyboard covers.

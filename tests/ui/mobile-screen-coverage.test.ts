@@ -17,8 +17,8 @@ function read(path: string) {
 }
 
 describe("Transactions on a phone", () => {
-  const shell = read("components/transactions/transactions-client-shell.tsx");
-  const page = read("app/protected/transactions/page.tsx");
+  const shell = read("src/components/transactions/transactions-client-shell.tsx");
+  const page = read("src/app/protected/transactions/page.tsx");
 
   it("opens on its own sticky chip header, not the desktop page title", () => {
     expect(page).toContain("hideOnMobile");
@@ -69,7 +69,7 @@ describe("Transactions on a phone", () => {
 });
 
 describe("Receipts lookup on a phone", () => {
-  const source = read("components/receipts/receipts-quick-load.tsx");
+  const source = read("src/components/receipts/receipts-quick-load.tsx");
 
   it("is search-first, with the desk cards behind md:", () => {
     expect(source).toContain('h-[52px]');
@@ -82,7 +82,7 @@ describe("Receipts lookup on a phone", () => {
 });
 
 describe("Reports on a phone", () => {
-  const source = read("app/protected/reports/page.tsx");
+  const source = read("src/app/protected/reports/page.tsx");
 
   it("gives every wide table a card list beside it", () => {
     const tables = source.match(/<div className="hidden overflow-x-auto rounded-xl border border-border md:block">/g) ?? [];
@@ -98,8 +98,8 @@ describe("Reports on a phone", () => {
 });
 
 describe("Defaulters on a phone", () => {
-  const workspace = read("components/defaulters/defaulters-workspace.tsx");
-  const page = read("app/protected/defaulters/page.tsx");
+  const workspace = read("src/components/defaulters/defaulters-workspace.tsx");
+  const page = read("src/app/protected/defaulters/page.tsx");
 
   it("opens on the family being called, not on a metric row", () => {
     // The page title, the standing office notice, the desk metric tiles and
@@ -123,10 +123,10 @@ describe("Defaulters on a phone", () => {
 
 describe("desktop-only surfaces say so on the phone", () => {
   it.each([
-    "app/protected/payments/bulk/page.tsx",
-    "app/protected/admin-tools/promotion/page.tsx",
-    "app/protected/admin-tools/promotion/[runId]/page.tsx",
-    "app/protected/admin-tools/session-health/page.tsx",
+    "src/app/protected/payments/bulk/page.tsx",
+    "src/app/protected/admin-tools/promotion/page.tsx",
+    "src/app/protected/admin-tools/promotion/[runId]/page.tsx",
+    "src/app/protected/admin-tools/session-health/page.tsx",
   ])("%s carries a MobileDesktopOnlyNotice", (path) => {
     // Being honest that a task belongs on a computer beats shipping a cramped
     // table that invites a mistake on live money.

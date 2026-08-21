@@ -18,7 +18,7 @@ import { buildTransportRouteLabel, hasTransport } from "@/lib/transport/label";
  */
 
 const route = readFileSync(
-  join(process.cwd(), "app/protected/exports/[exportType]/route.ts"),
+  join(process.cwd(), "src/app/protected/exports/[exportType]/route.ts"),
   "utf8",
 );
 

@@ -28,11 +28,11 @@
     {
       "id": "repayment-plan-schedule",
       "rule": "An EMI schedule: term = ceil(opening / monthly) with a floor of 1, one row per month with the day-of-month clamped to the shortest month, and the final instalment absorbing the remainder rather than the term rounding up.",
-      "declaredAt": "lib/repayment-plans/schedule.ts:2-8 (\"The database is authoritative ... Any change here must be mirrored in the migration, and vice versa\")",
+      "declaredAt": "src/lib/repayment-plans/schedule.ts:2-8 (\"The database is authoritative ... Any change here must be mirrored in the migration, and vice versa\")",
       "sides": [
         {
           "name": "buildRepaymentSchedule + addMonthsClamped + calculateRepaymentTermMonths",
-          "file": "lib/repayment-plans/schedule.ts",
+          "file": "src/lib/repayment-plans/schedule.ts",
           "startLine": 30,
           "endLine": 94,
           "chars": 1381,
@@ -55,7 +55,7 @@
       "sides": [
         {
           "name": "calculateConventionalPolicyTuition",
-          "file": "lib/fees/conventional-discount-rules.ts",
+          "file": "src/lib/fees/conventional-discount-rules.ts",
           "startLine": 49,
           "endLine": 67,
           "chars": 575,
@@ -74,11 +74,11 @@
     {
       "id": "installment-amount-due",
       "rule": "amount_due = (base_amount + transport_amount) - discount_amount.",
-      "declaredAt": "lib/fees/generator.ts:357-360 (\"`installments.amount_due` is a generated column ... Mirror the generation expression here\")",
+      "declaredAt": "src/lib/fees/generator.ts:357-360 (\"`installments.amount_due` is a generated column ... Mirror the generation expression here\")",
       "sides": [
         {
           "name": "plannedAmountDue",
-          "file": "lib/fees/generator.ts",
+          "file": "src/lib/fees/generator.ts",
           "startLine": 362,
           "endLine": 364,
           "chars": 127,
@@ -101,7 +101,7 @@
       "sides": [
         {
           "name": "calculatePendingLateFeeAmount",
-          "file": "lib/fees/due-amounts.ts",
+          "file": "src/lib/fees/due-amounts.ts",
           "startLine": 68,
           "endLine": 72,
           "chars": 232,
@@ -124,7 +124,7 @@
       "sides": [
         {
           "name": "isYearCleared",
-          "file": "lib/fees/year-clear.ts",
+          "file": "src/lib/fees/year-clear.ts",
           "startLine": 30,
           "endLine": 37,
           "chars": 239,
@@ -147,7 +147,7 @@
       "sides": [
         {
           "name": "hasFeeException",
-          "file": "lib/students/data.ts",
+          "file": "src/lib/students/data.ts",
           "startLine": 894,
           "endLine": 901,
           "chars": 307,
@@ -178,7 +178,7 @@
         },
         {
           "name": "workbook activeOnly filter",
-          "file": "lib/workbook/data.ts",
+          "file": "src/lib/workbook/data.ts",
           "startLine": 692,
           "endLine": 692,
           "chars": 60,

@@ -5,7 +5,7 @@ vi.mock("server-only", () => ({}));
 const createClient = vi.fn();
 const getFeePolicySummary = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
@@ -36,7 +36,7 @@ describe("system sync health", () => {
       }),
     });
 
-    const { getActiveSessionLabel } = await import("@/lib/session/active");
+    const { getActiveSessionLabel } = await import("@/platform/session/active");
 
     await expect(getActiveSessionLabel()).resolves.toBe("TEST-2026-27");
     expect(appSettingsQuery.eq).toHaveBeenCalledWith("key", "active_session_label");

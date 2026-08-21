@@ -41,9 +41,9 @@ function unstableCacheBlocks(source: string) {
 describe("unstable_cache cross-user safety audit", () => {
   it("does not key lib data caches by requesting user identity", () => {
     const files = [
-      "lib/dashboard/data.ts",
-      "lib/payments/data.ts",
-      "lib/defaulters/data.ts",
+      "src/lib/dashboard/data.ts",
+      "src/lib/payments/data.ts",
+      "src/lib/defaulters/data.ts",
     ];
 
     for (const file of files) {
@@ -54,14 +54,14 @@ describe("unstable_cache cross-user safety audit", () => {
   });
 
   it("keeps Fee Setup collection loading outside unstable_cache because it uses request cookies", () => {
-    const feePolicy = readRepoFile("lib/fees/policy.ts");
+    const feePolicy = readRepoFile("src/lib/fees/policy.ts");
 
     expect(feePolicy).not.toMatch(/unstable_cache\(\s*loadFeeCollectionsUncached/);
     expect(feePolicy).toContain("loadFeeCollectionsUncached");
   });
 
   it("keeps student detail loading outside unstable_cache because payment posting reads it with request cookies", () => {
-    const studentsData = readRepoFile("lib/students/data.ts");
+    const studentsData = readRepoFile("src/lib/students/data.ts");
 
     expect(studentsData).not.toMatch(
       /export async function getStudentDetail[\s\S]*?cacheSafeUnstableCache/,

@@ -1,0 +1,1401 @@
+import type { ReactNode } from "react";
+import Link from "next/link";
+
+import { MetricCard } from "@/ui/shell/metric-card";
+import { PageHeader } from "@/ui/shell/page-header";
+import { MobileEmptyRows, MobileRecordCard } from "@/ui/mobile/mobile-kit";
+import { SectionCard } from "@/ui/shell/section-card";
+import { StatusBadge } from "@/ui/shell/status-badge";
+import { AutoSubmitForm } from "@/ui/office/auto-submit-form";
+import { OfficeNotice, WorkflowGuard } from "@/ui/office/office-ui";
+import { PrintReportButton } from "@/components/reports/print-report-button";
+import { ReversedBadge } from "@/components/receipts/reversed-badge";
+import { cn } from "@/platform/utils";
+import { DownloadAnchor } from "@/ui/primitives/download-anchor";
+import { Button } from "@/ui/primitives/button";
+import { Input } from "@/ui/primitives/input";
+import { Label } from "@/ui/primitives/label";
+import {
+  formatPaymentModeLabel,
+  getReportAuditNote,
+  getReportsPageData,
+  normalizeReportFilters,
+} from "@/lib/reports/data";
+import {
+  reportDefinitions,
+  reportKeys,
+  type ReportData,
+  type ReportFilters,
+  type ReportKey,
+} from "@/lib/reports/types";
+import { formatInr } from "@/platform/helpers/currency";
+import { formatDateTimeIst, formatShortDate } from "@/platform/helpers/date";
+import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
+import { getFeePolicySummary } from "@/lib/fees/data";
+import { getOfficeWorkflowReadiness } from "@/platform/readiness";
+import { getSetupWizardDataLight } from "@/lib/setup/data";
+import { requireStaffPermission } from "@/platform/supabase/session";
+
+type ReportsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const selectClassName =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+const formatDateTime = (value: string) => formatDateTimeIst(value);
+
+function buildReportHref(
+  filters: ReportFilters,
+  overrides: Partial<ReportFilters> = {},
+) {
+  const nextFilters = { ...filters, ...overrides };
+  const params = new URLSearchParams();
+
+  params.set("report", nextFilters.report);
+
+  if (nextFilters.classId) {
+    params.set("classId", nextFilters.classId);
+  }
+
+  if (nextFilters.transportRouteId) {
+    params.set("transportRouteId", nextFilters.transportRouteId);
+  }
+
+  if (nextFilters.sessionLabel) {
+    params.set("sessionLabel", nextFilters.sessionLabel);
+  }
+
+  if (nextFilters.fromDate) {
+    params.set("fromDate", nextFilters.fromDate);
+  }
+
+  if (nextFilters.toDate) {
+    params.set("toDate", nextFilters.toDate);
+  }
+
+  if (nextFilters.paymentMode) {
+    params.set("paymentMode", nextFilters.paymentMode);
+  }
+
+  if (nextFilters.studentId) {
+    params.set("studentId", nextFilters.studentId);
+  }
+
+  if (nextFilters.studentQuery) {
+    params.set("studentQuery", nextFilters.studentQuery);
+  }
+
+  if (nextFilters.batchId) {
+    params.set("batchId", nextFilters.batchId);
+  }
+
+  return `/protected/reports?${params.toString()}`;
+}
+
+function ResetFiltersLink({
+  report,
+}: {
+  report: ReportKey;
+}) {
+  return (
+    <Button asChild variant="outline">
+      <Link href={`/protected/reports?report=${report}`}>Reset filters</Link>
+    </Button>
+  );
+}
+
+function ReportCatalog({
+  filters,
+}: {
+  filters: ReportFilters;
+}) {
+  return (
+    <SectionCard
+      title="Report list"
+      description="Choose one report. Filters update the table automatically."
+      className="print:hidden"
+    >
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {reportKeys.map((reportKey) => {
+          const definition = reportDefinitions[reportKey];
+          const isActive = reportKey === filters.report;
+
+          return (
+            <Link
+              key={reportKey}
+              href={buildReportHref(filters, {
+                report: reportKey,
+                studentId: reportKey === "student-ledger" ? filters.studentId : "",
+                batchId: reportKey === "import-verification" ? filters.batchId : "",
+              })}
+              className={`rounded-[24px] border px-4 py-4 transition-colors ${
+                isActive
+                  ? "bg-info-soft/80"
+                  : "border-border/80 bg-card hover:border-border-strong"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-base font-semibold text-foreground">
+                  {definition.title}
+                </p>
+                {isActive ? (
+                  <StatusBadge label="Open" tone="accent" />
+                ) : null}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {definition.description}
+              </p>
+            </Link>
+          );
+        })}
+      </div>
+    </SectionCard>
+  );
+}
+
+function ReportFiltersSection({
+  report,
+  exportHref,
+  printHref,
+  children,
+}: {
+  report: ReportKey;
+  exportHref: string;
+  printHref?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <SectionCard
+      title="Filters and output"
+      description="Filters update the table automatically. Export and print remain manual."
+      actions={
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <DownloadAnchor href={exportHref} download>
+              Export CSV
+            </DownloadAnchor>
+          </Button>
+          {printHref ? (
+            <Button asChild variant="outline">
+              <DownloadAnchor href={printHref} target="_blank" successTitle="Print view ready">
+                Print view
+              </DownloadAnchor>
+            </Button>
+          ) : reportDefinitions[report].printFriendly ? (
+            <PrintReportButton />
+          ) : null}
+          <ResetFiltersLink report={report} />
+        </div>
+      }
+      className="print:hidden"
+    >
+      {children}
+    </SectionCard>
+  );
+}
+
+function SharedClassAndSessionFilters({
+  filters,
+  sessionOptions,
+  classOptions,
+}: {
+  filters: ReportFilters;
+  sessionOptions: string[];
+  classOptions: Array<{ id: string; label: string; sessionLabel: string }>;
+}) {
+  return (
+    <>
+      <div>
+        <Label htmlFor="report-session-label">Session</Label>
+        <select
+          id="report-session-label"
+          name="sessionLabel"
+          defaultValue={filters.sessionLabel}
+          className={`${selectClassName} mt-2`}
+        >
+          <option value="">All sessions</option>
+          {sessionOptions.map((sessionLabel) => (
+            <option key={sessionLabel} value={sessionLabel}>
+              {sessionLabel}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <Label htmlFor="report-class-id">Class</Label>
+        <select
+          id="report-class-id"
+          name="classId"
+          defaultValue={filters.classId}
+          className={`${selectClassName} mt-2`}
+        >
+          <option value="">All classes</option>
+          {classOptions.map((classOption) => (
+            <option key={classOption.id} value={classOption.id}>
+              {classOption.label} ({classOption.sessionLabel})
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
+  );
+}
+
+function OutstandingFilters({
+  filters,
+  sessionOptions,
+  classOptions,
+  routeOptions,
+}: {
+  filters: ReportFilters;
+  sessionOptions: string[];
+  classOptions: Array<{ id: string; label: string; sessionLabel: string }>;
+  routeOptions: Array<{ id: string; label: string; routeCode: string | null }>;
+}) {
+  return (
+    <AutoSubmitForm action="/protected/reports" method="get" className="space-y-4">
+      <input type="hidden" name="report" value="outstanding" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <SharedClassAndSessionFilters
+          filters={filters}
+          sessionOptions={sessionOptions}
+          classOptions={classOptions}
+        />
+        <div>
+          <Label htmlFor="outstanding-route-id">Route</Label>
+          <select
+            id="outstanding-route-id"
+            name="transportRouteId"
+            defaultValue={filters.transportRouteId}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">All routes</option>
+            {routeOptions.map((route) => (
+              <option key={route.id} value={route.id}>
+                {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="outstanding-from-date">Due from</Label>
+          <Input
+            id="outstanding-from-date"
+            name="fromDate"
+            type="date"
+            defaultValue={filters.fromDate}
+            className="mt-2"
+          />
+        </div>
+        <div>
+          <Label htmlFor="outstanding-to-date">Due to</Label>
+          <Input
+            id="outstanding-to-date"
+            name="toDate"
+            type="date"
+            defaultValue={filters.toDate}
+            className="mt-2"
+          />
+        </div>
+      </div>
+    </AutoSubmitForm>
+  );
+}
+
+function CollectionFilters({
+  filters,
+  sessionOptions,
+  classOptions,
+  routeOptions,
+  paymentModes,
+  report,
+}: {
+  filters: ReportFilters;
+  sessionOptions: string[];
+  classOptions: Array<{ id: string; label: string; sessionLabel: string }>;
+  routeOptions: Array<{ id: string; label: string; routeCode: string | null }>;
+  paymentModes: ReadonlyArray<{ value: string; label: string }>;
+  report: "daily-collection" | "receipt-register";
+}) {
+  return (
+    <AutoSubmitForm action="/protected/reports" method="get" className="space-y-4">
+      <input type="hidden" name="report" value={report} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <SharedClassAndSessionFilters
+          filters={filters}
+          sessionOptions={sessionOptions}
+          classOptions={classOptions}
+        />
+        <div>
+          <Label htmlFor={`${report}-route-id`}>Route</Label>
+          <select
+            id={`${report}-route-id`}
+            name="transportRouteId"
+            defaultValue={filters.transportRouteId}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">All routes</option>
+            {routeOptions.map((route) => (
+              <option key={route.id} value={route.id}>
+                {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor={`${report}-from-date`}>Date from</Label>
+          <Input
+            id={`${report}-from-date`}
+            name="fromDate"
+            type="date"
+            defaultValue={filters.fromDate}
+            className="mt-2"
+          />
+        </div>
+        <div>
+          <Label htmlFor={`${report}-to-date`}>Date to</Label>
+          <Input
+            id={`${report}-to-date`}
+            name="toDate"
+            type="date"
+            defaultValue={filters.toDate}
+            className="mt-2"
+          />
+        </div>
+        <div>
+          <Label htmlFor={`${report}-payment-mode`}>Payment mode</Label>
+          <select
+            id={`${report}-payment-mode`}
+            name="paymentMode"
+            defaultValue={filters.paymentMode}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">All modes</option>
+            {paymentModes.map((mode) => (
+              <option key={mode.value} value={mode.value}>
+                {mode.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </AutoSubmitForm>
+  );
+}
+
+function LedgerFilters({
+  filters,
+  sessionOptions,
+  classOptions,
+  routeOptions,
+  paymentModes,
+  studentOptions,
+  selectedStudentId,
+}: {
+  filters: ReportFilters;
+  sessionOptions: string[];
+  classOptions: Array<{ id: string; label: string; sessionLabel: string }>;
+  routeOptions: Array<{ id: string; label: string; routeCode: string | null }>;
+  paymentModes: ReadonlyArray<{ value: string; label: string }>;
+  studentOptions: Array<{
+    id: string;
+    fullName: string;
+    admissionNo: string;
+    classLabel: string;
+  }>;
+  selectedStudentId: string;
+}) {
+  return (
+    <AutoSubmitForm action="/protected/reports" method="get" className="space-y-4">
+      <input type="hidden" name="report" value="student-ledger" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SharedClassAndSessionFilters
+          filters={filters}
+          sessionOptions={sessionOptions}
+          classOptions={classOptions}
+        />
+        <div>
+          <Label htmlFor="ledger-route-id">Route</Label>
+          <select
+            id="ledger-route-id"
+            name="transportRouteId"
+            defaultValue={filters.transportRouteId}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">All routes</option>
+            {routeOptions.map((route) => (
+              <option key={route.id} value={route.id}>
+                {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="ledger-student-query">Search student</Label>
+          <Input
+            id="ledger-student-query"
+            name="studentQuery"
+            defaultValue={filters.studentQuery}
+            placeholder="Student name or SR no"
+            className="mt-2"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ledger-student-id">Student</Label>
+          <select
+            id="ledger-student-id"
+            name="studentId"
+            defaultValue={selectedStudentId}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">Select student</option>
+            {studentOptions.map((student) => (
+              <option key={student.id} value={student.id}>
+                {student.fullName} ({student.admissionNo}) - {student.classLabel}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="ledger-from-date">Entry from</Label>
+          <Input
+            id="ledger-from-date"
+            name="fromDate"
+            type="date"
+            defaultValue={filters.fromDate}
+            className="mt-2"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ledger-to-date">Entry to</Label>
+          <Input
+            id="ledger-to-date"
+            name="toDate"
+            type="date"
+            defaultValue={filters.toDate}
+            className="mt-2"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ledger-payment-mode">Payment mode</Label>
+          <select
+            id="ledger-payment-mode"
+            name="paymentMode"
+            defaultValue={filters.paymentMode}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">All modes</option>
+            {paymentModes.map((mode) => (
+              <option key={mode.value} value={mode.value}>
+                {mode.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </AutoSubmitForm>
+  );
+}
+
+function ImportFilters({
+  filters,
+  sessionOptions,
+  classOptions,
+  batchOptions,
+  selectedBatchId,
+}: {
+  filters: ReportFilters;
+  sessionOptions: string[];
+  classOptions: Array<{ id: string; label: string; sessionLabel: string }>;
+  batchOptions: Array<{ id: string; label: string; createdAt: string; status: string }>;
+  selectedBatchId: string;
+}) {
+  return (
+    <AutoSubmitForm action="/protected/reports" method="get" className="space-y-4">
+      <input type="hidden" name="report" value="import-verification" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <SharedClassAndSessionFilters
+          filters={filters}
+          sessionOptions={sessionOptions}
+          classOptions={classOptions}
+        />
+        <div>
+          <Label htmlFor="import-batch-id">Batch</Label>
+          <select
+            id="import-batch-id"
+            name="batchId"
+            defaultValue={selectedBatchId}
+            className={`${selectClassName} mt-2`}
+          >
+            <option value="">Latest matching batch</option>
+            {batchOptions.map((batch) => (
+              <option key={batch.id} value={batch.id}>
+                {batch.label} ({formatShortDate(batch.createdAt)})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="import-from-date">Batch from</Label>
+          <Input
+            id="import-from-date"
+            name="fromDate"
+            type="date"
+            defaultValue={filters.fromDate}
+            className="mt-2"
+          />
+        </div>
+        <div>
+          <Label htmlFor="import-to-date">Batch to</Label>
+          <Input
+            id="import-to-date"
+            name="toDate"
+            type="date"
+            defaultValue={filters.toDate}
+            className="mt-2"
+          />
+        </div>
+      </div>
+    </AutoSubmitForm>
+  );
+}
+
+function MetricsSection({ report }: { report: ReportData }) {
+  switch (report.key) {
+    case "outstanding":
+      return (
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Students with dues"
+            value={report.metrics.studentCount}
+            hint="Students in the current filtered outstanding list"
+          />
+          <MetricCard
+            title="Open installments"
+            value={report.metrics.openInstallments}
+            hint="Installment rows still carrying an unpaid balance"
+          />
+          <MetricCard
+            title="Overdue installments"
+            value={report.metrics.overdueInstallments}
+            hint="Rows already past due date and still unpaid"
+          />
+          <MetricCard
+            title="Outstanding total"
+            value={formatInr(report.metrics.totalOutstanding)}
+            hint="Current unpaid amount in this report view"
+          />
+        </section>
+      );
+    case "daily-collection":
+      return (
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Receipts in view"
+            value={report.metrics.receiptCount}
+            hint="Posted receipts matching the selected filters"
+          />
+          <MetricCard
+            title="Collection total"
+            value={formatInr(report.metrics.totalAmount)}
+            hint="Sum of receipt totals inside this view"
+          />
+          <MetricCard
+            title="Collection days"
+            value={report.metrics.collectionDays}
+            hint="Distinct payment dates in the current report"
+          />
+          <MetricCard
+            title="Students covered"
+            value={report.metrics.distinctStudents}
+            hint="Students represented in the listed receipt rows"
+          />
+        </section>
+      );
+    case "student-ledger":
+      if (!report.selectedStudent) {
+        return null;
+      }
+
+      return (
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Entries in view"
+            value={report.metrics.entryCount}
+            hint="Payment and adjustment rows currently listed"
+          />
+          <MetricCard
+            title="Payments in view"
+            value={formatInr(report.metrics.paymentsTotal)}
+            hint="Original payment amounts only"
+          />
+          <MetricCard
+            title="Adjustment net"
+            value={formatInr(report.metrics.adjustmentNet)}
+            hint="Positive reduces due, negative increases due"
+          />
+          <MetricCard
+            title="Current outstanding"
+            value={formatInr(report.metrics.currentOutstanding)}
+            hint="Current unpaid balance for the selected student"
+          />
+        </section>
+      );
+    case "receipt-register":
+      return (
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <MetricCard
+            title="Receipts listed"
+            value={report.metrics.receiptCount}
+            hint="Receipt rows in the current filtered register"
+          />
+          <MetricCard
+            title="Amount in register"
+            value={formatInr(report.metrics.totalAmount)}
+            hint="Total of receipt amounts shown below"
+          />
+          <MetricCard
+            title="Students covered"
+            value={report.metrics.studentCount}
+            hint="Students represented in the listed receipt rows"
+          />
+        </section>
+      );
+    case "import-verification":
+      return (
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Batches in scope"
+            value={report.metrics.batchCount}
+            hint="Import batches matching the current date filters"
+          />
+          <MetricCard
+            title="Checked rows"
+            value={report.metrics.totalRows}
+            hint="Total staged rows across the listed batches"
+          />
+          <MetricCard
+            title="Imported rows"
+            value={report.metrics.importedRows}
+            hint="Rows saved into the student master workflow"
+          />
+          <MetricCard
+            title="Issue rows"
+            value={report.metrics.issueRows}
+            hint="Invalid, duplicate, or failed rows still needing review"
+          />
+        </section>
+      );
+    default:
+      return null;
+  }
+}
+
+/**
+ * Phone shape for a report table (mobile app v2).
+ *
+ * Every table on this page is 5–14 columns wide. Inside a horizontal scroller
+ * on a 390px screen, reading one row means scrubbing sideways and losing which
+ * row you were on — so the phone gets the repo's `MobileRecordCard` instead:
+ * identity on top, the money on the right, the rest as labelled pairs.
+ *
+ * The desk table is the source of truth for what a row contains; this shows the
+ * fields a clerk actually reads on a phone. `MobileRecordCard` drops empty
+ * fields, so a sparse row simply renders shorter.
+ */
+function ReportCardList<Row>({
+  rows,
+  empty,
+  render,
+}: {
+  rows: readonly Row[];
+  empty: string;
+  render: (row: Row, index: number) => {
+    key: string;
+    title: ReactNode;
+    subtitle?: ReactNode;
+    amount?: ReactNode;
+    status?: ReactNode;
+    fields?: Array<{ label: string; value: ReactNode }>;
+  };
+}) {
+  return (
+    <ul className="flex flex-col gap-2.5 md:hidden">
+      {rows.length === 0 ? (
+        <MobileEmptyRows>{empty}</MobileEmptyRows>
+      ) : (
+        rows.map((row, index) => {
+          const card = render(row, index);
+          return (
+            <MobileRecordCard
+              key={card.key}
+              title={card.title}
+              subtitle={card.subtitle}
+              amount={card.amount}
+              status={card.status}
+              fields={card.fields}
+            />
+          );
+        })
+      )}
+    </ul>
+  );
+}
+
+function ReportTables({ report }: { report: ReportData }) {
+  switch (report.key) {
+    case "outstanding":
+      return (
+        <SectionCard
+          title={reportDefinitions[report.key].tableTitle}
+          description={reportDefinitions[report.key].tableDescription}
+        >
+          <ReportCardList
+            rows={report.rows}
+            empty="No outstanding rows found for the selected filters."
+            render={(row) => ({
+              key: `${row.studentId}-${row.installmentNo}-${row.installmentLabel}`,
+              title: row.fullName,
+              subtitle: `SR ${row.admissionNo} · ${row.classLabel}`,
+              amount: formatInr(row.outstandingAmount),
+              status: (
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[9.5px] font-extrabold uppercase text-muted-foreground">
+                  {row.balanceStatus}
+                </span>
+              ),
+              fields: [
+                {
+                  label: "Installment",
+                  value: isCarryForwardInstallment(row)
+                    ? row.installmentLabel
+                    : `${row.installmentLabel} (${row.installmentNo})`,
+                },
+                { label: "Due date", value: formatShortDate(row.dueDate) },
+                { label: "Amount due", value: formatInr(row.amountDue) },
+                { label: "Late fee", value: formatInr(row.lateFeeAmount) },
+                {
+                  label: "Overdue",
+                  value: row.overdueAmount > 0 ? formatInr(row.overdueAmount) : "",
+                },
+                { label: "Route", value: row.transportRouteLabel },
+              ],
+            })}
+          />
+          <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <table className="w-full min-w-full text-left text-sm">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3">Student</th>
+                  <th className="px-4 py-3">SR no</th>
+                  <th className="px-4 py-3">Session</th>
+                  <th className="px-4 py-3">Class</th>
+                  <th className="px-4 py-3">Route</th>
+                  <th className="px-4 py-3">Installment</th>
+                  <th className="px-4 py-3">Due date</th>
+                  <th className="px-4 py-3">Amount due</th>
+                  <th className="px-4 py-3">Late fee</th>
+                  <th className="px-4 py-3">Payments</th>
+                  <th className="px-4 py-3">Adjustments</th>
+                  <th className="px-4 py-3">Outstanding</th>
+                  <th className="px-4 py-3">Overdue</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} className="px-4 py-6 text-center text-muted-foreground">
+                      No outstanding rows found for the selected filters.
+                    </td>
+                  </tr>
+                ) : (
+                  report.rows.map((row) => (
+                    <tr key={`${row.studentId}-${row.installmentNo}-${row.installmentLabel}`} className="border-t border-border text-foreground">
+                      <td className="px-4 py-3 font-medium text-foreground">{row.fullName}</td>
+                      <td className="px-4 py-3">{row.admissionNo}</td>
+                      <td className="px-4 py-3">{row.sessionLabel}</td>
+                      <td className="px-4 py-3">{row.classLabel}</td>
+                      <td className="px-4 py-3">{row.transportRouteLabel}</td>
+                      <td className="px-4 py-3">
+                        {isCarryForwardInstallment(row)
+                          ? row.installmentLabel
+                          : `${row.installmentLabel} (${row.installmentNo})`}
+                      </td>
+                      <td className="px-4 py-3">{formatShortDate(row.dueDate)}</td>
+                      <td className="px-4 py-3">{formatInr(row.amountDue)}</td>
+                      <td className="px-4 py-3">{formatInr(row.lateFeeAmount)}</td>
+                      <td className="px-4 py-3">{formatInr(row.paymentsTotal)}</td>
+                      <td className="px-4 py-3">{formatInr(row.adjustmentsTotal)}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        {formatInr(row.outstandingAmount)}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-destructive">
+                        {row.overdueAmount > 0 ? formatInr(row.overdueAmount) : "-"}
+                      </td>
+                      <td className="px-4 py-3 capitalize">{row.balanceStatus}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      );
+    case "daily-collection":
+      return (
+        <>
+          <SectionCard
+            title="Mode totals"
+            description="Quick payment-mode split for daily counter reconciliation."
+          >
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {report.modeTotals.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No payment totals available for this filter.</p>
+              ) : (
+                report.modeTotals.map((row) => (
+                  <div
+                    key={row.paymentMode}
+                    className="rounded-xl border border-border bg-surface-2 px-4 py-4"
+                  >
+                    <p className="text-sm font-medium text-foreground">
+                      {formatPaymentModeLabel(row.paymentMode)}
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">
+                      {formatInr(row.totalAmount)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {row.receiptCount} receipt{row.receiptCount === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title={reportDefinitions[report.key].tableTitle}
+            description={reportDefinitions[report.key].tableDescription}
+          >
+            <ReportCardList
+                rows={report.rows}
+                empty="No collection summary rows found for the selected filters."
+                render={(row) => ({
+                  key: `${row.paymentDate}-${row.paymentMode}`,
+                  title: formatPaymentModeLabel(row.paymentMode),
+                  subtitle: formatShortDate(row.paymentDate),
+                  amount: formatInr(row.totalAmount),
+                  fields: [
+                    { label: "Receipts", value: String(row.receiptCount) },
+                    { label: "Students", value: String(row.studentCount) },
+                  ],
+                })}
+              />
+              <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+              <table className="w-full min-w-full text-left text-sm">
+                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">Payment date</th>
+                    <th className="px-4 py-3">Payment mode</th>
+                    <th className="px-4 py-3">Receipt count</th>
+                    <th className="px-4 py-3">Student count</th>
+                    <th className="px-4 py-3">Total amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                        No collection summary rows found for the selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    report.rows.map((row) => (
+                      <tr key={`${row.paymentDate}-${row.paymentMode}`} className="border-t border-border text-foreground">
+                        <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
+                        <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
+                        <td className="px-4 py-3">{row.receiptCount}</td>
+                        <td className="px-4 py-3">{row.studentCount}</td>
+                        <td className="px-4 py-3 font-medium text-foreground">
+                          {formatInr(row.totalAmount)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        </>
+      );
+    case "student-ledger":
+      if (!report.selectedStudent) {
+        return (
+          <SectionCard
+            title="Student selection required"
+            description="Choose a student to open the ledger report."
+          >
+            <p className="rounded-lg border border-dashed border-border-strong bg-surface-2 px-4 py-3 text-sm text-muted-foreground">
+              Payments and adjustments are exportable only after a student is selected.
+            </p>
+          </SectionCard>
+        );
+      }
+
+      return (
+        <SectionCard
+          title={`${report.selectedStudent.fullName} ledger`}
+          description={reportDefinitions[report.key].tableDescription}
+        >
+          <ReportCardList
+            rows={report.rows}
+            empty="No ledger rows found for the selected filters."
+            render={(row) => ({
+              key: `${row.entryType}-${row.entryId}`,
+              title: row.receiptNumber,
+              subtitle: `${row.installmentLabel} · ${formatShortDate(row.paymentDate)}`,
+              amount: formatInr(row.paymentAmount),
+              status: (
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[9.5px] font-extrabold uppercase text-muted-foreground">
+                  {row.entryType}
+                </span>
+              ),
+              fields: [
+                { label: "Mode", value: formatPaymentModeLabel(row.paymentMode) },
+                { label: "Reference", value: row.referenceNumber ?? "" },
+                {
+                  label: "Adjustment",
+                  value:
+                    row.adjustmentAmount === null
+                      ? ""
+                      : `${formatInr(row.adjustmentAmount)} · ${row.adjustmentType}`,
+                },
+                { label: "Reason", value: row.reason ?? "" },
+                { label: "By", value: row.createdByName ?? row.receivedBy ?? "" },
+                { label: "Posted", value: formatDateTime(row.createdAt) },
+              ],
+            })}
+          />
+          <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <table className="w-full min-w-full text-left text-sm">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3">Entry type</th>
+                  <th className="px-4 py-3">Created at</th>
+                  <th className="px-4 py-3">Receipt</th>
+                  <th className="px-4 py-3">Payment date</th>
+                  <th className="px-4 py-3">Installment</th>
+                  <th className="px-4 py-3">Mode / ref</th>
+                  <th className="px-4 py-3">Payment amount</th>
+                  <th className="px-4 py-3">Adjustment impact</th>
+                  <th className="px-4 py-3">Reason / created by</th>
+                  <th className="px-4 py-3">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
+                      No ledger rows found for the selected filters.
+                    </td>
+                  </tr>
+                ) : (
+                  report.rows.map((row) => (
+                    <tr key={`${row.entryType}-${row.entryId}`} className="border-t border-border align-top text-foreground">
+                      <td className="px-4 py-3 capitalize">{row.entryType}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(row.createdAt)}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{row.receiptNumber}</td>
+                      <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-foreground">{row.installmentLabel}</div>
+                        <div className="text-xs text-muted-foreground">Due {formatShortDate(row.dueDate)}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>{formatPaymentModeLabel(row.paymentMode)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {row.referenceNumber ? `Ref ${row.referenceNumber}` : "No reference"}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">{formatInr(row.paymentAmount)}</td>
+                      <td className="px-4 py-3">
+                        {row.adjustmentAmount === null ? (
+                          <span className="text-muted-foreground">-</span>
+                        ) : (
+                          <div>
+                            <div className="font-medium text-foreground">
+                              {formatInr(row.adjustmentAmount)}
+                            </div>
+                            <div className="text-xs text-muted-foreground capitalize">
+                              {row.adjustmentType}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>{row.reason ?? "-"}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {row.createdByName ?? row.receivedBy ?? "Staff user"}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.notes || "-"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      );
+    case "receipt-register":
+      return (
+        <SectionCard
+          title={reportDefinitions[report.key].tableTitle}
+          description={reportDefinitions[report.key].tableDescription}
+        >
+          <ReportCardList
+            rows={report.rows}
+            empty="No receipts found for the selected filters."
+            render={(row) => ({
+              key: row.receiptId,
+              title: row.fullName,
+              subtitle: `${row.receiptNumber} · ${formatShortDate(row.paymentDate)}${
+                row.isReversed ? " · REVERSED" : ""
+              }`,
+              amount: formatInr(row.totalAmount),
+              fields: [
+                { label: "SR no", value: row.admissionNo },
+                { label: "Class", value: row.classLabel },
+                { label: "Mode", value: formatPaymentModeLabel(row.paymentMode) },
+                { label: "Reference", value: row.referenceNumber ?? "" },
+                { label: "Route", value: row.transportRouteLabel },
+                { label: "Received by", value: row.receivedBy ?? "" },
+              ],
+            })}
+          />
+          <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <table className="w-full min-w-full text-left text-sm">
+              <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3">Receipt no</th>
+                  <th className="px-4 py-3">Payment date</th>
+                  <th className="px-4 py-3">Posted at</th>
+                  <th className="px-4 py-3">Student</th>
+                  <th className="px-4 py-3">SR no</th>
+                  <th className="px-4 py-3">Session</th>
+                  <th className="px-4 py-3">Class</th>
+                  <th className="px-4 py-3">Route</th>
+                  <th className="px-4 py-3">Mode</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Reference</th>
+                  <th className="px-4 py-3">Received by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
+                      No receipts found for the selected filters.
+                    </td>
+                  </tr>
+                ) : (
+                  report.rows.map((row) => (
+                    <tr key={row.receiptId} className="border-t border-border text-foreground">
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                          {row.receiptNumber}
+                          {row.isReversed ? <ReversedBadge /> : null}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{formatShortDate(row.paymentDate)}</td>
+                      <td className="px-4 py-3">{formatDateTime(row.createdAt)}</td>
+                      <td className="px-4 py-3">{row.fullName}</td>
+                      <td className="px-4 py-3">{row.admissionNo}</td>
+                      <td className="px-4 py-3">{row.sessionLabel}</td>
+                      <td className="px-4 py-3">{row.classLabel}</td>
+                      <td className="px-4 py-3">{row.transportRouteLabel}</td>
+                      <td className="px-4 py-3">{formatPaymentModeLabel(row.paymentMode)}</td>
+                      <td
+                        className={cn(
+                          "px-4 py-3 font-medium text-foreground",
+                          row.isReversed && "line-through opacity-60",
+                        )}
+                      >
+                        {formatInr(row.totalAmount)}
+                      </td>
+                      <td className="px-4 py-3">{row.referenceNumber ?? "-"}</td>
+                      <td className="px-4 py-3">{row.receivedBy ?? "-"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      );
+    case "import-verification":
+      return (
+        <>
+          <SectionCard
+            title="Batch summary"
+            description="Use this table to compare batch totals before drilling into a selected batch."
+          >
+            <ReportCardList
+                rows={report.batchRows}
+                empty="No import batches found."
+                render={(row) => ({
+                  key: row.batchId,
+                  title: row.filename,
+                  subtitle: formatDateTime(row.createdAt),
+                  status: (
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[9.5px] font-extrabold uppercase text-muted-foreground">
+                      {row.status}
+                    </span>
+                  ),
+                  fields: [
+                    { label: "Format", value: row.sourceFormat.toUpperCase() },
+                    { label: "Total rows", value: String(row.totalRows) },
+                    { label: "Imported", value: String(row.importedRows) },
+                    { label: "Invalid", value: String(row.invalidRows) },
+                    { label: "Duplicate", value: String(row.duplicateRows) },
+                    { label: "Failed", value: String(row.failedRows) },
+                  ],
+                })}
+              />
+              <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+              <table className="w-full min-w-full text-left text-sm">
+                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">Batch</th>
+                    <th className="px-4 py-3">Created</th>
+                    <th className="px-4 py-3">Format</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Total rows</th>
+                    <th className="px-4 py-3">Imported</th>
+                    <th className="px-4 py-3">Invalid</th>
+                    <th className="px-4 py-3">Duplicate</th>
+                    <th className="px-4 py-3">Failed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.batchRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-6 text-center text-muted-foreground">
+                        No import batches found for the selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    report.batchRows.map((row) => (
+                      <tr key={row.batchId} className="border-t border-border text-foreground">
+                        <td className="px-4 py-3 font-medium text-foreground">{row.filename}</td>
+                        <td className="px-4 py-3">{formatDateTime(row.createdAt)}</td>
+                        <td className="px-4 py-3 uppercase">{row.sourceFormat}</td>
+                        <td className="px-4 py-3 capitalize">{row.status}</td>
+                        <td className="px-4 py-3">{row.totalRows}</td>
+                        <td className="px-4 py-3">{row.importedRows}</td>
+                        <td className="px-4 py-3">{row.invalidRows}</td>
+                        <td className="px-4 py-3">{row.duplicateRows}</td>
+                        <td className="px-4 py-3">{row.failedRows}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title={
+              report.selectedBatch
+                ? `Detail rows for ${report.selectedBatch.label}`
+                : reportDefinitions[report.key].tableTitle
+            }
+            description={reportDefinitions[report.key].tableDescription}
+          >
+            <ReportCardList
+                rows={report.detailRows}
+                empty="No detail rows for this batch."
+                render={(row) => ({
+                  key: row.rowId,
+                  title: row.fullName ?? `Row ${row.rowIndex}`,
+                  subtitle: `${row.admissionNo ?? "No SR"} · ${row.classLabel ?? "No class"}`,
+                  status: (
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[9.5px] font-extrabold uppercase text-muted-foreground">
+                      {row.status}
+                    </span>
+                  ),
+                  fields: [
+                    { label: "Row", value: String(row.rowIndex) },
+                    { label: "Errors", value: row.errors.length > 0 ? row.errors.join(" | ") : "" },
+                    { label: "Warnings", value: row.warnings.length > 0 ? row.warnings.join(" | ") : "" },
+                    { label: "Updated", value: formatDateTime(row.updatedAt) },
+                  ],
+                })}
+              />
+              <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+              <table className="w-full min-w-full text-left text-sm">
+                <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">Row</th>
+                    <th className="px-4 py-3">Student</th>
+                    <th className="px-4 py-3">SR no</th>
+                    <th className="px-4 py-3">Class</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Imported</th>
+                    <th className="px-4 py-3">Duplicate</th>
+                    <th className="px-4 py-3">Errors</th>
+                    <th className="px-4 py-3">Warnings</th>
+                    <th className="px-4 py-3">Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.detailRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
+                        No import detail rows found for the selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    report.detailRows.map((row) => (
+                      <tr key={row.rowId} className="border-t border-border align-top text-foreground">
+                        <td className="px-4 py-3">{row.rowIndex}</td>
+                        <td className="px-4 py-3 font-medium text-foreground">{row.fullName ?? "-"}</td>
+                        <td className="px-4 py-3">{row.admissionNo ?? "-"}</td>
+                        <td className="px-4 py-3">{row.classLabel ?? "-"}</td>
+                        <td className="px-4 py-3 capitalize">{row.status}</td>
+                        <td className="px-4 py-3">{row.importedStudentId ?? "-"}</td>
+                        <td className="px-4 py-3">{row.duplicateStudentId ?? "-"}</td>
+                        <td className="px-4 py-3">{row.errors.length > 0 ? row.errors.join(" | ") : "-"}</td>
+                        <td className="px-4 py-3">{row.warnings.length > 0 ? row.warnings.join(" | ") : "-"}</td>
+                        <td className="px-4 py-3">{formatDateTime(row.updatedAt)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+export default async function ReportsPage({ searchParams }: ReportsPageProps) {
+  const staff = await requireStaffPermission("reports:view", { onDenied: "redirect" });
+  const filters = normalizeReportFilters(searchParams ? await searchParams : undefined);
+  const [data, policy, setup] = await Promise.all([
+    getReportsPageData(filters),
+    getFeePolicySummary(),
+    getSetupWizardDataLight(),
+  ]);
+  // Light, not the full wizard load: this page wants one readiness chip, and
+  // the heavy variant runs previewLedgerGeneration -- a whole dry-run of the
+  // fee engine over every student in the session. Measured at 28s on this
+  // page. Transactions already reads the light one for the same call.
+  const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
+  const activeDefinition = reportDefinitions[data.report.key];
+  const exportHref = `/protected/reports/export${buildReportHref(filters).replace("/protected/reports", "")}`;
+  const printHref = data.report.key === "student-ledger" && data.report.selectedStudent
+    ? `/protected/reports/ledger/${data.report.selectedStudent.id}/print${buildReportHref(filters).replace("/protected/reports", "")}`
+    : undefined;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Reports"
+        title={activeDefinition.title}
+        description={activeDefinition.description}
+        actions={
+          <div className="print:hidden">
+            <StatusBadge label="Audit-focused" tone="accent" />
+          </div>
+        }
+      />
+
+      {!readiness.reports.isReady ? (
+        <WorkflowGuard
+          title={readiness.reports.title}
+          detail={readiness.reports.detail}
+          actionLabel={readiness.reports.actionLabel}
+          actionHref={readiness.reports.actionHref}
+        />
+      ) : null}
+
+      <OfficeNotice title="Reports are read-only" tone="info">
+        These views use the selected session and current fee policy for review, print, and export.
+        Use Payment Desk for collections and Transactions for permanent receipt history.
+      </OfficeNotice>
+
+      <ReportCatalog filters={filters} />
+
+      <ReportFiltersSection
+        report={data.report.key}
+        exportHref={exportHref}
+        printHref={printHref}
+      >
+        {data.report.key === "outstanding" ? (
+          <OutstandingFilters
+            filters={filters}
+            sessionOptions={data.options.sessionOptions}
+            classOptions={data.options.classOptions}
+            routeOptions={data.options.routeOptions}
+          />
+        ) : null}
+
+        {data.report.key === "daily-collection" ? (
+          <CollectionFilters
+            filters={filters}
+            sessionOptions={data.options.sessionOptions}
+            classOptions={data.options.classOptions}
+            routeOptions={data.options.routeOptions}
+            paymentModes={data.options.paymentModes}
+            report="daily-collection"
+          />
+        ) : null}
+
+        {data.report.key === "student-ledger" ? (
+          <LedgerFilters
+            filters={filters}
+            sessionOptions={data.options.sessionOptions}
+            classOptions={data.options.classOptions}
+            routeOptions={data.options.routeOptions}
+            paymentModes={data.options.paymentModes}
+            studentOptions={data.options.studentOptions}
+            selectedStudentId={data.report.selectedStudent?.id ?? filters.studentId}
+          />
+        ) : null}
+
+        {data.report.key === "receipt-register" ? (
+          <CollectionFilters
+            filters={filters}
+            sessionOptions={data.options.sessionOptions}
+            classOptions={data.options.classOptions}
+            routeOptions={data.options.routeOptions}
+            paymentModes={data.options.paymentModes}
+            report="receipt-register"
+          />
+        ) : null}
+
+        {data.report.key === "import-verification" ? (
+          <ImportFilters
+            filters={filters}
+            sessionOptions={data.options.sessionOptions}
+            classOptions={data.options.classOptions}
+            batchOptions={data.options.batchOptions}
+            selectedBatchId={data.report.selectedBatch?.id ?? filters.batchId}
+          />
+        ) : null}
+      </ReportFiltersSection>
+
+      <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm leading-6 text-foreground">
+        Generated {formatDateTime(data.generatedAt)}. {getReportAuditNote(data.report.key)} Active policy session: {policy.academicSessionLabel}.
+      </div>
+
+      <MetricsSection report={data.report} />
+
+      <ReportTables report={data.report} />
+    </div>
+  );
+}

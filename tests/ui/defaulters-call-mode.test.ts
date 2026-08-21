@@ -11,11 +11,11 @@ import { describe, expect, it } from "vitest";
  */
 
 const source = readFileSync(
-  join(process.cwd(), "components/defaulters/defaulters-workspace.tsx"),
+  join(process.cwd(), "src/components/defaulters/defaulters-workspace.tsx"),
   "utf8",
 );
 const workspaceModel = readFileSync(
-  join(process.cwd(), "lib/defaulters/workspace.ts"),
+  join(process.cwd(), "src/lib/defaulters/workspace.ts"),
   "utf8",
 );
 

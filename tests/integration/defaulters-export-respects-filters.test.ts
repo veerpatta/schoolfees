@@ -25,11 +25,11 @@ vi.mock("@/lib/students/data", () => ({
   getStudentFormOptions,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/supabase/cache-safe", () => ({
+vi.mock("@/platform/supabase/cache-safe", () => ({
   cacheSafeUnstableCache,
   getCacheSafeClient,
 }));

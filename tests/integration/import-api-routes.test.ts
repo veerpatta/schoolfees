@@ -17,7 +17,7 @@ vi.mock("@/lib/import/data", () => ({
   commitStudentImportBatch,
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   getAuthenticatedStaff,
   hasStaffPermission,
   hasAnyStaffPermission,

@@ -17,8 +17,8 @@ function readRepoFile(path: string) {
  * fabricated number on a financial screen.
  */
 describe("mobile transactions day summary", () => {
-  const component = readRepoFile("components/transactions/mobile-day-summary.tsx");
-  const shell = readRepoFile("components/transactions/transactions-client-shell.tsx");
+  const component = readRepoFile("src/components/transactions/mobile-day-summary.tsx");
+  const shell = readRepoFile("src/components/transactions/transactions-client-shell.tsx");
 
   it("renders on phones only, with the desk strip taking over from md up", () => {
     expect(component).toContain("md:hidden");

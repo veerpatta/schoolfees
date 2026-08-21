@@ -20,7 +20,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  */
 
 describe("day close reads live, not frozen", () => {
-  const client = read("components/finance-controls/finance-controls-client.tsx");
+  const client = read("src/components/finance-controls/finance-controls-client.tsx");
 
   it("takes the recomputed summary in preference to the stored snapshot", () => {
     // The bug in one line: `closure?.summarySnapshot ?? data.summary`.
@@ -42,7 +42,7 @@ describe("day close reads live, not frozen", () => {
 });
 
 describe("the live summary nets reversals before it is shown", () => {
-  const data = read("lib/finance-controls/data.ts");
+  const data = read("src/lib/finance-controls/data.ts");
 
   it("filters reversed receipts out of the day's collection", () => {
     expect(data).toContain("isReceiptReversed(payload.reversalTotals");
@@ -56,7 +56,7 @@ describe("the live summary nets reversals before it is shown", () => {
 });
 
 describe("the nightly close writes a figure that nets reversals", () => {
-  const cron = read("app/api/cron/auto-day-close/route.ts");
+  const cron = read("src/app/api/cron/auto-day-close/route.ts");
 
   it("excludes fully reversed receipts from the snapshot it freezes", () => {
     expect(cron).toContain("getReceiptReversalTotals");

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { hasRolePermission, type StaffRole } from "@/lib/auth/roles";
+import { hasRolePermission, type StaffRole } from "@/platform/auth/roles";
 
 const requireStaffPermission = vi.fn();
 const createClient = vi.fn();
@@ -30,11 +30,11 @@ vi.mock("next/server", () => ({
   },
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 

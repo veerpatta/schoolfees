@@ -15,7 +15,7 @@ describe("receipt print and loading UX", () => {
     // receipt-document.tsx is a thin shim that always renders V2. The receipt
     // moved from an 80mm thermal slip to a full A4 page so the annual fee
     // summary, installment status, and previous receipts all print.
-    const receiptDocument = readRepoFile("components/receipts/receipt-document-v2.tsx");
+    const receiptDocument = readRepoFile("src/components/receipts/receipt-document-v2.tsx");
 
     expect(receiptDocument).toContain("receipt-print-page");
     expect(receiptDocument).toContain("receipt-body");
@@ -30,10 +30,10 @@ describe("receipt print and loading UX", () => {
   });
 
   it("ships a localized receipt vocabulary that stays time-neutral", () => {
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Receipts: Record<string, string>;
     };
-    const hindiMessages = JSON.parse(readRepoFile("messages/hi.json")) as {
+    const hindiMessages = JSON.parse(readRepoFile("src/messages/hi.json")) as {
       Receipts: Record<string, string>;
     };
 
@@ -51,7 +51,7 @@ describe("receipt print and loading UX", () => {
   });
 
   it("uses a stacked mobile receipt layout while keeping the print table", () => {
-    const successSheet = readRepoFile("components/payments/success-receipt-sheet.tsx");
+    const successSheet = readRepoFile("src/components/payments/success-receipt-sheet.tsx");
     // The success receipt confirmation sheet on the Payment Desk still keeps
     // its own mobile-friendly summary card and waive-fee detail row — that
     // contract is independent of the printed receipt layout.
@@ -61,11 +61,11 @@ describe("receipt print and loading UX", () => {
   });
 
   it("receipt-document-v2 renders draft and saved variants explicitly", () => {
-    const receiptDocument = readRepoFile("components/receipts/receipt-document-v2.tsx");
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const receiptDocument = readRepoFile("src/components/receipts/receipt-document-v2.tsx");
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Receipts: Record<string, string>;
     };
-    const hindiMessages = JSON.parse(readRepoFile("messages/hi.json")) as {
+    const hindiMessages = JSON.parse(readRepoFile("src/messages/hi.json")) as {
       Receipts: Record<string, string>;
     };
 
@@ -79,9 +79,9 @@ describe("receipt print and loading UX", () => {
   });
 
   it("supports print-ready receipt links from Payment Desk success", () => {
-    const receiptPage = readRepoFile("app/protected/receipts/[receiptId]/page.tsx");
-    const printActions = readRepoFile("components/receipts/receipt-print-actions.tsx");
-    const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
+    const receiptPage = readRepoFile("src/app/protected/receipts/[receiptId]/page.tsx");
+    const printActions = readRepoFile("src/components/receipts/receipt-print-actions.tsx");
+    const paymentDesk = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
 
     expect(receiptPage).toContain("print?: string");
     expect(receiptPage).toContain('resolvedSearchParams?.print === "1"');
@@ -92,10 +92,10 @@ describe("receipt print and loading UX", () => {
   });
 
   it("uses shared restrained loading primitives with reduced-motion support", () => {
-    const loading = readRepoFile("components/ui/loading-skeleton.tsx");
-    const routeLoading = readRepoFile("components/admin/route-loading.tsx");
-    const globals = readRepoFile("app/globals.css");
-    const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
+    const loading = readRepoFile("src/ui/primitives/loading-skeleton.tsx");
+    const routeLoading = readRepoFile("src/ui/shell/route-loading.tsx");
+    const globals = readRepoFile("src/app/globals.css");
+    const paymentDesk = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
 
     expect(loading).toContain("export function LoadingProgress");
     expect(loading).toContain("export function LoadingBlock");

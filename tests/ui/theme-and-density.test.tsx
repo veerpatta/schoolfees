@@ -2,7 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ThemeToggle } from "@/ui/primitives/theme-toggle";
 
 /**
  * SSR smoke tests for the topbar theme control. (The density toggle was

@@ -11,7 +11,7 @@ function readRepoFile(path: string) {
 
 describe("shared office UI system", () => {
   it("exposes reusable staff-facing layout primitives", () => {
-    const officeUi = readRepoFile("components/office/office-ui.tsx");
+    const officeUi = readRepoFile("src/ui/office/office-ui.tsx");
 
     expect(officeUi).toContain("export function OfficeNotice");
     expect(officeUi).toContain("export function OfficeEmptyState");
@@ -22,8 +22,8 @@ describe("shared office UI system", () => {
   });
 
   it("keeps shared page framing compact and non-decorative", () => {
-    const pageHeader = readRepoFile("components/admin/page-header.tsx");
-    const sectionCard = readRepoFile("components/admin/section-card.tsx");
+    const pageHeader = readRepoFile("src/ui/shell/page-header.tsx");
+    const sectionCard = readRepoFile("src/ui/shell/section-card.tsx");
 
     expect(pageHeader).not.toContain("glass-panel");
     expect(sectionCard).not.toContain("glass-panel");

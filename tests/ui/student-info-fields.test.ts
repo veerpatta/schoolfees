@@ -26,7 +26,7 @@ const LOCALES = ["en", "hi", "hi-en"] as const;
 const catalogues = Object.fromEntries(
   LOCALES.map((locale) => [
     locale,
-    JSON.parse(readFileSync(join(process.cwd(), "messages", `${locale}.json`), "utf-8")),
+    JSON.parse(readFileSync(join(process.cwd(), "src/messages", `${locale}.json`), "utf-8")),
   ]),
 ) as Record<(typeof LOCALES)[number], { Students: Record<string, string> }>;
 
@@ -153,7 +153,7 @@ describe("student information field descriptors", () => {
  */
 describe("student form phone group switcher", () => {
   const source = readFileSync(
-    join(process.cwd(), "components/students/student-form.tsx"),
+    join(process.cwd(), "src/components/students/student-form.tsx"),
     "utf-8",
   );
 

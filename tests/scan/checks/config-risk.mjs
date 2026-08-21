@@ -26,9 +26,9 @@
  * keeping:
  *
  * **`revalidate` on a staff page is not automatically a leak.** Two pages
- * under `app/protected` declare `export const revalidate = 60`, and a cached
+ * under `src/app/protected` declare `export const revalidate = 60`, and a cached
  * render of a staff page served to a second staff member would be the worst
- * finding this file could produce. It is not what happens. `app/layout.tsx`
+ * finding this file could produce. It is not what happens. `src/app/layout.tsx`
  * sets `dynamic = "force-dynamic"` at the root, and independently both pages
  * reach `cookies()` through `requireStaffPermission()` — either one on its own
  * makes the render dynamic, so the ISR window never opens. `docs/design/
@@ -48,7 +48,7 @@
  * **Absent security headers are absent, and that is the whole claim.** The
  * check does not have an opinion about which CSP this app should ship. It
  * verifies that no security response header is configured anywhere a header
- * can be configured — `next.config.ts`, `vercel.json`, `proxy.ts` and the
+ * can be configured — `next.config.ts`, `vercel.json`, `src/proxy.ts` and the
  * proxy helper — and reports that one fact once, against the `headers()` block
  * that already exists and covers only four public assets.
  *
@@ -82,7 +82,7 @@ const HOBBY_DURATION_CEILING_SECONDS = 300;
  * gets a truncated response and a half-finished repair. Both are worse than an
  * interactive route timing out, where a human sees it immediately.
  */
-const UNATTENDED_ROUTE = /^app\/api\/(cron|admin)\//;
+const UNATTENDED_ROUTE = /^src\/app\/api\/(cron|admin)\//;
 
 /**
  * Evidence that a handler's work grows with the data.
@@ -139,9 +139,9 @@ const SECURITY_HEADERS = [
 const HEADER_SURFACES = [
   "next.config.ts",
   "vercel.json",
-  "proxy.ts",
-  "lib/supabase/proxy.ts",
-  "lib/supabase/middleware.ts",
+  "src/proxy.ts",
+  "src/platform/supabase/proxy.ts",
+  "src/platform/supabase/middleware.ts",
 ];
 
 /** A module that reads a file off disk through a path Vercel's tracer cannot see. */
@@ -173,7 +173,7 @@ function segmentExport(file, name) {
  */
 function routePathOf(rel) {
   return `/${rel
-    .replace(/^app\//, "")
+    .replace(/^src\/app\//, "")
     .replace(/\/(route|page)\.[tj]sx?$/, "")
     .split("/")
     .filter((segment) => !/^\(.*\)$/.test(segment))
@@ -199,7 +199,7 @@ export async function run({ project, sink, coverage }) {
   const nextConfig = project.get("next.config.ts");
   const vercelConfig = project.get("vercel.json");
   const tsConfig = project.get("tsconfig.json");
-  const rootLayout = project.get("app/layout.tsx");
+  const rootLayout = project.get("src/app/layout.tsx");
 
   /**
    * Candidates, declared up front.
@@ -369,7 +369,7 @@ export async function run({ project, sink, coverage }) {
 
   // ---- vercel.json crons and the routes they name ------------------------
   const cronRoutes = handlers
-    .filter((file) => file.rel.startsWith("app/api/cron/"))
+    .filter((file) => file.rel.startsWith("src/app/api/cron/"))
     .map((file) => ({ file, path: routePathOf(file.rel) }));
 
   if (!vercelConfig) {
@@ -460,7 +460,7 @@ export async function run({ project, sink, coverage }) {
     Boolean(rootLayout) && /export\s+const\s+dynamic\s*=\s*["']force-dynamic["']/.test(rootLayout.text);
 
   const protectedSurfaces = [...project.pages, ...project.routeHandlers].filter((file) =>
-    file.rel.startsWith("app/protected/"),
+    file.rel.startsWith("src/app/protected/"),
   );
 
   const cached = [];
@@ -514,7 +514,7 @@ export async function run({ project, sink, coverage }) {
         actual:
           `${directive} is declared here and cannot apply. `
           + (rootIsForceDynamic
-            ? "app/layout.tsx sets dynamic = \"force-dynamic\" at the root. "
+            ? "src/app/layout.tsx sets dynamic = \"force-dynamic\" at the root. "
             : "")
           + (readsSession
             ? "This surface also reaches cookies() through its auth call, which opts the render "
@@ -609,7 +609,7 @@ export async function run({ project, sink, coverage }) {
   const sentryConfigs = [
     "sentry.server.config.ts",
     "sentry.edge.config.ts",
-    "instrumentation-client.ts",
+    "src/instrumentation-client.ts",
   ]
     .map((rel) => project.get(rel))
     .filter(Boolean);

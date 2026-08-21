@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { MONEY_GLOSSARY } from "@/lib/money/glossary";
+import { MONEY_GLOSSARY } from "@/platform/money/glossary";
 
 /**
  * A late fee is not part of the fee the school expects to collect.
@@ -92,7 +92,7 @@ describe("the glossary states the rule", () => {
 
 describe("the JavaScript dashboard builder agrees", () => {
   const summarySource = readFileSync(
-    path.join(process.cwd(), "lib", "dashboard", "summary.ts"),
+    path.join(process.cwd(), "src/lib", "dashboard", "summary.ts"),
     "utf8",
   );
 

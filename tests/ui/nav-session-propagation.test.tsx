@@ -24,13 +24,13 @@ vi.mock("next/navigation", () => ({
 
 function loadEnglishMessages() {
   return JSON.parse(
-    readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+    readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
   );
 }
 
 describe("session-aware navigation", () => {
   it("appends the current session to every protected sidebar link", async () => {
-    const { SidebarNav } = await import("@/components/admin/sidebar-nav");
+    const { SidebarNav } = await import("@/ui/shell/sidebar-nav");
     const messages = loadEnglishMessages();
 
     const html = renderToStaticMarkup(

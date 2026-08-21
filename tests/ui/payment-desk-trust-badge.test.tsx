@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { PayeeSummaryStrip } from "@/components/payments/payee-summary-strip";
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 function render(node: React.ReactElement): string {

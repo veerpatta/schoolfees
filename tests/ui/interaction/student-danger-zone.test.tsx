@@ -57,7 +57,7 @@ vi.mock("@/app/protected/students/close-due-actions", () => ({
 }));
 
 const { StudentDangerZone } = await import("@/components/students/student-danger-zone");
-const { ToastViewport } = await import("@/components/ui/toast");
+const { ToastViewport } = await import("@/ui/primitives/toast");
 
 const safety = {
   studentId: "s-1",

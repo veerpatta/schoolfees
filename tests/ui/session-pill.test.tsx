@@ -19,7 +19,7 @@ describe("SessionPill", () => {
   });
 
   it("renders a production session without the TEST tag", async () => {
-    const { groupSessions, SessionPill } = await import("@/components/admin/session-pill");
+    const { groupSessions, SessionPill } = await import("@/ui/shell/session-pill");
     const sessions = [
       { id: "current", session_label: "2026-27", status: "active", is_current: true },
       { id: "archived", session_label: "2025-26", status: "archived", is_current: false },
@@ -40,7 +40,7 @@ describe("SessionPill", () => {
   });
 
   it("renders an archived production session as Other production", async () => {
-    const { groupSessions, SessionPill } = await import("@/components/admin/session-pill");
+    const { groupSessions, SessionPill } = await import("@/ui/shell/session-pill");
     const sessions = [
       { id: "current", session_label: "2026-27", status: "active", is_current: true },
       { id: "archived", session_label: "2025-26", status: "archived", is_current: false },
@@ -60,7 +60,7 @@ describe("SessionPill", () => {
   });
 
   it("renders TEST sessions with a magenta border and tag", async () => {
-    const { groupSessions, SessionPill } = await import("@/components/admin/session-pill");
+    const { groupSessions, SessionPill } = await import("@/ui/shell/session-pill");
     const sessions = [
       { id: "current", session_label: "2026-27", status: "active", is_current: true },
       { id: "test", session_label: "TEST-2026-27", status: "active", is_current: false },

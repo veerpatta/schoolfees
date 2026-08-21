@@ -1,0 +1,65 @@
+import { getTranslations } from "next-intl/server";
+
+import { PageHeader } from "@/ui/shell/page-header";
+import { SectionCard } from "@/ui/shell/section-card";
+import { GenerateLedgerClient } from "@/components/fees/generate-ledger-client";
+import { WorkflowGuard } from "@/ui/office/office-ui";
+import { INITIAL_LEDGER_REGENERATION_ACTION_STATE } from "@/lib/fees/types";
+import { getOfficeHomeData } from "@/lib/office/data";
+import { getOfficeWorkflowReadiness } from "@/platform/readiness";
+import { getSetupWizardData } from "@/lib/setup/data";
+import { requireStaffPermission } from "@/platform/supabase/session";
+import { runLedgerRegenerationAction } from "./actions";
+
+export default async function GenerateLedgerPage() {
+  const t = await getTranslations("FeeSetup");
+  const staff = await requireStaffPermission("fees:write", { onDenied: "redirect" });
+  const [setup, home] = await Promise.all([getSetupWizardData(), getOfficeHomeData()]);
+  const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
+  const recentBatches = home.ledgerRegenerationBatches.slice(0, 3);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={t("generateEyebrow")}
+        title={t("generateTitle")}
+        description={t("generateDescription")}
+      />
+
+      {!readiness.recalculateLedgers.isReady ? (
+        <WorkflowGuard
+          title={readiness.recalculateLedgers.title}
+          detail={readiness.recalculateLedgers.detail}
+          actionLabel={readiness.recalculateLedgers.actionLabel}
+          actionHref={readiness.recalculateLedgers.actionHref}
+        />
+      ) : null}
+
+      {recentBatches.length > 0 ? (
+        <SectionCard
+          title={t("generateRecentTitle")}
+          description={t("generateRecentDescription")}
+        >
+          <div className="grid gap-3 md:grid-cols-3">
+            {recentBatches.map((batch) => (
+              <div key={batch.id} className="rounded-xl border border-border bg-surface-2 px-4 py-4">
+                <p className="text-sm font-semibold text-foreground">{batch.policyRevisionLabel}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{batch.reason}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t("generateRowsRecalculated", { count: batch.rowsRecalculated })}
+                </p>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      ) : null}
+
+      {readiness.recalculateLedgers.isReady ? (
+        <GenerateLedgerClient
+          initialState={INITIAL_LEDGER_REGENERATION_ACTION_STATE}
+          action={runLedgerRegenerationAction}
+        />
+      ) : null}
+    </div>
+  );
+}

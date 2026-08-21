@@ -23,11 +23,11 @@ vi.mock("@/lib/fees/conventional-discounts", () => ({
   saveStudentConventionalDiscountAssignments: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/supabase/admin", () => ({
+vi.mock("@/platform/supabase/admin", () => ({
   createAdminClient: vi.fn(),
 }));
 

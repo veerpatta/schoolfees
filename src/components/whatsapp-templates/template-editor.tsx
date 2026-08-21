@@ -1,0 +1,296 @@
+"use client";
+
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+
+import { Button } from "@/ui/primitives/button";
+import { Sheet } from "@/ui/primitives/sheet";
+import { toast } from "@/ui/primitives/toast";
+import {
+  createTemplateAction,
+  deleteTemplateAction,
+  updateTemplateAction,
+  type TemplateActionState,
+} from "@/app/protected/admin-tools/whatsapp-templates/actions";
+import { extractPlaceholders, renderWhatsappTemplate } from "@/lib/whatsapp-templates/render";
+import {
+  KNOWN_PLACEHOLDERS,
+  WHATSAPP_TEMPLATE_CATEGORIES,
+  type WhatsappTemplate,
+  type WhatsappTemplateCategory,
+} from "@/lib/whatsapp-templates/types";
+
+const INITIAL: TemplateActionState = { status: "idle" };
+
+/** Lets the pinned footer button submit the form it sits outside of. */
+const TEMPLATE_EDITOR_FORM_ID = "whatsapp-template-editor-form";
+
+// Sample variable bindings used to render a live template preview in the
+// editor. These are literal placeholder strings the staff sees on the
+// preview pane — they are NOT live money values from the database, so the
+// audit suppression below is genuine. Keeping the ₹ glyph inline so the
+// preview text matches what a parent will actually receive.
+const PREVIEW_VARS: Record<string, string> = {
+  studentName: "Aarav Sharma",
+  fatherName: "Rajesh Sharma",
+  className: "Class 8 - A",
+  pending: "₹12,500", // @allow-raw-money-format — preview sample, not a money value
+  dueDate: "20-04-2026",
+  paymentLink: "upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank&am=12500&cu=INR&tn=Fee%20ADM1234",
+  paymentReference: "Fee ADM1234",
+  schoolName: "Shri Veer Patta",
+  receiptNumber: "SVP-12345",
+  amount: "₹6,250", // @allow-raw-money-format — preview sample, not a money value
+};
+
+const CATEGORY_I18N: Record<WhatsappTemplateCategory, string> = {
+  reminder: "whatsappCategoryReminder",
+  final_reminder: "whatsappCategoryFinalReminder",
+  receipt: "whatsappCategoryReceipt",
+  custom: "whatsappCategoryCustom",
+};
+
+const PLACEHOLDER_I18N: Record<string, string> = {
+  studentName: "whatsappPlaceholderStudentName",
+  fatherName: "whatsappPlaceholderFatherName",
+  className: "whatsappPlaceholderClassName",
+  pending: "whatsappPlaceholderPending",
+  dueDate: "whatsappPlaceholderDueDate",
+  paymentLink: "whatsappPlaceholderPaymentLink",
+  paymentReference: "whatsappPlaceholderPaymentReference",
+  schoolName: "whatsappPlaceholderSchoolName",
+  receiptNumber: "whatsappPlaceholderReceiptNumber",
+  amount: "whatsappPlaceholderAmount",
+};
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  template: WhatsappTemplate | null;
+};
+
+export function TemplateEditor({ open, onClose, template }: Props) {
+  const t = useTranslations("AdminTools");
+  const isEdit = template !== null;
+  const action = isEdit ? updateTemplateAction : createTemplateAction;
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(action, INITIAL);
+  const [body, setBody] = useState(template?.body ?? "");
+  const [name, setName] = useState(template?.name ?? "");
+  const [category, setCategory] = useState<WhatsappTemplateCategory>(template?.category ?? "reminder");
+  const [isActive, setIsActive] = useState(template?.isActive ?? true);
+
+  useEffect(() => {
+    setBody(template?.body ?? "");
+    setName(template?.name ?? "");
+    setCategory(template?.category ?? "reminder");
+    setIsActive(template?.isActive ?? true);
+  }, [template]);
+
+  useEffect(() => {
+    if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
+      toast({ title: state.message ?? t("whatsappEditorTemplateSaved") });
+      onClose();
+    }
+  }, [state.status, state.message, onClose, t, router]);
+
+  const placeholders = useMemo(() => extractPlaceholders(body), [body]);
+  const preview = useMemo(() => renderWhatsappTemplate(body, PREVIEW_VARS), [body]);
+
+  function insertToken(token: string) {
+    const inserted = `{{${token}}}`;
+    setBody((current) => `${current}${current.endsWith(" ") || current.length === 0 ? "" : " "}${inserted}`);
+  }
+
+  const categoryLabel = (value: WhatsappTemplateCategory) => {
+    const key = CATEGORY_I18N[value];
+    return key ? t(key as Parameters<typeof t>[0]) : value;
+  };
+
+  const placeholderDescription = (token: string, fallback: string) => {
+    const key = PLACEHOLDER_I18N[token];
+    return key ? t(key as Parameters<typeof t>[0]) : fallback;
+  };
+
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={isEdit ? t("whatsappEditorEditTitle") : t("whatsappEditorNewTitle")}
+      description={t("whatsappEditorDescription")}
+      size="full"
+      /* Pinned outside the scroll body — the name input and message textarea
+         used to push Save behind the keyboard. */
+      footer={
+        <div className="flex flex-wrap gap-3">
+          <Button type="button" variant="outline" onClick={onClose} disabled={pending} className="flex-1">
+            {t("whatsappEditorCancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={TEMPLATE_EDITOR_FORM_ID}
+            variant="accent"
+            disabled={pending}
+            className="flex-1"
+          >
+            {pending
+              ? t("whatsappEditorSavingDots")
+              : isEdit
+                ? t("whatsappEditorSaveChanges")
+                : t("whatsappEditorCreate")}
+          </Button>
+        </div>
+      }
+    >
+      <form id={TEMPLATE_EDITOR_FORM_ID} action={formAction} className="space-y-4">
+        {isEdit ? <input type="hidden" name="id" value={template.id} /> : null}
+
+        <div className="space-y-2">
+          <label htmlFor="template-name" className="text-sm font-medium text-foreground">
+            {t("whatsappEditorNameLabel")}
+          </label>
+          <input
+            id="template-name"
+            name="name"
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={80}
+            required
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+            placeholder={t("whatsappEditorNamePlaceholder")}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="template-category" className="text-sm font-medium text-foreground">
+            {t("whatsappEditorCategoryLabel")}
+          </label>
+          <select
+            id="template-category"
+            name="category"
+            value={category}
+            onChange={(event) => setCategory(event.target.value as WhatsappTemplateCategory)}
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+          >
+            {WHATSAPP_TEMPLATE_CATEGORIES.map((option) => (
+              <option key={option.value} value={option.value}>
+                {categoryLabel(option.value)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="template-body" className="text-sm font-medium text-foreground">
+            {t("whatsappEditorBodyLabel")}
+          </label>
+          <textarea
+            id="template-body"
+            name="body"
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            required
+            rows={8}
+            maxLength={2000}
+            className="w-full resize-y rounded-lg border border-border bg-card px-3 py-2 font-mono text-sm text-foreground"
+            placeholder={t("whatsappEditorBodyPlaceholder")}
+          />
+          <p className="text-xs text-muted-foreground">{t("whatsappEditorBodyCount", { count: body.length })}</p>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {t("whatsappEditorPlaceholdersTitle")}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {KNOWN_PLACEHOLDERS.map((option) => (
+              <button
+                key={option.token}
+                type="button"
+                onClick={() => insertToken(option.token)}
+                title={placeholderDescription(option.token, option.description)}
+                className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs font-medium text-foreground hover:bg-surface-3"
+              >
+                {`{{${option.token}}}`}
+              </button>
+            ))}
+          </div>
+          {placeholders.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {t("whatsappEditorDetected", {
+                tokens: placeholders.map((token) => `{{${token}}}`).join(", "),
+              })}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="space-y-2 rounded-lg border border-border bg-surface-2 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {t("whatsappEditorPreviewTitle")}
+          </p>
+          <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">{preview}</pre>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            name="isActive"
+            checked={isActive}
+            onChange={(event) => setIsActive(event.target.checked)}
+            className="size-4 accent-accent"
+          />
+          {t("whatsappEditorActiveLabel")}
+        </label>
+
+        {state.status === "error" ? (
+          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {state.message}
+          </p>
+        ) : null}
+      </form>
+    </Sheet>
+  );
+}
+
+export function DeleteTemplateButton({ template }: { template: WhatsappTemplate }) {
+  const t = useTranslations("AdminTools");
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(deleteTemplateAction, INITIAL);
+
+  useEffect(() => {
+    if (state.status === "success") {
+      // Re-render the server data so the saved change is visible at once.
+      router.refresh();
+      toast({ title: t("whatsappEditorDeletedToast") });
+    } else if (state.status === "error" && state.message) {
+      toast({ title: t("whatsappEditorDeleteErrorTitle"), description: state.message });
+    }
+  }, [state.status, state.message, t, router]);
+
+  return (
+    <form
+      action={formAction}
+      onSubmit={(event) => {
+        if (!confirm(t("whatsappEditorConfirmDelete", { name: template.name }))) {
+          event.preventDefault();
+        }
+      }}
+      className="inline"
+    >
+      <input type="hidden" name="id" value={template.id} />
+      <Button
+        type="submit"
+        variant="outline"
+        size="sm"
+        disabled={pending}
+        className="text-destructive hover:bg-destructive/5"
+      >
+        {pending ? t("whatsappDeleting") : t("whatsappDelete")}
+      </Button>
+    </form>
+  );
+}

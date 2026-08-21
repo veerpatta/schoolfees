@@ -5,7 +5,7 @@ import { registerDimension } from "../lib/coverage";
  *
  * Every entry here is a real shape someone has typed, pasted or bookmarked. The
  * distinction that matters throughout is **404 versus 500**: a junk id is a
- * missing record, not a broken server, and `lib/helpers/uuid.ts` exists because
+ * missing record, not a broken server, and `src/platform/helpers/uuid.ts` exists because
  * a non-UUID path segment used to reach Postgres and come back as
  * `invalid input syntax for type uuid` — a 500 for what is plainly a typo.
  */

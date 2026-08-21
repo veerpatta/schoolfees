@@ -21,7 +21,7 @@ const revalidateFinanceSurfaces = vi.fn();
 const publishOfficeSyncEvent = vi.fn();
 const requireStaffPermission = vi.fn(async () => undefined);
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
   requireAnyStaffPermission: vi.fn(async () => undefined),
   hasStaffPermission: vi.fn(async () => true),

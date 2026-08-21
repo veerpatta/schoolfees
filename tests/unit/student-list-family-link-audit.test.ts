@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync(
-  join(process.cwd(), "components/students/student-list-table.tsx"),
+  join(process.cwd(), "src/components/students/student-list-table.tsx"),
   "utf8",
 );
 

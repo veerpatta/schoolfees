@@ -25,7 +25,7 @@ import { renderToString } from "react-dom/server";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useStoredPreference } from "@/hooks/use-stored-preference";
+import { useStoredPreference } from "@/ui/hooks/use-stored-preference";
 
 const MODE_KEY = "vpps.paymentDesk.lastPaymentMode";
 const RECENTS_KEY = "vpps_recent_students";

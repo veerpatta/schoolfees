@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
  * the dues read fails closed.
  */
 
-const data = readFileSync(join(process.cwd(), "lib/promotion/data.ts"), "utf8");
+const data = readFileSync(join(process.cwd(), "src/lib/promotion/data.ts"), "utf8");
 
 describe("promotion dues guard", () => {
   it("the preview marks a debtor leaving the roll as skip, with the amount in the reason", () => {
@@ -58,7 +58,7 @@ describe("promotion dues guard", () => {
     // recovery page, and its rows must carry the write-off action (reusing the
     // audited close-as-discount sheet), gated on finance:write.
     const page = readFileSync(
-      join(process.cwd(), "app/protected/admin-tools/recovery/page.tsx"),
+      join(process.cwd(), "src/app/protected/admin-tools/recovery/page.tsx"),
       "utf8",
     );
     expect(page).toContain("RecoveryWriteOffButton");
@@ -67,7 +67,7 @@ describe("promotion dues guard", () => {
     expect(page.match(/<RecoveryWriteOffButton/g) ?? []).toHaveLength(2);
 
     const button = readFileSync(
-      join(process.cwd(), "components/students/recovery-write-off-button.tsx"),
+      join(process.cwd(), "src/components/students/recovery-write-off-button.tsx"),
       "utf8",
     );
     // Reuses the existing money path; does not post anything itself.

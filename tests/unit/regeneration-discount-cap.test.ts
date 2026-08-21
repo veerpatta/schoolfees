@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
  */
 describe("regeneration discount cap uses real annual total (audit 1.9)", () => {
   const source = readFileSync(
-    join(process.cwd(), "lib/fees/regeneration.ts"),
+    join(process.cwd(), "src/lib/fees/regeneration.ts"),
     "utf8",
   );
 

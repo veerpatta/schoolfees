@@ -54,7 +54,7 @@ describe("shell pulse column contract", () => {
 
   it("does not read balance_status from the student-level view", () => {
     const source = readFileSync(
-      join(process.cwd(), "lib/dashboard/shell-metrics.ts"),
+      join(process.cwd(), "src/lib/dashboard/shell-metrics.ts"),
       "utf8",
     );
 
@@ -66,7 +66,7 @@ describe("shell pulse column contract", () => {
 
   it("degrades per query so one failure cannot blank the other figure", () => {
     const source = readFileSync(
-      join(process.cwd(), "lib/dashboard/shell-metrics.ts"),
+      join(process.cwd(), "src/lib/dashboard/shell-metrics.ts"),
       "utf8",
     );
 

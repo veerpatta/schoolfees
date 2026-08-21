@@ -1,5 +1,5 @@
-import { officeWorkbookViews } from "../../../lib/transactions/workbook";
-import { STUDENT_SEGMENTS } from "../../../lib/segments/student-segments";
+import { officeWorkbookViews } from "@/lib/transactions/workbook";
+import { STUDENT_SEGMENTS } from "@/lib/segments/student-segments";
 
 import { registerDimension } from "../lib/coverage";
 
@@ -13,7 +13,7 @@ import { registerDimension } from "../lib/coverage";
  * there are 24 student segments when there are 27.
  *
  * The dashboard boards are the one exception, and not by choice:
- * `lib/dashboard/analytics.ts` opens with `import "server-only"`, which throws
+ * `src/lib/dashboard/analytics.ts` opens with `import "server-only"`, which throws
  * the moment a Node process outside the React Server build touches it. So the
  * five values are written out here and pinned against that file's source by
  * `tests/unit/deep-surface-mirror.test.ts` — the same source-string technique

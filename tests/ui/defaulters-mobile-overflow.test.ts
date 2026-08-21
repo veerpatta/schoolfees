@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
  */
 describe("defaulters workspace fits a phone", () => {
   const source = readFileSync(
-    join(process.cwd(), "components/defaulters/defaulters-workspace.tsx"),
+    join(process.cwd(), "src/components/defaulters/defaulters-workspace.tsx"),
     "utf8",
   );
 

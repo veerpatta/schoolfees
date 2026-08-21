@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isMobileTakeoverRoute } from "@/lib/config/navigation";
+import { isMobileTakeoverRoute } from "@/platform/config/navigation";
 
 /**
  * The phone app keeps the tab bar on six screens and replaces the screen

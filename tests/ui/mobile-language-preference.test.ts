@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { mobileLocaleOptions, supportedLocales } from "@/i18n/locales";
+import { mobileLocaleOptions, supportedLocales } from "@/platform/i18n/locales";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
@@ -32,23 +32,23 @@ describe("mobile language preference", () => {
   it("still renders the active locale's row when it is not an offered option", () => {
     // Otherwise a Hinglish account opens Settings to a radiogroup with
     // nothing selected and no way to see what it is currently set to.
-    const picker = read("components/mobile-app/language-picker.tsx");
+    const picker = read("src/ui/mobile/language-picker.tsx");
     expect(picker).toContain("mobileLocaleOptions.includes(locale)");
     expect(picker).toContain("...mobileLocaleOptions, locale");
   });
 
   it("persists the choice to the account, not just the cookie", () => {
-    const actions = read("lib/locale/actions.ts");
+    const actions = read("src/platform/locale/actions.ts");
     expect(actions).toContain("set_my_preferred_locale");
     // Must be the user's client: the RPC is SECURITY DEFINER over
     // `where id = auth.uid()`, which is null under the service-role key, so
     // an admin client would silently update zero rows.
-    expect(actions).toContain('from "@/lib/supabase/server"');
+    expect(actions).toContain('from "@/platform/supabase/server"');
     expect(actions).not.toContain("supabase/admin");
   });
 
   it("never lets a failed persist break the language switch", () => {
-    const actions = read("lib/locale/actions.ts");
+    const actions = read("src/platform/locale/actions.ts");
     const rpcIndex = actions.indexOf("set_my_preferred_locale");
     expect(actions.lastIndexOf("try {", rpcIndex)).toBeGreaterThan(-1);
     // The cookie write must come BEFORE the RPC, so a database blip still
@@ -59,20 +59,20 @@ describe("mobile language preference", () => {
   it("seeds the cookie from the account at sign-in", () => {
     // This is what makes "every device you sign in on" true without paying
     // for a database read on every request.
-    const login = read("app/auth/login/actions.ts");
+    const login = read("src/app/auth/login/actions.ts");
     expect(login).toContain("preferred_locale");
     expect(login).toContain("LOCALE_COOKIE_NAME");
   });
 
   it("reads the account locale on the profile query the session already runs", () => {
-    const session = read("lib/supabase/session.ts");
+    const session = read("src/platform/supabase/session.ts");
     expect(session).toContain(
       "full_name, role, is_active, last_login_at, preferred_locale",
     );
   });
 
   it("keeps the picker note honest about where the choice is saved", () => {
-    const en = JSON.parse(read("messages/en.json"));
+    const en = JSON.parse(read("src/messages/en.json"));
     const note: string = en.MobileApp.languageNote;
     expect(note).toMatch(/login/i);
     expect(note).not.toMatch(/this device/i);

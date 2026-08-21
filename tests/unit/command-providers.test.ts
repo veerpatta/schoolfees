@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { actionsProvider } from "@/components/command/providers/actions";
+import { actionsProvider } from "@/ui/command/providers/actions";
 
 /**
  * Static providers should be deterministic — given the same query they

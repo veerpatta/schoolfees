@@ -40,14 +40,14 @@ describe("financial view refresh stays off the posting path", () => {
   });
 
   it("drains after the response, not inside the request", () => {
-    const helper = read("lib/system-sync/financial-view-refresh.ts");
+    const helper = read("src/lib/system-sync/financial-view-refresh.ts");
     expect(helper).toContain("refresh_workbook_materialized_views_if_requested");
     // Service-role on purpose — the RPC is granted to postgres/service_role
     // only, and granting it to `authenticated` would hand every staff account a
     // lever that rebuilds three matviews on demand.
     expect(helper).toContain("createAdminClient");
 
-    const actions = read("app/protected/payments/actions.ts");
+    const actions = read("src/app/protected/payments/actions.ts");
     expect(actions).toContain("drainFinancialViewRefresh");
     // Must be inside after(), or it goes straight back onto the latency budget
     // it was moved off.
@@ -60,8 +60,8 @@ describe("financial view refresh stays off the posting path", () => {
     // they do not drain, they trade the old inline cost for up to two minutes
     // of stale dues on the screen the user is looking at.
     for (const path of [
-      "app/protected/ledger/actions.ts",
-      "app/protected/finance-controls/actions.ts",
+      "src/app/protected/ledger/actions.ts",
+      "src/app/protected/finance-controls/actions.ts",
     ]) {
       expect(read(path), path).toContain("drainFinancialViewRefresh");
     }
@@ -89,7 +89,7 @@ describe("financial view refresh stays off the posting path", () => {
         else if (entry.name.endsWith("actions.ts")) actionFiles.push(child);
       }
     };
-    walk("app");
+    walk("src/app");
 
     const missing = actionFiles.filter((path) => {
       const source = read(path);
@@ -103,7 +103,7 @@ describe("financial view refresh stays off the posting path", () => {
   it("never blocks a post on a failed refresh", () => {
     // The cron backstop still runs; a drain failure must degrade to "stale for
     // up to two minutes", never to "the payment errored".
-    const helper = read("lib/system-sync/financial-view-refresh.ts");
+    const helper = read("src/lib/system-sync/financial-view-refresh.ts");
     expect(helper).toContain("try {");
     expect(helper).toContain("catch");
     expect(helper).toMatch(/console\.warn/);

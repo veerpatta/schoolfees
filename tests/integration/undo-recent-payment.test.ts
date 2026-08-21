@@ -55,7 +55,7 @@ describe("undo_recent_payment migration", () => {
 });
 
 describe("undoRecentPayment data layer", () => {
-  const source = readFileSync(join(process.cwd(), "lib", "payments", "data.ts"), "utf8");
+  const source = readFileSync(join(process.cwd(), "src/lib", "payments", "data.ts"), "utf8");
 
   it("calls the RPC via the user-JWT client (never the service-role admin client)", () => {
     const fn = source.slice(source.indexOf("export async function undoRecentPayment"));
@@ -68,7 +68,7 @@ describe("undoRecentPayment data layer", () => {
 
 describe("undoRecentPaymentAction server action", () => {
   const source = readFileSync(
-    join(process.cwd(), "app", "protected", "payments", "actions.ts"),
+    join(process.cwd(), "src/app", "protected", "payments", "actions.ts"),
     "utf8",
   );
 
@@ -87,7 +87,7 @@ describe("undoRecentPaymentAction server action", () => {
 });
 
 describe("receipt VOID derivation", () => {
-  const source = readFileSync(join(process.cwd(), "lib", "receipts", "data.ts"), "utf8");
+  const source = readFileSync(join(process.cwd(), "src/lib", "receipts", "data.ts"), "utf8");
 
   it("derives isVoided from reversal adjustments instead of mutating the receipt", () => {
     expect(source).toContain('row.adjustment_type === "reversal"');

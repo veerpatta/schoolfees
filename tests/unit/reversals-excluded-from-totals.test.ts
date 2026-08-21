@@ -10,7 +10,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  *
  * Reversing never touches `receipts.total_amount` — it writes a compensating
  * `payment_adjustments` row — so any total that sums that column counts money
- * that was handed back. `lib/receipts/reversals.ts` has existed for a while and
+ * that was handed back. `src/lib/receipts/reversals.ts` has existed for a while and
  * was used for **badges, never for money**: lists struck reversed rows through
  * while the total directly above them still included the amount.
  *
@@ -22,20 +22,20 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
 describe("reversed receipts are excluded from money totals", () => {
   const surfaces: Array<[string, string]> = [
-    ["sidebar Day so far", "lib/dashboard/shell-metrics.ts"],
-    ["Payment Desk today", "lib/payments/data.ts"],
-    ["Transactions day strip", "lib/workbook/data.ts"],
-    ["office home", "lib/office/data.ts"],
-    ["dashboard summary fallback", "lib/dashboard/summary.ts"],
+    ["sidebar Day so far", "src/lib/dashboard/shell-metrics.ts"],
+    ["Payment Desk today", "src/lib/payments/data.ts"],
+    ["Transactions day strip", "src/lib/workbook/data.ts"],
+    ["office home", "src/lib/office/data.ts"],
+    ["dashboard summary fallback", "src/lib/dashboard/summary.ts"],
     // Added when admin reversal of any receipt landed. Reversal used to be rare
     // enough that these six quietly summed reversed money; once an admin can
     // reverse anything, each one is a number that visibly disagrees with the
     // board next to it.
-    ["nightly day close", "app/api/cron/auto-day-close/route.ts"],
-    ["finance day summary", "lib/finance-controls/data.ts"],
-    ["receipts page stat strip", "lib/receipts/data.ts"],
-    ["reports receipt register", "lib/reports/data.ts"],
-    ["AI bundle export sheets", "app/protected/exports/[exportType]/route.ts"],
+    ["nightly day close", "src/app/api/cron/auto-day-close/route.ts"],
+    ["finance day summary", "src/lib/finance-controls/data.ts"],
+    ["receipts page stat strip", "src/lib/receipts/data.ts"],
+    ["reports receipt register", "src/lib/reports/data.ts"],
+    ["AI bundle export sheets", "src/app/protected/exports/[exportType]/route.ts"],
   ];
 
   it.each(surfaces)("%s consults reversal state before summing", (_label, path) => {
@@ -122,7 +122,7 @@ describe("reversed receipts are excluded from money totals", () => {
     // answers "Not a recognised receipt". Once the reversal read throws, that
     // catch would call a genuine receipt a fake — so the failure is caught
     // narrowly and reported as what it is.
-    const page = read("app/r/[code]/page.tsx");
+    const page = read("src/app/r/[code]/page.tsx");
     expect(page).toContain('state: "unverifiable"');
     expect(page).toContain("Could not verify right now");
     // The narrow catch sits around the reversal read specifically.

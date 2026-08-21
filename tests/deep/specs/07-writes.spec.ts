@@ -137,7 +137,7 @@ test("@write the desk previews every allocation shape without posting", async ({
           actual: body.slice(0, 400),
           target,
           session: TEST_SESSION,
-          suspectedFile: "lib/payments/allocation.ts",
+          suspectedFile: "src/lib/payments/allocation.ts",
           evidence: { reproCommand: reproCommand({ target, grep: "previews every allocation" }) },
         });
       }
@@ -189,7 +189,7 @@ test("@write the amount field refuses what is not a whole rupee amount", async (
         actual: `The collect button was enabled with the amount field set to "${paymentCase.amount}".`,
         target,
         session: TEST_SESSION,
-        suspectedFile: "lib/payments/workflow.ts",
+        suspectedFile: "src/lib/payments/workflow.ts",
         evidence: {
           screenshot: await screenshot(page, `amount-${paymentCase.id}`),
           reproCommand: reproCommand({ target, grep: "amount field refuses" }),
@@ -322,7 +322,7 @@ test("@write posts the sanctioned test payments", async ({
           actual: `Receipt count went from ${before} to ${after}.`,
           target,
           session: TEST_SESSION,
-          suspectedFile: "app/protected/payments/actions.ts",
+          suspectedFile: "src/app/protected/payments/actions.ts",
           evidence: {
             screenshot: await screenshot(page, "idempotency-broken"),
             reproCommand: reproCommand({ target, grep: "posts the sanctioned", project: "writes" }),
@@ -399,7 +399,7 @@ test("@write a late-fee-only student is still not a defaulter after paying", asy
       actual: "The student is listed on the Defaulters page.",
       target,
       session: TEST_SESSION,
-      suspectedFile: "lib/defaulters",
+      suspectedFile: "src/lib/defaulters",
       evidence: {
         screenshot: await screenshot(page, "late-fee-only-in-defaulters"),
         reproCommand: reproCommand({ target, grep: "not a defaulter", project: "writes" }),

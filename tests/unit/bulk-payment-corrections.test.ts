@@ -570,7 +570,7 @@ describe("the correction harness is wired into the CLI a reader will find", () =
   });
 
   it("drains the matview before busting the tag in that route", () => {
-    const route = read("app/api/admin/revalidate-after-bulk/route.ts");
+    const route = read("src/app/api/admin/revalidate-after-bulk/route.ts");
     const drainAt = route.indexOf("await drainFinancialViewRefresh()");
     const bustAt = route.indexOf("revalidateSessionFinance(");
     expect(drainAt).toBeGreaterThan(-1);

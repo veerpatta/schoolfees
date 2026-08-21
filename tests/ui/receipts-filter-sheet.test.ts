@@ -16,8 +16,8 @@ function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-const QUICK_LOAD = "components/receipts/receipts-quick-load.tsx";
-const SHEET = "components/receipts/receipts-filter-sheet.tsx";
+const QUICK_LOAD = "src/components/receipts/receipts-quick-load.tsx";
+const SHEET = "src/components/receipts/receipts-filter-sheet.tsx";
 
 describe("Receipts filters", () => {
   it("mounts the sheet outside both breakpoint branches", () => {
@@ -69,7 +69,7 @@ describe("Receipts filters", () => {
   });
 
   it("applies every filter to the list, the totals and the facets alike", () => {
-    const data = read("lib/receipts/data.ts");
+    const data = read("src/lib/receipts/data.ts");
 
     // One builder for all three passes. A filter on the list but not the
     // aggregate shows a stat strip that disagrees with the rows under it.
@@ -81,7 +81,7 @@ describe("Receipts filters", () => {
   });
 
   it("says so when the aggregate had to stop reading", () => {
-    const data = read("lib/receipts/data.ts");
+    const data = read("src/lib/receipts/data.ts");
     const quickLoad = read(QUICK_LOAD);
 
     // Judged on the SERVER-side count, not the netted one. `receiptCount` now
@@ -96,7 +96,7 @@ describe("Receipts filters", () => {
   });
 
   it("uses !inner for the class filter only, so unknown students still render", () => {
-    const data = read("lib/receipts/data.ts");
+    const data = read("src/lib/receipts/data.ts");
 
     // PostgREST nulls a non-inner embed instead of dropping the parent row,
     // so filtering one would return every receipt with a blank student.
@@ -105,7 +105,7 @@ describe("Receipts filters", () => {
   });
 
   it("keeps the page a page", () => {
-    const data = read("lib/receipts/data.ts");
+    const data = read("src/lib/receipts/data.ts");
     // The sorted list query must still be ranged — without it the "page" is
     // however many rows PostgREST felt like returning.
     expect(data).toContain(").range(from, to);");

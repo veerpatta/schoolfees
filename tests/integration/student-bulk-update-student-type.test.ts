@@ -89,7 +89,7 @@ function builder(table: string) {
   return api;
 }
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => ({ from: (table: string) => builder(table) })),
 }));
 

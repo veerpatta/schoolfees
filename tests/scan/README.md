@@ -46,7 +46,7 @@ structurally cannot reach.
 | `async-safety` | `scan.floating-promise`, `scan.error-swallowed` |
 | `mirror-drift` | `scan.mirror-drift` |
 | `sql-safety` | `scan.sql-risk` |
-| `i18n` | `scan.i18n-key-missing` |
+| `src/platform/i18n` | `scan.i18n-key-missing` |
 | `dead-code` | `scan.dead-export` |
 | `config-risk` | `scan.config-risk` |
 | `deps` | `scan.dependency-vulnerable` |
@@ -54,13 +54,13 @@ structurally cannot reach.
 Three of these are worth singling out.
 
 **`guards`** knows the difference between *unguarded* and *unauthorised*, and
-they are different findings because the fix is different. `proxy.ts` redirects
+they are different findings because the fix is different. `src/proxy.ts` redirects
 unauthenticated traffic away from `/protected` only — it does not cover
 `/api/**` at all — so a handler there with no helper call is open to anyone with
 the URL. A handler that calls `getAuthenticatedStaff()` and stops is open to the
 whole staff roll, `view_only` included. It follows one import hop before it
 accuses anybody, because the promotion actions delegate their guard to
-`lib/promotion/data.ts` and four false positives is how a P0 rule gets muted.
+`src/lib/promotion/data.ts` and four false positives is how a P0 rule gets muted.
 
 **`mirror-drift`** is the highest-value check here. This codebase writes several
 rules twice — once in TypeScript, once in PL/pgSQL — and says so out loud
@@ -71,8 +71,8 @@ declared pairs in `baseline/mirrors.json`; a reformat is not a finding, a
 changed operator is. Re-pin with `npm run scan:mirrors`.
 
 **`money`** deliberately does not duplicate `scripts/audit-money-formatting.mjs`.
-That script owns raw `₹`/`Rs.`/`en-IN` formatting in `app/` and `components/`;
-this extends the same idea into `lib/` and `workers/` (which it never scans),
+That script owns raw `₹`/`Rs.`/`en-IN` formatting in `src/app/` and `src/components/`;
+this extends the same idea into `src/lib/` and `workers/` (which it never scans),
 catches `Rs ` without the period its regex requires, and owns everything the
 line-regex cannot see: split conservation, round-then-validate ordering, and
 rounding-policy divergence.

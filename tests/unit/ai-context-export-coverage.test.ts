@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 describe("AI context export coverage", () => {
   it("keeps recovery and carry-forward context wired into the AI workbook bundle", () => {
     const routeSource = readFileSync(
-      resolve(process.cwd(), "app/protected/exports/[exportType]/route.ts"),
+      resolve(process.cwd(), "src/app/protected/exports/[exportType]/route.ts"),
       "utf8",
     );
 
@@ -23,7 +23,7 @@ describe("AI context export coverage", () => {
   // stored record so the bundle can answer questions without a second export.
   it("exports the whole student master, not just the fee projection", () => {
     const routeSource = readFileSync(
-      resolve(process.cwd(), "app/protected/exports/[exportType]/route.ts"),
+      resolve(process.cwd(), "src/app/protected/exports/[exportType]/route.ts"),
       "utf8",
     );
 

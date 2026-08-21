@@ -27,7 +27,7 @@ vi.mock("@/lib/segments/directory", () => ({
   getStudentDirectorySummary: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+vi.mock("@/platform/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
 type Call = { method: string; args: unknown[] };
 
@@ -60,7 +60,7 @@ function builder(result: { data: unknown; error: unknown; count?: number }) {
   return chain;
 }
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from: () => builder({ data: [], error: null, count: 0 }),
   })),

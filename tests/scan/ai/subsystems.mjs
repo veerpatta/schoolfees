@@ -42,7 +42,7 @@ const MONEY_COLUMNS = `\`pending_amount\` — **Fees only.** Never contains a la
 
 const POPULATION_RULE = `**Headcount and money count different students, on purpose.** Headcount is \`record_status = 'active'\`. Money — expected, collected, pending, defaulters — is \`record_status = 'active' OR total_paid > 0\`, because a student who left owing money still owes it (\`20260808210000\`). Never let one rule drift onto the other's question: that is what hid ₹17,250 of live collectable dues, and what made the MCP server and the Dashboard disagree.`;
 
-const SERVICE_ROLE_RULE = `**RPCs that gate on \`public.has_permission(...)\` MUST be called via the user-JWT supabase client (\`createClient()\` from \`lib/supabase/server.ts\`), NEVER the service-role admin client.** \`has_permission\` requires \`auth.uid() is not null\`, which is null under a service-role JWT — every call would raise "You do not have permission…".`;
+const SERVICE_ROLE_RULE = `**RPCs that gate on \`public.has_permission(...)\` MUST be called via the user-JWT supabase client (\`createClient()\` from \`src/platform/supabase/server.ts\`), NEVER the service-role admin client.** \`has_permission\` requires \`auth.uid() is not null\`, which is null under a service-role JWT — every call would raise "You do not have permission…".`;
 
 const HEADLESS_ADMIN_RULE = `Anything that runs the fee engine outside a staff request — a cron, a script, an admin route — has no session, so the cookie-based Supabase client returns NOTHING under RLS. \`getFeeSetupPageData({ useAdmin: true })\` threads that flag down to fee settings, master data, conventional discount policies and student assignments. Miss it and the generator silently skips every student with \`CLASS_FEE_MISSING\`, or resolves every RTE / Staff Child / 3rd Child student to no discount at all. It fails quiet, not loud.`;
 
@@ -56,10 +56,10 @@ export const SUBSYSTEMS = [
     id: "fees",
     title: "Fee engine, policy resolution and discounts",
     files: [
-      "lib/fees/**/*.ts",
-      "lib/workbook/**/*.ts",
-      "lib/money/**/*.ts",
-      "lib/config/fee-rules.ts",
+      "src/lib/fees/**/*.ts",
+      "src/lib/workbook/**/*.ts",
+      "src/platform/money/**/*.ts",
+      "src/platform/config/fee-rules.ts",
     ],
     invariants: [
       MONEY_COLUMNS,
@@ -81,9 +81,9 @@ export const SUBSYSTEMS = [
     id: "payments",
     title: "Payment posting, allocation and the Payment Desk",
     files: [
-      "lib/payments/**/*.ts",
-      "app/protected/payments/**/*.ts",
-      "app/protected/payments/**/*.tsx",
+      "src/lib/payments/**/*.ts",
+      "src/app/protected/payments/**/*.ts",
+      "src/app/protected/payments/**/*.tsx",
     ],
     invariants: [
       APPEND_ONLY,
@@ -105,17 +105,17 @@ export const SUBSYSTEMS = [
     id: "session",
     title: "Academic session resolution and the Supabase client boundary",
     files: [
-      "lib/session/**/*.ts",
-      "lib/session/**/*.tsx",
-      "lib/supabase/session.ts",
-      "lib/supabase/server.ts",
-      "lib/supabase/admin.ts",
-      "lib/supabase/cache-safe.ts",
+      "src/platform/session/**/*.ts",
+      "src/platform/session/**/*.tsx",
+      "src/platform/supabase/session.ts",
+      "src/platform/supabase/server.ts",
+      "src/platform/supabase/admin.ts",
+      "src/platform/supabase/cache-safe.ts",
     ],
     invariants: [
       SERVICE_ROLE_RULE,
       `\`2026-27\` is the live production session with real school financial records. Use \`TEST-2026-27\` for all testing and debugging. Never add test data, post test payments, or make experimental changes to the \`2026-27\` session.`,
-      `Format: \`2026-27\`. Test prefixes accepted: \`TEST-2026-27\`, \`UAT-2026-27\`, \`DEMO-2026-27\`. Parsing is handled by \`parseAcademicSessionLabel()\` in \`lib/config/fee-rules.ts\`.`,
+      `Format: \`2026-27\`. Test prefixes accepted: \`TEST-2026-27\`, \`UAT-2026-27\`, \`DEMO-2026-27\`. Parsing is handled by \`parseAcademicSessionLabel()\` in \`src/platform/config/fee-rules.ts\`.`,
       `\`SUPABASE_SERVICE_ROLE_KEY\` must never appear in \`NEXT_PUBLIC_*\` variables or be imported in browser code.`,
       `\`get_dashboard_summary\` and \`get_dashboard_analytics\` are cached on the \`session:{label}\` tag that \`revalidateSessionFinance\` already busts after every posting.`,
     ],
@@ -129,10 +129,10 @@ export const SUBSYSTEMS = [
     id: "receipts",
     title: "Receipts, reversals and the ledger read model",
     files: [
-      "lib/receipts/**/*.ts",
-      "lib/receipts/**/*.tsx",
-      "lib/ledger/**/*.ts",
-      "lib/finance-controls/**/*.ts",
+      "src/lib/receipts/**/*.ts",
+      "src/lib/receipts/**/*.tsx",
+      "src/lib/ledger/**/*.ts",
+      "src/lib/finance-controls/**/*.ts",
     ],
     invariants: [
       APPEND_ONLY,
@@ -151,15 +151,15 @@ export const SUBSYSTEMS = [
     id: "rbac",
     title: "Roles, permissions and the staff guard helpers",
     files: [
-      "lib/auth/**/*.ts",
-      "lib/config/navigation.ts",
-      "lib/supabase/session.ts",
-      "lib/supabase/middleware.ts",
-      "lib/supabase/proxy.ts",
-      "proxy.ts",
+      "src/platform/auth/**/*.ts",
+      "src/platform/config/navigation.ts",
+      "src/platform/supabase/session.ts",
+      "src/platform/supabase/middleware.ts",
+      "src/platform/supabase/proxy.ts",
+      "src/proxy.ts",
     ],
     invariants: [
-      `Five roles defined in \`lib/auth/roles.ts\`: \`admin\`, \`accountant\`, \`teacher\`, \`fee_collector\`, \`view_only\` (legacy aliases \`read_only_staff\`→\`view_only\` and \`defaulter_followup\`→\`fee_collector\` still resolve). Enforced in the app layer via \`requireAuthenticatedStaff()\` in \`lib/supabase/session.ts\` and by Supabase RLS.`,
+      `Five roles defined in \`src/platform/auth/roles.ts\`: \`admin\`, \`accountant\`, \`teacher\`, \`fee_collector\`, \`view_only\` (legacy aliases \`read_only_staff\`→\`view_only\` and \`defaulter_followup\`→\`fee_collector\` still resolve). Enforced in the app layer via \`requireAuthenticatedStaff()\` in \`src/platform/supabase/session.ts\` and by Supabase RLS.`,
       `Default landing routes (\`getDefaultProtectedHref()\`): \`admin\`/\`view_only\` → Dashboard; \`accountant\` → Payment Desk; \`teacher\` → Students; \`fee_collector\` → Defaulters.`,
       `The \`/protected\` root redirect must never loop back to itself.`,
       `Keep public signup disabled after the bootstrap phase.`,
@@ -175,17 +175,17 @@ export const SUBSYSTEMS = [
     id: "import-export",
     title: "Student and payment import, and the XLSX export center",
     files: [
-      "lib/import/**/*.ts",
-      "lib/excel/**/*.ts",
-      "lib/reports/**/*.ts",
-      "app/protected/exports/**/*.ts",
-      "app/protected/exports/**/*.tsx",
+      "src/lib/import/**/*.ts",
+      "src/platform/excel/**/*.ts",
+      "src/lib/reports/**/*.ts",
+      "src/app/protected/exports/**/*.ts",
+      "src/app/protected/exports/**/*.tsx",
     ],
     invariants: [
       `Staged workflow: upload → column mapping → dry-run validation → row-by-row review → commit valid rows only. Every \`import_rows\` record must carry a \`batch_id\`. Batch and row traceability must be preserved. Conventional discount assignments should not be silently applied from import data — use the explicit assignment workflow.`,
       POPULATION_RULE,
       MONEY_COLUMNS,
-      `\`toLocaleString('en-IN')\`, \`Intl.NumberFormat('en-IN')\` and hand-written \`₹\`/\`Rs.\` outside \`lib/helpers/currency.ts\` are CI errors; a deliberate exception needs an \`@allow-raw-money-format\` comment with a reason.`,
+      `\`toLocaleString('en-IN')\`, \`Intl.NumberFormat('en-IN')\` and hand-written \`₹\`/\`Rs.\` outside \`src/platform/helpers/currency.ts\` are CI errors; a deliberate exception needs an \`@allow-raw-money-format\` comment with a reason.`,
       `No alternate payment-posting paths outside the Payment Desk module — the bulk payment upload posts every row through \`post_student_payment_with_adjustments\`.`,
     ],
     focus:
@@ -200,9 +200,9 @@ export const SUBSYSTEMS = [
     files: ["workers/schoolfees-mcp/src/**/*.mjs"],
     invariants: [
       POPULATION_RULE,
-      `\`lib/workbook/data.ts:680\` and \`workers/schoolfees-mcp/src/scope.mjs\` are the two places the population rule is written down.`,
+      `\`src/lib/workbook/data.ts:680\` and \`workers/schoolfees-mcp/src/scope.mjs\` are the two places the population rule is written down.`,
       MONEY_COLUMNS,
-      `\`workers/schoolfees-mcp/src/permissions.mjs\` mirrors \`lib/auth/roles.ts\`. The worker is read-only: it cannot post a payment, edit a record, or send a message.`,
+      `\`workers/schoolfees-mcp/src/permissions.mjs\` mirrors \`src/platform/auth/roles.ts\`. The worker is read-only: it cannot post a payment, edit a record, or send a message.`,
       `A late fee is never folded into a fees figure, and never makes a student a defaulter.`,
     ],
     focus:
