@@ -313,6 +313,34 @@ desktop layout pieces. Suggested split:
 Each split should be covered by the existing integration tests in
 `tests/integration/payment-desk-workflow.test.ts` before any state moves.
 
+**Re-examined 2026-08-21, during the feature-first restructure, and deliberately
+left alone.** What that pass established, so the next person does not have to:
+
+- The file is now `src/modules/payments/ui/payment-desk-mobile.tsx`.
+- It is **one component**. `PaymentDeskClient` runs from line 223 to the end —
+  3,292 lines — holding **96** hook calls. There are no nested components to
+  lift out; the sections above are boundaries in the JSX, not in the code.
+- The heavy sheets (confirm, success, duplicate, mobile flow) are already behind
+  `next/dynamic`, so the remaining bytes are the component itself.
+- **54** of the repository's source-path test literals point at this file. A
+  split has to repoint them, not delete them.
+- Its budget is now **3516 with zero headroom** — the next line added fails CI.
+
+The order that looks safest, smallest blast radius first:
+
+1. `<ReceiptPreview>` — reads the latest receipt and renders links. Closest to
+   presentational; touches the least state.
+2. `<StudentDuesBreakdown>` — the installment table and credit/refund state.
+3. `<AmountForm>` — amount, quick amounts, mode, received-by, notes.
+4. `<StudentPicker>` — class filter, search, recents, virtualized combobox.
+   Most state (streaks, stored preferences, prefetch), so last of the four.
+5. `<ConfirmSheet>` — leave until the other four have settled.
+
+Do it as its own change, and verify it by posting real payments in
+`TEST-2026-27`, not only by running the suite. This is the only
+payment-posting surface in the application; a regression here is a cashier
+taking money the ledger does not record.
+
 ### 5.2 Dark mode
 
 Tokens are already dark-ready (`darkMode: ["class"]` is configured, all
