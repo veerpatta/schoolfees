@@ -1,4 +1,4 @@
-# Source scan 202608210956
+# Source scan 202608211014
 
 **PASS** · 52 finding(s) · P0 0 · P1 0 · P2 41 · P3 11
 
@@ -6,13 +6,13 @@
 
 | | |
 |---|---|
-| Run id | `202608210956` |
+| Run id | `202608211014` |
 | Layers | static |
-| Git | `ef3a50762687` on restructure/feature-first (dirty) |
+| Git | `2026bae15bb3` on restructure/feature-first (dirty) |
 | Node | v24.19.0 |
-| Files read | 1473 |
-| Started | 2026-08-21T09:56:59.615Z |
-| Duration | 10360 ms |
+| Files read | 1479 |
+| Started | 2026-08-21T10:14:55.473Z |
+| Duration | 10682 ms |
 | Strict gate | no |
 
 ## Verdict
@@ -21,19 +21,19 @@ The gate passed. P0 always fails; deterministic P1 fails; P2/P3 fail only on cou
 
 ## What this scan did NOT look at
 
-11 check(s) swept 14315 of 14315 enumerated members.
+11 check(s) swept 14373 of 14373 enumerated members.
 
 | Check | Dimension | Domain | Examined | Strategy |
 |---|---|---:|---:|---|
 | `guards` | app route handlers, pages and server-action modules | 111 | 111 | exhaustive |
-| `client-boundary` | source modules crossed against the client bundle import graph | 709 | 709 | exhaustive |
-| `session-safety` | product source modules scanned for hardcoded academic-session labels | 709 | 709 | exhaustive |
-| `money` | product source files (app, components, lib, workers, hooks, i18n; no tests, no scripts) | 709 | 709 | exhaustive |
-| `async-safety` | product .ts/.tsx modules parsed by the TypeScript checker | 677 | 677 | exhaustive |
+| `client-boundary` | source modules crossed against the client bundle import graph | 714 | 714 | exhaustive |
+| `session-safety` | product source modules scanned for hardcoded academic-session labels | 714 | 714 | exhaustive |
+| `money` | product source files (app, components, lib, workers, hooks, i18n; no tests, no scripts) | 714 | 714 | exhaustive |
+| `async-safety` | product .ts/.tsx modules parsed by the TypeScript checker | 682 | 682 | exhaustive |
 | `mirror-drift` | declared TS/SQL mirror sides, plus migrations added since the last reconcile | 213 | 213 | targeted |
-| `sql-safety` | supabase migrations, plus the source files that build SQL text | 1332 | 1332 | exhaustive |
+| `sql-safety` | supabase migrations, plus the source files that build SQL text | 1338 | 1338 | exhaustive |
 | `i18n` | locale catalogue keys (union x locale) and t() call sites in product source | 7699 | 7699 | exhaustive |
-| `dead-code` | export declarations in app/, components/, lib/, hooks/ and i18n/ | 2142 | 2142 | exhaustive |
+| `dead-code` | export declarations in app/, components/, lib/, hooks/ and i18n/ | 2174 | 2174 | exhaustive |
 | `config-risk` | deployment and build configuration candidates | 11 | 11 | exhaustive |
 | `deps` | npm advisories across the installed dependency tree | 3 | 3 | exhaustive |
 
@@ -43,9 +43,9 @@ The gate passed. P0 always fails; deterministic P1 fails; P2/P3 fail only on cou
 - **money** — Every product file is read, but the money rules are deliberately narrow inside it. (1) The split rule fires only when the divisor is literally installmentCount, count, parts, or an installment-/part-named `.length`, and only when the numerator carries a money word. Dividing money by a *population* — receiptCount, series.length, studentsWithGeneratedDues — is how this repo computes displayed averages, there are eight of them and they are correct; separating them by divisor name is the only rule that reliably keeps them out. A split written with a divisor named something else is invisible to this check. (2) The same money-word gate keeps all four rules off the roughly forty Math.round calls in the tree that count percentages, days, pixels, milliseconds and animation frames — and it means a money variable named neutrally (`v`, `x`, `n`) is not seen either. (3) A division is treated as safe when remainder handling appears within six lines above or eight below, which is how the three real splitters are written; a splitter that keeps its remainder logic further away reads as a finding. (4) scan.money-format-raw runs the audit script's own four patterns only over lib/, workers/, hooks/, utils/ and i18n/, which that script never walks; across the whole tree it adds the no-period "Rs " spelling its regex misses. Intl.DateTimeFormat is not reported at all — it is a date, not money, and src/platform/helpers/date.ts is its canonical home. (5) scan.rounding-policy-mixed is heuristic by registration: it matches on the coerced value's base name, so it sees Math.round(value) against Math.trunc(value) and cannot see the same quantity coerced under two different names. Comments are blanked before any rule reads a line, which also blanks `//` inside string literals — a false negative, never a false positive.
 - **async-safety** — Both rules skip tests and scripts. scan.error-swallowed sweeps the whole product surface; scan.floating-promise is narrowed to app/ and lib/ modules no client bundle can reach, because the rule is about a rejection arriving after the response — in the browser there is no response and the console still shows it. Widening to components/ produced eleven hits and eleven of them were calls into helpers whose bodies are wholly try/caught. Neither rule sees .mjs or .js: they are outside the program. Not modelled, and real gaps: an async callback handed to a sync API (forEach, setTimeout), a `.then` chain with no `.catch` on the end, and a catch block whose comment is present but says nothing — a comment is accepted as a decision without being read.
 - **mirror-drift** — 8 pairs (16 sides) are pinned in tests/scan/baseline/mirrors.json; 3 migration(s) postdate lastReconciledMigration (supabase/migrations/20260819120000_restore_view_hardening_lost_to_cascade.sql) and were swept for a one-sided late-fee edit. Three limits are worth stating. (1) The pairs are the ones the source declares in a comment — "mirrors X", "byte-identical", "edit both or neither". An undeclared duplication is invisible here, and the honest fix is a comment in the code, not a cleverer scanner. (2) A pin proves movement, never agreement: two sides pinned while already disagreeing stay silent, which is why pending-late-fee carries an explicit `diverged` note reported as scan.observation. (3) The Worker's RBAC copy (workers/schoolfees-mcp/src/permissions.mjs, declared a mirror of lib/auth/roles.ts) is deliberately NOT pinned here — tests/unit/mcp-permissions.test.ts already asserts the two are equivalent at runtime, which is strictly stronger than a text hash, and a second mechanism would only be a second place to forget.
-- **sql-safety** — All 197 migrations were lexed (comments and dollar-quoted bodies blanked) to build a live catalogue of 64 functions and 31 views, and 1135 source files were read for SQL built as text. Four limits. (1) The two convention rules judge only the LIVE definition — the last migration in filename order that defines each object — because a finding against an applied migration cannot be acted on without desynchronising schema_migrations. A function created by a later `execute format(…)` inside a DO block is invisible to that catalogue, and so is anything created outside migrations. (2) The money-DDL rule fires on nothing in the tree today: there is no `drop column` anywhere and every `drop table` targets a scratch table. It is retained as a tripwire, not as evidence of a clean history. (3) SQL injection is NOT checked. Every template literal in those source files that is a SQL statement AND interpolates a value was examined; there are 1, and both are safe — `postgres` tagged templates in the notion-sync Edge Function, and a never-executed rollback hint string in lib/prev-year-dues. The app reaches Postgres through supabase-js, which is PostgREST, so there is no concatenation surface to guard and a rule here would have reported those two forever. (4) `security definer`/`security invoker` on functions is not checked either: 31 of the 64 live functions state neither, so there is no convention to hold anyone to. Nor is grant/revoke drift — grants are re-applied in ACL-restore loops and follow-up migrations, and every text rule attempted flagged 18 of 21 live views, which measured the regex rather than the schema.
-- **i18n** — Locales come from supportedLocales in src/platform/i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2074 keys in all 3 catalogues. The reference half is not: it read 677 product .ts/.tsx files, resolved a namespace in 91 of them, and inspected 1477 calls on those translators — of which 64 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 7 file(s) call t("…") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.
-- **dead-code** — Every export in 668 non-test, non-script source files was parsed; 0 were reported. The gap between those numbers is deliberate and is where this rule's precision comes from. (1) 609 type / interface / enum exports were skipped outright: a prop type named only by its own component's signature is the house style, it costs nothing at runtime, and reporting it would quadruple this rule. Type-only usage of a *value* export is still tracked, because the identifier index does not care why a name appears. (2) 77 exports are used inside their own module and nowhere else — exported too widely rather than dead. They are counted here and not reported; the finding a reader can act on is "this code runs nowhere", not "this could be a module-private const". (3) 105 exports are referenced only by files under tests/. Those are not dead, they are tested, and deleting them would delete a test — but a value whose only caller is its own test is worth knowing about, so the count is stated rather than hidden. (4) Reachability is decided by an identifier index over all source files, comments and string literals included. A name that appears in a doc comment counts as used: false negatives, never false positives. It also means an export whose name collides with any common identifier is invisible to this rule. (5) Excluded by construction: default exports of Next.js convention files, route segment config and HTTP verb exports under app/, the root config and instrumentation files, index barrels, any module a barrel star-re-exports, and workers/ — a separate Cloudflare bundle whose entry point is wrangler's, not an import. (6) Not seen at all: a symbol reached only through a runtime-built import specifier, and dead code *inside* a live export.
+- **sql-safety** — All 197 migrations were lexed (comments and dollar-quoted bodies blanked) to build a live catalogue of 64 functions and 31 views, and 1141 source files were read for SQL built as text. Four limits. (1) The two convention rules judge only the LIVE definition — the last migration in filename order that defines each object — because a finding against an applied migration cannot be acted on without desynchronising schema_migrations. A function created by a later `execute format(…)` inside a DO block is invisible to that catalogue, and so is anything created outside migrations. (2) The money-DDL rule fires on nothing in the tree today: there is no `drop column` anywhere and every `drop table` targets a scratch table. It is retained as a tripwire, not as evidence of a clean history. (3) SQL injection is NOT checked. Every template literal in those source files that is a SQL statement AND interpolates a value was examined; there are 1, and both are safe — `postgres` tagged templates in the notion-sync Edge Function, and a never-executed rollback hint string in lib/prev-year-dues. The app reaches Postgres through supabase-js, which is PostgREST, so there is no concatenation surface to guard and a rule here would have reported those two forever. (4) `security definer`/`security invoker` on functions is not checked either: 31 of the 64 live functions state neither, so there is no convention to hold anyone to. Nor is grant/revoke drift — grants are re-applied in ACL-restore loops and follow-up migrations, and every text rule attempted flagged 18 of 21 live views, which measured the regex rather than the schema.
+- **i18n** — Locales come from supportedLocales in src/platform/i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2074 keys in all 3 catalogues. The reference half is not: it read 682 product .ts/.tsx files, resolved a namespace in 92 of them, and inspected 1477 calls on those translators — of which 64 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 7 file(s) call t("…") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.
+- **dead-code** — Every export in 673 non-test, non-script source files was parsed; 0 were reported. The gap between those numbers is deliberate and is where this rule's precision comes from. (1) 619 type / interface / enum exports were skipped outright: a prop type named only by its own component's signature is the house style, it costs nothing at runtime, and reporting it would quadruple this rule. Type-only usage of a *value* export is still tracked, because the identifier index does not care why a name appears. (2) 79 exports are used inside their own module and nowhere else — exported too widely rather than dead. They are counted here and not reported; the finding a reader can act on is "this code runs nowhere", not "this could be a module-private const". (3) 105 exports are referenced only by files under tests/. Those are not dead, they are tested, and deleting them would delete a test — but a value whose only caller is its own test is worth knowing about, so the count is stated rather than hidden. (4) Reachability is decided by an identifier index over all source files, comments and string literals included. A name that appears in a doc comment counts as used: false negatives, never false positives. It also means an export whose name collides with any common identifier is invisible to this rule. (5) Excluded by construction: default exports of Next.js convention files, route segment config and HTTP verb exports under app/, the root config and instrumentation files, index barrels, any module a barrel star-re-exports, and workers/ — a separate Cloudflare bundle whose entry point is wrangler's, not an import. (6) Not seen at all: a symbol reached only through a runtime-built import specifier, and dead code *inside* a live export.
 - **config-risk** — Each candidate is answered against the real file, and the verdicts are listed here so an empty findings list is legible as checked rather than as skipped. build-error-suppression: clean — neither typescript.ignoreBuildErrors nor eslint.ignoreDuringBuilds is set; function-duration-ceiling: clean — 36 route handler(s) checked, the highest declared maxDuration is 300s; unattended-handler-duration: clean — every cron and admin handler doing bulk work declares a maxDuration; cron-schedule-and-route-agreement: clean — 2 schedule(s) and 2 cron handler(s) name each other exactly; protected-cache-directive: 2 inert directive(s) reported as P3 — the root layout forces dynamic rendering; security-response-headers: reported — no security header configured anywhere; sentry-dsn-and-sampling: clean — 1 init file(s), each reading the DSN from the environment and each sampling traces at less than 1.0 outside development; typescript-strictness: clean — strict is on and strictNullChecks is not disabled; remote-image-patterns: clean — no remotePatterns, so next/image optimises no remote host at all; serverless-file-tracing: clean — 4 route(s) reach a module that reads from process.cwd(), and all 4 are named in outputFileTracingIncludes; deployment-region: clean — pinned ("regions": ["bom1"],). Deliberately not reported: src/app/api/cron/auto-day-close/route.ts — unattended and without a maxDuration, but the handler shows neither a bulk row cap nor a storage upload, so its work is bounded and the platform default is enough. skipLibCheck is true in tsconfig.json and is not reported: it is the Next.js default and it suppresses diagnostics in other people's .d.ts files, not in this repo's code. What this check cannot see at all: anything configured in the Vercel dashboard rather than in a file — environment variables and their values, deployment protection, the plan's real function-duration ceiling, and whether the cron secret is actually set. It also reads outputFileTracingIncludes with a regex rather than by evaluating next.config.ts, so a route key assembled from a variable would read as absent.
 - **deps** — npm audit ran and returned a version 2 report over 1060 installed packages (411 production). It flagged 3 package(s): 0 critical, 0 high, 3 moderate, 0 low/info. Those collapse to 0 distinct vulnerable package(s) at high or critical — the rest are downstream packages npm marks vulnerable because of one of these, and reporting them separately would be reporting the same advisory several times. The 3 moderate and 0 low advisories are counted here and deliberately not filed: scan.dependency-vulnerable is P1 and gates, and a gating rule that fires on every moderate advisory in build tooling is one somebody switches off. A second pass with --omit=dev separated shipping packages from development tooling, and each finding says which side it is on. What this cannot see: any dependency whose specifier names no registry version — xlsx is in that category and reported separately as scan.config-risk. It also reflects the advisory database at the moment it ran, so an unchanged tree can become a finding tomorrow with no commit in between — which is the intended behaviour, not drift.
 
@@ -67,9 +67,9 @@ fix:        Add a headers() entry for source: "/:path*" carrying, at minimum, X-
 ### P2-002 xlsx is installed from a URL, so npm audit cannot see it
 
 ```
-id:         3374a2b67adc
+id:         0a404a50035c
 rule:       scan.config-risk  [deterministic]  layer: static
-surface:    package.json:85
+surface:    package.json:87
 expected:   Every dependency resolves to a registry version, so `npm audit` can match it against advisory ranges and the dependency check above covers the whole tree.
 actual:     dependencies.xlsx is "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz". There is no registry entry and no semver version for npm to compare, so this package and anything it depends on are absent from every audit report — including a clean one.
 source:     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
@@ -168,20 +168,7 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-010 src/modules/fees/data/policy.ts:290 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         daa3bd7a9df0
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/modules/fees/data/policy.ts:290
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-011 src/modules/fees/data/setup-queries.ts:191 formats a rupee figure without lib/helpers/currency.ts
+### P2-010 src/modules/fees/data/setup-queries.ts:191 formats a rupee figure without lib/helpers/currency.ts
 
 ```
 id:         309dda17d75a
@@ -194,7 +181,7 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-012 src/modules/fees/data/workbook-setup-change.ts:125 formats a rupee figure without lib/helpers/currency.ts
+### P2-011 src/modules/fees/data/workbook-setup-change.ts:125 formats a rupee figure without lib/helpers/currency.ts
 
 ```
 id:         5a2b495e75c5
@@ -207,7 +194,7 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-013 src/modules/fees/data/workbook-setup-change.ts:161 formats a rupee figure without lib/helpers/currency.ts
+### P2-012 src/modules/fees/data/workbook-setup-change.ts:161 formats a rupee figure without lib/helpers/currency.ts
 
 ```
 id:         df8320e8ef22
@@ -220,7 +207,7 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-014 src/modules/fees/data/workbook-setup-change.ts:404 formats a rupee figure without lib/helpers/currency.ts
+### P2-013 src/modules/fees/data/workbook-setup-change.ts:404 formats a rupee figure without lib/helpers/currency.ts
 
 ```
 id:         f5a600033ff0
@@ -233,7 +220,7 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-015 src/modules/fees/data/workbook-setup-change.ts:418 formats a rupee figure without lib/helpers/currency.ts
+### P2-014 src/modules/fees/data/workbook-setup-change.ts:418 formats a rupee figure without lib/helpers/currency.ts
 
 ```
 id:         e3f675784bca
@@ -242,6 +229,19 @@ surface:    src/modules/fees/data/workbook-setup-change.ts:418
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
 source:     lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-015 src/modules/fees/domain/policy-shaping.ts:154 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         0efdc8dc1fc5
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/fees/domain/policy-shaping.ts:154
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,
 why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
@@ -405,11 +405,11 @@ fix:        Use formatInr() (or <Money /> in JSX). If the divergence is delibera
 ### P2-028 src/app/protected/students/close-due-actions.ts:47 rounds `value` where the domain core truncates it
 
 ```
-id:         3de1d37184fe
+id:         dba4a7b5967c
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/app/protected/students/close-due-actions.ts:47
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     return Math.round(value);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -418,11 +418,11 @@ fix:        Use Math.trunc here too, or state in a comment why this surface deli
 ### P2-029 src/platform/helpers/amount-in-words-hi.ts:73 rounds `value` where the domain core truncates it
 
 ```
-id:         7c6a959d6d45
+id:         1507266ec39f
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/platform/helpers/amount-in-words-hi.ts:73
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     const amount = Math.max(Math.round(value || 0), 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -431,11 +431,11 @@ fix:        Use Math.trunc here too, or state in a comment why this surface deli
 ### P2-030 src/platform/helpers/amount-in-words.ts:84 rounds `value` where the domain core truncates it
 
 ```
-id:         21ef17d95200
+id:         a4d229dbf12d
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/platform/helpers/amount-in-words.ts:84
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     const amount = Math.max(Math.round(value || 0), 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -444,11 +444,11 @@ fix:        Use Math.trunc here too, or state in a comment why this surface deli
 ### P2-031 src/platform/pdf/document-kit.tsx:51 rounds `value` where the domain core truncates it
 
 ```
-id:         a3bcce6bd63e
+id:         518230cb1c38
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/platform/pdf/document-kit.tsx:51
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     const rounded = Math.round(value || 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.

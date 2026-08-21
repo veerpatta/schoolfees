@@ -4,7 +4,7 @@
 > distribution mode (`first_only` / `equal`), **conventional discount policy editing**
 > (which triggers `applyThirdChildPolicyForSession()`), the generate screen at
 > `/protected/fee-setup/generate`, and **time travel** at `/protected/fee-setup/time-travel`
-> (`lib/fees/time-travel.ts`).
+> (`src/modules/fees/data/time-travel.ts`).
 >
 > On the late fee: it is now a **separate charge, excluded from expected fees** — see
 > `docs/product/school-rules.md`. When the rule itself changed on 2026-08-08 the increase

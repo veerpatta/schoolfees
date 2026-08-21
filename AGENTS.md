@@ -78,7 +78,7 @@ Operational boundaries:
 - `Exports` is top-level XLSX download center
 - `Admin Tools` contains rare setup/config/troubleshooting tasks
 
-Default role landing (5 roles; see `lib/auth/roles.ts`):
+Default role landing (5 roles; see `src/platform/auth/roles.ts`):
 
 - `admin` -> `Dashboard`
 - `accountant` -> `Payment Desk`
@@ -125,7 +125,7 @@ Use `TEST-2026-27` for all ongoing testing and debugging.
 ## Active School Policy Defaults (AY 2026-27)
 
 Quick reference. Canonical source: `docs/product/school-rules.md` +
-`lib/config/fee-rules.ts` — change values there first.
+`src/platform/config/fee-rules.ts` — change values there first.
 
 - late fee: `₹1000`
 - installment due dates: `20-04-2026`, `20-07-2026`, `20-10-2026`, `20-01-2027`
@@ -164,20 +164,24 @@ Implemented/fixed paths to respect:
 
 ## Key Paths
 
-Folder structure: see `docs/maps/folder-map.md`.
+Folder structure: **`docs/maps/repo-map.md`** — generated from the tree and
+gated in CI. Every feature is one folder under `src/modules/`, with a README
+saying what it owns and what must never happen there; `src/modules/README.md`
+indexes them.
+
 Keep this section for high-signal implementation entry points only.
 
-- `app/protected/dashboard/page.tsx`
-- `app/protected/students/*`
-- `app/protected/fee-setup/*`
-- `app/protected/payments/*`
-- `app/protected/transactions/*`
-- `app/protected/defaulters/page.tsx`
-- `app/protected/exports/*`
-- `app/protected/admin-tools/page.tsx`
-- `lib/config/navigation.ts`
-- `lib/config/fee-rules.ts`
-- `lib/fees/policy.ts`
+- `src/app/protected/dashboard/page.tsx`
+- `src/app/protected/students/*`
+- `src/app/protected/fee-setup/*`
+- `src/app/protected/payments/*`
+- `src/app/protected/transactions/*`
+- `src/app/protected/defaulters/page.tsx`
+- `src/app/protected/exports/*`
+- `src/app/protected/admin-tools/page.tsx`
+- `src/platform/config/navigation.ts`
+- `src/platform/config/fee-rules.ts`
+- `src/modules/fees/data/policy.ts`
 - `supabase/schema.sql`
 - `supabase/migrations/*`
 
@@ -252,14 +256,14 @@ or RLS returns nothing and the generator fails quiet.
 
 - `/protected/payments/bulk` — the admin bulk-entry sub-surface. It is not an alternate
   posting path: every row goes through `post_student_payment_with_adjustments`.
-- `lib/repayment-plans/` — EMI plans. A plan is never edited in place.
-- `lib/prev-year-dues/` — previous-year carry-forward.
-- `lib/segments/` — the shared filter vocabulary (outside `lib/students`, which is
+- `src/modules/repayment-plans/` — EMI plans. A plan is never edited in place.
+- `src/modules/prev-year-dues/` — previous-year carry-forward.
+- `src/modules/students/` — the shared filter vocabulary (outside `src/modules/students`, which is
   `server-only`).
-- `lib/money/glossary.ts` — one canonical definition per money label. Update it first and
+- `src/platform/money/glossary.ts` — one canonical definition per money label. Update it first and
   let the code follow; that is how the late-fee split was sequenced.
-- `lib/dashboard/analytics.ts` — the five dashboard boards and their cache contract.
-- `lib/recovery/` — students who have left and still owe.
+- `src/modules/dashboard/data/analytics.ts` — the five dashboard boards and their cache contract.
+- `src/modules/recovery/` — students who have left and still owe.
 
 **The late fee is a separate charge.** It is never part of fees pending, expected fees,
 overdue, or defaulter status. The rule lives in two engines that must be edited together.

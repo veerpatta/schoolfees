@@ -49,7 +49,7 @@ Primary top-level modules:
 7. `Exports`
 8. `Admin Tools`
 
-Role landing defaults (5 roles; see `lib/auth/roles.ts`):
+Role landing defaults (5 roles; see `src/platform/auth/roles.ts`):
 
 - `admin` -> `Dashboard`
 - `accountant` -> `Payment Desk`
@@ -143,7 +143,7 @@ Rare/config-only area (first-time setup retired — school is live):
 
 ## Active Policy Values & Conventional Discounts
 
-Canonical source: **`docs/product/school-rules.md`** + **`lib/config/fee-rules.ts`**.
+Canonical source: **`docs/product/school-rules.md`** + **`src/platform/config/fee-rules.ts`**.
 This covers AY 2026-27 fee defaults (late fee, due dates, academic/tuition fees,
 receipt prefix, payment modes) and the conventional discount policies (RTE, Staff
 Child, 3rd Child) with their rules. Update those first; do not restate values here.
@@ -158,11 +158,11 @@ Child, 3rd Child) with their rules. Update those first; do not restate values he
 
 Key implementation assets:
 
-- `lib/config/navigation.ts` (top-level workspace/nav + default landing)
-- `lib/config/fee-rules.ts` (session parsing, default schedules, core labels)
-- `lib/fees/policy.ts` (canonical active policy source)
-- `lib/fees/regeneration.ts` (safe dues recalculation)
-- `app/protected/*` (daily module routes)
+- `src/platform/config/navigation.ts` (top-level workspace/nav + default landing)
+- `src/platform/config/fee-rules.ts` (session parsing, default schedules, core labels)
+- `src/modules/fees/data/policy.ts` (canonical active policy source)
+- `src/modules/fees/data/regeneration.ts` (safe dues recalculation)
+- `src/app/protected/*` (daily module routes)
 - `supabase/schema.sql` + `supabase/migrations/*`
 
 ## Important Database Objects

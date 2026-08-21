@@ -1,7 +1,7 @@
 # Hindi & Hinglish Dictionary — Translation Status
 
-Snapshot of how much of each namespace in `messages/hi.json` and
-`messages/hi-en.json` has a real translation vs. silently falling back to the
+Snapshot of how much of each namespace in `src/messages/hi.json` and
+`src/messages/hi-en.json` has a real translation vs. silently falling back to the
 English source string.
 
 Strings without a Hindi/Hinglish translation are **no longer prefixed with
@@ -38,7 +38,7 @@ real translations by re-running.
 | Transactions   |    124     |   126 |  98% | low |
 
 **Total: 1,662 / 1,870 strings (89%)** across 17 namespaces. Verified 2026-08-12 by
-comparing every leaf key in `messages/hi.json` against `messages/en.json`; a key whose
+comparing every leaf key in `src/messages/hi.json` against `src/messages/en.json`; a key whose
 Hindi value is identical to the English source counts as untranslated.
 
 All three dictionaries carry the same 1,870 keys — `hi-en.json` included. **They move
@@ -70,6 +70,6 @@ An interpolated message must be called with its params: `t("lateFeeSeparate")` w
 After each batch:
 
 - `npx vitest run tests/unit/locale-config.test.ts` — confirms key parity.
-- `grep -c '"\[HI\]' messages/hi.json` — must stay 0.
+- `grep -c '"\[HI\]' src/messages/hi.json` — must stay 0.
 - Open `/protected/dashboard` with `vpps_locale=hi` cookie and visually scan
   the labels.

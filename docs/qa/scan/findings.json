@@ -1,5 +1,5 @@
 {
-  "runId": "202608210956",
+  "runId": "202608211014",
   "verdict": {
     "pass": true,
     "reasons": [],
@@ -40,15 +40,15 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.572Z"
+      "firstSeenAt": "2026-08-21T10:15:02.457Z"
     },
     {
-      "id": "3374a2b67adc",
+      "id": "0a404a50035c",
       "rule": "scan.config-risk",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "package.json:85",
+      "surface": "package.json:87",
       "role": null,
       "device": null,
       "session": "n/a",
@@ -68,7 +68,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.578Z"
+      "firstSeenAt": "2026-08-21T10:15:02.462Z"
     },
     {
       "id": "375a7e603237",
@@ -96,7 +96,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.240Z"
+      "firstSeenAt": "2026-08-21T10:14:56.100Z"
     },
     {
       "id": "5b53e048e64c",
@@ -124,7 +124,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.241Z"
+      "firstSeenAt": "2026-08-21T10:14:56.100Z"
     },
     {
       "id": "0cfcbaed2c10",
@@ -152,7 +152,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.241Z"
+      "firstSeenAt": "2026-08-21T10:14:56.100Z"
     },
     {
       "id": "91eed7adfb0b",
@@ -180,7 +180,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.253Z"
+      "firstSeenAt": "2026-08-21T10:14:56.112Z"
     },
     {
       "id": "fefef37143f6",
@@ -208,7 +208,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.254Z"
+      "firstSeenAt": "2026-08-21T10:14:56.112Z"
     },
     {
       "id": "9f24c0980791",
@@ -236,7 +236,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.257Z"
+      "firstSeenAt": "2026-08-21T10:14:56.116Z"
     },
     {
       "id": "c88e75488491",
@@ -264,35 +264,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.259Z"
-    },
-    {
-      "id": "daa3bd7a9df0",
-      "rule": "scan.money-format-raw",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "src/modules/fees/data/policy.ts:290",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "src/modules/fees/data/policy.ts:290 formats a rupee figure without lib/helpers/currency.ts",
-      "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.",
-      "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "evidence": {
-        "consoleTail": [
-          "lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,"
-        ],
-        "reproCommand": "npm run scan -- --only scan.money-format-raw --file src/modules/fees/data/policy.ts"
-      },
-      "suspectedFile": "src/modules/fees/data/policy.ts",
-      "why": "The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.",
-      "fix": "Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.269Z"
+      "firstSeenAt": "2026-08-21T10:14:56.119Z"
     },
     {
       "id": "309dda17d75a",
@@ -320,7 +292,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.272Z"
+      "firstSeenAt": "2026-08-21T10:14:56.134Z"
     },
     {
       "id": "5a2b495e75c5",
@@ -348,7 +320,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.273Z"
+      "firstSeenAt": "2026-08-21T10:14:56.135Z"
     },
     {
       "id": "df8320e8ef22",
@@ -376,7 +348,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.273Z"
+      "firstSeenAt": "2026-08-21T10:14:56.135Z"
     },
     {
       "id": "f5a600033ff0",
@@ -404,7 +376,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.274Z"
+      "firstSeenAt": "2026-08-21T10:14:56.136Z"
     },
     {
       "id": "e3f675784bca",
@@ -432,7 +404,35 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.274Z"
+      "firstSeenAt": "2026-08-21T10:14:56.136Z"
+    },
+    {
+      "id": "0efdc8dc1fc5",
+      "rule": "scan.money-format-raw",
+      "severity": "P2",
+      "confidence": "deterministic",
+      "target": "static",
+      "surface": "src/modules/fees/domain/policy-shaping.ts:154",
+      "role": null,
+      "device": null,
+      "session": "n/a",
+      "title": "src/modules/fees/domain/policy-shaping.ts:154 formats a rupee figure without lib/helpers/currency.ts",
+      "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.",
+      "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
+      "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
+      "evidence": {
+        "consoleTail": [
+          "lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,"
+        ],
+        "reproCommand": "npm run scan -- --only scan.money-format-raw --file src/modules/fees/domain/policy-shaping.ts"
+      },
+      "suspectedFile": "src/modules/fees/domain/policy-shaping.ts",
+      "why": "The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.",
+      "fix": "Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.",
+      "variants": [],
+      "variantsTruncated": false,
+      "seenCount": 1,
+      "firstSeenAt": "2026-08-21T10:14:56.137Z"
     },
     {
       "id": "f6e6fd9e6267",
@@ -460,7 +460,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.283Z"
+      "firstSeenAt": "2026-08-21T10:14:56.144Z"
     },
     {
       "id": "c60f73d8101e",
@@ -488,7 +488,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.283Z"
+      "firstSeenAt": "2026-08-21T10:14:56.144Z"
     },
     {
       "id": "888b89aaa30f",
@@ -516,7 +516,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.287Z"
+      "firstSeenAt": "2026-08-21T10:14:56.148Z"
     },
     {
       "id": "e2ff8558d0ae",
@@ -544,7 +544,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.289Z"
+      "firstSeenAt": "2026-08-21T10:14:56.150Z"
     },
     {
       "id": "76d42cfda804",
@@ -572,7 +572,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.290Z"
+      "firstSeenAt": "2026-08-21T10:14:56.151Z"
     },
     {
       "id": "d4bec263f674",
@@ -600,7 +600,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.297Z"
+      "firstSeenAt": "2026-08-21T10:14:56.158Z"
     },
     {
       "id": "c97831de28c9",
@@ -628,7 +628,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.297Z"
+      "firstSeenAt": "2026-08-21T10:14:56.158Z"
     },
     {
       "id": "2c00e47f6a64",
@@ -656,7 +656,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.301Z"
+      "firstSeenAt": "2026-08-21T10:14:56.163Z"
     },
     {
       "id": "fa4421e4091f",
@@ -684,7 +684,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.310Z"
+      "firstSeenAt": "2026-08-21T10:14:56.172Z"
     },
     {
       "id": "2b088d7895ad",
@@ -712,7 +712,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.311Z"
+      "firstSeenAt": "2026-08-21T10:14:56.173Z"
     },
     {
       "id": "8fbc39394e1b",
@@ -740,7 +740,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.319Z"
+      "firstSeenAt": "2026-08-21T10:14:56.179Z"
     },
     {
       "id": "f36caaafe374",
@@ -768,10 +768,10 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.321Z"
+      "firstSeenAt": "2026-08-21T10:14:56.182Z"
     },
     {
-      "id": "3de1d37184fe",
+      "id": "dba4a7b5967c",
       "rule": "scan.rounding-policy-mixed",
       "severity": "P2",
       "confidence": "heuristic",
@@ -782,8 +782,8 @@
       "session": "n/a",
       "title": "src/app/protected/students/close-due-actions.ts:47 rounds `value` where the domain core truncates it",
       "expected": "One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.",
-      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.",
-      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.",
+      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
+      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
       "evidence": {
         "consoleTail": [
           "return Math.round(value);"
@@ -796,10 +796,10 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.330Z"
+      "firstSeenAt": "2026-08-21T10:14:56.193Z"
     },
     {
-      "id": "7c6a959d6d45",
+      "id": "1507266ec39f",
       "rule": "scan.rounding-policy-mixed",
       "severity": "P2",
       "confidence": "heuristic",
@@ -810,8 +810,8 @@
       "session": "n/a",
       "title": "src/platform/helpers/amount-in-words-hi.ts:73 rounds `value` where the domain core truncates it",
       "expected": "One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.",
-      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.",
-      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.",
+      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
+      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
       "evidence": {
         "consoleTail": [
           "const amount = Math.max(Math.round(value || 0), 0);"
@@ -824,10 +824,10 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.331Z"
+      "firstSeenAt": "2026-08-21T10:14:56.193Z"
     },
     {
-      "id": "21ef17d95200",
+      "id": "a4d229dbf12d",
       "rule": "scan.rounding-policy-mixed",
       "severity": "P2",
       "confidence": "heuristic",
@@ -838,8 +838,8 @@
       "session": "n/a",
       "title": "src/platform/helpers/amount-in-words.ts:84 rounds `value` where the domain core truncates it",
       "expected": "One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.",
-      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.",
-      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.",
+      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
+      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
       "evidence": {
         "consoleTail": [
           "const amount = Math.max(Math.round(value || 0), 0);"
@@ -852,10 +852,10 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.331Z"
+      "firstSeenAt": "2026-08-21T10:14:56.193Z"
     },
     {
-      "id": "a3bcce6bd63e",
+      "id": "518230cb1c38",
       "rule": "scan.rounding-policy-mixed",
       "severity": "P2",
       "confidence": "heuristic",
@@ -866,8 +866,8 @@
       "session": "n/a",
       "title": "src/platform/pdf/document-kit.tsx:51 rounds `value` where the domain core truncates it",
       "expected": "One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.",
-      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.",
-      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.",
+      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
+      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
       "evidence": {
         "consoleTail": [
           "const rounded = Math.round(value || 0);"
@@ -880,7 +880,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.331Z"
+      "firstSeenAt": "2026-08-21T10:14:56.193Z"
     },
     {
       "id": "e1f9dd8286ee",
@@ -908,7 +908,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.214Z"
+      "firstSeenAt": "2026-08-21T10:15:02.129Z"
     },
     {
       "id": "d0ed42f13c3a",
@@ -936,7 +936,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.215Z"
+      "firstSeenAt": "2026-08-21T10:15:02.129Z"
     },
     {
       "id": "03d2d34f1092",
@@ -964,7 +964,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.214Z"
+      "firstSeenAt": "2026-08-21T10:15:02.129Z"
     },
     {
       "id": "5fad48a7287b",
@@ -992,7 +992,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.214Z"
+      "firstSeenAt": "2026-08-21T10:15:02.129Z"
     },
     {
       "id": "ef43cda43d2b",
@@ -1020,7 +1020,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.213Z"
+      "firstSeenAt": "2026-08-21T10:15:02.128Z"
     },
     {
       "id": "1d4c0f440e4f",
@@ -1048,7 +1048,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.215Z"
+      "firstSeenAt": "2026-08-21T10:15:02.129Z"
     },
     {
       "id": "d89b1bb2ecf4",
@@ -1076,7 +1076,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.214Z"
+      "firstSeenAt": "2026-08-21T10:15:02.129Z"
     },
     {
       "id": "fe4b790a9ade",
@@ -1104,7 +1104,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.215Z"
+      "firstSeenAt": "2026-08-21T10:15:02.130Z"
     },
     {
       "id": "553a7439553c",
@@ -1132,7 +1132,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.215Z"
+      "firstSeenAt": "2026-08-21T10:15:02.130Z"
     },
     {
       "id": "66b34a387be6",
@@ -1160,7 +1160,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.215Z"
+      "firstSeenAt": "2026-08-21T10:15:02.130Z"
     },
     {
       "id": "29e73ec10600",
@@ -1188,7 +1188,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.090Z"
+      "firstSeenAt": "2026-08-21T10:14:55.946Z"
     },
     {
       "id": "274e90575771",
@@ -1216,7 +1216,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.571Z"
+      "firstSeenAt": "2026-08-21T10:15:02.456Z"
     },
     {
       "id": "83bf35a40105",
@@ -1244,7 +1244,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:06.571Z"
+      "firstSeenAt": "2026-08-21T10:15:02.456Z"
     },
     {
       "id": "47c54957c6e2",
@@ -1272,7 +1272,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.104Z"
+      "firstSeenAt": "2026-08-21T10:14:55.960Z"
     },
     {
       "id": "64c2f2cbce10",
@@ -1300,7 +1300,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.104Z"
+      "firstSeenAt": "2026-08-21T10:14:55.960Z"
     },
     {
       "id": "84e55bc7a515",
@@ -1328,7 +1328,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.191Z"
+      "firstSeenAt": "2026-08-21T10:14:56.056Z"
     },
     {
       "id": "f338f189ce40",
@@ -1356,7 +1356,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.191Z"
+      "firstSeenAt": "2026-08-21T10:14:56.056Z"
     },
     {
       "id": "6a4ef1318b79",
@@ -1384,7 +1384,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.208Z"
+      "firstSeenAt": "2026-08-21T10:14:56.065Z"
     },
     {
       "id": "2548978eeea8",
@@ -1412,7 +1412,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.210Z"
+      "firstSeenAt": "2026-08-21T10:14:56.068Z"
     },
     {
       "id": "71c5eebdf8dc",
@@ -1440,7 +1440,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.211Z"
+      "firstSeenAt": "2026-08-21T10:14:56.069Z"
     },
     {
       "id": "474b40f71cd8",
@@ -1468,7 +1468,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T09:57:00.214Z"
+      "firstSeenAt": "2026-08-21T10:14:56.072Z"
     }
   ]
 }

@@ -14,7 +14,7 @@
 > While an EMI plan is active, counter concessions are refused. Changing the deal is an
 > admin rescheduling the plan, not a cashier waiving on the spot.
 >
-> `components/payments/payment-desk-mobile.tsx` carries a **3,520-line CI budget**. It has
+> `src/modules/payments/ui/payment-desk-mobile.tsx` carries a **3,520-line CI budget**. It has
 > been raised once and must not be raised again — split the file instead.
 
 ## Purpose

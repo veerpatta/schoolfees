@@ -39,7 +39,7 @@ npm run smoke:readiness       # Playwright: authenticated a11y + visual smoke
 ```
 
 **`quality:budgets` fails on raw money formatting.** `toLocaleString('en-IN')`,
-`Intl.NumberFormat('en-IN')` and hand-written `₹`/`Rs.` outside `lib/helpers/currency.ts`
+`Intl.NumberFormat('en-IN')` and hand-written `₹`/`Rs.` outside `src/platform/helpers/currency.ts`
 are CI errors; a deliberate exception needs an `@allow-raw-money-format` comment with a
 reason. Bundle ceilings are **ratcheted down, never raised** to accommodate growth.
 
@@ -119,7 +119,7 @@ no discount at all. It fails quiet, not loud.
 
 ### Stack
 
-Next.js 16.2.12 App Router + TypeScript 5 (strict) + React 19.2.8, deployed to Vercel in the Mumbai region (`bom1`). Supabase (Postgres + Auth + RLS) as the database, also Mumbai. UI via shadcn/ui (Radix UI + Tailwind CSS 3.4). i18n via next-intl 4 (en / hi / hi-en). Errors via Sentry. Tests with Vitest 4.1.10. Path alias `@/*` maps to repo root.
+Next.js 16.2.12 App Router + TypeScript 5 (strict) + React 19.2.8, deployed to Vercel in the Mumbai region (`bom1`). Supabase (Postgres + Auth + RLS) as the database, also Mumbai. UI via shadcn/ui (Radix UI + Tailwind CSS 3.4). i18n via next-intl 4 (en / hi / hi-en). Errors via Sentry. Tests with Vitest 4.1.10. Path alias `@/*` maps to `./src` — and only there, so `@/` always means product source.
 
 ### Source-of-Truth Rule
 
@@ -170,13 +170,28 @@ Verify with `node scripts/verify-late-fee-health.mjs --session <label>` (8 invar
 
 ### RBAC
 
-Five roles defined in `lib/auth/roles.ts`: `admin`, `accountant`, `teacher`, `fee_collector`, `view_only` (legacy aliases `read_only_staff`→`view_only` and `defaulter_followup`→`fee_collector` still resolve). Enforced in the app layer via `requireAuthenticatedStaff()` in `lib/supabase/session.ts` and by Supabase RLS. Default landing routes (`getDefaultProtectedHref()`): `admin`/`view_only` → Dashboard; `accountant` → Payment Desk; `teacher` → Students; `fee_collector` → Defaulters. Navigation item visibility is permission-driven via `lib/config/navigation.ts`.
+Five roles defined in `src/platform/auth/roles.ts`: `admin`, `accountant`, `teacher`, `fee_collector`, `view_only` (legacy aliases `read_only_staff`→`view_only` and `defaulter_followup`→`fee_collector` still resolve). Enforced in the app layer via `requireAuthenticatedStaff()` in `src/platform/supabase/session.ts` and by Supabase RLS. Default landing routes (`getDefaultProtectedHref()`): `admin`/`view_only` → Dashboard; `accountant` → Payment Desk; `teacher` → Students; `fee_collector` → Defaulters. Navigation item visibility is permission-driven via `src/platform/config/navigation.ts`.
 
 ### Module Structure
 
-Folder structure: see `docs/maps/folder-map.md`.
+Folder structure: **`docs/maps/repo-map.md`**, which is generated from the tree
+and gated in CI. Do not restate it here.
 
-All staff workspace modules live under `app/protected/`, each with a parallel three-layer structure: `app/protected/<module>/` (routes) + `components/<module>/` (UI) + `lib/<module>/` (domain/data logic).
+The application is feature-first. One folder per feature under `src/modules/`,
+each holding `domain/` (pure rules), `data/` (the IO) and `ui/` (its components),
+with a README stating what it owns and what must never happen there.
+`src/modules/README.md` indexes all of them. Around them:
+
+| | |
+|---|---|
+| `src/app/` | routes only, and the composition root |
+| `src/platform/` | supabase · auth · config · db · session · i18n · money · helpers |
+| `src/ui/` | the design system: primitives, shell, mobile, hooks |
+
+The import direction is enforced, not merely intended:
+`npm run quality:architecture` fails on a new cross-layer import or a new module
+cycle, against `quality/architecture-baseline.json`. It records the debt that
+already exists — including ten module cycles — and only lets the count fall.
 
 **Core daily modules:**
 
@@ -208,7 +223,7 @@ All staff workspace modules live under `app/protected/`, each with a parallel th
 | Password | `/protected/password` | Change own password |
 | Access denied | `/protected/access-denied` | Where a failed permission guard lands |
 
-There is no page at `/protected/session` — only `app/protected/session/actions.ts`.
+There is no page at `/protected/session` — only `src/app/protected/session/actions.ts`.
 Session switching happens through the pill in the workspace shell.
 `/protected/collections` and `/protected/dues` are redirect aliases; see
 `docs/maps/legacy-routes.md`.
@@ -224,49 +239,59 @@ Session Health, Activity feed, WhatsApp templates.
 
 ### Where to Look
 
-- Dashboard: `app/protected/dashboard`, `lib/dashboard`, `components/dashboard`
-- Payments: `app/protected/payments`, `lib/payments`, `components/payments`
-- Students: `app/protected/students`, `lib/students`, `components/students`
-- Fee Setup: `app/protected/fee-setup`, `lib/setup`, `lib/fees`, `components/fees`
-- Imports: `app/protected/imports`, `lib/import`, `components/imports`
-- Transactions: `app/protected/transactions`, `lib/transactions`, `lib/ledger`, `lib/reports`
-- Defaulters: `app/protected/defaulters`, `lib/defaulters`
-- Exports: `app/protected/exports`, `lib/reports`
-- Admin tools: `app/protected/admin-tools` (+ legacy redirect from `/protected/advanced`)
-- Session: `lib/session` (active session, switcher, cookie, resolver)
-- EMI plans: `lib/repayment-plans`, `components/students/student-repayment-plan-card.tsx`
-- Segments: `lib/segments` (deliberately outside `lib/students`, which is `server-only`)
-- Money vocabulary: `lib/money/glossary.ts`, `lib/helpers/currency.ts`, `components/ui/money*.tsx`
-- Previous-year dues: `lib/prev-year-dues`, `app/protected/admin-tools/prev-year-dues`
-- Left students who still owe: `lib/recovery` (read model; the non-active complement to `lib/defaulters`)
-- System sync: `lib/system-sync` (finance revalidation, office sync, health checks)
-- MCP server: `workers/schoolfees-mcp` (read-only Cloudflare Worker; `src/scope.mjs` is the
-  student-scope rule, `src/permissions.mjs` mirrors `lib/auth/roles.ts`). See
+**One folder per feature.** `src/modules/<name>/` holds its rules, its queries
+and its screens; its README says what it owns and what must never happen there.
+`src/modules/README.md` lists all of them and `docs/maps/repo-map.md` is the
+generated map. Neither is restated here, because a hand-written copy of a folder
+list is wrong the next time somebody adds a folder — which is exactly how eight
+of them came to disagree.
+
+What is worth naming, because it is *not* obvious from a folder name:
+
+- **The fee engine** is `src/modules/fees`. `domain/policy-resolution.ts` is the
+  rule that decides what a family owes; `domain/workbook.ts` and
+  `data/queries.ts` are the workbook_v1 engine. `src/modules/fees/README.md`
+  carries the invariants.
+- **The only posting path** is `src/modules/payments` +
+  `src/app/protected/payments`. There is no second one, by rule.
+- **Money vocabulary**: `src/platform/money/glossary.ts` is one canonical
+  definition per label — update it first and let the code follow.
+  `src/platform/helpers/currency.ts` is the only place rupees are formatted, and
+  `src/ui/primitives/money*.tsx` the only place they are rendered.
+- **Platform**: supabase clients and the RBAC guards in
+  `src/platform/supabase/session.ts`, roles in `src/platform/auth/roles.ts`,
+  session resolution in `src/platform/session`, locale config and the next-intl
+  handler in `src/platform/i18n`, catalogues in `src/messages`.
+- **Design system**: `src/ui` — primitives, the workspace shell, phone
+  primitives, shared hooks. It may never import a module.
+- **MCP server**: `workers/schoolfees-mcp` — a separate Cloudflare bundle with
+  its own entry point. `src/scope.mjs` is the student-scope rule and
+  `src/permissions.mjs` mirrors `src/platform/auth/roles.ts`. See
   `docs/modules/mcp-server.md`.
-- i18n: `i18n/` (locale config), `messages/` (en / hi / hi-en dictionaries), `hooks/` (shared client hooks)
-- Database: `supabase/schema.sql`, `supabase/migrations/`
+- **Database**: `supabase/schema.sql` (a snapshot, not the source of truth) and
+  `supabase/migrations/` (which is).
 
 ### Key Domain Files
 
-- `lib/config/fee-rules.ts` — session parsing, default schedules, core labels. This file and `docs/product/school-rules.md` are authoritative when docs conflict.
-- `lib/config/navigation.ts` — workspace nav items, route metadata, role-based visibility.
-- `lib/config/school.ts` — school profile, receipt prefix, product principles.
-- `lib/fees/policy.ts` — canonical active fee policy resolver (server-only).
-- `lib/fees/regeneration.ts` — safe dues recalculation logic.
-- `lib/fees/generator.ts` — batch fetching for installment rows.
-- `lib/dashboard/analytics.ts` — the dashboard boards, the analytics fetch and its cache contract.
-- `lib/money/glossary.ts` — one canonical definition per money label. **Update this first; the code follows it.**
-- `lib/segments/student-segments.ts` — the 24 filter chips and the columns behind them.
-- `lib/fees/conventional-discounts.ts` + `lib/fees/conventional-discount-rules.ts` — discount policy logic.
-- `lib/payments/workflow.ts` + `lib/payments/payment-desk-workflow.ts` — payment posting workflow.
-- `lib/payments/allocation.ts` — payment allocation logic.
-- `lib/auth/roles.ts` — role and permission type definitions.
-- `lib/supabase/session.ts` — `requireAuthenticatedStaff()`, auth claims, role resolution.
-- `lib/session/active.ts` — active academic session resolution.
-- `lib/session/switcher.ts` — session switching with prefetching and cache handling.
-- `lib/system-sync/finance-revalidation.ts` — financial sync and revalidation.
-- `lib/env.ts` — env var accessors that throw on missing or placeholder values.
-- `lib/db/types.ts` — generated Supabase database types.
+- `src/platform/config/fee-rules.ts` — session parsing, default schedules, core labels. This file and `docs/product/school-rules.md` are authoritative when docs conflict.
+- `src/platform/config/navigation.ts` — workspace nav items, route metadata, role-based visibility.
+- `src/platform/config/school.ts` — school profile, receipt prefix, product principles.
+- `src/modules/fees/data/policy.ts` — canonical active fee policy resolver (server-only).
+- `src/modules/fees/data/regeneration.ts` — safe dues recalculation logic.
+- `src/modules/fees/data/generator.ts` — batch fetching for installment rows.
+- `src/modules/dashboard/data/analytics.ts` — the dashboard boards, the analytics fetch and its cache contract.
+- `src/platform/money/glossary.ts` — one canonical definition per money label. **Update this first; the code follows it.**
+- `src/modules/students/domain/student-segments.ts` — the 24 filter chips and the columns behind them.
+- `src/modules/fees/data/conventional-discounts.ts` + `src/modules/fees/domain/conventional-discount-rules.ts` — discount policy logic.
+- `src/modules/payments/domain/workflow.ts` + `src/modules/payments/domain/payment-desk-workflow.ts` — payment posting workflow.
+- `src/modules/payments/domain/allocation.ts` — payment allocation logic.
+- `src/platform/auth/roles.ts` — role and permission type definitions.
+- `src/platform/supabase/session.ts` — `requireAuthenticatedStaff()`, auth claims, role resolution.
+- `src/platform/session/active.ts` — active academic session resolution.
+- `src/platform/session/switcher.ts` — session switching with prefetching and cache handling.
+- `src/modules/system-sync/domain/finance-revalidation.ts` — financial sync and revalidation.
+- `src/platform/env.ts` — env var accessors that throw on missing or placeholder values.
+- `src/platform/db/types.ts` — generated Supabase database types.
 - `supabase/schema.sql` — readable snapshot of the schema, **not** the source of truth and
   currently stale: it was last regenerated on 2026-08-09, before the late-fee split and the
   dashboard analytics work. Its own header lists the objects that have moved since.
@@ -276,18 +301,18 @@ Session Health, Activity feed, WhatsApp templates.
 ### Supabase Client Pattern
 
 Clients used by context:
-- `lib/supabase/client.ts` — browser (client components)
-- `lib/supabase/server.ts` — Server Components, Route Handlers, Server Actions
-- `lib/supabase/middleware.ts` + `lib/supabase/proxy.ts` — middleware session refresh
-- `lib/supabase/admin.ts` — service-role (server/scripts only; never expose to browser)
-- `lib/supabase/session.ts` — auth claims, RBAC guards, requireAuthenticatedStaff()
-- `lib/supabase/cache-safe.ts` — cache-safe query helpers
+- `src/platform/supabase/client.ts` — browser (client components)
+- `src/platform/supabase/server.ts` — Server Components, Route Handlers, Server Actions
+- `src/platform/supabase/middleware.ts` + `src/platform/supabase/proxy.ts` — middleware session refresh
+- `src/platform/supabase/admin.ts` — service-role (server/scripts only; never expose to browser)
+- `src/platform/supabase/session.ts` — auth claims, RBAC guards, requireAuthenticatedStaff()
+- `src/platform/supabase/cache-safe.ts` — cache-safe query helpers
 
-Root `proxy.ts` delegates to `lib/supabase/proxy.ts` for session refresh on every request.
+Root `proxy.ts` delegates to `src/platform/supabase/proxy.ts` for session refresh on every request.
 
 `SUPABASE_SERVICE_ROLE_KEY` must never appear in `NEXT_PUBLIC_*` variables or be imported in browser code.
 
-**RPCs that gate on `public.has_permission(...)` MUST be called via the user-JWT supabase client (`createClient()` from `lib/supabase/server.ts`), NEVER the service-role admin client.** `has_permission` requires `auth.uid() is not null`, which is null under a service-role JWT — every call would raise "You do not have permission…". Server Actions enforce RBAC upstream via `requireStaffPermission()` and the in-RPC check is defense-in-depth. Affected RPCs: `post_student_payment_with_adjustments`, `waive_late_fee`, and anything else with `public.has_permission(...)` as its first guard.
+**RPCs that gate on `public.has_permission(...)` MUST be called via the user-JWT supabase client (`createClient()` from `src/platform/supabase/server.ts`), NEVER the service-role admin client.** `has_permission` requires `auth.uid() is not null`, which is null under a service-role JWT — every call would raise "You do not have permission…". Server Actions enforce RBAC upstream via `requireStaffPermission()` and the in-RPC check is defense-in-depth. Affected RPCs: `post_student_payment_with_adjustments`, `waive_late_fee`, and anything else with `public.has_permission(...)` as its first guard.
 
 ### Applying migrations
 
@@ -323,7 +348,7 @@ bulk data, and what is never scriptable — is `docs/workflows/agent-bulk-operat
 
 ### Fee Engine (Workbook Mode)
 
-The fee calculation engine is `workbook_v1`. Core lib files in `lib/fees/` and `lib/workbook/`. Key DB objects:
+The fee calculation engine is `workbook_v1`. Core lib files in `src/modules/fees/` and `src/modules/fees/data/`. Key DB objects:
 - `v_workbook_student_financials` — per-student financial projection (materialized view)
 - `v_workbook_installment_balances` — installment-level balances (materialized view)
 - `v_student_financial_state` — pending vs credit/refund projection
@@ -356,7 +381,7 @@ under a money band that stays put. See `docs/modules/dashboard.md`. Three rules:
 
 ### Academic Session Labels
 
-Format: `2026-27`. Test prefixes accepted: `TEST-2026-27`, `UAT-2026-27`, `DEMO-2026-27`. Parsing is handled by `parseAcademicSessionLabel()` in `lib/config/fee-rules.ts`. `2026-27` is the live production session. Use `TEST-2026-27` for all ongoing testing and debugging. Multi-session switching is supported via `lib/session/`.
+Format: `2026-27`. Test prefixes accepted: `TEST-2026-27`, `UAT-2026-27`, `DEMO-2026-27`. Parsing is handled by `parseAcademicSessionLabel()` in `src/platform/config/fee-rules.ts`. `2026-27` is the live production session. Use `TEST-2026-27` for all ongoing testing and debugging. Multi-session switching is supported via `src/platform/session/`.
 
 ### Student Import
 
@@ -448,7 +473,7 @@ make it trustworthy rather than just large:
 everything, and `interaction` (jsdom + Testing Library) for `tests/ui/interaction/**`.
 Playwright is separate — `npm run smoke:readiness`.
 
-Coverage is collected for `lib/**/*.ts` and `app/protected/**/*.ts`. Coverage provider: v8.
+Coverage is collected for `lib/**/*.ts` and `src/app/protected/**/*.ts`. Coverage provider: v8.
 
 **Many tests assert on source strings** — that a component is still mounted, that a class
 recipe is still applied, that a budget is still declared. A refactor that renames a component
@@ -489,7 +514,7 @@ Copy `.env.example` to `.env.local` for local development. Required values:
    `record_status = 'active' OR total_paid > 0`, because a student who left owing money
    still owes it (`20260808210000`). Never let one rule drift onto the other's question:
    that is what hid ₹17,250 of live collectable dues, and what made the MCP server and the
-   Dashboard disagree. `lib/workbook/data.ts:680` and `workers/schoolfees-mcp/src/scope.mjs`
+   Dashboard disagree. `src/modules/fees/data/queries.ts:680` and `workers/schoolfees-mcp/src/scope.mjs`
    are the two places the rule is written down.
 9. A plan is never edited in place. Rescheduling writes a replacement and supersedes the
    old one, so the schedule a parent was shown stays on file.
@@ -503,7 +528,7 @@ Copy `.env.example` to `.env.local` for local development. Required values:
 
 ## Active AY 2026-27 Policy Defaults
 
-Canonical values (from `docs/product/school-rules.md` and `lib/config/fee-rules.ts`):
+Canonical values (from `docs/product/school-rules.md` and `src/platform/config/fee-rules.ts`):
 - Late fee: ₹1,000 flat — charged the day an installment passes its due date with fees
   still unsettled, and kept until paid or explicitly waived. **Never part of fees pending**,
   and never accrues on a carry-forward row (those carry a rate of 0 deliberately).

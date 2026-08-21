@@ -6,8 +6,8 @@ The student master, and every per-student exception to the fee policy.
 |---|---|
 | Routes | `/protected/students`, `/[studentId]`, `/[studentId]/edit`, `/[studentId]/statement`, `/new`, `/bulk-update` |
 | Handlers | `/students/index` (search), `/students/photo`, `/[studentId]/fee-pdf`, `/family/[familyGroupId]/{fee-pdf,statement}` |
-| Components | `components/students/` |
-| Lib | `lib/students/` (server-only), `lib/segments/` (shared with Transactions) |
+| Components | `src/modules/students/ui/` |
+| Lib | `src/modules/students/` (server-only), `src/modules/students/` (shared with Transactions) |
 
 ## The list
 
@@ -20,7 +20,7 @@ count reported the unfiltered total. Anything money-shaped was computed after th
 printed on the row, and unreachable as a filter.
 
 **24 segment chips in four families** — money, enrolment, quality, fee profile — each with
-a live count, on Students and Transactions both. `lib/segments/student-segments.ts` defines
+a live count, on Students and Transactions both. `src/modules/students/domain/student-segments.ts` defines
 them; the `seg_*` columns in the view implement them.
 
 Three rules:
@@ -38,7 +38,7 @@ Fee-profile chips carry `requiresPermission: "fees:view"`. `student_fee_override
 narrower RLS than `students`, so a teacher gets a NULL join and would read a confident
 `false` — hide the chip rather than show a wrong zero.
 
-`lib/segments` sits outside `lib/students` on purpose: that folder is `server-only`, and
+`src/modules/students` sits outside `src/modules/students` on purpose: that folder is `server-only`, and
 Transactions imports the segment vocabulary into the browser.
 
 ## The student page
@@ -65,7 +65,7 @@ Two constraints that are easy to break:
 
 25 optional columns on `public.students` — identity, government IDs, school record,
 structured address, guardian and emergency contact — added in `20260813090000`. They are
-declared exactly once, in **`lib/students/info-fields.ts`**, and everything else maps over
+declared exactly once, in **`src/modules/students/domain/info-fields.ts`**, and everything else maps over
 that table: the select list, the row mapper, the form reader, the validator, the labels,
 the desk panel, the phone cards and the edit inputs. Adding a 26th field is one entry
 there, one column in a migration, and one label key in each of the three catalogues.

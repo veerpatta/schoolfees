@@ -37,7 +37,7 @@ Preferred full display name:
 - accepted payment modes: Cash, UPI, Bank transfer, Cheque
 - books excluded from workbook-mode fee calculation unless changed explicitly
 
-If docs/notes conflict, this file and `lib/config/fee-rules.ts` are the active
+If docs/notes conflict, this file and `src/platform/config/fee-rules.ts` are the active
 intent.
 
 ## Late fee
@@ -122,7 +122,7 @@ Four, named for the rulers of Mewar:
 - `Rana Sanga`
 
 `students.house` is a picker over exactly these (`HOUSE_OPTIONS` in
-`lib/students/info-fields.ts`), and the names are never translated — a house
+`src/modules/students/domain/info-fields.ts`), and the names are never translated — a house
 does not become a different house in Hindi.
 
 Allocation is not universal: 131 of the roll carried a house when it was first

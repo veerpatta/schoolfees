@@ -2,13 +2,13 @@
 
 These files and records must never be touched casually.
 
-- `app/protected/payments/actions.ts` - only payment-posting surface.
-- `lib/payments/*` - posting and preview logic for Payment Desk.
+- `src/app/protected/payments/actions.ts` - only payment-posting surface.
+- `src/modules/payments/*` - posting and preview logic for Payment Desk.
 - `supabase/migrations/*` - append-only schema history; never rename or reorder.
-- `lib/fees/regeneration.ts` - protects paid, partial, and adjusted rows.
-- `lib/fees/policy.ts` - canonical fee policy resolver.
-- `lib/supabase/admin.ts` - service-role client; never import in `components/` or in any file reachable from the browser bundle.
-- `lib/config/fee-rules.ts` - authoritative when docs conflict.
+- `src/modules/fees/data/regeneration.ts` - protects paid, partial, and adjusted rows.
+- `src/modules/fees/data/policy.ts` - canonical fee policy resolver.
+- `src/platform/supabase/admin.ts` - service-role client; never import in `components/` or in any file reachable from the browser bundle.
+- `src/platform/config/fee-rules.ts` - authoritative when docs conflict.
 - `academic_sessions` row `2026-27` - live production academic session.
 
 Use `TEST-2026-27` for ongoing verification and debugging. Do not add test
@@ -16,7 +16,7 @@ students, test payments, or experimental fee changes to `2026-27`.
 
 ## Added since this list was written
 
-- **`app/protected/payments/bulk/`** — the second posting surface. It is allowed only
+- **`src/app/protected/payments/bulk/`** — the second posting surface. It is allowed only
   because every row goes through `post_student_payment_with_adjustments`, sequentially,
   keyed by the row's staged `client_request_id` so a re-run resolves to existing receipts
   instead of double-posting. Any change that bypasses that RPC breaks Hard Rule 5.
@@ -30,10 +30,10 @@ students, test payments, or experimental fee changes to `2026-27`.
   three descriptive ones (`reference_number`, `notes`, `received_by`). Adding a column to
   `receipts` means deciding which side of that line it falls on — a new money column that is
   not named in the guard is silently editable.
-- **`app/protected/payments/waive-late-fee-actions.ts`** — the desk calls `waive_late_fee`
+- **`src/app/protected/payments/waive-late-fee-actions.ts`** — the desk calls `waive_late_fee`
   *before* posting, so the posting RPC's guards never see the waiver. That was a real
   bypass for EMI students once.
-- **`lib/repayment-plans/`** — a plan is never edited in place, and reschedule/cancel must
+- **`src/modules/repayment-plans/`** — a plan is never edited in place, and reschedule/cancel must
   price from the live snapshot, not the matview. Rescheduling off a stale matview once
   re-committed a family who had just paid ₹4,000 to their full pre-payment balance.
 - **The late-fee rule exists twice** — `v_workbook_installment_balances` and
@@ -47,7 +47,7 @@ students, test payments, or experimental fee changes to `2026-27`.
   being served. Version the cache key and normalise on read.
 - **Class ids must be confined to the active session.** A bulk-update class lookup that was
   not session-scoped repointed 372 real students into `TEST-2026-27`.
-- **`recordActivity()` silently no-ops without a `userId`.** `lib/activity/events.ts` returns
+- **`recordActivity()` silently no-ops without a `userId`.** `src/modules/activity/data/events.ts` returns
   early when there is no signed-in staff member, so anything a cron, a script or an agent
   writes is invisible in the Activity feed. `audit_logs` has no TypeScript writer at all.
   A headless write path has to lay its own trail — `scripts/bulk-apply.mjs` inserts into
@@ -57,7 +57,7 @@ students, test payments, or experimental fee changes to `2026-27`.
   `supabase/README.md` and this file, plus `scripts/audit-test-data-in-public.mjs`, which
   only detects leakage after the fact. `scripts/bulk-apply.mjs` is the one path that refuses
   the live session in code (`--live` required). Do not assume the others do.
-- **The whole app is `force-dynamic` from the root layout.** `app/layout.tsx` sets it, so it
+- **The whole app is `force-dynamic` from the root layout.** `src/app/layout.tsx` sets it, so it
   propagates to every route, and `export const revalidate` anywhere below it is dead config.
   Changing it changes the caching behaviour of every page at once.
 - **`create view` silently drops `security_invoker`, and a CASCADE rebuild is where that

@@ -93,7 +93,7 @@ supersedes the old one.
   house, roll no, previous school, TC number, board registration no, village/city, tehsil,
   district, state, pincode, guardian name/relation/phone, emergency contact name/phone)
   from `20260813090000`. All nullable text. The column list is mirrored in
-  `lib/students/info-fields.ts`, which is the only place a field is named — add to both.
+  `src/modules/students/domain/info-fields.ts`, which is the only place a field is named — add to both.
   `aadhaar_no` has a partial unique index (`idx_students_aadhaar_no_unique`); `jan_aadhaar_no`
   deliberately does not, because siblings share a Jan Aadhaar. Section lives on `classes`,
   not here, and admission date is the pre-existing `joined_on`.
@@ -131,7 +131,7 @@ supersedes the old one.
 **Two rules about calling these:**
 
 1. **An RPC that gates on `has_permission(...)` must be called with the user-JWT client**
-   (`createClient()` from `lib/supabase/server.ts`), never the service-role admin client —
+   (`createClient()` from `src/platform/supabase/server.ts`), never the service-role admin client —
    `has_permission` needs `auth.uid()`, which is null under service role.
 2. **A SECURITY DEFINER function bypasses RLS, so it needs its own guard.**
    `get_dashboard_summary` and `get_dashboard_fee_split` shipped without one.
@@ -150,6 +150,6 @@ select went from 168ms of policy evaluation to 2.6ms.
 ## Reading data from the app
 
 PostgREST **silently caps a plain request at 1,000 rows.** Page every read that can exceed
-that — `lib/helpers/chunk.ts` provides `fetchAllPages` and `fetchInChunks`. Scope by a
+that — `src/platform/helpers/chunk.ts` provides `fetchAllPages` and `fetchInChunks`. Scope by a
 **join**, not by `.in()` on a large id array: 507 UUIDs is ~19 KB of URL and fails at the
 transport with `TypeError: fetch failed`, not as a query error.

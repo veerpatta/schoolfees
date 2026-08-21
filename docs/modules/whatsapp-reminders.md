@@ -12,15 +12,15 @@ costs money and reaches a real parent with a child's name and fee balance on it.
 
 | Path | What it is |
 |---|---|
-| `app/protected/admin-tools/whatsapp-reminders/page.tsx` | Server page: resolves the session, builds the audience, renders warnings |
-| `app/protected/admin-tools/whatsapp-reminders/actions.ts` | `sendRemindersAction`, `sendTestReminderAction` |
-| `app/protected/admin-tools/whatsapp-reminders/loading.tsx` | Route skeleton |
-| `components/whatsapp-reminders/reminders-workspace.tsx` | Filters, list (cards + table), selection, send |
-| `components/whatsapp-reminders/test-send-panel.tsx` | The test panel: editable slots, live preview, raw provider result |
-| `lib/whatsapp/reminder-template.ts` | The template body, its constants, `buildReminderParams`, `renderReminderPreview`. **No `server-only`** — the live preview runs in the browser |
-| `lib/whatsapp/phone.ts` | `toWhatsappDestination`. Pure, client-safe |
-| `lib/whatsapp/aisensy.ts` | Campaign API client. `server-only` |
-| `lib/whatsapp/fee-reminders.ts` | Audience query and filters. `server-only` — a client component may only `import type` from it |
+| `src/app/protected/admin-tools/whatsapp-reminders/page.tsx` | Server page: resolves the session, builds the audience, renders warnings |
+| `src/app/protected/admin-tools/whatsapp-reminders/actions.ts` | `sendRemindersAction`, `sendTestReminderAction` |
+| `src/app/protected/admin-tools/whatsapp-reminders/loading.tsx` | Route skeleton |
+| `src/modules/whatsapp/ui/reminders-workspace.tsx` | Filters, list (cards + table), selection, send |
+| `src/modules/whatsapp/ui/test-send-panel.tsx` | The test panel: editable slots, live preview, raw provider result |
+| `src/modules/whatsapp/domain/reminder-template.ts` | The template body, its constants, `buildReminderParams`, `renderReminderPreview`. **No `server-only`** — the live preview runs in the browser |
+| `src/modules/whatsapp/domain/phone.ts` | `toWhatsappDestination`. Pure, client-safe |
+| `src/modules/whatsapp/data/aisensy.ts` | Campaign API client. `server-only` |
+| `src/modules/whatsapp/domain/fee-reminders.ts` | Audience query and filters. `server-only` — a client component may only `import type` from it |
 | `supabase/migrations/20260820140000_whatsapp_reminder_sends.sql` | The send log |
 | `tests/unit/whatsapp-reminder-template.test.ts` | Slot count/order, amount formatting, phone normalisation |
 | `tests/ui/whatsapp-reminders-screen.test.ts` | Takeover clearance, one form, the name-less checkbox, client boundary |
@@ -105,7 +105,7 @@ The approved body has **exactly four variables**, confirmed empirically by sendi
 Two hard consequences, both coded and both easy to break:
 
 1. **The deadline is hardcoded.** There is no date variable.
-   `FEE_REMINDER_TEMPLATE_DEADLINE` (`lib/whatsapp/reminder-template.ts`) is
+   `FEE_REMINDER_TEMPLATE_DEADLINE` (`src/modules/whatsapp/domain/reminder-template.ts`) is
    `2026-08-25` and `sendRemindersAction` refuses to send after it. Do not weaken
    that guard. `FEE_REMINDER_DEADLINE_LABEL` is the same date as the body prints
    it, kept beside the ISO one so the preview cannot quote a date the guard does
@@ -221,7 +221,7 @@ Owner's own WhatsApp number, safe for testing: **7976199548**.
   `messages/{en,hi,hi-en}.json` together.
 
 ```bash
-npm run typecheck && npx eslint app/protected/admin-tools/whatsapp-reminders components/whatsapp-reminders lib/whatsapp && node scripts/audit-money-formatting.mjs && npm run build
+npm run typecheck && npx eslint src/app/protected/admin-tools/whatsapp-reminders src/modules/whatsapp/ui src/modules/whatsapp && node scripts/audit-money-formatting.mjs && npm run build
 ```
 
 `npm run scan` additionally catches this feature's signature failure — a value
