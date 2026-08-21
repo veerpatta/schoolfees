@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { logError, logWarn } from "@/platform/observability/log";
+
 import { createAdminClient } from "@/platform/supabase/admin";
 
 const BUCKET = "nightly-backups";
@@ -56,16 +58,25 @@ function todayPathPrefix(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function authorize(request: Request): { ok: boolean; reason?: string } {
+/**
+ * The shared-secret guard.
+ *
+ * `reason` is for the log, never for the response. It used to be handed
+ * straight back to the caller, which meant an unauthenticated prober got
+ * `{"error":"CRON_SECRET env var not configured."}` — the name of a
+ * server-only environment variable, from a deployment that had not set it.
+ * The caller now gets one word; see the call site.
+ */
+function authorize(request: Request): { ok: true } | { ok: false; reason: string; misconfigured: boolean } {
   const expectedSecret = process.env.CRON_SECRET;
   if (!expectedSecret) {
-    return { ok: false, reason: "CRON_SECRET env var not configured." };
+    return { ok: false, reason: "CRON_SECRET is not set on this deployment.", misconfigured: true };
   }
   const url = new URL(request.url);
   const provided =
     url.searchParams.get("secret") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (provided !== expectedSecret) {
-    return { ok: false, reason: "Invalid or missing secret." };
+    return { ok: false, reason: "Secret missing or does not match.", misconfigured: false };
   }
   return { ok: true };
 }
@@ -88,7 +99,17 @@ export const maxDuration = 300;
 export async function GET(request: Request) {
   const auth = authorize(request);
   if (!auth.ok) {
-    return NextResponse.json({ ok: false, error: auth.reason }, { status: 401 });
+    // Both cases are logged, at different levels and for different readers. An
+    // unset secret is a misconfiguration: this cron will never run again and
+    // nobody is watching a cron, so it is an error. A wrong secret is usually a
+    // bot, occasionally a rotated secret somebody forgot to update — worth a
+    // line when a schedule goes quiet, not worth paging anyone.
+    if (auth.misconfigured) {
+      logError("cron.nightly-backup.unauthorized", { reason: auth.reason });
+    } else {
+      logWarn("cron.nightly-backup.unauthorized", { reason: auth.reason });
+    }
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createAdminClient();
