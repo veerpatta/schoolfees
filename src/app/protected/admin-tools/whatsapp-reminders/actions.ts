@@ -10,6 +10,7 @@ import {
   sendAisensyCampaignMessage,
 } from "@/modules/whatsapp/data/aisensy";
 import {
+  drainPendingFinancialRefresh,
   istToday,
   loadReminderAudience,
   parseReminderFilters,
@@ -84,6 +85,9 @@ export async function sendRemindersAction(
   let candidates: ReminderCandidate[];
   try {
     sessionLabel = await resolveCurrentSessionLabel(supabase);
+    // A discount applied a minute ago may still be sitting in the refresh queue.
+    // Drain it first, so the amount quoted below is the one the ledger holds now.
+    await drainPendingFinancialRefresh(supabase);
     const audience = await loadReminderAudience(supabase, filtersFromForm(formData, sessionLabel));
     // Re-derived server-side rather than read off the form. The amount a parent
     // is quoted must come from the ledger at send time, not from a number that

@@ -10,6 +10,7 @@ import { createAdminClient } from "@/platform/supabase/admin";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
 import { configuredCampaignName, isAisensyConfigured } from "@/modules/whatsapp/data/aisensy";
 import {
+  drainPendingFinancialRefresh,
   istToday,
   loadReminderAudience,
   parseReminderFilters,
@@ -60,6 +61,9 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
 
   try {
     sessionLabel = await resolveCurrentSessionLabel(supabase);
+    // Free unless a fee change is actually queued, and it keeps the figure on
+    // screen equal to the one the send would re-derive.
+    await drainPendingFinancialRefresh(supabase);
     // The same parser sendRemindersAction uses, so the audience this screen
     // shows and the one the send rebuilds cannot disagree.
     filters = parseReminderFilters(reader(params), sessionLabel);

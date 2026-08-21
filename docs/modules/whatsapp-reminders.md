@@ -80,6 +80,50 @@ Anything held back appears in a **"N families are being held back by your
 settings"** disclosure with a one-tap undo, because a decision you cannot see is
 a decision you cannot reverse.
 
+## Does a discount reach the message?
+
+Yes, and there are two independent reasons — which is the point, because the
+figure in that message is what a parent is told they owe.
+
+**The amount is re-derived at send time.** `sendRemindersAction` rebuilds the
+audience from the ledger using the submitted student ids and ignores whatever
+number was rendered into the page. A family who paid, or had a discount applied,
+after the page loaded gets the current figure — or drops off the list entirely.
+
+**The matview is drained before quoting.** `v_workbook_student_financials` is
+MATERIALIZED. Fifteen triggers mark it dirty when money changes — including
+`student_conventional_discount_assignments` (applying a discount to a student)
+and `conventional_discount_policies` (changing RTE / Staff Child / 3rd Child
+itself) — and a pg_cron job drains that queue every two minutes.
+
+That left a window, and it was real. Measured on TEST-2026-27: apply a 500
+discount and the ledger reads 13,750 while the matview still says **14,250**,
+with a refresh queued. Send inside those two minutes and the parent is quoted the
+pre-discount amount. So the page and the send action both call
+`drainPendingFinancialRefresh()` first. It costs **0ms when nothing is queued**
+(it returns false without touching a view) and **~386ms** when a refresh is
+actually pending — cheap enough to pay on every send.
+
+**Siblings do not enter into the amount.** `v_workbook_student_financials` does
+not read `student_family_members` at all. Sibling links change who is *eligible*
+for the 3rd Child Policy; the money moves only when the discount is explicitly
+assigned, and that assignment is one of the fifteen triggers. Which matches the
+standing rule that conventional discounts are assigned deliberately, never
+inferred.
+
+Health check, any time — it should be 0, and was across all 510 students on
+2026-08-21:
+
+```sql
+select count(*) filter (where f.inst1_pending + f.inst2_pending <> l.live) as disagreeing
+from public.v_workbook_student_financials f
+join (select student_id,
+             sum(case when installment_no in (1,2) then coalesce(pending_amount,0) else 0 end) live
+      from public.v_workbook_installment_balances where session_label = '2026-27'
+      group by 1) l using (student_id)
+where f.session_label = '2026-27';
+```
+
 ## The template — read this before changing anything about the message
 
 The approved body has **exactly four variables**, confirmed empirically by sending

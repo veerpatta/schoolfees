@@ -213,6 +213,34 @@ function pendingFor(row: FinancialRow, installment: number): number {
   }
 }
 
+/**
+ * Bring the financial matviews up to date before quoting money at a parent.
+ *
+ * `v_workbook_student_financials` is MATERIALIZED. Fifteen triggers — including
+ * `student_conventional_discount_assignments` and `conventional_discount_policies`
+ * — mark it dirty when fees change, and a pg_cron job drains that queue every
+ * two minutes. Which leaves a window: apply a discount, press Send inside those
+ * two minutes, and the message quotes the pre-discount amount. Measured on
+ * TEST-2026-27: ledger 13,750, matview still 14,250, refresh queued.
+ *
+ * Measured on production: the drain costs 0ms when nothing is queued (the normal
+ * case — it returns false without touching a view) and ~386ms when a refresh is
+ * actually pending. That is a cheap price for never quoting a stale figure.
+ *
+ * Best-effort: if it fails the cron still catches up within two minutes, and a
+ * refresh hiccup must not stop the office sending.
+ */
+export async function drainPendingFinancialRefresh(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+): Promise<void> {
+  try {
+    await supabase.rpc("refresh_workbook_materialized_views_if_requested");
+  } catch (caught) {
+    console.warn("[whatsapp-reminders] financial refresh drain failed", caught);
+  }
+}
+
 /** The session the office is working in. */
 export async function resolveCurrentSessionLabel(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
