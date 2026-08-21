@@ -15,7 +15,7 @@
  *   node scripts/generate-repo-map.mjs           # write
  *   node scripts/generate-repo-map.mjs --check   # fail if stale
  */
-import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = process.cwd();
