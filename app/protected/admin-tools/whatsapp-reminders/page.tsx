@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { SectionCard } from "@/components/admin/section-card";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { OfficeNotice } from "@/components/office/office-ui";
 import { RemindersWorkspace } from "@/components/whatsapp-reminders/reminders-workspace";
 import { TestSendPanel } from "@/components/whatsapp-reminders/test-send-panel";
@@ -137,8 +138,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
         />
       </SectionCard>
 
-      <SectionCard
-        collapsible
+      <CollapsibleSection
         title="Send yourself a test"
         description="One message to a number you control, using values you can edit. Never recorded against a family."
         // Above the list on a phone. Below it, the panel landed 42 screens down
@@ -155,7 +155,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           campaignName={campaignName}
           sample={audience.candidates[0] ?? null}
         />
-      </SectionCard>
+      </CollapsibleSection>
 
       {wordingMismatch ? (
         <OfficeNotice

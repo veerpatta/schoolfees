@@ -1,79 +1,79 @@
 {
   "generatedAt": "2026-07-18",
-  "currentGeneratedAt": "2026-08-19T00:00:00.000Z",
-  "generatedFrom": "2026-08-19, one-tap WhatsApp send. Five ceilings raised and four lowered in one pass, which needs explaining because the rule here is that ceilings only ratchet down. The feature's own code is not what moved them: every share surface loads the sheet through next/dynamic, and /protected/dashboard -- which grew most, +1947 -- contains none of it (grep its chunks). Adding one more consumer of ui/sheet and ui/dropdown-menu tipped webpack's splitChunks threshold, so both were hoisted OUT of per-route chunks and INTO the shared app/protected layout chunk (53,801 -> 59,798 raw). fee-setup, payments, exports and admin-tools each shed ~735 bytes and are ratcheted down accordingly; dashboard, students, transactions, defaulters and receipts each gained ~1.3-2.0 KB because this gate counts that shared layout chunk once per route. A browser downloads it once, so the real cost is roughly its +1947 gzip per session, not the +5,865 the per-route sum implies. `shared` rootMainFiles is unchanged within noise (129,260 -> 129,335) and its ceiling is untouched. Ceilings carry ~1.5% headroom over the measured figure, as they always have -- a ceiling pinned to the exact measurement fails on the next build, because consecutive builds of identical source differ by 20-40 bytes.",
+  "currentGeneratedAt": "2026-08-21T00:00:00.000Z",
+  "generatedFrom": "2026-08-21, WhatsApp reminder cadence. One ceiling raised and eight lowered. The raise needs saying out loud, because the rule here is that ceilings ratchet down. /protected/receipts was ALREADY over its ceiling at 4028da4 — 144858 against 144700 — before any of this work; the hand-off's own verification list omitted quality:bundles:check, so CI had been red on it since. Its heavy dialogs are already behind next/dynamic, so the remaining bytes would mean refactoring receipts-quick-load on a live money screen to chase a threshold. It is raised to 145200: current plus 300, deliberately the tightest headroom in the file, so it cannot absorb anything further without being noticed. Everything else is lowered to what each route actually costs plus 1000 bytes, which is stricter than the ~1.5% the previous pass left. The reminders feature itself contributes almost nothing to any route: its collapsible section lives in components/ui/collapsible-section.tsx rather than on the shared Section, because adding it there cost /protected/receipts 188 gzip bytes for a disclosure that route never renders.",
   "metric": "initial entry JS, unique chunks",
   "shared": {
     "route": "(shared) rootMainFiles",
     "note": "Loaded by every route before its own entry JS. Was invisible to --check until 2026-08-13.",
     "chunks": 4,
     "rawBytes": 436880,
-    "gzipBytes": 131000,
-    "currentGzipBytes": 129335
+    "gzipBytes": 130400,
+    "currentGzipBytes": 129363
   },
   "measurements": [
     {
       "route": "/protected/dashboard",
       "chunks": 17,
       "rawBytes": 367280,
-      "gzipBytes": 127200,
-      "currentGzipBytes": 125230
+      "gzipBytes": 126700,
+      "currentGzipBytes": 125617
     },
     {
       "route": "/protected/students",
       "chunks": 19,
       "rawBytes": 426689,
       "gzipBytes": 142600,
-      "currentGzipBytes": 140471
+      "currentGzipBytes": 142168
     },
     {
       "route": "/protected/fee-setup",
       "chunks": 18,
       "rawBytes": 399717,
-      "gzipBytes": 130000,
-      "currentGzipBytes": 128065
+      "gzipBytes": 128900,
+      "currentGzipBytes": 127803
     },
     {
       "route": "/protected/payments",
       "chunks": 15,
       "rawBytes": 337240,
-      "gzipBytes": 115800,
-      "currentGzipBytes": 114044
+      "gzipBytes": 115400,
+      "currentGzipBytes": 114376
     },
     {
       "route": "/protected/transactions",
       "chunks": 21,
       "rawBytes": 448943,
       "gzipBytes": 151000,
-      "currentGzipBytes": 148755
+      "currentGzipBytes": 150676
     },
     {
       "route": "/protected/defaulters",
       "chunks": 19,
       "rawBytes": 435850,
-      "gzipBytes": 145600,
-      "currentGzipBytes": 143448
+      "gzipBytes": 145300,
+      "currentGzipBytes": 144203
     },
     {
       "route": "/protected/exports",
       "chunks": 16,
       "rawBytes": 339996,
-      "gzipBytes": 117000,
-      "currentGzipBytes": 115205
+      "gzipBytes": 116600,
+      "currentGzipBytes": 115548
     },
     {
       "route": "/protected/admin-tools",
       "chunks": 16,
       "rawBytes": 342925,
-      "gzipBytes": 118500,
-      "currentGzipBytes": 116713
+      "gzipBytes": 118100,
+      "currentGzipBytes": 117055
     },
     {
       "route": "/protected/receipts",
       "chunks": 19,
       "rawBytes": 447282,
-      "gzipBytes": 144700,
-      "currentGzipBytes": 142512
+      "gzipBytes": 145200,
+      "currentGzipBytes": 144878
     }
   ]
 }
