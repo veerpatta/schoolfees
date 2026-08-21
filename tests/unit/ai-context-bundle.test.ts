@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { STUDENT_SEGMENTS } from "@/modules/students/domain/student-segments";
