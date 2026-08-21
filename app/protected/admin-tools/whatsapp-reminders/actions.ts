@@ -1,9 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { recordActivity } from "@/lib/activity/events";
-import { insertDefaulterContact } from "@/lib/defaulters/contacts";
+import { insertDefaulterContacts } from "@/lib/defaulters/contacts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaffPermission } from "@/lib/supabase/session";
 import {
@@ -25,8 +23,6 @@ import {
   buildReminderParams,
   FEE_REMINDER_TEMPLATE_DEADLINE,
 } from "@/lib/whatsapp/reminder-template";
-
-const PAGE_PATH = "/protected/admin-tools/whatsapp-reminders";
 
 export type SendRemindersState = {
   status: "idle" | "success" | "partial" | "error";
@@ -144,18 +140,22 @@ export async function sendRemindersAction(
   // and the defaulters cadence knows the family was reached today. Best-effort:
   // the message has already gone, and a logging hiccup must not be reported as
   // a failed send.
-  for (const studentId of sentStudentIds) {
-    try {
-      await insertDefaulterContact({
+  //
+  // One round trip, not one per family. As a loop this was 141 sequential
+  // queries running after every message had already been delivered — seconds of
+  // spinner for work the parent had already received.
+  try {
+    await insertDefaulterContacts(
+      sentStudentIds.map((studentId) => ({
         studentId,
         sessionLabel,
-        channel: "whatsapp",
-        outcome: "other",
+        channel: "whatsapp" as const,
+        outcome: "other" as const,
         note: `WhatsApp fee reminder sent (${campaignName})`,
-      });
-    } catch (caught) {
-      console.warn("[whatsapp-reminders] contact log failed", caught);
-    }
+      })),
+    );
+  } catch (caught) {
+    console.warn("[whatsapp-reminders] contact log failed", caught);
   }
 
   try {
@@ -177,11 +177,18 @@ export async function sendRemindersAction(
     console.warn("[whatsapp-reminders] activity log failed", caught);
   }
 
-  try {
-    revalidatePath(PAGE_PATH);
-  } catch (caught) {
-    console.warn("[whatsapp-reminders] revalidate failed", caught);
-  }
+  // Deliberately NO revalidatePath here.
+  //
+  // The page is `export const revalidate = 0` — nothing about it is cached, so
+  // there is nothing to invalidate. What revalidatePath DID do was force Next to
+  // re-render this route and ship the whole 150-family payload as part of THIS
+  // action's response, so `useFormStatus().pending` stayed true through a full
+  // re-derivation of the audience. The office watched "Sending…" long after all
+  // 141 messages had been delivered, and on a phone that reads as a hang.
+  //
+  // The client refreshes instead, from useActionFeedback, once it has the
+  // result: the button releases, the toast names the count, and the list
+  // re-reads a moment later.
 
   const summary = [
     `${sent} sent`,
@@ -343,7 +350,8 @@ export async function setReminderCadenceAction(
     };
   }
 
-  revalidatePath(PAGE_PATH);
+  // No revalidatePath — see sendRemindersAction. The control refreshes the
+  // router itself once it has the answer.
   return { status: "success", message: "Reminder setting saved." };
 }
 
@@ -377,7 +385,6 @@ export async function snoozeReminderAction(
     };
   }
 
-  revalidatePath(PAGE_PATH);
   return { status: "success", message: `Held back until ${until}.` };
 }
 
@@ -409,7 +416,6 @@ export async function resumeReminderAction(
     };
   }
 
-  revalidatePath(PAGE_PATH);
   return { status: "success", message: "Back on the list." };
 }
 

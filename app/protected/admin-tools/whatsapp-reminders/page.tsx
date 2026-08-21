@@ -24,6 +24,12 @@ import {
 // send money-bearing messages off it. Never serve it from a cache.
 export const revalidate = 0;
 
+// A run of a few hundred families is one request: rebuild the audience, call
+// AiSensy in batches, then log. Well inside this, but the default ceiling is
+// not something to discover halfway through a send — a request cut off after
+// the provider calls leaves parents messaged and the office told nothing.
+export const maxDuration = 300;
+
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };

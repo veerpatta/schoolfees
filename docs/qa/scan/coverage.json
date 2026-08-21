@@ -85,8 +85,8 @@
       "skipped": [],
       "check": "dead-code",
       "dimension": "export declarations in app/, components/, lib/, hooks/ and i18n/",
-      "domainSize": 2196,
-      "examined": 2196,
+      "domainSize": 2198,
+      "examined": 2198,
       "note": "Every export in 679 non-test, non-script source files was parsed; 59 were reported. The gap between those numbers is deliberate and is where this rule's precision comes from. (1) 612 type / interface / enum exports were skipped outright: a prop type named only by its own component's signature is the house style, it costs nothing at runtime, and reporting it would quadruple this rule. Type-only usage of a *value* export is still tracked, because the identifier index does not care why a name appears. (2) 73 exports are used inside their own module and nowhere else — exported too widely rather than dead. They are counted here and not reported; the finding a reader can act on is \"this code runs nowhere\", not \"this could be a module-private const\". (3) 104 exports are referenced only by files under tests/. Those are not dead, they are tested, and deleting them would delete a test — but a value whose only caller is its own test is worth knowing about, so the count is stated rather than hidden. (4) Reachability is decided by an identifier index over all source files, comments and string literals included. A name that appears in a doc comment counts as used: false negatives, never false positives. It also means an export whose name collides with any common identifier is invisible to this rule. (5) Excluded by construction: default exports of Next.js convention files, route segment config and HTTP verb exports under app/, the root config and instrumentation files, index barrels, any module a barrel star-re-exports, and workers/ — a separate Cloudflare bundle whose entry point is wrangler's, not an import. (6) Not seen at all: a symbol reached only through a runtime-built import specifier, and dead code *inside* a live export.",
       "gap": 0
     },
@@ -111,5 +111,5 @@
       "gap": 0
     }
   ],
-  "statement": "11 check(s) swept 14456 of 14456 enumerated members."
+  "statement": "11 check(s) swept 14458 of 14458 enumerated members."
 }

@@ -64,6 +64,36 @@ type RawContactRow = {
   phone_label: string | null;
 };
 
+/**
+ * Log many contacts in one round trip.
+ *
+ * The WhatsApp reminder run logs one row per family, and doing that in a loop
+ * meant 141 sequential round trips to Postgres *after* every message had
+ * already gone — several seconds the office spent watching a spinner for work
+ * that was already finished. Same columns, same client, same RLS as the single
+ * insert; only the number of round trips changes.
+ */
+export async function insertDefaulterContacts(rows: InsertContactArgs[]): Promise<void> {
+  if (rows.length === 0) return;
+
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).from("defaulter_contacts").insert(
+    rows.map((args) => ({
+      student_id: args.studentId,
+      session_label: args.sessionLabel,
+      channel: args.channel,
+      outcome: args.outcome,
+      snooze_until: args.snoozeUntil ?? null,
+      note: args.note ?? null,
+      voice_note_path: args.voiceNotePath ?? null,
+      contacted_phone: args.contactedPhone ?? null,
+      phone_label: args.phoneLabel ?? null,
+    })),
+  );
+  if (error) throw new Error(`Failed to log ${rows.length} contacts: ${error.message}`);
+}
+
 export async function insertDefaulterContact(args: InsertContactArgs): Promise<void> {
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
