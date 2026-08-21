@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { shouldSyncStudentDuesForChange } from "@/lib/students/dues-sync";
-import type { DuesSyncStudentSnapshot } from "@/lib/students/dues-sync";
+import { shouldSyncStudentDuesForChange } from "@/modules/students/domain/dues-sync";
+import type { DuesSyncStudentSnapshot } from "@/modules/students/domain/dues-sync";
 
 const baseStudent: DuesSyncStudentSnapshot = {
   status: "inactive",

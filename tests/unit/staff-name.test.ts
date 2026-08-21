@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { staffDisplayName, staffInitials } from "@/lib/helpers/staff-name";
+import { staffDisplayName, staffInitials } from "@/platform/helpers/staff-name";
 
 /**
  * `receipts.received_by` is free text holding the poster's sign-in email, so

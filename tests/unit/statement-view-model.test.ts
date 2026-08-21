@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { StudentFinancialSnapshot } from "@/lib/fees/types";
+import type { StudentFinancialSnapshot } from "@/modules/fees/domain/types";
 import {
   buildStatementFamilyView,
   buildStatementReceiptRows,
   buildStatementStudentView,
   deriveFeeHeadBasis,
-} from "@/lib/students/statement-view-model";
-import type { WorkbookInstallmentBalance } from "@/lib/workbook/data";
+} from "@/modules/students/domain/statement-view-model";
+import type { WorkbookInstallmentBalance } from "@/modules/fees/data/queries";
 
 const TODAY = "2026-08-14";
 

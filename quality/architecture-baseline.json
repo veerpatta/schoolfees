@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "The layering budget. Written by scripts/check-architecture.mjs --write-baseline.",
+    "",
+    "Every number here is debt that already existed. The gate fails when a count",
+    "goes UP or a new cycle appears; lowering a count is always allowed and is",
+    "the point. Do not raise a number to make a build pass — that is the one",
+    "move this file exists to prevent.",
+    "",
+    "The cycles are listed by name because they were a deliberate deferral, not",
+    "an oversight: breaking fees <-> students means changing the direction the",
+    "fee engine resolves a student's policy, which is a change to money code and",
+    "wants its own diff and its own verification against TEST-2026-27."
+  ],
+  "generatedAt": "2026-08-21T09:56:58.256Z",
+  "violations": {
+    "domain-is-not-pure": 6,
+    "module-reaches-app": 43,
+    "reaches-another-modules-ui": 19,
+    "platform-reaches-up": 2,
+    "design-system-knows-a-feature": 13
+  },
+  "cycles": [
+    "dashboard <-> fees",
+    "fees <-> master-data",
+    "fees <-> receipts",
+    "fees <-> students",
+    "fees <-> system-sync",
+    "imports <-> students",
+    "payments <-> students",
+    "receipts <-> students",
+    "receipts <-> transactions",
+    "reports <-> students"
+  ]
+}

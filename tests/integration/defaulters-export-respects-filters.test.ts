@@ -11,25 +11,25 @@ const createClient = vi.fn();
 const getCacheSafeClient = vi.fn();
 const cacheSafeUnstableCache = vi.fn((fn: unknown) => fn);
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary,
 }));
 
-vi.mock("@/lib/workbook/data", () => ({
+vi.mock("@/modules/fees/data/queries", () => ({
   getWorkbookStudentFinancials,
   getWorkbookInstallmentRows,
   getWorkbookClassOptions,
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentFormOptions,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/supabase/cache-safe", () => ({
+vi.mock("@/platform/supabase/cache-safe", () => ({
   cacheSafeUnstableCache,
   getCacheSafeClient,
 }));
@@ -81,7 +81,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
       buildFinancialRow({ studentId: "s-3", studentName: "Priya Singh", outstandingAmount: 9000 }),
     ]);
 
-    const { getDefaulterExportRows } = await import("@/lib/defaulters/data");
+    const { getDefaulterExportRows } = await import("@/modules/defaulters/data/queries");
     const rows = await getDefaulterExportRows(
       {
         classId: "",
@@ -102,7 +102,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
       buildFinancialRow({ studentId: "s-1", outstandingAmount: 5000 }),
     ]);
 
-    const { getDefaulterExportRows } = await import("@/lib/defaulters/data");
+    const { getDefaulterExportRows } = await import("@/modules/defaulters/data/queries");
     await getDefaulterExportRows(
       {
         classId: "class-uuid-1",
@@ -127,7 +127,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
       buildFinancialRow({ studentId: "s-2", transportRouteId: "route-b", outstandingAmount: 4000 }),
     ]);
 
-    const { getDefaulterExportRows } = await import("@/lib/defaulters/data");
+    const { getDefaulterExportRows } = await import("@/modules/defaulters/data/queries");
     const rows = await getDefaulterExportRows(
       {
         classId: "",
@@ -149,7 +149,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
       buildFinancialRow({ studentId: "s-2", outstandingAmount: 8000 }),
     ]);
 
-    const { getDefaulterExportRows } = await import("@/lib/defaulters/data");
+    const { getDefaulterExportRows } = await import("@/modules/defaulters/data/queries");
     const rows = await getDefaulterExportRows(
       {
         classId: "",
@@ -172,7 +172,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
       buildFinancialRow({ studentId: "s-3", studentName: "Mira", outstandingAmount: 9000 }),
     ]);
 
-    const { getDefaulterExportRows } = await import("@/lib/defaulters/data");
+    const { getDefaulterExportRows } = await import("@/modules/defaulters/data/queries");
     const rows = await getDefaulterExportRows(
       {
         classId: "",
@@ -189,7 +189,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
   });
 
   it("restricts to students with a pending carry-forward installment when prevYearDues is set", async () => {
-    const { CARRY_FORWARD_LABEL } = await import("@/lib/prev-year-dues/constants");
+    const { CARRY_FORWARD_LABEL } = await import("@/modules/prev-year-dues/domain/constants");
     getWorkbookStudentFinancials.mockResolvedValue([
       buildFinancialRow({ studentId: "s-1", studentName: "Asha Sharma", outstandingAmount: 6000 }),
       buildFinancialRow({ studentId: "s-2", studentName: "Rahul Verma", outstandingAmount: 9000 }),
@@ -201,7 +201,7 @@ describe("getDefaulterExportRows — honours filters (audit 1.7)", () => {
       { studentId: "s-1", installmentLabel: CARRY_FORWARD_LABEL, pendingAmount: 15000 },
     ]);
 
-    const { getDefaulterExportRows } = await import("@/lib/defaulters/data");
+    const { getDefaulterExportRows } = await import("@/modules/defaulters/data/queries");
     const rows = await getDefaulterExportRows(
       {
         classId: "",

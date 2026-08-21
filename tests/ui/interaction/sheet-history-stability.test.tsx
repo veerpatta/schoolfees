@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Sheet, releaseAllSheetScrollLocks } from "@/components/ui/sheet";
+import { Sheet, releaseAllSheetScrollLocks } from "@/ui/primitives/sheet";
 
 /**
  * Regression guard for the "the sheet vanishes while I am using it" bug.

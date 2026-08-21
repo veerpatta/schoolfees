@@ -9,7 +9,7 @@ import {
   searchParamInteger,
   searchParamIsoDate,
   searchParamString,
-} from "@/lib/helpers/search-params";
+} from "@/platform/helpers/search-params";
 
 /**
  * A repeated query parameter took two live pages down.
@@ -100,11 +100,11 @@ describe("date search params", () => {
 describe("resolveViewSession tolerates the array form", () => {
   it("resolves a repeated session to its first value", async () => {
     vi.resetModules();
-    vi.doMock("@/lib/session/active", () => ({
+    vi.doMock("@/platform/session/active", () => ({
       getActiveSessionLabel: async () => "2026-27",
     }));
 
-    const { resolveViewSession } = await import("@/lib/session/resolver");
+    const { resolveViewSession } = await import("@/platform/session/resolver");
 
     // The exact URL shape that threw in production: two identical valid values.
     const repeated = await resolveViewSession({
@@ -123,11 +123,11 @@ describe("resolveViewSession tolerates the array form", () => {
 
   it("falls through to the cookie when every repeated value is invalid", async () => {
     vi.resetModules();
-    vi.doMock("@/lib/session/active", () => ({
+    vi.doMock("@/platform/session/active", () => ({
       getActiveSessionLabel: async () => "2026-27",
     }));
 
-    const { resolveViewSession } = await import("@/lib/session/resolver");
+    const { resolveViewSession } = await import("@/platform/session/resolver");
 
     const resolved = await resolveViewSession({
       searchParamSession: ["garbage", "2026-2027"],
@@ -140,11 +140,11 @@ describe("resolveViewSession tolerates the array form", () => {
 
   it("falls through to the active session with no usable input at all", async () => {
     vi.resetModules();
-    vi.doMock("@/lib/session/active", () => ({
+    vi.doMock("@/platform/session/active", () => ({
       getActiveSessionLabel: async () => "2026-27",
     }));
 
-    const { resolveViewSession } = await import("@/lib/session/resolver");
+    const { resolveViewSession } = await import("@/platform/session/resolver");
 
     for (const searchParamSession of [[], ["", ""], undefined, null] as const) {
       const resolved = await resolveViewSession({
@@ -165,9 +165,9 @@ describe("the pages that crashed no longer read a raw search param", () => {
    * the habit.
    */
   const FIXED_PAGES = [
-    "app/protected/imports/page.tsx",
-    "app/protected/admin-tools/recovery/page.tsx",
-    "app/protected/fee-setup/time-travel/page.tsx",
+    "src/app/protected/imports/page.tsx",
+    "src/app/protected/admin-tools/recovery/page.tsx",
+    "src/app/protected/fee-setup/time-travel/page.tsx",
   ];
 
   for (const page of FIXED_PAGES) {

@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
  * Defaulters used to carry its own sessionStorage rehydrator while Students,
  * Receipts and Transactions each solved filter persistence a different way —
  * and two of those three lost the filters entirely on a back-navigation. They
- * now share `hooks/use-url-filter-state.ts`, so the storage rules are asserted
+ * now share `src/ui/hooks/use-url-filter-state.ts`, so the storage rules are asserted
  * against the hook and the screen-specific ones against the component.
  *
  * The live behaviour is pinned by tests/ui/interaction/url-filter-state.test.tsx,
@@ -17,10 +17,10 @@ import { describe, expect, it } from "vitest";
  */
 
 const rehydrator = readFileSync(
-  join(process.cwd(), "components/defaulters/defaulter-filter-rehydrator.tsx"),
+  join(process.cwd(), "src/modules/defaulters/ui/defaulter-filter-rehydrator.tsx"),
   "utf8",
 );
-const hook = readFileSync(join(process.cwd(), "hooks/use-url-filter-state.ts"), "utf8");
+const hook = readFileSync(join(process.cwd(), "src/ui/hooks/use-url-filter-state.ts"), "utf8");
 
 describe("DefaulterFilterRehydrator (audit 1.15)", () => {
   it("uses sessionStorage (auto-clears on tab close), not localStorage", () => {
@@ -72,13 +72,13 @@ describe("DefaulterFilterRehydrator (audit 1.15)", () => {
 
 describe("Defaulters page mounts the rehydrator (audit 1.15)", () => {
   const page = readFileSync(
-    join(process.cwd(), "app/protected/defaulters/page.tsx"),
+    join(process.cwd(), "src/app/protected/defaulters/page.tsx"),
     "utf8",
   );
 
   it("imports and renders DefaulterFilterRehydrator", () => {
     expect(page).toContain("DefaulterFilterRehydrator");
-    expect(page).toContain('from "@/components/defaulters/defaulter-filter-rehydrator"');
+    expect(page).toContain('from "@/modules/defaulters/ui/defaulter-filter-rehydrator"');
     expect(page).toContain("<DefaulterFilterRehydrator filters={filters} sessionLabel={viewSession.sessionLabel} />");
   });
 });

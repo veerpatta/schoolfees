@@ -49,7 +49,7 @@
  *     a `${` interpolation returns exactly two hits, and both are safe: the
  *     Edge Function at `supabase/functions/notion-fee-sync/index.ts` uses
  *     `postgres` tagged templates, which parameterise; and
- *     `lib/prev-year-dues/constants.ts:32` interpolates a module constant into
+ *     `src/lib/prev-year-dues/constants.ts:32` interpolates a module constant into
  *     a rollback *hint string* that is never executed. Two findings, zero
  *     bugs — so the rule would have been pure noise and it is not written.
  *

@@ -4,15 +4,15 @@ vi.mock("server-only", () => ({}));
 
 const createClient = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/master-data/data", () => ({
+vi.mock("@/modules/master-data/data/queries", () => ({
   getMasterDataOptions: vi.fn(),
 }));
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary: vi.fn(async () => ({
     academicSessionLabel: "2026-27",
   })),
@@ -24,7 +24,7 @@ describe("student session defaults", () => {
   });
 
   it("defaults to the app active session without reading academic_sessions.is_current", async () => {
-    const getMasterDataOptions = (await import("@/lib/master-data/data")).getMasterDataOptions as unknown as {
+    const getMasterDataOptions = (await import("@/modules/master-data/data/queries")).getMasterDataOptions as unknown as {
       mockResolvedValue: (value: unknown) => void;
     };
     getMasterDataOptions.mockResolvedValue({
@@ -37,7 +37,7 @@ describe("student session defaults", () => {
     const from = vi.fn();
     createClient.mockResolvedValue({ from });
 
-    const { getStudentFormOptions } = await import("@/lib/students/data");
+    const { getStudentFormOptions } = await import("@/modules/students/data/queries");
     const options = await getStudentFormOptions();
 
     expect(options.resolvedSessionLabel).toBe("2026-27");

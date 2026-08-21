@@ -9,13 +9,13 @@ import {
   isSupportedLocale,
   localeLabels,
   supportedLocales,
-} from "@/i18n/locales";
+} from "@/platform/i18n/locales";
 
 const REPO_ROOT = process.cwd();
 
 function readMessageCatalog(locale: string) {
   return JSON.parse(
-    readFileSync(join(REPO_ROOT, "messages", `${locale}.json`), "utf-8"),
+    readFileSync(join(REPO_ROOT, "src/messages", `${locale}.json`), "utf-8"),
   ) as Record<string, Record<string, string>>;
 }
 

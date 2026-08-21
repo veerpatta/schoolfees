@@ -27,7 +27,7 @@ function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-const PAGE = "app/protected/payments/page.tsx";
+const PAGE = "src/app/protected/payments/page.tsx";
 
 describe("payment desk survives a route re-render", () => {
   it("gives the desk a stable key in every branch that renders it", () => {
@@ -79,7 +79,7 @@ describe("payment desk survives a route re-render", () => {
     // The trigger. Covered in behavioural terms by
     // tests/ui/interaction/payment-restart.test.tsx; asserted here too because
     // the two halves only make sense together.
-    const desk = read("components/payments/payment-desk-mobile.tsx")
+    const desk = read("src/modules/payments/ui/payment-desk-mobile.tsx")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
 

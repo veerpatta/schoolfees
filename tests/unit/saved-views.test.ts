@@ -6,7 +6,7 @@ import {
   listSavedViews,
   renameView,
   saveView,
-} from "@/lib/data-table/saved-views";
+} from "@/ui/data-table/saved-views";
 
 type StorageStub = {
   store: Map<string, string>;

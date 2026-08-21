@@ -28,12 +28,12 @@
  * A rule that flagged it would be arguing with the codebase's own convention
  * and would be muted within a week.
  *
- * **The scope is server code — `app/` and `lib/`, minus anything a client
+ * **The scope is server code — `src/app/` and `src/lib/`, minus anything a client
  * bundle can reach.** That is not a convenience narrowing; it is what the rule
  * says. In a browser an unhandled rejection lands in the console of the person
  * who can see the screen. On the server it lands after the response, in a
  * region log, attached to a request that already returned 200. Widening to
- * `components/` was tried and produced eleven findings, every one of them a
+ * `src/components/` was tried and produced eleven findings, every one of them a
  * call into a local helper whose body is wholly wrapped in try/catch/finally
  * and therefore cannot reject at all — `fetchData` in the transactions shell,
  * `runSupportAction` in Fee Setup. Eleven false positives is how a P1 rule
@@ -59,14 +59,20 @@ export const title = "Unawaited promises and swallowed errors";
 
 /**
  * Server code only. `isClientReachable` is the closure over the import graph,
- * not a directive test, so a `lib/` module pulled in by one `"use client"`
+ * not a directive test, so a `src/lib/` module pulled in by one `"use client"`
  * component is correctly treated as browser code even though it says nothing
  * about itself.
  */
 function isServerModule(file, project) {
   if (file.isClient) return false;
   if (project.isClientReachable(file.rel)) return false;
-  return file.rel.startsWith("app/") || file.rel.startsWith("lib/");
+  // Every server root, not just the two that existed when this was written.
+  // The Supabase clients, the session resolver and the fee engine all moved
+  // out of lib/ in the feature-first restructure; naming roots individually
+  // is how a rule quietly stops covering the code it was written for.
+  return ["src/app/", "src/lib/", "src/platform/", "src/modules/"].some((root) =>
+    file.rel.startsWith(root),
+  );
 }
 
 /**
@@ -239,7 +245,7 @@ export async function run({ project, sink, coverage }) {
               + "the office sees a success and the row is not there.",
             fix:
               "await it, return it, or write `void` in front of it the way "
-              + "lib/defaulters/data.ts and app/protected/exports do — the marker is what tells "
+              + "src/lib/defaulters/data.ts and app/protected/exports do — the marker is what tells "
               + "the next reader this was a decision.",
           });
         }

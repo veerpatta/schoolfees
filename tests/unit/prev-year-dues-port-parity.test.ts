@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 // Dependency-free JS core used by the dry-run CLI.
 import { parseRows as portParse, planRows as portPlan } from "../../scripts/prev-year-dues-core.mjs";
-import { planDuesRows, summarizeDryRun } from "@/lib/prev-year-dues/matching";
-import { parseDuesRows } from "@/lib/prev-year-dues/parser";
-import type { MatchableStudent } from "@/lib/prev-year-dues/types";
+import { planDuesRows, summarizeDryRun } from "@/modules/prev-year-dues/domain/matching";
+import { parseDuesRows } from "@/modules/prev-year-dues/domain/parser";
+import type { MatchableStudent } from "@/modules/prev-year-dues/domain/types";
 
 // The dry-run CLI (scripts/prev-year-dues-dry-run.mjs) presents the numbers the
 // owner approves, but cannot import the TS lib without a TS runner, so it uses a

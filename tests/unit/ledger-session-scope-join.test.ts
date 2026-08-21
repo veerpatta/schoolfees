@@ -26,7 +26,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  */
 
 describe("ledger session scope", () => {
-  const ledger = read("lib/ledger/data.ts");
+  const ledger = read("src/modules/reports/data/ledger-queries.ts");
 
   it("scopes the student picker through an inner join, not an id list", () => {
     expect(ledger).toContain("installments!inner");
@@ -40,7 +40,7 @@ describe("ledger session scope", () => {
   });
 
   it("keeps the helper deleted so it cannot be reintroduced by autocomplete", () => {
-    const scope = read("lib/session/installment-scope.ts");
+    const scope = read("src/platform/session/installment-scope.ts");
     expect(scope).not.toContain("export async function loadSessionScopedStudentIds");
     // The note explaining why must survive, or the next person re-adds it.
     expect(scope).toContain("TypeError: fetch failed");

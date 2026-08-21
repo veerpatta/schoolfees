@@ -9,20 +9,20 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // Mock server modules that are unavailable in the test environment.
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission: vi.fn().mockResolvedValue({}),
 }));
-vi.mock("@/lib/defaulters/contacts", () => ({
+vi.mock("@/modules/defaulters/data/contacts", () => ({
   insertDefaulterContact: vi.fn().mockResolvedValue(undefined),
   setNoCallFlag: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("@/lib/activity/events", () => ({
+vi.mock("@/modules/activity/data/events", () => ({
   recordActivity: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { logContactAction, quickLogContact, setNoCallFlagAction } from "@/app/protected/defaulters/actions";
-import { requireStaffPermission } from "@/lib/supabase/session";
-import { insertDefaulterContact, setNoCallFlag } from "@/lib/defaulters/contacts";
+import { requireStaffPermission } from "@/platform/supabase/session";
+import { insertDefaulterContact, setNoCallFlag } from "@/modules/defaulters/data/contacts";
 
 function makeFormData(fields: Record<string, string>): FormData {
   const fd = new FormData();

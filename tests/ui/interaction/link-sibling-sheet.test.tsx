@@ -29,7 +29,7 @@ vi.mock("@/app/protected/students/sibling-actions", () => ({
     linkSiblingsAction(previous, formData),
 }));
 
-const { LinkSiblingSheet } = await import("@/components/students/link-sibling-sheet");
+const { LinkSiblingSheet } = await import("@/modules/students/ui/link-sibling-sheet");
 
 const SESSION = "TEST-2026-27";
 const INDEX_STUDENTS = [

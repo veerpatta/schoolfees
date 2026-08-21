@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ToastViewport } from "@/components/ui/toast";
-import { useActionFeedback, useActionFeedbackMany } from "@/hooks/use-action-feedback";
+import { ToastViewport } from "@/ui/primitives/toast";
+import { useActionFeedback, useActionFeedbackMany } from "@/ui/hooks/use-action-feedback";
 
 const refresh = vi.fn();
 

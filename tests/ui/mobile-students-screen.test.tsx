@@ -5,9 +5,9 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { MobileStudentProfile } from "@/components/students/mobile-student-profile";
-import { MobileStudentList } from "@/components/students/student-list-table";
-import type { StudentListItem } from "@/lib/students/types";
+import { MobileStudentProfile } from "@/modules/students/ui/mobile-student-profile";
+import { MobileStudentList } from "@/modules/students/ui/student-list-table";
+import type { StudentListItem } from "@/modules/students/domain/types";
 
 /**
  * The phone Students list and the phone student profile (mobile app v2).
@@ -18,7 +18,7 @@ import type { StudentListItem } from "@/lib/students/types";
  */
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 function read(path: string) {
@@ -204,14 +204,14 @@ describe("phone students list", () => {
 });
 
 describe("phone student profile", () => {
-  const profile = read("components/students/mobile-student-profile.tsx");
+  const profile = read("src/modules/students/ui/mobile-student-profile.tsx");
 
   it("clears only the safe area, because the tab bar is gone on a takeover route", () => {
     // /protected/students/ is in mobileTakeoverRoutes, so MobileBottomNav
     // returns null. Padding with --mobile-bottom-nav-offset here would float
     // the action bar 68px above the home indicator.
     expect(profile).toContain('"calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)"');
-    expect(readCode("components/students/mobile-student-profile.tsx")).not.toContain(
+    expect(readCode("src/modules/students/ui/mobile-student-profile.tsx")).not.toContain(
       "--mobile-bottom-nav-offset",
     );
   });
@@ -254,7 +254,7 @@ describe("phone student profile", () => {
 });
 
 describe("phone family tab", () => {
-  const family = read("components/students/mobile-student-family-tab.tsx");
+  const family = read("src/modules/students/ui/mobile-student-family-tab.tsx");
 
   it("drives the same sibling server actions as the desktop panel", () => {
     expect(family).toContain("LinkSiblingTrigger");
@@ -271,8 +271,8 @@ describe("phone family tab", () => {
 
   it("keeps no suspected-sibling wording in any dictionary", () => {
     for (const locale of ["en", "hi", "hi-en"]) {
-      expect(read(`messages/${locale}.json`)).not.toContain("familySuspected");
-      expect(read(`messages/${locale}.json`)).not.toContain("linkSuspected");
+      expect(read(`src/messages/${locale}.json`)).not.toContain("familySuspected");
+      expect(read(`src/messages/${locale}.json`)).not.toContain("linkSuspected");
     }
   });
 });

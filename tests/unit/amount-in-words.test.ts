@@ -4,7 +4,7 @@ import {
   amountInWordsEnglish,
   amountInWordsEnglishFormal,
   englishAmountWords,
-} from "@/lib/helpers/amount-in-words";
+} from "@/platform/helpers/amount-in-words";
 
 /**
  * These strings were printed on receipts before this helper existed — the phone

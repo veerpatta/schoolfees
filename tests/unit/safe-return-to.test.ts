@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { safeReturnTo } from "@/lib/navigation/return-to";
+import { safeReturnTo } from "@/platform/navigation/return-to";
 
 const FALLBACK = "/protected/students";
 

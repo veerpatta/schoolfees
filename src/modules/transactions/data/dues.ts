@@ -1,0 +1,641 @@
+import "server-only";
+
+import { getFeePolicySummary } from "@/modules/fees/domain/queries";
+import { getStudentDirectoryIds } from "@/modules/students/data/directory";
+import type { SegmentId } from "@/modules/students/domain/student-segments";
+import { getReportsPageData, normalizeReportFilters } from "@/modules/reports/data/queries";
+import type { ImportVerificationDetailRow } from "@/modules/reports/domain/types";
+import type { OfficeWorkbookView } from "@/modules/transactions/domain/workbook";
+import { createClient } from "@/platform/supabase/server";
+import {
+  getWorkbookClassOptions,
+  getWorkbookStudentFinancials,
+  getWorkbookTransactions,
+  type WorkbookClassOption,
+  type WorkbookStudentFinancial,
+  type WorkbookTransaction,
+} from "@/modules/fees/data/queries";
+
+const OFFICE_WORKBOOK_PAGE_SIZE = 100;
+
+export type OfficeWorkbookPagination = {
+  page: number;
+  pageSize: number;
+  totalRows: number | null;
+  visibleStart: number;
+  visibleEnd: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+};
+
+export type OfficeWorkbookFilters = {
+  view: OfficeWorkbookView;
+  classId: string;
+  fromDate?: string;
+  paymentMode?: string;
+  routeId?: string;
+  searchQuery?: string;
+  /** Segment chips, shared with the Students workspace. See lib/segments. */
+  segments?: SegmentId[];
+  sessionLabel: string;
+  toDate?: string;
+  exportAll?: boolean;
+  page?: number;
+  pageSize?: number;
+  /** When true, skips the getWorkbookStudentFinancials enrichment pass (faster for display-only views). */
+  skipFinancials?: boolean;
+};
+
+export type OfficeWorkbookCollectionRow = {
+  paymentDate: string;
+  paymentMode: string;
+  receiptCount: number;
+  studentCount: number;
+  totalAmount: number;
+};
+
+export type OfficeWorkbookStudentRow = WorkbookStudentFinancial & {
+  duesStatus: "generated" | "missing_dues";
+  duesStatusLabel: string;
+  receiptHistory: Array<{
+    receiptNumber: string;
+    paymentDate: string;
+    totalAmount: number;
+  }>;
+};
+
+type BaseOfficeStudentRow = {
+  id: string;
+  admission_no: string;
+  full_name: string;
+  date_of_birth: string | null;
+  father_name: string | null;
+  mother_name: string | null;
+  primary_phone: string | null;
+  secondary_phone: string | null;
+  status: string;
+  class_id: string;
+  transport_route_id: string | null;
+  class_ref: {
+    id: string;
+    session_label: string;
+    class_name: string;
+    section: string | null;
+    stream_name: string | null;
+    sort_order: number;
+  } | Array<{
+    id: string;
+    session_label: string;
+    class_name: string;
+    section: string | null;
+    stream_name: string | null;
+    sort_order: number;
+  }> | null;
+  route_ref: {
+    route_name: string;
+    route_code: string | null;
+  } | Array<{
+    route_name: string;
+    route_code: string | null;
+  }> | null;
+};
+
+function toSingleRecord<T>(value: T | T[] | null) {
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+function buildClassLabel(value: {
+  class_name: string;
+  section: string | null;
+  stream_name: string | null;
+}) {
+  return [value.class_name, value.section ? `Section ${value.section}` : "", value.stream_name ?? ""]
+    .filter(Boolean)
+    .join(" - ");
+}
+
+export type OfficeWorkbookSummary = {
+  studentCount: number;
+  totalDue: number;
+  totalPaid: number;
+  /** Fees only. A late fee is counted in totalLateFeePending instead. */
+  totalOutstanding: number;
+  totalLateFeePending: number;
+  totalDiscount: number;
+  totalLateFeeWaived: number;
+  transportStudentCount: number;
+  tuitionFeeTotal: number;
+  transportFeeTotal: number;
+  academicFeeTotal: number;
+  otherAdjustmentTotal: number;
+};
+
+export type OfficeWorkbookData =
+  | {
+      view: "transactions" | "receipts";
+      classOptions: WorkbookClassOption[];
+      rows: WorkbookTransaction[];
+      pagination: OfficeWorkbookPagination;
+    }
+  | {
+      view: "installments" | "student_dues" | "class_register" | "defaulters";
+      classOptions: WorkbookClassOption[];
+      rows: OfficeWorkbookStudentRow[];
+      summary: OfficeWorkbookSummary;
+      pagination: OfficeWorkbookPagination;
+    }
+  | {
+      view: "collection_today";
+      classOptions: WorkbookClassOption[];
+      rows: OfficeWorkbookCollectionRow[];
+    }
+  | {
+      view: "import_issues";
+      classOptions: WorkbookClassOption[];
+      rows: ImportVerificationDetailRow[];
+    }
+  | {
+      view: "exports";
+      classOptions: WorkbookClassOption[];
+    };
+
+function toStudentRows(
+  students: WorkbookStudentFinancial[],
+  transactions: WorkbookTransaction[],
+  generatedStudentIds?: ReadonlySet<string>,
+) {
+  const historyMap = transactions.reduce(
+    (acc, row) => {
+      const existing = acc.get(row.studentId) ?? [];
+      existing.push({
+        receiptNumber: row.receiptNumber,
+        paymentDate: row.paymentDate,
+        totalAmount: row.totalAmount,
+      });
+      acc.set(row.studentId, existing);
+      return acc;
+    },
+    new Map<
+      string,
+      Array<{
+        receiptNumber: string;
+        paymentDate: string;
+        totalAmount: number;
+      }>
+    >(),
+  );
+
+  return students.map((row) => ({
+    ...row,
+    duesStatus:
+      generatedStudentIds && !generatedStudentIds.has(row.studentId)
+        ? "missing_dues" as const
+        : "generated" as const,
+    duesStatusLabel:
+      generatedStudentIds && !generatedStudentIds.has(row.studentId)
+        ? "Dues not prepared"
+        : "Generated",
+    receiptHistory: (historyMap.get(row.studentId) ?? []).slice(0, 3),
+  }));
+}
+
+async function getBaseOfficeStudents(
+  filters: OfficeWorkbookFilters,
+  segmentStudentIds: readonly string[] | null,
+) {
+  const policy = await getFeePolicySummary();
+  const sessionLabel = filters.sessionLabel || policy.academicSessionLabel;
+  const supabase = await createClient();
+  let query = supabase
+    .from("students")
+    .select(
+      "id, admission_no, full_name, date_of_birth, father_name, mother_name, primary_phone, secondary_phone, status, class_id, transport_route_id, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name, sort_order), route_ref:transport_routes(route_name, route_code)",
+    )
+    .eq("status", "active")
+    .eq("class_ref.session_label", sessionLabel)
+    .eq("class_ref.status", "active")
+    .order("full_name", { ascending: true });
+
+  if (filters.classId) {
+    query = query.eq("class_id", filters.classId);
+  }
+
+  if (filters.routeId) {
+    query = query.eq("transport_route_id", filters.routeId);
+  }
+
+  // Students with no generated dues are merged into class_register and
+  // student_dues alongside the financials rows. Without this they would slip
+  // past a segment filter that every other row had to satisfy.
+  if (segmentStudentIds) {
+    query = query.in("id", segmentStudentIds);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Unable to load source students: ${error.message}`);
+  }
+
+  return ((data ?? []) as BaseOfficeStudentRow[]).map((row): WorkbookStudentFinancial => {
+    const classRef = toSingleRecord(row.class_ref);
+    const routeRef = toSingleRecord(row.route_ref);
+    return {
+      studentId: row.id,
+      admissionNo: row.admission_no,
+      studentName: row.full_name,
+      dateOfBirth: row.date_of_birth,
+      fatherName: row.father_name,
+      motherName: row.mother_name,
+      fatherPhone: row.primary_phone,
+      motherPhone: row.secondary_phone,
+      recordStatus: row.status,
+      classId: row.class_id,
+      sessionLabel,
+      className: classRef?.class_name ?? "Unknown class",
+      classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
+      sortOrder: classRef?.sort_order ?? 999,
+      transportRouteId: row.transport_route_id,
+      transportRouteName: routeRef?.route_name ?? null,
+      transportRouteCode: routeRef?.route_code ?? null,
+      studentStatusCode: "existing",
+      studentStatusLabel: "Old",
+      tuitionFee: 0,
+      transportFee: 0,
+      academicFee: 0,
+      otherAdjustmentHead: null,
+      otherAdjustmentAmount: 0,
+      grossBaseBeforeDiscount: 0,
+      discountAmount: 0,
+      conventionalDiscountAmount: 0,
+      studentDiscountAmount: 0,
+      conventionalDiscountLabels: null,
+      lateFeeWaiverAmount: 0,
+      baseChargeTotal: 0,
+      lateFeeTotal: 0,
+      // No ledger, so nothing has been written off either.
+      discountClosedAmount: 0,
+      totalDue: 0,
+      totalPaid: 0,
+      outstandingAmount: 0,
+      baseOutstandingAmount: 0,
+      lateFeeOutstandingAmount: 0,
+      totalOwedAmount: 0,
+      nextDueDate: null,
+      nextDueAmount: null,
+      nextDueLabel: null,
+      lastPaymentDate: null,
+      inst1Pending: 0,
+      inst2Pending: 0,
+      inst3Pending: 0,
+      inst4Pending: 0,
+      statusLabel: "",
+      overrideReason: null,
+      paidInstallmentCount: 0,
+      partlyPaidInstallmentCount: 0,
+      overdueInstallmentCount: 0,
+    };
+  });
+}
+
+function buildSummary(rows: WorkbookStudentFinancial[]): OfficeWorkbookSummary {
+  return rows.reduce(
+    (acc, row) => {
+      acc.studentCount += 1;
+      acc.totalDue += row.baseChargeTotal;
+      acc.totalPaid += row.totalPaid;
+      acc.totalOutstanding += row.outstandingAmount;
+      acc.totalLateFeePending += row.lateFeeOutstandingAmount;
+      acc.totalDiscount += row.discountAmount;
+      acc.totalLateFeeWaived += row.lateFeeWaiverAmount;
+      acc.transportStudentCount += Number(Boolean(row.transportRouteId));
+      acc.tuitionFeeTotal += row.tuitionFee;
+      acc.transportFeeTotal += row.transportFee;
+      acc.academicFeeTotal += row.academicFee;
+      acc.otherAdjustmentTotal += row.otherAdjustmentAmount;
+      return acc;
+    },
+    {
+      studentCount: 0,
+      totalDue: 0,
+      totalPaid: 0,
+      totalOutstanding: 0,
+      totalLateFeePending: 0,
+      totalDiscount: 0,
+      totalLateFeeWaived: 0,
+      transportStudentCount: 0,
+      tuitionFeeTotal: 0,
+      transportFeeTotal: 0,
+      academicFeeTotal: 0,
+      otherAdjustmentTotal: 0,
+    },
+  );
+}
+
+function buildCollectionRows(allRows: WorkbookTransaction[]) {
+  // This view answers "what did we take today, by mode" — so a reversed
+  // receipt is not part of it. It contributes no money, and counting it would
+  // also inflate the receipt and student counts beside the amount. The
+  // individual receipt still appears (struck through) in the transactions and
+  // receipts views, where the register is meant to show everything.
+  const rows = allRows.filter((row) => !row.isReversed);
+
+  const collectionMap = rows.reduce(
+    (acc, row) => {
+      const key = `${row.paymentDate}::${row.paymentMode}`;
+      const existing = acc.get(key);
+
+      if (existing) {
+        existing.receiptCount += 1;
+        existing.studentIds.add(row.studentId);
+        existing.totalAmount += row.totalAmount;
+        return acc;
+      }
+
+      acc.set(key, {
+        paymentDate: row.paymentDate,
+        paymentMode:
+          row.paymentMode === "upi"
+            ? "UPI"
+            : row.paymentMode === "bank_transfer"
+              ? "Bank transfer"
+              : row.paymentMode === "cheque"
+                ? "Cheque"
+                : "Cash",
+        receiptCount: 1,
+        studentIds: new Set<string>([row.studentId]),
+        totalAmount: row.totalAmount,
+      });
+      return acc;
+    },
+    new Map<
+      string,
+      {
+        paymentDate: string;
+        paymentMode: string;
+        receiptCount: number;
+        studentIds: Set<string>;
+        totalAmount: number;
+      }
+    >(),
+  );
+
+  return Array.from(collectionMap.values())
+    .map((row) => ({
+      paymentDate: row.paymentDate,
+      paymentMode: row.paymentMode,
+      receiptCount: row.receiptCount,
+      studentCount: row.studentIds.size,
+      totalAmount: row.totalAmount,
+    }))
+    .sort((left, right) => {
+      if (left.paymentDate !== right.paymentDate) {
+        return right.paymentDate.localeCompare(left.paymentDate);
+      }
+
+      return left.paymentMode.localeCompare(right.paymentMode);
+    });
+}
+
+function filterStudentRows(rows: WorkbookStudentFinancial[], filters: OfficeWorkbookFilters) {
+  const normalizedSearch = (filters.searchQuery ?? "").trim().toLowerCase();
+
+  return rows
+    .filter((row) => (filters.routeId ? row.transportRouteId === filters.routeId : true))
+    .filter((row) => {
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const haystack = [
+        row.studentName,
+        row.admissionNo,
+        row.fatherName ?? "",
+        row.fatherPhone ?? "",
+        row.motherPhone ?? "",
+        row.classLabel,
+        row.transportRouteName ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+}
+
+function normalizePagination(filters: OfficeWorkbookFilters) {
+  const page = filters.exportAll ? 1 : Math.max(1, Math.floor(filters.page ?? 1));
+  const pageSize = filters.exportAll
+    ? Number.MAX_SAFE_INTEGER
+    : Math.min(150, Math.max(25, Math.floor(filters.pageSize ?? OFFICE_WORKBOOK_PAGE_SIZE)));
+  const offset = (page - 1) * pageSize;
+
+  return { page, pageSize, offset };
+}
+
+function buildKnownTotalPagination(totalRows: number, page: number, pageSize: number, visibleCount: number): OfficeWorkbookPagination {
+  const visibleStart = totalRows === 0 ? 0 : (page - 1) * pageSize + 1;
+  const visibleEnd = totalRows === 0 ? 0 : visibleStart + visibleCount - 1;
+
+  return {
+    page,
+    pageSize,
+    totalRows,
+    visibleStart,
+    visibleEnd,
+    hasPreviousPage: page > 1,
+    hasNextPage: visibleEnd < totalRows,
+  };
+}
+
+function buildFetchedPage<T>(rows: T[], page: number, pageSize: number) {
+  const visibleRows = rows.slice(0, pageSize);
+  const visibleStart = visibleRows.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const visibleEnd = visibleRows.length === 0 ? 0 : visibleStart + visibleRows.length - 1;
+
+  return {
+    rows: visibleRows,
+    pagination: {
+      page,
+      pageSize,
+      totalRows: null,
+      visibleStart,
+      visibleEnd,
+      hasPreviousPage: page > 1,
+      hasNextPage: rows.length > pageSize,
+    } satisfies OfficeWorkbookPagination,
+  };
+}
+
+export async function getOfficeWorkbookData(
+  filters: OfficeWorkbookFilters,
+): Promise<OfficeWorkbookData> {
+  const paginationInput = normalizePagination(filters);
+
+  // Class options and the segment scope are independent of each other, so they
+  // overlap. Class options used to be awaited alone on the line above, which
+  // put a blocking round trip in front of EVERY filter request — including each
+  // keystroke in the search box — to fetch a 38-row list that only changes when
+  // the session does.
+  //
+  // Segments resolve to a student-id scope once, then apply to every view --
+  // including the receipt views, where they mean "receipts belonging to these
+  // students" rather than a property of the receipt itself.
+  const [classOptions, segmentStudentIds] = await Promise.all([
+    getWorkbookClassOptions(filters.sessionLabel || undefined),
+    filters.segments && filters.segments.length > 0
+      ? getStudentDirectoryIds(
+          {
+            sessionLabel: filters.sessionLabel,
+            classId: filters.classId || undefined,
+            transportRouteId: filters.routeId || undefined,
+            segments: filters.segments,
+          },
+          { page: 1, pageSize: 5000 },
+        ).then((result) => result.studentIds)
+      : Promise.resolve(null),
+  ]);
+
+  const sharedFilters = {
+    classId: filters.classId || undefined,
+    fromDate: filters.fromDate || undefined,
+    limit: filters.exportAll ? null : paginationInput.pageSize + 1,
+    offset: filters.exportAll ? undefined : paginationInput.offset,
+    paymentMode: filters.paymentMode || undefined,
+    query: filters.searchQuery || undefined,
+    routeId: filters.routeId || undefined,
+    sessionLabel: filters.sessionLabel || undefined,
+    studentIds: segmentStudentIds,
+    toDate: filters.toDate || undefined,
+    skipFinancials: filters.skipFinancials,
+  };
+
+  switch (filters.view) {
+    case "transactions":
+    case "receipts": {
+      const page = buildFetchedPage(
+        await getWorkbookTransactions(sharedFilters),
+        paginationInput.page,
+        paginationInput.pageSize,
+      );
+      return {
+        view: filters.view,
+        classOptions,
+        rows: page.rows,
+        pagination: page.pagination,
+      };
+    }
+    case "collection_today":
+      return {
+        view: filters.view,
+        classOptions,
+        rows: buildCollectionRows(
+          await getWorkbookTransactions({
+            ...sharedFilters,
+            todayOnly: true,
+          }),
+        ),
+      };
+    case "installments":
+    case "student_dues":
+    case "class_register":
+    case "defaulters": {
+      // No limit/offset on the student fetch. These four views filter and
+      // count in memory below (dues > 0, overdue, the route and search pass),
+      // so a DB window here was windowing the WRONG set and then being
+      // windowed again: on page 2 the database returned rows 100-200 and the
+      // slice below took elements 100-200 OF THOSE, yielding a single row,
+      // while totalRows reported 101. At roughly 540 students a session the
+      // full fetch is the cheaper correctness.
+      const unpagedFilters = { ...sharedFilters, limit: null, offset: undefined };
+      const [students, transactions] = await Promise.all([
+        getWorkbookStudentFinancials({
+          ...unpagedFilters,
+          onlyOverdue: filters.view === "defaulters",
+        }),
+        getWorkbookTransactions(sharedFilters),
+      ]);
+      const baseStudents =
+        filters.view === "class_register" || filters.view === "student_dues"
+          ? await getBaseOfficeStudents(filters, segmentStudentIds)
+          : [];
+      const generatedStudentIds = new Set(students.map((row) => row.studentId));
+      const sourceAwareStudents = [
+        ...students,
+        ...baseStudents.filter((row) => !generatedStudentIds.has(row.studentId)),
+      ];
+      const filteredRows =
+        filters.view === "defaulters"
+          ? students.filter((row) => row.statusLabel === "OVERDUE")
+          : filters.view === "student_dues"
+            ? // Everything the family still owes, not fees alone. On
+              // `outstandingAmount` a student clear of fees but carrying a late
+              // fee vanished from the dues view and the class-wise-dues export
+              // entirely — their money was missing from the rows AND from the
+              // class subtotals, so the sheet under-reported what was
+              // collectable. This is a DUES list; the defaulter list is the
+              // branch above, filtered on OVERDUE, and stays fees-only because
+              // a late fee never makes anyone a defaulter.
+              sourceAwareStudents.filter((row) => row.totalOwedAmount > 0)
+            : sourceAwareStudents;
+      const visibleRows = filterStudentRows(filteredRows, filters);
+      const pageRows = filters.exportAll
+        ? visibleRows
+        : visibleRows.slice(paginationInput.offset, paginationInput.offset + paginationInput.pageSize);
+
+      return {
+        view: filters.view,
+        classOptions,
+        rows: toStudentRows(pageRows, transactions, generatedStudentIds),
+        summary: buildSummary(visibleRows),
+        pagination: buildKnownTotalPagination(
+          visibleRows.length,
+          paginationInput.page,
+          paginationInput.pageSize,
+          pageRows.length,
+        ),
+      };
+    }
+    case "import_issues": {
+      const reportData = await getReportsPageData(
+        normalizeReportFilters({
+          report: "import-verification",
+          classId: filters.classId,
+          sessionLabel: filters.sessionLabel,
+        }),
+      );
+
+      return {
+        view: filters.view,
+        classOptions,
+        rows:
+          reportData.report.key === "import-verification"
+            ? reportData.report.detailRows.filter(
+                (row) =>
+                  row.errors.length > 0 ||
+                  row.warnings.length > 0 ||
+                  row.status !== "imported",
+              )
+            : [],
+      };
+    }
+    case "exports":
+      return {
+        view: filters.view,
+        classOptions,
+      };
+    default: {
+      const page = buildFetchedPage(
+        await getWorkbookTransactions(sharedFilters),
+        paginationInput.page,
+        paginationInput.pageSize,
+      );
+      return {
+        view: "transactions",
+        classOptions,
+        rows: page.rows,
+        pagination: page.pagination,
+      };
+    }
+  }
+}

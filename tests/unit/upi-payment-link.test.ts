@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   SCHOOL_UPI_PAYMENT_CONFIG,
   buildStudentFeeUpiPayment,
-} from "@/lib/payments/upi";
+} from "@/modules/payments/domain/upi";
 
 describe("buildStudentFeeUpiPayment", () => {
   it("builds a school UPI intent with exact rupee amount and admission reference", () => {

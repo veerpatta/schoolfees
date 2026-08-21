@@ -14,11 +14,11 @@ vi.mock("next/server", () => ({
   after,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
 }));
 
-vi.mock("@/lib/system-sync/finance-revalidation", () => ({
+vi.mock("@/modules/system-sync/domain/finance-revalidation", () => ({
   revalidateSessionFinance,
 }));
 
@@ -28,7 +28,7 @@ describe("dashboard auto-prepare", () => {
   });
 
   it("schedules background dues prep for write staff when installment rows are missing", async () => {
-    const { scheduleDashboardAutoPrepare } = await import("@/lib/dashboard/data");
+    const { scheduleDashboardAutoPrepare } = await import("@/modules/dashboard/data/queries");
 
     scheduleDashboardAutoPrepare({
       canAutoPrepareDues: true,
@@ -66,7 +66,7 @@ describe("dashboard auto-prepare", () => {
   });
 
   it("does not schedule auto-prepare without fee write access", async () => {
-    const { scheduleDashboardAutoPrepare } = await import("@/lib/dashboard/data");
+    const { scheduleDashboardAutoPrepare } = await import("@/modules/dashboard/data/queries");
 
     scheduleDashboardAutoPrepare({
       canAutoPrepareDues: false,

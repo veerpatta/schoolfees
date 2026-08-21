@@ -5,13 +5,13 @@ import { describe, expect, it } from "vitest";
 
 describe("payment posting revalidates affected paths (audit 1.8)", () => {
   const actions = readFileSync(
-    join(process.cwd(), "app/protected/payments/actions.ts"),
+    join(process.cwd(), "src/app/protected/payments/actions.ts"),
     "utf8",
   );
 
   it("submitPaymentEntryAction imports revalidateAfterPaymentPosting", () => {
     expect(actions).toContain('import { revalidateAfterPaymentPosting }');
-    expect(actions).toContain('@/lib/system-sync/finance-revalidation');
+    expect(actions).toContain('@/modules/system-sync/domain/finance-revalidation');
   });
 
   it("the post-payment branch calls both revalidateSessionFinance and revalidateAfterPaymentPosting", () => {
@@ -23,7 +23,7 @@ describe("payment posting revalidates affected paths (audit 1.8)", () => {
 
   it("PAYMENT_AFFECTED_PATHS still lists Dashboard/Transactions/Receipts/Defaulters", () => {
     const helper = readFileSync(
-      join(process.cwd(), "lib/system-sync/finance-revalidation.ts"),
+      join(process.cwd(), "src/modules/system-sync/domain/finance-revalidation.ts"),
       "utf8",
     );
     expect(helper).toContain('"/protected/dashboard"');

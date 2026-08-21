@@ -5,8 +5,8 @@ import {
   buildWeekdayAverages,
   computePaceToYearEnd,
   summariseDailySeries,
-} from "@/lib/dashboard/mobile-derived";
-import type { DashboardInstallmentSummaryRow } from "@/lib/dashboard/summary";
+} from "@/modules/dashboard/domain/mobile-derived";
+import type { DashboardInstallmentSummaryRow } from "@/modules/dashboard/domain/summary";
 
 function installment(
   installmentNo: number,

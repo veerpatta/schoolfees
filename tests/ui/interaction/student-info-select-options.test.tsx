@@ -2,8 +2,8 @@ import { NextIntlClientProvider } from "next-intl";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { StudentInfoGroupInputs } from "@/components/students/student-info-inputs";
-import { HOUSE_OPTIONS } from "@/lib/students/info-fields";
+import { StudentInfoGroupInputs } from "@/modules/students/ui/student-info-inputs";
+import { HOUSE_OPTIONS } from "@/modules/students/domain/info-fields";
 import messages from "@/messages/en.json";
 
 /**

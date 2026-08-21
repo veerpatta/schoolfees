@@ -1,10 +1,8 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
-import { STUDENT_SEGMENTS } from "@/lib/segments/student-segments";
-import { buildTransportRouteLabel, hasTransport } from "@/lib/transport/label";
+import { STUDENT_SEGMENTS } from "@/modules/students/domain/student-segments";
+import { buildTransportRouteLabel, hasTransport } from "@/modules/fees/domain/label";
+import { readExportSurface } from "../helpers/export-surface";
 
 /**
  * The AI context bundle is the one export whose job is to be COMPLETE — it is
@@ -17,10 +15,7 @@ import { buildTransportRouteLabel, hasTransport } from "@/lib/transport/label";
  * name instead of the money.
  */
 
-const route = readFileSync(
-  join(process.cwd(), "app/protected/exports/[exportType]/route.ts"),
-  "utf8",
-);
+const route = readExportSurface();
 
 const EXPECTED_SHEETS = [
   "_README",

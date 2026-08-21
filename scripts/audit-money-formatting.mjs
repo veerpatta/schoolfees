@@ -16,17 +16,31 @@
  * fail this script. Use formatInr() / <Money /> instead.
  */
 
+import { existsSync, readdirSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 const ROOT = process.cwd();
-const SCAN_DIRS = ["app", "components"];
+// The UI half of the tree: routes, the design system, and each module's own
+// ui/ folder. Module domain/ and data/, src/platform and workers/ are
+// deliberately NOT here — tests/scan/checks/money.mjs runs these same four
+// patterns over those, and a line reported by both tools is two failure
+// messages for one problem and two places to add the same exception.
+//
+// The module ui/ folders are discovered rather than listed, so a module
+// added tomorrow is covered without anybody editing this line.
+const MODULES_ROOT = path.join(ROOT, "src", "modules");
+const moduleUiDirs = existsSync(MODULES_ROOT)
+  ? readdirSync(MODULES_ROOT)
+      .map((name) => `src/modules/${name}/ui`)
+      .filter((rel) => existsSync(path.join(ROOT, rel)))
+  : [];
+const SCAN_DIRS = ["src/app", "src/ui", ...moduleUiDirs];
 
 const ALLOWLIST = new Set([
-  path.normalize("components/ui/money.tsx"),
-  path.normalize("components/ui/money-breakdown.tsx"),
-  path.normalize("components/ui/money-with-definition.tsx"),
-  path.normalize("components/ui/money-glossary.tsx"),
+  path.normalize("src/ui/primitives/money.tsx"),
+  path.normalize("src/ui/primitives/money-with-definition.tsx"),
+  path.normalize("src/ui/primitives/money-glossary.tsx"),
 ]);
 
 const RULES = [

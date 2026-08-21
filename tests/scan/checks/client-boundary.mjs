@@ -10,14 +10,14 @@
  * difference is the whole difficulty of this check. It closes over *every*
  * import edge, and two kinds of edge do not put code in a bundle:
  *
- *   1. **`import type`.** `components/staff/password-change-form.tsx` does
- *      `import type { StaffFormActionState } from "@/lib/staff-management/data"`.
+ *   1. **`import type`.** `src/modules/staff/ui/password-change-form.tsx` does
+ *      `import type { StaffFormActionState } from "@/modules/staff/data/queries"`.
  *      TypeScript erases that. The raw closure follows it, walks into
- *      `lib/staff-management/data.ts`, and lands on `createAdminClient()`.
+ *      `src/modules/staff/data/queries.ts`, and lands on `createAdminClient()`.
  *   2. **The `"use server"` boundary.** A client component that imports
- *      `app/protected/payments/actions.ts` does not get that module's code; it
+ *      `src/app/protected/payments/actions.ts` does not get that module's code; it
  *      gets a server reference that Next.js turns into a POST. Following that
- *      edge drags `lib/fees/policy.ts`, `lib/students/data.ts` and most of the
+ *      edge drags `src/modules/fees/data/policy.ts`, `src/modules/students/data/queries.ts` and most of the
  *      data layer into the "client" set.
  *
  * Run raw, `scan.service-role-client-reachable` reports nine modules, all of
@@ -47,25 +47,25 @@ export const title = "Server secrets and the client bundle";
 /**
  * The definition site, which is not the leak.
  *
- * `lib/supabase/admin.ts` exists to hold the service-role key; naming
+ * `src/platform/supabase/admin.ts` exists to hold the service-role key; naming
  * `SUPABASE_SERVICE_ROLE_KEY` is its entire job. If it ever became
  * client-reachable that would be caught — by `scan.server-client-boundary`,
  * because it carries `import "server-only"`, and reported against the module
  * that imported it, which is the file somebody would have to change.
  */
-const SERVICE_ROLE_DEFINITION = "lib/supabase/admin.ts";
+const SERVICE_ROLE_DEFINITION = "src/platform/supabase/admin.ts";
 
 /**
  * Modules that are server-side by construction, whether or not they say so.
  *
- * `lib/supabase/server.ts` reads `next/headers`; `lib/supabase/session.ts` and
- * `lib/supabase/admin.ts` both carry `import "server-only"` and are listed
+ * `src/platform/supabase/server.ts` reads `next/headers`; `src/platform/supabase/session.ts` and
+ * `src/platform/supabase/admin.ts` both carry `import "server-only"` and are listed
  * anyway so the rule keeps working if that import is ever dropped.
  */
 const NAMED_SERVER_MODULES = new Set([
-  "lib/supabase/server.ts",
-  "lib/supabase/session.ts",
-  "lib/supabase/admin.ts",
+  "src/platform/supabase/server.ts",
+  "src/platform/supabase/session.ts",
+  "src/platform/supabase/admin.ts",
 ]);
 
 /**
@@ -295,7 +295,7 @@ export async function run({ project, sink, coverage }) {
 
   const { names: secretNames, sourced } = secretNamesFrom(project.root);
   // A file reported for the service-role client is not reported a second time
-  // for naming the same key — and `lib/supabase/admin.ts` is never reported for
+  // for naming the same key — and `src/platform/supabase/admin.ts` is never reported for
   // naming it at all. If that module is ever in the bundle, the finding that
   // matters is against whoever imported it, which is the file somebody edits.
   const alreadyReported = new Set([`${SERVICE_ROLE_DEFINITION}|SUPABASE_SERVICE_ROLE_KEY`]);

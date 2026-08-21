@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
-import { composeMorningBrief, type MorningBriefTranslator } from "@/lib/dashboard/morning-brief";
+import { composeMorningBrief, type MorningBriefTranslator } from "@/modules/dashboard/domain/morning-brief";
 
 const ZERO_KPIS = {
   totalStudents: 0,
@@ -18,7 +18,7 @@ const ZERO_KPIS = {
 } as const;
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 const t = createTranslator({

@@ -8,7 +8,7 @@ import { registerDimension } from "../lib/coverage";
  *
  * A hand-maintained route list is the thing that silently shrinks coverage: the
  * app grows a page, nobody adds it here, and the report still says "every
- * protected route". Globbing `app/protected/**` + "/page.tsx" means a new page is
+ * protected route". Globbing `src/app/protected/**` + "/page.tsx" means a new page is
  * either covered or — if it needs a dynamic id the harness cannot invent — it
  * shows up by name in the ledger's `notVisited` list.
  *
@@ -17,7 +17,7 @@ import { registerDimension } from "../lib/coverage";
  * neither of which has a `page.tsx`, and counted both as covered routes.
  */
 
-const APP_ROOT = path.resolve(process.cwd(), "app");
+const APP_ROOT = path.resolve(process.cwd(), "src/app");
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[];
@@ -35,7 +35,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** `app/protected/students/[studentId]/page.tsx` -> `/protected/students/[studentId]` */
+/** `src/app/protected/students/[studentId]/page.tsx` -> `/protected/students/[studentId]` */
 function toRoutePath(file: string): string {
   const relative = path.relative(APP_ROOT, path.dirname(file)).split(path.sep).join("/");
   const withoutGroups = relative
@@ -49,7 +49,7 @@ const allFiles = walk(APP_ROOT);
 
 export const DYNAMIC_SEGMENT = /\[[^\]]+\]/;
 
-/** Every page under `app/protected`, dynamic ones included. */
+/** Every page under `src/app/protected`, dynamic ones included. */
 export const ALL_PROTECTED_PAGES: readonly string[] = [
   ...new Set(
     allFiles

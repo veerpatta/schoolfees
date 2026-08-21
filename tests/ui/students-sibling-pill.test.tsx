@@ -5,11 +5,11 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { StudentListTable } from "@/components/students/student-list-table";
-import type { StudentListItem } from "@/lib/students/types";
+import { StudentListTable } from "@/modules/students/ui/student-list-table";
+import type { StudentListItem } from "@/modules/students/domain/types";
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 function renderWithIntl(children: React.ReactElement) {

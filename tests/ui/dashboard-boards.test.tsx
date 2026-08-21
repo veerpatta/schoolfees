@@ -11,10 +11,10 @@ import {
   DiscountsBoard,
   LateFeeBoard,
   RecoveryBoard,
-} from "@/components/dashboard/boards";
-import { MoneyBand } from "@/components/dashboard/money-band";
-import { StatTile } from "@/components/dashboard/tiles";
-import type { DashboardAnalytics } from "@/lib/dashboard/analytics";
+} from "@/modules/dashboard/ui/boards";
+import { MoneyBand } from "@/modules/dashboard/ui/money-band";
+import { StatTile } from "@/modules/dashboard/ui/tiles";
+import type { DashboardAnalytics } from "@/modules/dashboard/data/analytics";
 
 /**
  * The boards render from the shape get_dashboard_analytics actually returns.
@@ -293,11 +293,11 @@ describe("dashboard boards", () => {
 
   it("switching boards does not throw the page to the top", () => {
     const switcher = readFileSync(
-      join(process.cwd(), "components/dashboard/view-switcher.tsx"),
+      join(process.cwd(), "src/modules/dashboard/ui/view-switcher.tsx"),
       "utf8",
     );
     const page = readFileSync(
-      join(process.cwd(), "app/protected/dashboard/page.tsx"),
+      join(process.cwd(), "src/app/protected/dashboard/page.tsx"),
       "utf8",
     );
 

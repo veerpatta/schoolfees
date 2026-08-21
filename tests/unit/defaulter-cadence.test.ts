@@ -5,12 +5,12 @@ import {
   snoozeIso,
   tallyCadence,
   type DefaulterContactSummary,
-} from "@/lib/defaulters/cadence";
+} from "@/modules/defaulters/domain/cadence";
 import {
   appendPaymentBlockIfMissing,
   composeDefaulterDraft,
   DEFAULT_WHATSAPP_TEMPLATE,
-} from "@/lib/defaulters/whatsapp-template";
+} from "@/modules/defaulters/domain/whatsapp-template";
 
 const TODAY = new Date(Date.UTC(2026, 4, 24, 12, 0)); // 2026-05-24 noon UTC
 

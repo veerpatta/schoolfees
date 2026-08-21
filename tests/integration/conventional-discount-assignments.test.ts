@@ -9,10 +9,10 @@ const supabaseState = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: supabaseState.createClient,
 }));
-vi.mock("@/lib/supabase/admin", () => ({
+vi.mock("@/platform/supabase/admin", () => ({
   createAdminClient: supabaseState.createAdminClient,
 }));
 
@@ -93,7 +93,7 @@ describe("getStudentConventionalDiscountAssignments", () => {
   });
 
   it("returns an empty list without querying when the provided student list is empty", async () => {
-    const { getStudentConventionalDiscountAssignments } = await import("@/lib/fees/conventional-discounts");
+    const { getStudentConventionalDiscountAssignments } = await import("@/modules/fees/data/conventional-discounts");
 
     await expect(
       getStudentConventionalDiscountAssignments({
@@ -108,7 +108,7 @@ describe("getStudentConventionalDiscountAssignments", () => {
 
   it("returns an empty list when no assignments exist for the requested students", async () => {
     supabaseState.responses = [{ data: [], error: null }];
-    const { getStudentConventionalDiscountAssignments } = await import("@/lib/fees/conventional-discounts");
+    const { getStudentConventionalDiscountAssignments } = await import("@/modules/fees/data/conventional-discounts");
 
     await expect(
       getStudentConventionalDiscountAssignments({
@@ -127,7 +127,7 @@ describe("getStudentConventionalDiscountAssignments", () => {
       { data: [assignmentRow("student-101")], error: null },
       { data: [], error: null },
     ];
-    const { getStudentConventionalDiscountAssignments } = await import("@/lib/fees/conventional-discounts");
+    const { getStudentConventionalDiscountAssignments } = await import("@/modules/fees/data/conventional-discounts");
 
     const assignments = await getStudentConventionalDiscountAssignments({
       academicSessionLabel: "2026-27",
@@ -149,7 +149,7 @@ describe("getStudentConventionalDiscountAssignments", () => {
         },
       },
     ];
-    const { getStudentConventionalDiscountAssignments } = await import("@/lib/fees/conventional-discounts");
+    const { getStudentConventionalDiscountAssignments } = await import("@/modules/fees/data/conventional-discounts");
 
     await expect(
       getStudentConventionalDiscountAssignments({
@@ -166,7 +166,7 @@ describe("getStudentConventionalDiscountAssignments", () => {
 
   it("still throws non-recoverable assignment read errors", async () => {
     supabaseState.responses = [{ data: null, error: { message: "permission denied", code: "42501" } }];
-    const { getStudentConventionalDiscountAssignments } = await import("@/lib/fees/conventional-discounts");
+    const { getStudentConventionalDiscountAssignments } = await import("@/modules/fees/data/conventional-discounts");
 
     await expect(
       getStudentConventionalDiscountAssignments({

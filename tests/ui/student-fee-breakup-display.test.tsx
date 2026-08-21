@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentProps } from "react";
 import { describe, expect, it } from "vitest";
 
-import { MasterStatementDocument } from "@/components/students/master-statement-document";
+import { MasterStatementDocument } from "@/modules/students/ui/master-statement-document";
 
 type MasterStatementProps = ComponentProps<typeof MasterStatementDocument>;
 

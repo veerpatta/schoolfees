@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { sanitizeDecimalInput } from "@/lib/payments/payment-desk-client-helpers";
+import { sanitizeDecimalInput } from "@/modules/payments/domain/payment-desk-client-helpers";
 
 /**
  * Every character typed into the mobile amount field passes through here.

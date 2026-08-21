@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { callWindowForHour, pickBestCallWindow } from "@/lib/defaulters/cadence";
+import { callWindowForHour, pickBestCallWindow } from "@/modules/defaulters/domain/cadence";
 
 describe("callWindowForHour", () => {
   it("buckets hours into the right band", () => {

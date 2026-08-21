@@ -26,7 +26,7 @@ non-cancelled installments and `next_due` / Payment Desk allocation sort by
 
 ## Why it's safe under Fee Setup regeneration
 
-`lib/fees/generator.ts` and `lib/fees/regeneration.ts` skip any row with
+`src/modules/fees/data/generator.ts` and `src/modules/fees/data/regeneration.ts` skip any row with
 `is_carry_forward = true` in their "extra installment" (`installment_no >
 installmentCount`) cancel sweep, so publishing/regenerating Fee Setup never
 cancels or rewrites the carry-forward line. Proven by

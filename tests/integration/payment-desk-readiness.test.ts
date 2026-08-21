@@ -8,11 +8,11 @@ vi.mock("server-only", () => ({}));
 const createClient = vi.fn();
 const getFeePolicyForSession = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicyForSession,
   getFeePolicySummary: vi.fn(),
 }));
@@ -53,7 +53,7 @@ describe("payment desk readiness", () => {
   });
 
   it("payment_desk_renders_when_conventional_discounts_fetch_fails", async () => {
-    const { getPaymentDeskReadiness } = await import("@/lib/payments/data");
+    const { getPaymentDeskReadiness } = await import("@/modules/payments/data/queries");
 
     const readiness = await getPaymentDeskReadiness({
       sessionLabel: "TEST-2026-27",
@@ -76,7 +76,7 @@ describe("payment desk readiness", () => {
     createClient.mockResolvedValue({
       from: vi.fn(() => makeClassesQuery({ throwError: new Error("fetch failed") })),
     });
-    const { getPaymentDeskReadiness } = await import("@/lib/payments/data");
+    const { getPaymentDeskReadiness } = await import("@/modules/payments/data/queries");
 
     const readiness = await getPaymentDeskReadiness({
       sessionLabel: "TEST-2026-27",
@@ -97,7 +97,7 @@ describe("payment desk readiness", () => {
       id: null,
       academicSessionLabel: "TEST-2026-27",
     });
-    const { getPaymentDeskReadiness } = await import("@/lib/payments/data");
+    const { getPaymentDeskReadiness } = await import("@/modules/payments/data/queries");
 
     const readiness = await getPaymentDeskReadiness({
       sessionLabel: "TEST-2026-27",
@@ -113,7 +113,7 @@ describe("payment desk readiness", () => {
     createClient.mockResolvedValue({
       from: vi.fn(() => makeClassesQuery({ data: [] })),
     });
-    const { getPaymentDeskReadiness } = await import("@/lib/payments/data");
+    const { getPaymentDeskReadiness } = await import("@/modules/payments/data/queries");
 
     const readiness = await getPaymentDeskReadiness({
       sessionLabel: "TEST-2026-27",
@@ -126,7 +126,7 @@ describe("payment desk readiness", () => {
   });
 
   it("payment_desk_readiness_reports_read_only_for_non_writers", async () => {
-    const { getPaymentDeskReadiness } = await import("@/lib/payments/data");
+    const { getPaymentDeskReadiness } = await import("@/modules/payments/data/queries");
 
     const readiness = await getPaymentDeskReadiness({
       sessionLabel: "TEST-2026-27",
@@ -141,11 +141,11 @@ describe("payment desk readiness", () => {
 
   it("payment_desk_page_no_longer_imports_setup_wizard_data", () => {
     const page = readFileSync(
-      join(process.cwd(), "app/protected/payments/page.tsx"),
+      join(process.cwd(), "src/app/protected/payments/page.tsx"),
       "utf8",
     );
 
     expect(page).not.toContain("getSetupWizardData");
-    expect(page).not.toContain('from "@/lib/setup/data"');
+    expect(page).not.toContain('from "@/modules/fees/data/setup-queries"');
   });
 });

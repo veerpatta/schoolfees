@@ -1,0 +1,82 @@
+import { PageHeader } from "@/ui/shell/page-header";
+import { StatusBadge } from "@/ui/shell/status-badge";
+import { MoneyGlossaryLink } from "@/ui/primitives/money-glossary";
+import { LedgerClient } from "@/modules/reports/ui/ledger-client";
+import { getLedgerPageData } from "@/modules/reports/data/ledger-queries";
+import { getViewSessionCookie } from "@/platform/session/cookie";
+import { resolveViewSession } from "@/platform/session/resolver";
+import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
+
+import { submitLedgerAdjustmentAction } from "./actions";
+
+type LedgerPageProps = {
+  searchParams?: Promise<{
+    query?: string;
+    studentId?: string;
+    entryQuery?: string;
+    entryFilter?: string;
+    session?: string | string[];
+  }>;
+};
+
+function asString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[value.length - 1] ?? "";
+  return value ?? "";
+}
+
+function normalizeStudentId(rawValue: string | undefined) {
+  const value = (rawValue ?? "").trim();
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  return uuidPattern.test(value) ? value : null;
+}
+
+export default async function LedgerPage({ searchParams }: LedgerPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const searchQuery = (resolvedSearchParams?.query ?? "").trim();
+  const entryQuery = (resolvedSearchParams?.entryQuery ?? "").trim();
+  const studentId = normalizeStudentId(resolvedSearchParams?.studentId);
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolvedSearchParams?.session),
+    cookieSession: await getViewSessionCookie(),
+  });
+
+  const [staff, data] = await Promise.all([
+    requireStaffPermission("ledger:view", { onDenied: "redirect" }),
+    getLedgerPageData({
+      searchQuery,
+      studentId,
+      entryQuery,
+      entryFilter: resolvedSearchParams?.entryFilter,
+      sessionLabel: viewSession.sessionLabel,
+    }),
+  ]);
+
+  const canAddAdjustments = hasStaffPermission(staff, "payments:adjust");
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Ledger"
+        title="Student ledger and adjustments"
+        description="Review chronological payment history per student, keep newest entries visible first, and post linked adjustments without editing original payment rows."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge
+              label={canAddAdjustments ? "Adjustment access" : "View-only access"}
+              tone={canAddAdjustments ? "good" : "warning"}
+            />
+            <MoneyGlossaryLink />
+          </div>
+        }
+      />
+
+      <LedgerClient
+        data={data}
+        canAddAdjustments={canAddAdjustments}
+        submitLedgerAdjustmentAction={submitLedgerAdjustmentAction}
+      />
+    </div>
+  );
+}

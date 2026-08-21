@@ -3,22 +3,22 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { buildRepaymentPlanQuickAmounts } from "@/lib/payments/workflow";
-import { suggestRepaymentPlanAmount } from "@/lib/repayment-plans/data";
+import { buildRepaymentPlanQuickAmounts } from "@/modules/payments/domain/workflow";
+import { suggestRepaymentPlanAmount } from "@/modules/repayment-plans/data/queries";
 import {
   resolvePlanAwareOverdue,
   splitPaymentAcrossPlan,
-} from "@/lib/repayment-plans/defaulter-view";
+} from "@/modules/repayment-plans/domain/defaulter-view";
 import {
   getDuesOutsidePlan,
   isRepaymentPlanScope,
   REPAYMENT_PLAN_SCOPE_LABELS,
   REPAYMENT_PLAN_SCOPES,
-} from "@/lib/repayment-plans/types";
+} from "@/modules/repayment-plans/domain/types";
 import type {
   RepaymentPlanCollectionContext,
   RepaymentPlanSummary,
-} from "@/lib/repayment-plans/types";
+} from "@/modules/repayment-plans/domain/types";
 
 function planContext(
   overrides: Partial<RepaymentPlanCollectionContext> = {},
@@ -132,9 +132,9 @@ describe("repayment plan scopes", () => {
 });
 
 describe("surfaces warn about dues outside a plan only when there are some", () => {
-  const BANNER = join(process.cwd(), "components/payments/payment-desk-emi-banner.tsx");
-  const CARD = join(process.cwd(), "components/students/student-repayment-plan-card.tsx");
-  const PICKER = join(process.cwd(), "components/students/student-repayment-plan-section.tsx");
+  const BANNER = join(process.cwd(), "src/modules/payments/ui/payment-desk-emi-banner.tsx");
+  const CARD = join(process.cwd(), "src/modules/students/ui/student-repayment-plan-card.tsx");
+  const PICKER = join(process.cwd(), "src/modules/students/ui/student-repayment-plan-section.tsx");
 
   it("gates the Payment Desk banner on the amount", () => {
     const source = readFileSync(BANNER, "utf8");

@@ -17,8 +17,8 @@ function read(path: string) {
  */
 
 describe("receipt detail on a phone", () => {
-  const page = read("app/protected/receipts/[receiptId]/page.tsx");
-  const bar = read("components/receipts/mobile-receipt-action-bar.tsx");
+  const page = read("src/app/protected/receipts/[receiptId]/page.tsx");
+  const bar = read("src/modules/receipts/ui/mobile-receipt-action-bar.tsx");
 
   it("moves the desk action row off the phone", () => {
     expect(page).toContain('className="hidden flex-wrap items-center gap-2 md:flex"');
@@ -57,7 +57,7 @@ describe("receipt detail on a phone", () => {
 });
 
 describe("receipt preview sheet on a phone", () => {
-  const sheet = read("components/receipts/receipt-preview-sheet.tsx");
+  const sheet = read("src/modules/receipts/ui/receipt-preview-sheet.tsx");
 
   it("shows the one-tap send on phones and the template sheet on desk", () => {
     expect(sheet).toContain('className="md:hidden"');
@@ -74,7 +74,7 @@ describe("receipt preview sheet on a phone", () => {
 });
 
 describe("payment success screen", () => {
-  const sheet = read("components/payments/success-receipt-sheet.tsx");
+  const sheet = read("src/modules/payments/ui/success-receipt-sheet.tsx");
 
   it("attaches the receipt on a phone instead of sending bare text", () => {
     expect(sheet).toContain("<ShareReceiptWhatsApp");

@@ -321,7 +321,7 @@ export async function probeUrl(
       `Horizontal overflow on ${ctx.device}: ${url}`,
       "No horizontal scrolling on a phone or tablet.",
       `scrollWidth ${health.scrollWidth}, clientWidth ${health.clientWidth}.`,
-      { shot, suspectedFile: "components/admin/mobile-bottom-nav.tsx" },
+      { shot, suspectedFile: "src/ui/shell/mobile-bottom-nav.tsx" },
     );
   }
 

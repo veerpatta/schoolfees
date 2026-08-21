@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { toWhatsappDestination } from "@/lib/whatsapp/phone";
+import { toWhatsappDestination } from "@/modules/whatsapp/domain/phone";
 import {
   buildReminderParams,
   renderReminderPreview,
   FEE_REMINDER_DEADLINE_LABEL,
   FEE_REMINDER_PARAM_ORDER,
   FEE_REMINDER_TEMPLATE_DEADLINE,
-} from "@/lib/whatsapp/reminder-template";
+} from "@/modules/whatsapp/domain/reminder-template";
 
 /**
  * The two things here that cost real money when they break: the slot count and

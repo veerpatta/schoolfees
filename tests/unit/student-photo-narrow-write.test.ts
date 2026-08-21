@@ -20,11 +20,11 @@ import { describe, expect, it } from "vitest";
  *    office watched succeed and then saw fail.
  */
 const actions = readFileSync(
-  join(process.cwd(), "app/protected/students/actions.ts"),
+  join(process.cwd(), "src/app/protected/students/actions.ts"),
   "utf8",
 );
 
-const data = readFileSync(join(process.cwd(), "lib/students/data.ts"), "utf8");
+const data = readFileSync(join(process.cwd(), "src/modules/students/data/queries.ts"), "utf8");
 
 function photoActionBody() {
   const start = actions.indexOf("export async function updateStudentPhotoAction");

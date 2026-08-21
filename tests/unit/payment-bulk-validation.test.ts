@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PaymentMode } from "@/lib/db/types";
+import type { PaymentMode } from "@/platform/db/types";
 import {
   flagExistingReceiptDuplicates,
   flagIntraFileDuplicates,
@@ -8,8 +8,8 @@ import {
   resolvePaymentModeInput,
   validatePaymentImportRow,
   type PaymentImportStudentLookup,
-} from "@/lib/payments/bulk/validation";
-import type { ValidatedPaymentRow } from "@/lib/payments/bulk/types";
+} from "@/modules/payments/domain/bulk/validation";
+import type { ValidatedPaymentRow } from "@/modules/payments/domain/bulk/types";
 
 const ALLOWED_MODES = new Set<PaymentMode>(["cash", "upi", "bank_transfer", "cheque"]);
 

@@ -5,11 +5,11 @@ vi.mock("server-only", () => ({}));
 const getFeeSetupPageData = vi.fn();
 const createClient = vi.fn();
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeeSetupPageData,
 }));
 
-vi.mock("@/lib/fees/policy", () => ({
+vi.mock("@/modules/fees/data/policy", () => ({
   resolveStudentPolicyBreakdown: vi.fn(() => ({
     lateFeeFlatAmount: 1000,
     breakdown: {
@@ -26,13 +26,13 @@ vi.mock("@/lib/fees/policy", () => ({
   })),
 }));
 
-vi.mock("@/lib/fees/workbook", () => ({
+vi.mock("@/modules/fees/domain/workbook", () => ({
   buildWorkbookInstallmentCharges: vi.fn(() => ({
     installmentCharges: [3000, 3000, 3000, 3000],
   })),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
@@ -111,7 +111,7 @@ describe("ledger generator skip reasons", () => {
       },
     });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
 
     expect(result.installmentsToInsert).toBe(0);
@@ -152,7 +152,7 @@ describe("ledger generator skip reasons", () => {
       },
     });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-2"] });
 
     expect(result.scopedStudents).toBe(0);
@@ -223,7 +223,7 @@ describe("ledger generator skip reasons", () => {
       },
     });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-route"] });
 
     expect(result.installmentsToInsert).toBe(0);

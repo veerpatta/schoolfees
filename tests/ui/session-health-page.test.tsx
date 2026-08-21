@@ -17,7 +17,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next-intl/server", async () => {
   const actual = await vi.importActual<typeof import("next-intl")>("next-intl");
   const messages = JSON.parse(
-    readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+    readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
   );
   return {
     getTranslations: async (namespace: string) =>
@@ -25,19 +25,19 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   getSystemSyncHealth,
 }));
 
-vi.mock("@/components/admin/pending-submit-button", () => ({
+vi.mock("@/ui/shell/pending-submit-button", () => ({
   PendingSubmitButton: ({ idleLabel }: { idleLabel: string }) =>
     React.createElement("button", { type: "submit" }, idleLabel),
 }));
@@ -121,7 +121,7 @@ describe("Session Health page", () => {
       "next-intl",
     );
     const messages = JSON.parse(
-      readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
     );
     const t = createTranslator({
       locale: "en",
@@ -174,7 +174,7 @@ describe("Session Health page", () => {
       "next-intl",
     );
     const messages = JSON.parse(
-      readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
     );
     const t = createTranslator({
       locale: "en",

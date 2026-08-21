@@ -5,8 +5,8 @@ import {
   getPaymentDeskStudentIndexCacheKey,
   readPaymentDeskStudentIndexCache,
   writePaymentDeskStudentIndexCache,
-} from "@/lib/payments/payment-desk-cache";
-import type { PaymentStudentIndexItem } from "@/lib/payments/types";
+} from "@/modules/payments/domain/payment-desk-cache";
+import type { PaymentStudentIndexItem } from "@/modules/payments/domain/types";
 
 function createStorage() {
   const store = new Map<string, string>();

@@ -11,7 +11,7 @@ import { LIVE_SESSION, TEST_SESSION, WRITE_ALLOWED_HOSTS } from "./identity";
  * Three of them are obvious. The fourth is the one that was missing, and it is
  * the reason this module exists rather than an inline `startsWith("TEST-")`:
  *
- * `app/protected/layout.tsx` resolves the active session from the **cookie
+ * `src/app/protected/layout.tsx` resolves the active session from the **cookie
  * only** — App Router layouts get no `searchParams` — while the page itself
  * resolves `?session=` first. So a browser whose cookie says `2026-27` renders
  * a TEST page inside live chrome, and the desk's own `data.sessionLabel` comes
@@ -73,7 +73,7 @@ export async function readSessionCookie(
 }
 
 export async function assertWritable(ctx: WriteContext): Promise<void> {
-  // 1. The subject. Mirrors the `TEST-` shape `lib/students/delete-policy.ts`
+  // 1. The subject. Mirrors the `TEST-` shape `src/modules/students/domain/delete-policy.ts`
   //    uses, so the harness and the app agree on what a test student is.
   const admissionNo = ctx.subject.admissionNo?.toUpperCase() ?? "";
   if (!admissionNo.startsWith("TEST-")) {

@@ -1,0 +1,366 @@
+import type { StaffRole } from "@/platform/auth/roles";
+
+export type ClassStatus = "active" | "inactive" | "archived";
+export type StudentStatus = "active" | "inactive" | "left" | "graduated";
+export type InstallmentStatus = "scheduled" | "waived" | "cancelled";
+export type PaymentMode = "cash" | "upi" | "bank_transfer" | "cheque" | "discount";
+export type FeeCalculationModel = "standard" | "workbook_v1";
+export type AdjustmentType =
+  | "reversal"
+  | "correction"
+  | "discount"
+  | "writeoff";
+export type CollectionCloseStatus = "draft" | "pending_approval" | "closed" | "reopened";
+export type CashDepositStatus = "pending" | "deposited" | "carried_forward" | "not_applicable";
+export type ReconciliationStatus = "pending" | "in_review" | "cleared" | "issue_found";
+export type RefundRequestStatus = "pending_approval" | "approved" | "processed" | "rejected";
+export type CorrectionReviewStatus = "reviewed" | "flagged" | "needs_followup";
+export type AuditAction = "insert" | "update" | "delete";
+export type ImportBatchStatus = "uploaded" | "validated" | "importing" | "completed" | "failed";
+export type ImportRowStatus =
+  | "pending"
+  | "valid"
+  | "invalid"
+  | "duplicate"
+  | "imported"
+  | "skipped";
+export type ConfigChangeBatchStatus =
+  | "preview_ready"
+  | "applied"
+  | "stale"
+  | "failed"
+  | "cancelled";
+
+export type UserRecord = {
+  id: string;
+  fullName: string;
+  role: StaffRole;
+  phone: string | null;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type ClassRecord = {
+  id: string;
+  sessionLabel: string;
+  className: string;
+  section: string | null;
+  streamName: string | null;
+  sortOrder: number;
+  status: ClassStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type TransportRouteRecord = {
+  id: string;
+  routeCode: string | null;
+  routeName: string;
+  defaultInstallmentAmount: number;
+  annualFeeAmount: number | null;
+  isActive: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+/*
+ * `StudentRecord` was removed here.
+ *
+ * It was a hand-maintained mirror of public.students with no importers, and it
+ * had been wrong since `20260525123312` added `email` — it never grew that
+ * column, or `photo_path`, and it would now be missing the 25 information
+ * columns too. A stale type with no consumers is worse than no type: the next
+ * person to reach for it gets a shape the database stopped having months ago.
+ *
+ * The live shapes are `StudentDetail` and `StudentInfoFields`
+ * (`lib/students/types.ts`, `lib/students/info-fields.ts`), which are used, and
+ * therefore checked.
+ */
+
+export type FeeSettingRecord = {
+  id: string;
+  classId: string;
+  annualBaseAmount: number;
+  tuitionFeeAmount: number;
+  transportFeeAmount: number;
+  booksFeeAmount: number;
+  admissionActivityMiscFeeAmount: number;
+  otherFeeHeads: Record<string, number>;
+  lateFeeFlatAmount: number;
+  installmentCount: number;
+  studentTypeDefault: "new" | "existing";
+  transportAppliesDefault: boolean;
+  isActive: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type SchoolFeeDefaultRecord = {
+  id: string;
+  tuitionFeeAmount: number;
+  transportFeeAmount: number;
+  booksFeeAmount: number;
+  admissionActivityMiscFeeAmount: number;
+  otherFeeHeads: Record<string, number>;
+  lateFeeFlatAmount: number;
+  installmentCount: number;
+  installmentDueDates: string[];
+  studentTypeDefault: "new" | "existing";
+  transportAppliesDefault: boolean;
+  isActive: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type FeePolicyConfigRecord = {
+  id: string;
+  academicSessionLabel: string;
+  calculationModel: FeeCalculationModel;
+  installmentSchedule: Array<{
+    label: string;
+    dueDateLabel: string;
+  }>;
+  lateFeeFlatAmount: number;
+  newStudentAcademicFeeAmount: number;
+  oldStudentAcademicFeeAmount: number;
+  customFeeHeads: Array<{
+    id: string;
+    label: string;
+    amount: number;
+    applicationType:
+      | "annual_fixed"
+      | "installment_1_only"
+      | "split_across_installments"
+      | "optional_per_student";
+    isRefundable: boolean;
+    chargeFrequency: "one_time" | "recurring";
+    isMandatory: boolean;
+    includeInWorkbookCalculation: boolean;
+    isActive: boolean;
+    notes: string | null;
+  }>;
+  acceptedPaymentModes: PaymentMode[];
+  receiptPrefix: string;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type StudentFeeOverrideRecord = {
+  id: string;
+  studentId: string;
+  feeSettingId: string;
+  customAnnualBaseAmount: number | null;
+  customTransportInstallmentAmount: number | null;
+  customTuitionFeeAmount: number | null;
+  customTransportFeeAmount: number | null;
+  customBooksFeeAmount: number | null;
+  customAdmissionActivityMiscFeeAmount: number | null;
+  customOtherFeeHeads: Record<string, number> | null;
+  customLateFeeFlatAmount: number | null;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
+  lateFeeWaiverAmount: number;
+  studentTypeOverride: "new" | "existing" | null;
+  transportAppliesOverride: boolean | null;
+  discountAmount: number;
+  reason: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type InstallmentRecord = {
+  id: string;
+  studentId: string;
+  classId: string;
+  feeSettingId: string;
+  studentFeeOverrideId: string | null;
+  installmentNo: number;
+  installmentLabel: string;
+  dueDate: string;
+  baseAmount: number;
+  transportAmount: number;
+  discountAmount: number;
+  amountDue: number;
+  lateFeeFlatAmount: number;
+  status: InstallmentStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type ReceiptRecord = {
+  id: string;
+  receiptNumber: string;
+  studentId: string;
+  paymentDate: string;
+  paymentMode: PaymentMode;
+  totalAmount: number;
+  referenceNumber: string | null;
+  notes: string | null;
+  receivedBy: string | null;
+  createdAt: string;
+  createdBy: string | null;
+};
+
+export type PaymentRecord = {
+  id: string;
+  receiptId: string;
+  studentId: string;
+  installmentId: string;
+  amount: number;
+  notes: string | null;
+  createdAt: string;
+  createdBy: string | null;
+};
+
+export type PaymentAdjustmentRecord = {
+  id: string;
+  paymentId: string;
+  studentId: string;
+  installmentId: string;
+  adjustmentType: AdjustmentType;
+  amountDelta: number;
+  reason: string;
+  notes: string | null;
+  createdAt: string;
+  createdBy: string | null;
+};
+
+export type AuditLogRecord = {
+  id: string;
+  tableName: string;
+  recordId: string;
+  action: AuditAction;
+  beforeData: Record<string, unknown> | null;
+  afterData: Record<string, unknown> | null;
+  changedBy: string | null;
+  createdAt: string;
+};
+
+export type ImportBatchRecord = {
+  id: string;
+  filename: string;
+  sourceFormat: "csv" | "xlsx";
+  worksheetName: string | null;
+  fileSizeBytes: number;
+  status: ImportBatchStatus;
+  detectedHeaders: string[];
+  columnMapping: Record<string, string>;
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  importedRows: number;
+  skippedRows: number;
+  failedRows: number;
+  summary: Record<string, unknown>;
+  validationCompletedAt: string | null;
+  importCompletedAt: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type ImportRowRecord = {
+  id: string;
+  batchId: string;
+  rowIndex: number;
+  rawPayload: Record<string, string | number | boolean | null>;
+  normalizedPayload: Record<string, unknown> | null;
+  status: ImportRowStatus;
+  errors: Array<Record<string, unknown>>;
+  warnings: string[];
+  duplicateStudentId: string | null;
+  importedStudentId: string | null;
+  importedOverrideId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type ConfigChangeBatchRecord = {
+  id: string;
+  changeScope:
+    | "global_policy"
+    | "school_defaults"
+    | "class_defaults"
+    | "transport_defaults"
+    | "student_override";
+  targetRef: string | null;
+  targetLabel: string;
+  status: ConfigChangeBatchStatus;
+  beforePayload: Record<string, unknown>;
+  proposedPayload: Record<string, unknown>;
+  changedFields: Array<Record<string, string>>;
+  previewSummary: Record<string, unknown>;
+  applySummary: Record<string, unknown> | null;
+  applyNotes: string | null;
+  previewedAt: string;
+  appliedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type ConfigChangeBlockedInstallmentRecord = {
+  id: string;
+  batchId: string;
+  studentId: string;
+  installmentId: string;
+  installmentLabel: string;
+  dueDate: string;
+  amountDue: number;
+  paidAmount: number;
+  adjustmentAmount: number;
+  outstandingAmount: number;
+  reasonCode: "fully_paid" | "partially_paid" | "adjustment_posted" | "in_repayment_plan";
+  reasonLabel: string;
+  actionNeeded: "update" | "cancel";
+  reviewStatus: "pending" | "reviewed";
+  reviewNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+export type SetupProgressRecord = {
+  id: string;
+  setupCompletedAt: string | null;
+  completionNotes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};

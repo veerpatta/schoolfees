@@ -2,7 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { TrustBadge } from "@/components/trust/trust-badge";
+import { TrustBadge } from "@/ui/trust/trust-badge";
 
 describe("TrustBadge — SSR contract", () => {
   it("renders the source label", () => {

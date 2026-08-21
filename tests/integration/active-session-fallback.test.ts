@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 
 const createClient = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
@@ -40,7 +40,7 @@ describe("getActiveSessionLabel", () => {
       }),
     });
 
-    const { getActiveSessionLabel } = await import("@/lib/session/active");
+    const { getActiveSessionLabel } = await import("@/platform/session/active");
 
     await expect(getActiveSessionLabel()).resolves.toBe("TEST-2026-27");
     expect(appSettingsQuery.eq).toHaveBeenCalledWith("key", "active_session_label");
@@ -63,7 +63,7 @@ describe("getActiveSessionLabel", () => {
       }),
     });
 
-    const { getActiveSessionLabel } = await import("@/lib/session/active");
+    const { getActiveSessionLabel } = await import("@/platform/session/active");
 
     await expect(getActiveSessionLabel()).resolves.toBe("2026-27");
     expect(policyQuery.eq).toHaveBeenCalledWith("is_active", true);

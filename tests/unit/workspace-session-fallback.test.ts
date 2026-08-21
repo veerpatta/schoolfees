@@ -9,24 +9,24 @@ const getStudentFinancialSnapshot = vi.fn();
 const getLedgerPageData = vi.fn();
 const getWorkbookInstallmentBalances = vi.fn();
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary,
   getStudentFinancialSnapshot: (...args: unknown[]) => getStudentFinancialSnapshot(...args),
 }));
 
-vi.mock("@/lib/ledger/data", () => ({
+vi.mock("@/modules/reports/data/ledger-queries", () => ({
   getLedgerPageData: (...args: unknown[]) => getLedgerPageData(...args),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentDetail: (...args: unknown[]) => getStudentDetail(...args),
 }));
 
-vi.mock("@/lib/workbook/data", () => ({
+vi.mock("@/modules/fees/data/queries", () => ({
   getWorkbookInstallmentBalances: (...args: unknown[]) => getWorkbookInstallmentBalances(...args),
 }));
 
@@ -80,7 +80,7 @@ describe("getFamilyWorkspaceData session fallback", () => {
       }),
     );
 
-    const { getFamilyWorkspaceData } = await import("@/lib/students/workspace");
+    const { getFamilyWorkspaceData } = await import("@/modules/students/data/workspace");
     const result = await getFamilyWorkspaceData("fg-1");
 
     expect(result.familyGroup.academic_session_label).toBe("2028-29");
@@ -96,7 +96,7 @@ describe("getFamilyWorkspaceData session fallback", () => {
       }),
     );
 
-    const { getFamilyWorkspaceData } = await import("@/lib/students/workspace");
+    const { getFamilyWorkspaceData } = await import("@/modules/students/data/workspace");
     const result = await getFamilyWorkspaceData("fg-1");
 
     expect(result.familyGroup.academic_session_label).toBe("2027-28");
@@ -113,7 +113,7 @@ describe("getFamilyWorkspaceData session fallback", () => {
     );
 
     const { getFamilyWorkspaceData, WorkspaceContextError } = await import(
-      "@/lib/students/workspace"
+      "@/modules/students/data/workspace"
     );
 
     await expect(getFamilyWorkspaceData("fg-1")).rejects.toBeInstanceOf(WorkspaceContextError);
@@ -128,7 +128,7 @@ describe("getFamilyWorkspaceData session fallback", () => {
       }),
     );
 
-    const { getFamilyWorkspaceData } = await import("@/lib/students/workspace");
+    const { getFamilyWorkspaceData } = await import("@/modules/students/data/workspace");
     const result = await getFamilyWorkspaceData("fg-1");
 
     expect(result.familyGroup.academic_session_label).not.toBe("2026-27");

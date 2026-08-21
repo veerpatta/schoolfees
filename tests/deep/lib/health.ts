@@ -74,7 +74,7 @@ export async function collectPageHealth(page: Page): Promise<PageHealth> {
       },
     );
 
-    // `components/admin/session-pill.tsx` stamps `vppsTestSession` on the body
+    // `src/ui/shell/session-pill.tsx` stamps `vppsTestSession` on the body
     // for a test session. It is the one hook that is stable across the desktop
     // pill and the mobile one, and it is set from the label actually on screen.
     //

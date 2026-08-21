@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = process.cwd();
-const SEARCH_DIRS = ["app", "components", "lib", "tests"];
+const SEARCH_DIRS = ["src", "tests"];
 const EXTENSIONS = new Set([".ts", ".tsx", ".sql"]);
 
 function walk(dir: string): string[] {

@@ -15,9 +15,9 @@ import {
   heatScore,
   heatLevel,
   type DefaulterContactSummary,
-} from "@/lib/defaulters/cadence";
-import { buildRecoveryDesk } from "@/lib/defaulters/recovery";
-import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
+} from "@/modules/defaulters/domain/cadence";
+import { buildRecoveryDesk } from "@/modules/defaulters/domain/recovery";
+import type { DefaulterSummaryRow } from "@/modules/defaulters/domain/types";
 
 const TODAY_ISO = "2026-05-24";
 const TODAY = new Date("2026-05-24T12:00:00Z");

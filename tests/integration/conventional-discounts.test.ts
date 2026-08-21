@@ -4,12 +4,12 @@ import {
   applyConventionalDiscountsToTuition,
   calculateConventionalPolicyTuition,
   selectThirdChildPolicyRecipient,
-} from "@/lib/fees/conventional-discount-rules";
+} from "@/modules/fees/domain/conventional-discount-rules";
 import type {
   ConventionalDiscountCalculationType,
   ConventionalDiscountPolicy,
   StudentConventionalDiscountAssignment,
-} from "@/lib/fees/types";
+} from "@/modules/fees/domain/types";
 
 function policy(
   code: string,

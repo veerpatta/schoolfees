@@ -14,7 +14,7 @@ Top-level office download center for XLSX files.
 
 ## Current Common Exports
 
-All eleven `exportType` values, from `app/protected/exports/[exportType]/route.ts`:
+All eleven `exportType` values, from `src/modules/exports/data/ai-context-bundle.ts`:
 
 - `all-students`
 - `student-master` — the full student record, including the 25 optional
@@ -54,7 +54,7 @@ contact/promise/no-call context for active defaulters, carry-forward balances
 for previous-year dues, and collectable balances for left/graduated/inactive
 students.
 
-Source: `app/protected/exports/[exportType]/route.ts` (`aiContextBundleResponse`).
+Source: `src/modules/exports/data/ai-context-bundle.ts` (`aiContextBundleResponse`).
 
 ## File Quality Expectations
 

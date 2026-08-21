@@ -8,7 +8,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase/server", () => ({ createClient: state.createClient }));
+vi.mock("@/platform/supabase/server", () => ({ createClient: state.createClient }));
 
 class MockQuery {
   constructor(private table: string) {}
@@ -69,7 +69,7 @@ describe("getPrevYearDuesCollectionRows", () => {
       students: { data: [{ id: "stu-left", status: "left" }] },
     });
 
-    const { getPrevYearDuesCollectionRows } = await import("@/lib/prev-year-dues/data");
+    const { getPrevYearDuesCollectionRows } = await import("@/modules/prev-year-dues/data/queries");
     const rows = await getPrevYearDuesCollectionRows("2026-27");
 
     expect(rows).toHaveLength(1);
@@ -83,7 +83,7 @@ describe("getPrevYearDuesCollectionRows", () => {
   it("returns an empty list when there are no carry-forward balances", async () => {
     seed({ v_student_carry_forward_balances: { data: [] } });
 
-    const { getPrevYearDuesCollectionRows } = await import("@/lib/prev-year-dues/data");
+    const { getPrevYearDuesCollectionRows } = await import("@/modules/prev-year-dues/data/queries");
     await expect(getPrevYearDuesCollectionRows("2026-27")).resolves.toEqual([]);
   });
 });

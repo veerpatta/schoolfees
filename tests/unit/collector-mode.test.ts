@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCollectorSession } from "@/lib/defaulters/collector";
-import type { RecoveryDeskEntry } from "@/lib/defaulters/recovery";
-import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
+import { buildCollectorSession } from "@/modules/defaulters/domain/collector";
+import type { RecoveryDeskEntry } from "@/modules/defaulters/domain/recovery";
+import type { DefaulterSummaryRow } from "@/modules/defaulters/domain/types";
 
 function entry(studentId: string): RecoveryDeskEntry {
   return {

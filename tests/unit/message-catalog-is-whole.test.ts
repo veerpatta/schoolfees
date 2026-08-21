@@ -32,8 +32,8 @@ function readRepoFile(path: string) {
  * to reproduce the failure first.
  */
 describe("client message catalogue", () => {
-  const layout = readRepoFile("app/layout.tsx");
-  const provider = readRepoFile("lib/locale/language-provider.tsx");
+  const layout = readRepoFile("src/app/layout.tsx");
+  const provider = readRepoFile("src/platform/locale/language-provider.tsx");
 
   it("hands the provider a whole locale catalogue, unsliced", () => {
     // The import is the whole file for the active locale...
@@ -52,7 +52,7 @@ describe("client message catalogue", () => {
     // staff member clicks instead of reloading.
     expect(layout).not.toContain("x-vpps-pathname");
     expect(layout).not.toMatch(/headers\(\)/);
-    expect(readRepoFile("lib/supabase/middleware.ts")).not.toContain("x-vpps-pathname");
+    expect(readRepoFile("src/platform/supabase/middleware.ts")).not.toContain("x-vpps-pathname");
   });
 
   it("keeps shipping only the active locale, which is a different saving", () => {

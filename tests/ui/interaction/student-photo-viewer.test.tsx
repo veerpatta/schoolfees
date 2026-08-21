@@ -4,7 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { StudentAvatarButton } from "@/components/students/student-photo-viewer";
+import { StudentAvatarButton } from "@/modules/students/ui/student-photo-viewer";
 
 /**
  * What this file covers, and what it deliberately does not.

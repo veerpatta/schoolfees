@@ -4,7 +4,7 @@ import {
   formatInr,
   formatRupeesParts,
   type FormatInrOptions,
-} from "@/lib/helpers/currency";
+} from "@/platform/helpers/currency";
 import {
   formatDateTimeIst,
   formatMediumDate,
@@ -12,12 +12,12 @@ import {
   formatShortDate,
   formatTimeIst,
   formatTodayBadge,
-} from "@/lib/helpers/date";
+} from "@/platform/helpers/date";
 import {
   MONEY_GLOSSARY,
   MONEY_GLOSSARY_ORDER,
   getMoneyTerm,
-} from "@/lib/money/glossary";
+} from "@/platform/money/glossary";
 
 describe("formatInr", () => {
   it("returns the configured fallback for null/undefined/NaN", () => {

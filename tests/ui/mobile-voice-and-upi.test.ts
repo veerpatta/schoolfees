@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { buildStudentFeeUpiPayment } from "@/lib/payments/upi";
+import { buildStudentFeeUpiPayment } from "@/modules/payments/domain/upi";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
@@ -31,8 +31,8 @@ const readCode = (path: string) =>
  */
 
 describe("voice search", () => {
-  const hook = readCode("hooks/use-voice-search.ts");
-  const button = readCode("components/mobile-app/voice-search-button.tsx");
+  const hook = readCode("src/ui/hooks/use-voice-search.ts");
+  const button = readCode("src/ui/mobile/voice-search-button.tsx");
 
   it("recognises in en-IN whatever the UI language is", () => {
     // Student names and SR numbers are stored in Latin script. Under hi-IN a
@@ -87,28 +87,28 @@ describe("UPI QR", () => {
     // The prototype promised the payment "confirms here automatically". That
     // needs a gateway webhook the school does not have, so the panel must not
     // imply it — the clerk still saves the receipt by hand.
-    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+    const sheet = readCode("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
     const panel = sheet.slice(sheet.indexOf("<UpiQrCode"), sheet.indexOf("<UpiQrCode") + 1200);
     expect(panel).not.toMatch(/auto.?confirm/i);
     expect(panel).toMatch(/collect here/i);
   });
 
   it("renders the QR only once there is an amount and a student", () => {
-    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+    const sheet = readCode("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
     expect(sheet).toContain('paymentMode === "upi" && Number(paymentAmountInput) > 0 && displayAdmNo');
   });
 
   it("keeps qrcode out of the payments route's initial bundle", () => {
     // quality/route-bundle-baseline.json budgets this route in gzip bytes,
     // and payments carries a deliberate reduction target on top.
-    const qr = readCode("components/payments/upi-qr-code.tsx");
+    const qr = readCode("src/modules/payments/ui/upi-qr-code.tsx");
     expect(qr).toContain('import("qrcode")');
     expect(qr).not.toMatch(/^import .*from "qrcode"/m);
   });
 
   it("plates the QR on white so it scans in dark mode", () => {
     // A QR is read by a camera, not a person, so it must not follow the theme.
-    const sheet = readCode("components/payments/mobile-payment-flow-sheet.tsx");
+    const sheet = readCode("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
     const panel = sheet.slice(sheet.indexOf("<UpiQrCode"), sheet.indexOf("<UpiQrCode") + 400);
     expect(panel).toContain("bg-white");
   });

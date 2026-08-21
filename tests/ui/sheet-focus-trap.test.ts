@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("Sheet focus trap (audit 1.16)", () => {
   const source = readFileSync(
-    join(process.cwd(), "components/ui/sheet.tsx"),
+    join(process.cwd(), "src/ui/primitives/sheet.tsx"),
     "utf8",
   );
 

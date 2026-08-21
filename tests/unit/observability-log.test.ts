@@ -21,7 +21,7 @@ describe("observability logger (audit 1.21)", () => {
 
   it("emits warn and error payloads verbatim in development", async () => {
     vi.stubEnv("NODE_ENV", "development");
-    const { logWarn, logError } = await import("@/lib/observability/log");
+    const { logWarn, logError } = await import("@/platform/observability/log");
 
     logWarn("test.warn", { studentId: "s-1", code: "42P01" });
     logError("test.error", { details: "constraint violated", hint: "fix it" });
@@ -38,7 +38,7 @@ describe("observability logger (audit 1.21)", () => {
 
   it("strips Postgres internals (code, details, hint, constraint) in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    const { logError } = await import("@/lib/observability/log");
+    const { logError } = await import("@/platform/observability/log");
 
     logError("test.prod", {
       studentId: "s-1",
@@ -56,7 +56,7 @@ describe("observability logger (audit 1.21)", () => {
 
   it("sanitises Error instances in production to name + message only", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    const { logError } = await import("@/lib/observability/log");
+    const { logError } = await import("@/platform/observability/log");
     const err = new Error("Could not connect to database server");
     (err as unknown as { stack?: string }).stack = "very long internal stack";
 
@@ -70,13 +70,13 @@ describe("observability logger (audit 1.21)", () => {
 
   it("logInfo is silent in production by default and verbose in dev", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    const prod = await import("@/lib/observability/log");
+    const prod = await import("@/platform/observability/log");
     prod.logInfo("test.timing", { ms: 4321 });
     expect(consoleLogSpy).not.toHaveBeenCalled();
 
     vi.resetModules();
     vi.stubEnv("NODE_ENV", "development");
-    const dev = await import("@/lib/observability/log");
+    const dev = await import("@/platform/observability/log");
     dev.logInfo("test.timing", { ms: 4321 });
     expect(consoleLogSpy).toHaveBeenCalledWith("[info] test.timing", { ms: 4321 });
   });
@@ -84,7 +84,7 @@ describe("observability logger (audit 1.21)", () => {
   it("opt-in VPPS_OBSERVABILITY_VERBOSE re-enables logInfo in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("VPPS_OBSERVABILITY_VERBOSE", "1");
-    const { logInfo } = await import("@/lib/observability/log");
+    const { logInfo } = await import("@/platform/observability/log");
     logInfo("opt.in", { foo: 1 });
     expect(consoleLogSpy).toHaveBeenCalledWith("[info] opt.in", { foo: 1 });
   });

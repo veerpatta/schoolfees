@@ -72,7 +72,7 @@ const migration = read(
 describe("reason codes the code emits are storable", () => {
   it("every LockedInstallmentReasonCode is allowed by config_change_blocked_installments", () => {
     const declared = unionMembers(
-      read("lib/fees/generator.ts"),
+      read("src/modules/fees/data/generator.ts"),
       "export type LockedInstallmentReasonCode =",
     );
     const allowed = constraintCodes(
@@ -88,7 +88,7 @@ describe("reason codes the code emits are storable", () => {
   });
 
   it("every regeneration reason_code is allowed by ledger_regeneration_rows", () => {
-    const declared = unionMembers(read("lib/fees/regeneration.ts"), "  reason_code:");
+    const declared = unionMembers(read("src/modules/fees/data/regeneration.ts"), "  reason_code:");
     const allowed = constraintCodes(migration, "ledger_regeneration_rows_reason_code_check");
 
     expect(declared.length).toBeGreaterThan(0);

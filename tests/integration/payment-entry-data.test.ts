@@ -11,26 +11,26 @@ const getWorkbookTransactions = vi.fn();
 const createClient = vi.fn();
 const prepareDuesForStudentsAutomatically = vi.fn();
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary,
   getFeePolicyForSession,
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentDetail,
 }));
 
-vi.mock("@/lib/workbook/data", () => ({
+vi.mock("@/modules/fees/data/queries", () => ({
   getWorkbookStudentFinancials,
   getWorkbookInstallmentBalances,
   getWorkbookTransactions,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
 }));
 
@@ -167,7 +167,7 @@ describe("payment entry data", () => {
       },
     ]);
 
-    const { getPaymentEntryPageData } = await import("@/lib/payments/data");
+    const { getPaymentEntryPageData } = await import("@/modules/payments/data/queries");
     const data = await getPaymentEntryPageData({
       studentId: "student-1",
       searchQuery: "",
@@ -217,7 +217,7 @@ describe("payment entry data", () => {
       rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
     });
 
-    const { getPaymentEntryPageData } = await import("@/lib/payments/data");
+    const { getPaymentEntryPageData } = await import("@/modules/payments/data/queries");
     const data = await getPaymentEntryPageData({
       studentId: null,
       searchQuery: "",
@@ -283,7 +283,7 @@ describe("payment entry data", () => {
       rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
     });
 
-    const { getPaymentEntryPageData } = await import("@/lib/payments/data");
+    const { getPaymentEntryPageData } = await import("@/modules/payments/data/queries");
     const data = await getPaymentEntryPageData({
       studentId: null,
       searchQuery: "",
@@ -327,7 +327,7 @@ describe("payment entry data", () => {
       updatedAt: "2026-04-24T00:00:00.000Z",
     });
 
-    const { getPaymentEntryPageData } = await import("@/lib/payments/data");
+    const { getPaymentEntryPageData } = await import("@/modules/payments/data/queries");
     const data = await getPaymentEntryPageData({
       studentId: "student-2",
       searchQuery: "",
@@ -458,7 +458,7 @@ describe("payment entry data", () => {
         }),
     });
 
-    const { getPaymentEntryPageData } = await import("@/lib/payments/data");
+    const { getPaymentEntryPageData } = await import("@/modules/payments/data/queries");
     const data = await getPaymentEntryPageData({
       studentId: "student-2",
       searchQuery: "",
@@ -521,7 +521,7 @@ describe("payment entry data", () => {
       },
     ]);
 
-    const { getPaymentDeskStudentSummary } = await import("@/lib/payments/data");
+    const { getPaymentDeskStudentSummary } = await import("@/modules/payments/data/queries");
     const summary = await getPaymentDeskStudentSummary({
       studentId: "student-fast",
       paymentDate: "2026-05-18",
@@ -637,7 +637,7 @@ describe("payment entry data", () => {
       }),
     });
 
-    const { getPaymentDeskStudentSummary } = await import("@/lib/payments/data");
+    const { getPaymentDeskStudentSummary } = await import("@/modules/payments/data/queries");
     const summary = await getPaymentDeskStudentSummary({
       studentId: "student-4",
       paymentDate: "2026-05-18",
@@ -718,7 +718,7 @@ describe("payment entry data", () => {
       rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
     });
 
-    const { getPaymentDeskStudentSummary } = await import("@/lib/payments/data");
+    const { getPaymentDeskStudentSummary } = await import("@/modules/payments/data/queries");
     const summary = await getPaymentDeskStudentSummary({
       studentId: "student-paid",
       paymentDate: "2026-05-18",
@@ -832,7 +832,7 @@ describe("payment entry data", () => {
         }),
     });
 
-    const { getPaymentDeskStudentSummary } = await import("@/lib/payments/data");
+    const { getPaymentDeskStudentSummary } = await import("@/modules/payments/data/queries");
     const summary = await getPaymentDeskStudentSummary({
       studentId: "student-3",
       paymentDate: "2026-05-18",

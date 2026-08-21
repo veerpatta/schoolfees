@@ -1,18 +1,18 @@
-# Source scan 202608210346
+# Source scan 202608211014
 
-**PASS** · 118 finding(s) · P0 0 · P1 0 · P2 107 · P3 11
+**PASS** · 52 finding(s) · P0 0 · P1 0 · P2 41 · P3 11
 
 ## Run
 
 | | |
 |---|---|
-| Run id | `202608210346` |
+| Run id | `202608211014` |
 | Layers | static |
-| Git | `4f18f97e7b8d` on main (dirty) |
+| Git | `2026bae15bb3` on restructure/feature-first (dirty) |
 | Node | v24.19.0 |
-| Files read | 1505 |
-| Started | 2026-08-21T03:46:38.036Z |
-| Duration | 9851 ms |
+| Files read | 1479 |
+| Started | 2026-08-21T10:14:55.473Z |
+| Duration | 10682 ms |
 | Strict gate | no |
 
 ## Verdict
@@ -21,1238 +21,55 @@ The gate passed. P0 always fails; deterministic P1 fails; P2/P3 fail only on cou
 
 ## What this scan did NOT look at
 
-11 check(s) swept 14464 of 14464 enumerated members.
+11 check(s) swept 14373 of 14373 enumerated members.
 
 | Check | Dimension | Domain | Examined | Strategy |
 |---|---|---:|---:|---|
 | `guards` | app route handlers, pages and server-action modules | 111 | 111 | exhaustive |
-| `client-boundary` | source modules crossed against the client bundle import graph | 723 | 723 | exhaustive |
-| `session-safety` | product source modules scanned for hardcoded academic-session labels | 723 | 723 | exhaustive |
-| `money` | product source files (app, components, lib, workers, hooks, i18n; no tests, no scripts) | 723 | 723 | exhaustive |
-| `async-safety` | product .ts/.tsx modules parsed by the TypeScript checker | 691 | 691 | exhaustive |
+| `client-boundary` | source modules crossed against the client bundle import graph | 714 | 714 | exhaustive |
+| `session-safety` | product source modules scanned for hardcoded academic-session labels | 714 | 714 | exhaustive |
+| `money` | product source files (app, components, lib, workers, hooks, i18n; no tests, no scripts) | 714 | 714 | exhaustive |
+| `async-safety` | product .ts/.tsx modules parsed by the TypeScript checker | 682 | 682 | exhaustive |
 | `mirror-drift` | declared TS/SQL mirror sides, plus migrations added since the last reconcile | 213 | 213 | targeted |
-| `sql-safety` | supabase migrations, plus the source files that build SQL text | 1349 | 1349 | exhaustive |
-| `i18n` | locale catalogue keys (union x locale) and t() call sites in product source | 7718 | 7718 | exhaustive |
-| `dead-code` | export declarations in app/, components/, lib/, hooks/ and i18n/ | 2199 | 2199 | exhaustive |
+| `sql-safety` | supabase migrations, plus the source files that build SQL text | 1338 | 1338 | exhaustive |
+| `i18n` | locale catalogue keys (union x locale) and t() call sites in product source | 7699 | 7699 | exhaustive |
+| `dead-code` | export declarations in app/, components/, lib/, hooks/ and i18n/ | 2174 | 2174 | exhaustive |
 | `config-risk` | deployment and build configuration candidates | 11 | 11 | exhaustive |
 | `deps` | npm advisories across the installed dependency tree | 3 | 3 | exhaustive |
 
 - **guards** — Sees a guard only where it is named in the file or one import hop away. A guard behind two hops, or inside a helper this check does not follow, reports as a finding — which is the safer direction to be wrong in. In-page conditional rendering is not authorisation and is deliberately not counted.
 - **client-boundary** — Reachability is recomputed here rather than taken from project.clientReachable, which closes over type-only imports and across the "use server" boundary and would report nine correct modules as service-role leaks. The narrower closure follows value imports only — including import(), require() and side-effect imports — and stops at every "use server" module, because a client component importing a server action gets a server reference and not that module's code. Consequences of the narrowing, both unseen: an import specifier built at runtime, and a secret read as process.env[name] through a variable. Secret names come from .env.example, minus NEXT_PUBLIC_* and minus any name with a value already committed beside it — a value in git is not a secret — plus a floor of CRON_SECRET, POSTGRES_URL, DATABASE_URL, which code uses and that file never declares. .env.example was read.
 - **session-safety** — Two populations are excluded from the P0 on purpose. scripts/** names the live session legitimately and often — scripts/bulk-apply.mjs holds it precisely so it can refuse --session 2026-27 without --live, and the verify-live-* scripts exist to check live health — so a P0 there would fire on the guard rather than the hazard. supabase/migrations/** is applied history: the write already happened, editing the file does not undo it, and ~20 historical hits would bury the one finding about code that can still be changed. Neither is reachable from project.product, so both are excluded structurally rather than by allowlist. Within what is scanned, the check sees only labels written as a complete quoted literal: one assembled at runtime (`${year}-${suffix}`, a value read from a column, a label pasted into a plan file) is invisible here and is the reason scripts/bulk-apply.mjs and the Payment Desk still need their own runtime refusals. Placeholders and other user-facing attribute strings are skipped, as are comments; the end-year arithmetic from parseAcademicSessionLabel() is applied so a month bucket like "2026-04" is not mistaken for a session.
-- **money** — Every product file is read, but the money rules are deliberately narrow inside it. (1) The split rule fires only when the divisor is literally installmentCount, count, parts, or an installment-/part-named `.length`, and only when the numerator carries a money word. Dividing money by a *population* — receiptCount, series.length, studentsWithGeneratedDues — is how this repo computes displayed averages, there are eight of them and they are correct; separating them by divisor name is the only rule that reliably keeps them out. A split written with a divisor named something else is invisible to this check. (2) The same money-word gate keeps all four rules off the roughly forty Math.round calls in the tree that count percentages, days, pixels, milliseconds and animation frames — and it means a money variable named neutrally (`v`, `x`, `n`) is not seen either. (3) A division is treated as safe when remainder handling appears within six lines above or eight below, which is how the three real splitters are written; a splitter that keeps its remainder logic further away reads as a finding. (4) scan.money-format-raw runs the audit script's own four patterns only over lib/, workers/, hooks/, utils/ and i18n/, which that script never walks; across the whole tree it adds the no-period "Rs " spelling its regex misses. Intl.DateTimeFormat is not reported at all — it is a date, not money, and lib/helpers/date.ts is its canonical home. (5) scan.rounding-policy-mixed is heuristic by registration: it matches on the coerced value's base name, so it sees Math.round(value) against Math.trunc(value) and cannot see the same quantity coerced under two different names. Comments are blanked before any rule reads a line, which also blanks `//` inside string literals — a false negative, never a false positive.
+- **money** — Every product file is read, but the money rules are deliberately narrow inside it. (1) The split rule fires only when the divisor is literally installmentCount, count, parts, or an installment-/part-named `.length`, and only when the numerator carries a money word. Dividing money by a *population* — receiptCount, series.length, studentsWithGeneratedDues — is how this repo computes displayed averages, there are eight of them and they are correct; separating them by divisor name is the only rule that reliably keeps them out. A split written with a divisor named something else is invisible to this check. (2) The same money-word gate keeps all four rules off the roughly forty Math.round calls in the tree that count percentages, days, pixels, milliseconds and animation frames — and it means a money variable named neutrally (`v`, `x`, `n`) is not seen either. (3) A division is treated as safe when remainder handling appears within six lines above or eight below, which is how the three real splitters are written; a splitter that keeps its remainder logic further away reads as a finding. (4) scan.money-format-raw runs the audit script's own four patterns only over lib/, workers/, hooks/, utils/ and i18n/, which that script never walks; across the whole tree it adds the no-period "Rs " spelling its regex misses. Intl.DateTimeFormat is not reported at all — it is a date, not money, and src/platform/helpers/date.ts is its canonical home. (5) scan.rounding-policy-mixed is heuristic by registration: it matches on the coerced value's base name, so it sees Math.round(value) against Math.trunc(value) and cannot see the same quantity coerced under two different names. Comments are blanked before any rule reads a line, which also blanks `//` inside string literals — a false negative, never a false positive.
 - **async-safety** — Both rules skip tests and scripts. scan.error-swallowed sweeps the whole product surface; scan.floating-promise is narrowed to app/ and lib/ modules no client bundle can reach, because the rule is about a rejection arriving after the response — in the browser there is no response and the console still shows it. Widening to components/ produced eleven hits and eleven of them were calls into helpers whose bodies are wholly try/caught. Neither rule sees .mjs or .js: they are outside the program. Not modelled, and real gaps: an async callback handed to a sync API (forEach, setTimeout), a `.then` chain with no `.catch` on the end, and a catch block whose comment is present but says nothing — a comment is accepted as a decision without being read.
 - **mirror-drift** — 8 pairs (16 sides) are pinned in tests/scan/baseline/mirrors.json; 3 migration(s) postdate lastReconciledMigration (supabase/migrations/20260819120000_restore_view_hardening_lost_to_cascade.sql) and were swept for a one-sided late-fee edit. Three limits are worth stating. (1) The pairs are the ones the source declares in a comment — "mirrors X", "byte-identical", "edit both or neither". An undeclared duplication is invisible here, and the honest fix is a comment in the code, not a cleverer scanner. (2) A pin proves movement, never agreement: two sides pinned while already disagreeing stay silent, which is why pending-late-fee carries an explicit `diverged` note reported as scan.observation. (3) The Worker's RBAC copy (workers/schoolfees-mcp/src/permissions.mjs, declared a mirror of lib/auth/roles.ts) is deliberately NOT pinned here — tests/unit/mcp-permissions.test.ts already asserts the two are equivalent at runtime, which is strictly stronger than a text hash, and a second mechanism would only be a second place to forget.
-- **sql-safety** — All 197 migrations were lexed (comments and dollar-quoted bodies blanked) to build a live catalogue of 64 functions and 31 views, and 1152 source files were read for SQL built as text. Four limits. (1) The two convention rules judge only the LIVE definition — the last migration in filename order that defines each object — because a finding against an applied migration cannot be acted on without desynchronising schema_migrations. A function created by a later `execute format(…)` inside a DO block is invisible to that catalogue, and so is anything created outside migrations. (2) The money-DDL rule fires on nothing in the tree today: there is no `drop column` anywhere and every `drop table` targets a scratch table. It is retained as a tripwire, not as evidence of a clean history. (3) SQL injection is NOT checked. Every template literal in those source files that is a SQL statement AND interpolates a value was examined; there are 2, and both are safe — `postgres` tagged templates in the notion-sync Edge Function, and a never-executed rollback hint string in lib/prev-year-dues. The app reaches Postgres through supabase-js, which is PostgREST, so there is no concatenation surface to guard and a rule here would have reported those two forever. (4) `security definer`/`security invoker` on functions is not checked either: 31 of the 64 live functions state neither, so there is no convention to hold anyone to. Nor is grant/revoke drift — grants are re-applied in ACL-restore loops and follow-up migrations, and every text rule attempted flagged 18 of 21 live views, which measured the regex rather than the schema.
-- **i18n** — Locales come from supportedLocales in i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2074 keys in all 3 catalogues. The reference half is not: it read 691 product .ts/.tsx files, resolved a namespace in 92 of them, and inspected 1496 calls on those translators — of which 64 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 7 file(s) call t("…") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.
-- **dead-code** — Every export in 680 non-test, non-script source files was parsed; 59 were reported. The gap between those numbers is deliberate and is where this rule's precision comes from. (1) 612 type / interface / enum exports were skipped outright: a prop type named only by its own component's signature is the house style, it costs nothing at runtime, and reporting it would quadruple this rule. Type-only usage of a *value* export is still tracked, because the identifier index does not care why a name appears. (2) 73 exports are used inside their own module and nowhere else — exported too widely rather than dead. They are counted here and not reported; the finding a reader can act on is "this code runs nowhere", not "this could be a module-private const". (3) 104 exports are referenced only by files under tests/. Those are not dead, they are tested, and deleting them would delete a test — but a value whose only caller is its own test is worth knowing about, so the count is stated rather than hidden. (4) Reachability is decided by an identifier index over all source files, comments and string literals included. A name that appears in a doc comment counts as used: false negatives, never false positives. It also means an export whose name collides with any common identifier is invisible to this rule. (5) Excluded by construction: default exports of Next.js convention files, route segment config and HTTP verb exports under app/, the root config and instrumentation files, index barrels, any module a barrel star-re-exports, and workers/ — a separate Cloudflare bundle whose entry point is wrangler's, not an import. (6) Not seen at all: a symbol reached only through a runtime-built import specifier, and dead code *inside* a live export.
-- **config-risk** — Each candidate is answered against the real file, and the verdicts are listed here so an empty findings list is legible as checked rather than as skipped. build-error-suppression: clean — neither typescript.ignoreBuildErrors nor eslint.ignoreDuringBuilds is set; function-duration-ceiling: clean — 36 route handler(s) checked, the highest declared maxDuration is 300s; unattended-handler-duration: clean — every cron and admin handler doing bulk work declares a maxDuration; cron-schedule-and-route-agreement: clean — 2 schedule(s) and 2 cron handler(s) name each other exactly; protected-cache-directive: 2 inert directive(s) reported as P3 — the root layout forces dynamic rendering; security-response-headers: reported — no security header configured anywhere; sentry-dsn-and-sampling: clean — 3 init file(s), each reading the DSN from the environment and each sampling traces at less than 1.0 outside development; typescript-strictness: clean — strict is on and strictNullChecks is not disabled; remote-image-patterns: clean — no remotePatterns, so next/image optimises no remote host at all; serverless-file-tracing: clean — 4 route(s) reach a module that reads from process.cwd(), and all 4 are named in outputFileTracingIncludes; deployment-region: clean — pinned ("regions": ["bom1"],). Deliberately not reported: app/api/cron/auto-day-close/route.ts — unattended and without a maxDuration, but the handler shows neither a bulk row cap nor a storage upload, so its work is bounded and the platform default is enough. skipLibCheck is true in tsconfig.json and is not reported: it is the Next.js default and it suppresses diagnostics in other people's .d.ts files, not in this repo's code. What this check cannot see at all: anything configured in the Vercel dashboard rather than in a file — environment variables and their values, deployment protection, the plan's real function-duration ceiling, and whether the cron secret is actually set. It also reads outputFileTracingIncludes with a regex rather than by evaluating next.config.ts, so a route key assembled from a variable would read as absent.
+- **sql-safety** — All 197 migrations were lexed (comments and dollar-quoted bodies blanked) to build a live catalogue of 64 functions and 31 views, and 1141 source files were read for SQL built as text. Four limits. (1) The two convention rules judge only the LIVE definition — the last migration in filename order that defines each object — because a finding against an applied migration cannot be acted on without desynchronising schema_migrations. A function created by a later `execute format(…)` inside a DO block is invisible to that catalogue, and so is anything created outside migrations. (2) The money-DDL rule fires on nothing in the tree today: there is no `drop column` anywhere and every `drop table` targets a scratch table. It is retained as a tripwire, not as evidence of a clean history. (3) SQL injection is NOT checked. Every template literal in those source files that is a SQL statement AND interpolates a value was examined; there are 1, and both are safe — `postgres` tagged templates in the notion-sync Edge Function, and a never-executed rollback hint string in lib/prev-year-dues. The app reaches Postgres through supabase-js, which is PostgREST, so there is no concatenation surface to guard and a rule here would have reported those two forever. (4) `security definer`/`security invoker` on functions is not checked either: 31 of the 64 live functions state neither, so there is no convention to hold anyone to. Nor is grant/revoke drift — grants are re-applied in ACL-restore loops and follow-up migrations, and every text rule attempted flagged 18 of 21 live views, which measured the regex rather than the schema.
+- **i18n** — Locales come from supportedLocales in src/platform/i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2074 keys in all 3 catalogues. The reference half is not: it read 682 product .ts/.tsx files, resolved a namespace in 92 of them, and inspected 1477 calls on those translators — of which 64 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 7 file(s) call t("…") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.
+- **dead-code** — Every export in 673 non-test, non-script source files was parsed; 0 were reported. The gap between those numbers is deliberate and is where this rule's precision comes from. (1) 619 type / interface / enum exports were skipped outright: a prop type named only by its own component's signature is the house style, it costs nothing at runtime, and reporting it would quadruple this rule. Type-only usage of a *value* export is still tracked, because the identifier index does not care why a name appears. (2) 79 exports are used inside their own module and nowhere else — exported too widely rather than dead. They are counted here and not reported; the finding a reader can act on is "this code runs nowhere", not "this could be a module-private const". (3) 105 exports are referenced only by files under tests/. Those are not dead, they are tested, and deleting them would delete a test — but a value whose only caller is its own test is worth knowing about, so the count is stated rather than hidden. (4) Reachability is decided by an identifier index over all source files, comments and string literals included. A name that appears in a doc comment counts as used: false negatives, never false positives. It also means an export whose name collides with any common identifier is invisible to this rule. (5) Excluded by construction: default exports of Next.js convention files, route segment config and HTTP verb exports under app/, the root config and instrumentation files, index barrels, any module a barrel star-re-exports, and workers/ — a separate Cloudflare bundle whose entry point is wrangler's, not an import. (6) Not seen at all: a symbol reached only through a runtime-built import specifier, and dead code *inside* a live export.
+- **config-risk** — Each candidate is answered against the real file, and the verdicts are listed here so an empty findings list is legible as checked rather than as skipped. build-error-suppression: clean — neither typescript.ignoreBuildErrors nor eslint.ignoreDuringBuilds is set; function-duration-ceiling: clean — 36 route handler(s) checked, the highest declared maxDuration is 300s; unattended-handler-duration: clean — every cron and admin handler doing bulk work declares a maxDuration; cron-schedule-and-route-agreement: clean — 2 schedule(s) and 2 cron handler(s) name each other exactly; protected-cache-directive: 2 inert directive(s) reported as P3 — the root layout forces dynamic rendering; security-response-headers: reported — no security header configured anywhere; sentry-dsn-and-sampling: clean — 1 init file(s), each reading the DSN from the environment and each sampling traces at less than 1.0 outside development; typescript-strictness: clean — strict is on and strictNullChecks is not disabled; remote-image-patterns: clean — no remotePatterns, so next/image optimises no remote host at all; serverless-file-tracing: clean — 4 route(s) reach a module that reads from process.cwd(), and all 4 are named in outputFileTracingIncludes; deployment-region: clean — pinned ("regions": ["bom1"],). Deliberately not reported: src/app/api/cron/auto-day-close/route.ts — unattended and without a maxDuration, but the handler shows neither a bulk row cap nor a storage upload, so its work is bounded and the platform default is enough. skipLibCheck is true in tsconfig.json and is not reported: it is the Next.js default and it suppresses diagnostics in other people's .d.ts files, not in this repo's code. What this check cannot see at all: anything configured in the Vercel dashboard rather than in a file — environment variables and their values, deployment protection, the plan's real function-duration ceiling, and whether the cron secret is actually set. It also reads outputFileTracingIncludes with a regex rather than by evaluating next.config.ts, so a route key assembled from a variable would read as absent.
 - **deps** — npm audit ran and returned a version 2 report over 1060 installed packages (411 production). It flagged 3 package(s): 0 critical, 0 high, 3 moderate, 0 low/info. Those collapse to 0 distinct vulnerable package(s) at high or critical — the rest are downstream packages npm marks vulnerable because of one of these, and reporting them separately would be reporting the same advisory several times. The 3 moderate and 0 low advisories are counted here and deliberately not filed: scan.dependency-vulnerable is P1 and gates, and a gating rule that fires on every moderate advisory in build tooling is one somebody switches off. A second pass with --omit=dev separated shipping packages from development tooling, and each finding says which side it is on. What this cannot see: any dependency whose specifier names no registry version — xlsx is in that category and reported separately as scan.config-risk. It also reflects the advisory database at the moment it ran, so an unchanged tree can become a finding tomorrow with no commit in between — which is the intended behaviour, not drift.
 
 ## Findings
 
-### P2-001 app/protected/dashboard/actions.ts:33 exports repairCurrentSessionDuesAction, which nothing uses
+### P2-001 No security response header is configured for any document response
 
 ```
-id:         9ea45244d931
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    app/protected/dashboard/actions.ts:33
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `repairCurrentSessionDuesAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/dashboard/actions.ts, at its own declaration. Nothing imports this module at all.
-source:     export async function repairCurrentSessionDuesAction(formData: FormData) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-002 app/protected/dashboard/actions.ts:56 exports syncCurrentSessionAction, which nothing uses
-
-```
-id:         d17950f88466
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    app/protected/dashboard/actions.ts:56
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `syncCurrentSessionAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/dashboard/actions.ts, at its own declaration. Nothing imports this module at all.
-source:     export async function syncCurrentSessionAction(formData: FormData) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-003 app/protected/dashboard/actions.ts:69 exports repairPaymentDeskDataAction, which nothing uses
-
-```
-id:         d7aaa0e0a9f1
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    app/protected/dashboard/actions.ts:69
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `repairPaymentDeskDataAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/dashboard/actions.ts, at its own declaration. Nothing imports this module at all.
-source:     export async function repairPaymentDeskDataAction(formData: FormData) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-004 app/protected/dashboard/page.tsx:538 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         61d36ee125f3
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    app/protected/dashboard/page.tsx:538
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     ? `Rs ${(value / 100_000).toFixed(1)}L`
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-005 app/protected/dashboard/page.tsx:540 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         c7171e66df11
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    app/protected/dashboard/page.tsx:540
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     ? `Rs ${(value / 1_000).toFixed(0)}K`
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-006 app/protected/dashboard/page.tsx:541 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         e6285f1c60c6
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    app/protected/dashboard/page.tsx:541
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     : `Rs ${value}`;
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-007 app/protected/master-data/actions.ts:226 exports copySessionAction, which nothing uses
-
-```
-id:         6db3ac7289ea
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    app/protected/master-data/actions.ts:226
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `copySessionAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/master-data/actions.ts, at its own declaration. 6 module(s) import this file, none of them for this name.
-source:     export async function copySessionAction(
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-008 app/protected/settings/page.tsx:160 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         95115ff651f8
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    app/protected/settings/page.tsx:160
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     { label: "Late fee", value: `Rs ${policy.lateFeeFlatAmount}` },
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-009 app/protected/students/[studentId]/edit/page.tsx:198 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         81edcaa65ee8
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    app/protected/students/[studentId]/edit/page.tsx:198
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     description="Admin only. Spreads what this family owes over interest-free monthly instalments. The covered installments stop accruing their own late fees; from then on the EMI calendar carries the only penalty — a flat Rs 1,000 for each monthly instalment that passes unpaid, which an admin can waive
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-010 app/protected/students/repayment-plan-actions.ts:327 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         75976d2f1a8f
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    app/protected/students/repayment-plan-actions.ts:327
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     message: `EMI plan cancelled. Rs ${result.remainingBalance ?? 0} goes back to the original due dates; Rs ${result.lateFeeWaiversKept ?? 0} of waived late fees stays waived.`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-011 components/auth-button.tsx:7 exports AuthButton, which nothing uses
-
-```
-id:         7c46aa9be0f0
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/auth-button.tsx:7
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `AuthButton` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/auth-button.tsx, at its own declaration. Nothing imports this module at all.
-source:     export async function AuthButton() {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-012 components/dashboard/class-installment-matrix.tsx:13 exports ClassInstallmentMatrixTable, which nothing uses
-
-```
-id:         1832767df0f8
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/dashboard/class-installment-matrix.tsx:13
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `ClassInstallmentMatrixTable` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/class-installment-matrix.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function ClassInstallmentMatrixTable({ matrix }: Props) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-013 components/dashboard/copy-reminder-button.tsx:12 exports CopyReminderButton, which nothing uses
-
-```
-id:         570f9bcde435
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/dashboard/copy-reminder-button.tsx:12
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `CopyReminderButton` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/copy-reminder-button.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function CopyReminderButton({ text }: CopyReminderButtonProps) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-014 components/dashboard/morning-brief-shelf.tsx:12 exports MorningBriefShelf, which nothing uses
-
-```
-id:         6d91bf838729
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/dashboard/morning-brief-shelf.tsx:12
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `MorningBriefShelf` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/morning-brief-shelf.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function MorningBriefShelf({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-015 components/dashboard/role-focus-actions.tsx:18 exports RoleFocusActions, which nothing uses
-
-```
-id:         327eb5f297c3
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/dashboard/role-focus-actions.tsx:18
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `RoleFocusActions` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/role-focus-actions.tsx, at its own declaration. Nothing imports this module at all.
-source:     export async function RoleFocusActions({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-016 components/data-table/selection-bar.tsx:24 exports SelectionBar, which nothing uses
-
-```
-id:         3436e86fa9bc
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/data-table/selection-bar.tsx:24
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `SelectionBar` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/data-table/selection-bar.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function SelectionBar({ count, noun, onClear, actions, className }: SelectionBarProps) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-017 components/data-table/table-toolbar.tsx:33 exports TableToolbar, which nothing uses
-
-```
-id:         052187ab7727
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/data-table/table-toolbar.tsx:33
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `TableToolbar` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/data-table/table-toolbar.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function TableToolbar({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-018 components/mobile-app/mobile-option-sheet.tsx:28 exports MobileOptionSheet, which nothing uses
-
-```
-id:         2f8cf2a0602d
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/mobile-app/mobile-option-sheet.tsx:28
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `MobileOptionSheet` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/mobile-app/mobile-option-sheet.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function MobileOptionSheet({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-019 components/office/office-ui.tsx:236 exports ClassTabs, which nothing uses
-
-```
-id:         76274f1cd31e
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/office/office-ui.tsx:236
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `ClassTabs` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/office/office-ui.tsx, at its own declaration. 23 module(s) import this file, none of them for this name.
-source:     export function ClassTabs({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-020 components/sign-up-form.tsx:20 exports SignUpForm, which nothing uses
-
-```
-id:         738ddcb58da5
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/sign-up-form.tsx:20
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `SignUpForm` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/sign-up-form.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function SignUpForm({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-021 components/students/student-form.tsx:597 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         1fb0a3d2cce9
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    components/students/student-form.tsx:597
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     ? "Tuition becomes Rs 0"
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-022 components/students/student-form.tsx:600 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         b290acd79aa1
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    components/students/student-form.tsx:600
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     : `Tuition becomes Rs ${policy.fixedTuitionAmount ?? 0}`}
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-023 components/transactions/mobile-day-summary.tsx:82 exports todaySummaryDateLabel, which nothing uses
-
-```
-id:         84db05c8bda5
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/transactions/mobile-day-summary.tsx:82
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `todaySummaryDateLabel` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/transactions/mobile-day-summary.tsx, at its own declaration. 1 module(s) import this file, none of them for this name.
-source:     export function todaySummaryDateLabel() {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-024 components/trust/audit-link.tsx:21 exports AuditLink, which nothing uses
-
-```
-id:         6b7efc4aa5f5
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/trust/audit-link.tsx:21
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `AuditLink` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/trust/audit-link.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function AuditLink({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-025 components/ui/empty-state.tsx:18 exports EmptyState, which nothing uses
-
-```
-id:         dde8762b4548
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/ui/empty-state.tsx:18
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `EmptyState` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/ui/empty-state.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function EmptyState({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-026 components/ui/money-breakdown.tsx:34 exports MoneyBreakdown, which nothing uses
-
-```
-id:         e4a429e84173
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    components/ui/money-breakdown.tsx:34
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `MoneyBreakdown` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/ui/money-breakdown.tsx, at its own declaration. Nothing imports this module at all.
-source:     export function MoneyBreakdown({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-027 hooks/use-action-feedback.ts:44 exports isSuccessStatus, which nothing uses
-
-```
-id:         389f90efa2aa
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    hooks/use-action-feedback.ts:44
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `isSuccessStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-action-feedback.ts, at its own declaration. 14 module(s) import this file, none of them for this name.
-source:     export function isSuccessStatus(status?: string | null) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-028 hooks/use-action-feedback.ts:48 exports isErrorStatus, which nothing uses
-
-```
-id:         edfd3ec4ea2a
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    hooks/use-action-feedback.ts:48
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `isErrorStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-action-feedback.ts, at its own declaration. 14 module(s) import this file, none of them for this name.
-source:     export function isErrorStatus(status?: string | null) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-029 hooks/use-action-feedback.ts:52 exports isWarningStatus, which nothing uses
-
-```
-id:         46a61be8cdac
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    hooks/use-action-feedback.ts:52
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `isWarningStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-action-feedback.ts, at its own declaration. 14 module(s) import this file, none of them for this name.
-source:     export function isWarningStatus(status?: string | null) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-030 hooks/use-online-status.ts:18 exports useOnlineStatus, which nothing uses
-
-```
-id:         0026ec56efc9
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    hooks/use-online-status.ts:18
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `useOnlineStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-online-status.ts, at its own declaration. Nothing imports this module at all.
-source:     export function useOnlineStatus(recoveredHoldMs = 6000): ConnectivityStatus {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-031 lib/activity/events.ts:174 exports getLastEventByRef, which nothing uses
-
-```
-id:         983b11761ee8
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/activity/events.ts:174
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `getLastEventByRef` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/activity/events.ts, at its own declaration. 13 module(s) import this file, none of them for this name.
-source:     export async function getLastEventByRef(
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-032 lib/activity/events.ts:46 exports activityKindLabel, which nothing uses
-
-```
-id:         b94019a41799
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/activity/events.ts:46
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `activityKindLabel` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/activity/events.ts, at its own declaration. 13 module(s) import this file, none of them for this name.
-source:     export function activityKindLabel(kind: string): string {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-033 lib/auth/roles.ts:200 exports isStaffPermission, which nothing uses
-
-```
-id:         30dee605d925
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/auth/roles.ts:200
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `isStaffPermission` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/auth/roles.ts, at its own declaration. 33 module(s) import this file, none of them for this name.
-source:     export function isStaffPermission(value: unknown): value is StaffPermission {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-034 lib/config/fee-rules.ts:112 exports CORE_FEE_HEADS, which nothing uses
-
-```
-id:         4be23f178426
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/config/fee-rules.ts:112
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `CORE_FEE_HEADS` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/config/fee-rules.ts, at its own declaration. 26 module(s) import this file, none of them for this name.
-source:     export const CORE_FEE_HEADS = [
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-035 lib/config/fee-rules.ts:218 exports buildDefaultInstallmentSchedule, which nothing uses
-
-```
-id:         ff1f3ce63b50
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/config/fee-rules.ts:218
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `buildDefaultInstallmentSchedule` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/config/fee-rules.ts, at its own declaration. 26 module(s) import this file, none of them for this name.
-source:     export function buildDefaultInstallmentSchedule(referenceDate = new Date()) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-036 lib/config/fee-rules.ts:240 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         6813c7ad98b7
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/config/fee-rules.ts:240
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     lateFeeLabel: "Flat Rs 1000",
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-037 lib/config/school.ts:18 exports productPrinciples, which nothing uses
-
-```
-id:         77f906e851c5
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/config/school.ts:18
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `productPrinciples` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/config/school.ts, at its own declaration. 19 module(s) import this file, none of them for this name.
-source:     export const productPrinciples = [
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-038 lib/dashboard/analytics.ts:266 exports emptyDashboardAnalytics, which nothing uses
-
-```
-id:         f3028c35115e
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/dashboard/analytics.ts:266
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `emptyDashboardAnalytics` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/dashboard/analytics.ts, at its own declaration. 8 module(s) import this file, none of them for this name.
-source:     export function emptyDashboardAnalytics(sessionLabel: string): DashboardAnalytics {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-039 lib/dashboard/anomaly-rules.ts:39 exports evaluateDashboardAnomalies, which nothing uses
-
-```
-id:         38c6cc737193
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/dashboard/anomaly-rules.ts:39
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `evaluateDashboardAnomalies` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/dashboard/anomaly-rules.ts, at its own declaration. Nothing imports this module at all.
-source:     export function evaluateDashboardAnomalies(input: {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-040 lib/dashboard/anomaly-rules.ts:54 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         28382271fe65
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/dashboard/anomaly-rules.ts:54
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.
-source:     detail: `₹${payment.amount.toLocaleString("en-IN")} is over ${PRICE_SPIKE_MULTIPLIER}× the ${payment.classLabel} average (~₹${avg.toLocaleString("en-IN")}).`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-041 lib/dashboard/summary.ts:171 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         6f3f8ce58f51
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/dashboard/summary.ts:171
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     return `Fee reminder for ${row.studentName} (${row.admissionNo}): pending amount is Rs ${row.outstandingAmount}.${duePart} Please contact the school fee office.`;
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-042 lib/data-table/keyboard-nav.ts:27 exports useRowKeyboardNav, which nothing uses
-
-```
-id:         f1dde52c9be9
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/data-table/keyboard-nav.ts:27
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `useRowKeyboardNav` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/data-table/keyboard-nav.ts, at its own declaration. Nothing imports this module at all.
-source:     export function useRowKeyboardNav({
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-043 lib/defaulters/behavior.ts:84 exports PAYMENT_BEHAVIORS, which nothing uses
-
-```
-id:         3f495318f658
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/defaulters/behavior.ts:84
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `PAYMENT_BEHAVIORS` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/defaulters/behavior.ts, at its own declaration. 4 module(s) import this file, none of them for this name.
-source:     export const PAYMENT_BEHAVIORS: readonly PaymentBehavior[] = [
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-044 lib/defaulters/fee-breakdown.ts:176 exports nextFocusInstallment, which nothing uses
-
-```
-id:         34df813867dd
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/defaulters/fee-breakdown.ts:176
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `nextFocusInstallment` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/defaulters/fee-breakdown.ts, at its own declaration. 2 module(s) import this file, none of them for this name.
-source:     export function nextFocusInstallment(
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-045 lib/fees/config-change.ts:1269 exports createConfigChangePreview, which nothing uses
-
-```
-id:         400b4e8420c7
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/fees/config-change.ts:1269
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `createConfigChangePreview` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/config-change.ts, at its own declaration. Nothing imports this module at all.
-source:     export async function createConfigChangePreview<S extends ConfigChangeScope>(payload: {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-046 lib/fees/config-change.ts:1322 exports applyConfigChangeBatch, which nothing uses
-
-```
-id:         df174ca3957f
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/fees/config-change.ts:1322
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `applyConfigChangeBatch` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/config-change.ts, at its own declaration. Nothing imports this module at all.
-source:     export async function applyConfigChangeBatch(batchId: string) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-047 lib/fees/config-change.ts:195 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         a58b7f72cd8b
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/config-change.ts:195
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     .map(([head, amount]) => `${head}: Rs ${amount}`)
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-048 lib/fees/config-change.ts:233 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         b056bef0c0d5
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/config-change.ts:233
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     return value === null ? "Not set" : `Rs ${value}`;
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-049 lib/fees/config-change.ts:410 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         9773749ff24d
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/config-change.ts:410
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     formatter: (value) => `Rs ${Number(value ?? 0)}`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-050 lib/fees/config-change.ts:417 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         5848277a6356
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/config-change.ts:417
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     formatter: (value) => `Rs ${Number(value ?? 0)}`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-051 lib/fees/config-change.ts:424 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         afefa2f89db1
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/config-change.ts:424
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     formatter: (value) => `Rs ${Number(value ?? 0)}`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-052 lib/fees/config-change.ts:756 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         83537cfe46bc
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/config-change.ts:756
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     lateFeeLabel: `Flat Rs ${globalPayload.lateFeeFlatAmount}`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-053 lib/fees/policy.ts:2214 exports getAcceptedPaymentModeOptions, which nothing uses
-
-```
-id:         69ba6ccf4702
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/fees/policy.ts:2214
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `getAcceptedPaymentModeOptions` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/policy.ts, at its own declaration. 7 module(s) import this file, none of them for this name.
-source:     export async function getAcceptedPaymentModeOptions() {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-054 lib/fees/policy.ts:290 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         6f2e755b28fe
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/policy.ts:290
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-055 lib/fees/workbook-setup-change.ts:125 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         967c4b11c809
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/workbook-setup-change.ts:125
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     return `Rs ${value}`;
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-056 lib/fees/workbook-setup-change.ts:161 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         7173d1e42d0a
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/workbook-setup-change.ts:161
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     return `${item.label} (${statusLabel}, Rs ${item.amount}, ${item.chargeFrequency}, ${mandatoryLabel}, ${refundableLabel}, ${workbookLabel})`;
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-057 lib/fees/workbook-setup-change.ts:404 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         3389c61a597d
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/workbook-setup-change.ts:404
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-058 lib/fees/workbook-setup-change.ts:418 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         8444e1f0c663
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/fees/workbook-setup-change.ts:418
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-059 lib/fees/workbook.ts:182 exports getWorkbookStudentStatusLabel, which nothing uses
-
-```
-id:         4fe47058613f
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/fees/workbook.ts:182
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `getWorkbookStudentStatusLabel` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/workbook.ts, at its own declaration. 10 module(s) import this file, none of them for this name.
-source:     export function getWorkbookStudentStatusLabel(studentType: "new" | "existing") {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-060 lib/fees/workbook.ts:186 exports getWorkbookStudentStatusCode, which nothing uses
-
-```
-id:         0906e82189b9
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/fees/workbook.ts:186
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `getWorkbookStudentStatusCode` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/workbook.ts, at its own declaration. 10 module(s) import this file, none of them for this name.
-source:     export function getWorkbookStudentStatusCode(value: string | null | undefined) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-061 lib/helpers/time-ago.ts:5 exports timeAgoShort, which nothing uses
-
-```
-id:         bdcdd628432e
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/helpers/time-ago.ts:5
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `timeAgoShort` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/helpers/time-ago.ts, at its own declaration. Nothing imports this module at all.
-source:     export function timeAgoShort(iso: string | null | undefined, now: Date = new Date()): string | null {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-062 lib/import/data.ts:1637 exports getResumableFailedRowCount, which nothing uses
-
-```
-id:         23f128e8ff8e
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/import/data.ts:1637
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `getResumableFailedRowCount` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/import/data.ts, at its own declaration. 8 module(s) import this file, none of them for this name.
-source:     export async function getResumableFailedRowCount(batchId: string) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-063 lib/import/parser.ts:133 formats an en-IN number without lib/helpers/currency.ts
-
-```
-id:         9c13443b4a2e
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/import/parser.ts:133
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.
-source:     `The worksheet has too many rows. Keep it to ${MAX_IMPORT_ROWS.toLocaleString("en-IN")} rows or fewer.`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-064 lib/import/parser.ts:145 formats an en-IN number without lib/helpers/currency.ts
-
-```
-id:         85326416c93a
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/import/parser.ts:145
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.
-source:     `The worksheet is too large. Keep it below ${MAX_IMPORT_CELLS.toLocaleString("en-IN")} cells.`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-065 lib/import/types.ts:317 exports INITIAL_STUDENT_IMPORT_ACTION_STATE, which nothing uses
-
-```
-id:         6d90f0b9ad4f
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/import/types.ts:317
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `INITIAL_STUDENT_IMPORT_ACTION_STATE` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/import/types.ts, at its own declaration. 19 module(s) import this file, none of them for this name.
-source:     export const INITIAL_STUDENT_IMPORT_ACTION_STATE: StudentImportActionState = {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-066 lib/payments/bulk/template.ts:138 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         4e08ea2be7b1
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/payments/bulk/template.ts:138
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.
-source:     ["Amount", "Yes", "Whole rupees greater than 0", "₹6,300 or a formula"],
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-067 lib/payments/data.ts:239 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         24b0a019324c
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/payments/data.ts:239
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.
-source:     ? `A payment of ₹${(options.amount ?? 0).toLocaleString("en-IN")} was already posted for this student on ${options.paymentDate ?? "the same date"}. Continue anyway only if this is genuinely a separate payment.`
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-068 lib/payments/payment-desk-client-helpers.ts:29 exports sanitizeWholeInput, which nothing uses
-
-```
-id:         b299d4bd8bb8
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/payments/payment-desk-client-helpers.ts:29
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `sanitizeWholeInput` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/payments/payment-desk-client-helpers.ts, at its own declaration. 4 module(s) import this file, none of them for this name.
-source:     export function sanitizeWholeInput(value: string) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-069 lib/payments/payment-desk-workflow.ts:100 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         90f90eb3c31d
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/payments/payment-desk-workflow.ts:100
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     message: `No pending dues. Student has Rs ${draft.creditBalance} credit.`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-070 lib/pdf/document-kit.tsx:52 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         3916822fe748
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/pdf/document-kit.tsx:52
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.
-source:     return `Rs. ${rounded.toLocaleString("en-IN")}`;
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-071 lib/prev-year-dues/constants.ts:31 exports CARRY_FORWARD_ROLLBACK_HINT, which nothing uses
-
-```
-id:         ebe1ca4a63ae
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/prev-year-dues/constants.ts:31
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `CARRY_FORWARD_ROLLBACK_HINT` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/prev-year-dues/constants.ts, at its own declaration. 5 module(s) import this file, none of them for this name.
-source:     export const CARRY_FORWARD_ROLLBACK_HINT =
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-072 lib/promotion/data.ts:834 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         71328496a8aa
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/promotion/data.ts:834
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.
-source:     const carryNote = `Credit carried forward from ${runDetail.run.sourceSessionLabel}: ₹${entry.openingCreditAmount}.`;
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-073 lib/promotion/data.ts:975 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         2780b1b9f789
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/promotion/data.ts:975
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.
-source:     const carryNote = `Credit carried forward from ${runDetail.run.sourceSessionLabel}: ₹${entry.openingCreditAmount}.`;
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-074 lib/repayment-plans/schedule.ts:154 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         3d8759c4fedb
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/repayment-plans/schedule.ts:154
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     message: `At Rs ${payload.monthlyAmount} a month this plan needs ${termMonths} months. The maximum term is ${REPAYMENT_PLAN_MAX_TERM_MONTHS} months — Rs ${minimumMonthlyAmountForMaxTerm(payload.openingBalance)} a month or more clears it in time.`,
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-075 lib/setup/data.ts:271 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         e45aba201c53
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    lib/setup/data.ts:271
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     .join(", ")}), late fee Rs ${payload.lateFeeFlatAmount}, and receipt prefix ${payload.receiptPrefix} remain visible for review.`
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-076 lib/setup/data.ts:603 exports saveSetupPolicy, which nothing uses
-
-```
-id:         778c9f420ddc
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/setup/data.ts:603
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `saveSetupPolicy` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.
-source:     export async function saveSetupPolicy(input: SaveSetupPolicyInput) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-077 lib/setup/data.ts:630 exports saveSetupSchoolDefaults, which nothing uses
-
-```
-id:         a6ba2030ab24
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/setup/data.ts:630
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `saveSetupSchoolDefaults` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.
-source:     export async function saveSetupSchoolDefaults(input: SaveSetupSchoolDefaultsInput) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-078 lib/setup/data.ts:647 exports saveSetupClasses, which nothing uses
-
-```
-id:         58d9e866bb1c
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/setup/data.ts:647
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `saveSetupClasses` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.
-source:     export async function saveSetupClasses(
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-079 lib/setup/data.ts:748 exports saveSetupRoutes, which nothing uses
-
-```
-id:         46638d795f6a
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/setup/data.ts:748
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `saveSetupRoutes` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.
-source:     export async function saveSetupRoutes(rows: SaveSetupRouteRowInput[]) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-080 lib/setup/data.ts:816 exports saveSetupClassDefaults, which nothing uses
-
-```
-id:         44279c9aff70
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/setup/data.ts:816
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `saveSetupClassDefaults` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.
-source:     export async function saveSetupClassDefaults(rows: SaveSetupClassDefaultInput[]) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-081 lib/setup/data.ts:848 exports markSetupStageComplete, which nothing uses
-
-```
-id:         33af632ac393
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/setup/data.ts:848
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `markSetupStageComplete` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.
-source:     export async function markSetupStageComplete(completionNotes: string | null) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-082 lib/setup/types.ts:11 exports INITIAL_SETUP_ACTION_STATE, which nothing uses
-
-```
-id:         70f106e01fbd
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/setup/types.ts:11
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `INITIAL_SETUP_ACTION_STATE` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/types.ts, at its own declaration. 2 module(s) import this file, none of them for this name.
-source:     export const INITIAL_SETUP_ACTION_STATE: SetupActionState = {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-083 lib/staff-management/data.ts:531 exports provisionBootstrapStaff, which nothing uses
-
-```
-id:         e9314bebd404
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/staff-management/data.ts:531
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `provisionBootstrapStaff` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/staff-management/data.ts, at its own declaration. 6 module(s) import this file, none of them for this name.
-source:     export async function provisionBootstrapStaff(specs: BootstrapStaffSpec[]) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-084 lib/students/bulk-update/fields.ts:306 exports bulkUpdateFieldsAffectFees, which nothing uses
-
-```
-id:         9627716695e3
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/students/bulk-update/fields.ts:306
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `bulkUpdateFieldsAffectFees` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/students/bulk-update/fields.ts, at its own declaration. 12 module(s) import this file, none of them for this name.
-source:     export function bulkUpdateFieldsAffectFees(fields: readonly BulkUpdateField[]) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-085 lib/students/constants.ts:16 exports STUDENT_IMPORT_FIELDS, which nothing uses
-
-```
-id:         19f968d51205
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/students/constants.ts:16
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `STUDENT_IMPORT_FIELDS` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/students/constants.ts, at its own declaration. 9 module(s) import this file, none of them for this name.
-source:     export const STUDENT_IMPORT_FIELDS: ReadonlyArray<{
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-086 lib/students/populations.ts:48 exports RECOVERY_STATUSES, which nothing uses
-
-```
-id:         cabe9ff9a6cd
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/students/populations.ts:48
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `RECOVERY_STATUSES` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/students/populations.ts, at its own declaration. 7 module(s) import this file, none of them for this name.
-source:     export const RECOVERY_STATUSES = [
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-087 lib/system-sync/finance-sync.ts:43 exports syncStudentDues, which nothing uses
-
-```
-id:         5046654ef96b
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/system-sync/finance-sync.ts:43
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `syncStudentDues` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.
-source:     export async function syncStudentDues(studentIds: readonly string[]) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-088 lib/system-sync/finance-sync.ts:50 exports syncStudentDuesAsSystem, which nothing uses
-
-```
-id:         d89153079c1e
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/system-sync/finance-sync.ts:50
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `syncStudentDuesAsSystem` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.
-source:     export async function syncStudentDuesAsSystem(studentIds: readonly string[]) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-089 lib/system-sync/finance-sync.ts:85 exports syncAfterBulkStudentImport, which nothing uses
-
-```
-id:         570015bf8698
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/system-sync/finance-sync.ts:85
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `syncAfterBulkStudentImport` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.
-source:     export async function syncAfterBulkStudentImport(studentIds: readonly string[]) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-090 lib/system-sync/finance-sync.ts:93 exports syncAfterFeeSetupPublish, which nothing uses
-
-```
-id:         d63567455b66
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/system-sync/finance-sync.ts:93
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `syncAfterFeeSetupPublish` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.
-source:     export async function syncAfterFeeSetupPublish(sessionLabel: string) {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-091 lib/whatsapp-templates/data.ts:60 exports getWhatsappTemplate, which nothing uses
-
-```
-id:         c5205c26fe9b
-rule:       scan.dead-export  [deterministic]  layer: static
-surface:    lib/whatsapp-templates/data.ts:60
-expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `getWhatsappTemplate` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/whatsapp-templates/data.ts, at its own declaration. 6 module(s) import this file, none of them for this name.
-source:     export async function getWhatsappTemplate(id: string): Promise<WhatsappTemplate | null> {
-why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
-fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
-```
-
-### P2-092 No security response header is configured for any document response
-
-```
-id:         049f65ad0240
+id:         551d361caa71
 rule:       scan.config-risk  [deterministic]  layer: static
 surface:    next.config.ts:58
 expected:   An authenticated admin app sends at least a framing policy — X-Frame-Options, or frame-ancestors inside a Content-Security-Policy — on the HTML responses staff load.
-actual:     The headers() block configures Cache-Control on four public asset paths and nothing else. None of Content-Security-Policy, frame-ancestors, X-Frame-Options, Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy, Permissions-Policy appears in next.config.ts, vercel.json, proxy.ts, lib/supabase/proxy.ts, lib/supabase/middleware.ts. Next.js sets none of them by default; poweredByHeader: false is the only header-level setting present.
+actual:     The headers() block configures Cache-Control on four public asset paths and nothing else. None of Content-Security-Policy, frame-ancestors, X-Frame-Options, Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy, Permissions-Policy appears in next.config.ts, vercel.json, src/proxy.ts, src/platform/supabase/proxy.ts, src/platform/supabase/middleware.ts. Next.js sets none of them by default; poweredByHeader: false is the only header-level setting present.
 source:     async headers() {
 why:        Without a framing policy any page can put /protected/payments in an invisible iframe over a page a signed-in staff member is already looking at, and their click lands on the app instead. This app's buttons post payments, reverse receipts and publish fee policy, and the session cookie is sent with the framed request like any other. The same block is where X-Content-Type-Options: nosniff belongs, which matters here because several routes stream XLSX and PDF bytes back to the browser.
 fix:        Add a headers() entry for source: "/:path*" carrying, at minimum, X-Frame-Options: DENY and X-Content-Type-Options: nosniff. A full Content-Security-Policy is a larger piece of work — the Sentry replay CDN and the Supabase origin both have to be allowed for — and is worth doing separately from the framing fix.
 ```
 
-### P2-093 xlsx is installed from a URL, so npm audit cannot see it
+### P2-002 xlsx is installed from a URL, so npm audit cannot see it
 
 ```
-id:         3e78126f9bc3
+id:         0a404a50035c
 rule:       scan.config-risk  [deterministic]  layer: static
-surface:    package.json:82
+surface:    package.json:87
 expected:   Every dependency resolves to a registry version, so `npm audit` can match it against advisory ranges and the dependency check above covers the whole tree.
 actual:     dependencies.xlsx is "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz". There is no registry entry and no semver version for npm to compare, so this package and anything it depends on are absent from every audit report — including a clean one.
 source:     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
@@ -1260,59 +77,384 @@ why:        This is not a claim that the package is vulnerable; it is that nothi
 fix:        If a registry release exists at the version you want, depend on it by version and let audit see it. If the URL is deliberate — vendors do publish outside npm — pin the exact version, record who watches that vendor's advisories and where, and note it here so the next reader knows this is a decision rather than an oversight.
 ```
 
-### P2-094 app/protected/students/close-due-actions.ts:47 rounds `value` where the domain core truncates it
+### P2-003 src/app/protected/dashboard/page.tsx:538 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         24b0182ad346
+id:         375a7e603237
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/app/protected/dashboard/page.tsx:538
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     ? `Rs ${(value / 100_000).toFixed(1)}L`
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-004 src/app/protected/dashboard/page.tsx:540 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         5b53e048e64c
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/app/protected/dashboard/page.tsx:540
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     ? `Rs ${(value / 1_000).toFixed(0)}K`
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-005 src/app/protected/dashboard/page.tsx:541 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         0cfcbaed2c10
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/app/protected/dashboard/page.tsx:541
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     : `Rs ${value}`;
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-006 src/app/protected/settings/page.tsx:160 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         91eed7adfb0b
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/app/protected/settings/page.tsx:160
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     { label: "Late fee", value: `Rs ${policy.lateFeeFlatAmount}` },
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-007 src/app/protected/students/[studentId]/edit/page.tsx:198 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         fefef37143f6
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/app/protected/students/[studentId]/edit/page.tsx:198
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     description="Admin only. Spreads what this family owes over interest-free monthly instalments. The covered installments stop accruing their own late fees; from then on the EMI calendar carries the only penalty — a flat Rs 1,000 for each monthly instalment that passes unpaid, which an admin can waive
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-008 src/app/protected/students/repayment-plan-actions.ts:327 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         9f24c0980791
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/app/protected/students/repayment-plan-actions.ts:327
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     message: `EMI plan cancelled. Rs ${result.remainingBalance ?? 0} goes back to the original due dates; Rs ${result.lateFeeWaiversKept ?? 0} of waived late fees stays waived.`,
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-009 src/modules/dashboard/domain/summary.ts:171 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         c88e75488491
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/dashboard/domain/summary.ts:171
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     return `Fee reminder for ${row.studentName} (${row.admissionNo}): pending amount is Rs ${row.outstandingAmount}.${duePart} Please contact the school fee office.`;
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-010 src/modules/fees/data/setup-queries.ts:191 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         309dda17d75a
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/fees/data/setup-queries.ts:191
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     .join(", ")}), late fee Rs ${payload.lateFeeFlatAmount}, and receipt prefix ${payload.receiptPrefix} remain visible for review.`
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-011 src/modules/fees/data/workbook-setup-change.ts:125 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         5a2b495e75c5
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/fees/data/workbook-setup-change.ts:125
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     return `Rs ${value}`;
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-012 src/modules/fees/data/workbook-setup-change.ts:161 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         df8320e8ef22
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/fees/data/workbook-setup-change.ts:161
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     return `${item.label} (${statusLabel}, Rs ${item.amount}, ${item.chargeFrequency}, ${mandatoryLabel}, ${refundableLabel}, ${workbookLabel})`;
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-013 src/modules/fees/data/workbook-setup-change.ts:404 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         f5a600033ff0
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/fees/data/workbook-setup-change.ts:404
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-014 src/modules/fees/data/workbook-setup-change.ts:418 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         e3f675784bca
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/fees/data/workbook-setup-change.ts:418
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-015 src/modules/fees/domain/policy-shaping.ts:154 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         0efdc8dc1fc5
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/fees/domain/policy-shaping.ts:154
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-016 src/modules/imports/domain/parser.ts:133 formats an en-IN number without lib/helpers/currency.ts
+
+```
+id:         f6e6fd9e6267
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/imports/domain/parser.ts:133
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
+source:     `The worksheet has too many rows. Keep it to ${MAX_IMPORT_ROWS.toLocaleString("en-IN")} rows or fewer.`,
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-017 src/modules/imports/domain/parser.ts:145 formats an en-IN number without lib/helpers/currency.ts
+
+```
+id:         c60f73d8101e
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/imports/domain/parser.ts:145
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
+source:     `The worksheet is too large. Keep it below ${MAX_IMPORT_CELLS.toLocaleString("en-IN")} cells.`,
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-018 src/modules/payments/data/queries.ts:239 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         888b89aaa30f
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/payments/data/queries.ts:239
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
+source:     ? `A payment of ₹${(options.amount ?? 0).toLocaleString("en-IN")} was already posted for this student on ${options.paymentDate ?? "the same date"}. Continue anyway only if this is genuinely a separate payment.`
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-019 src/modules/payments/domain/bulk/template.ts:138 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         e2ff8558d0ae
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/payments/domain/bulk/template.ts:138
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
+source:     ["Amount", "Yes", "Whole rupees greater than 0", "₹6,300 or a formula"],
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-020 src/modules/payments/domain/payment-desk-workflow.ts:100 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         76d42cfda804
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/payments/domain/payment-desk-workflow.ts:100
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     message: `No pending dues. Student has Rs ${draft.creditBalance} credit.`,
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-021 src/modules/promotion/data/queries.ts:834 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         d4bec263f674
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/promotion/data/queries.ts:834
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
+source:     const carryNote = `Credit carried forward from ${runDetail.run.sourceSessionLabel}: ₹${entry.openingCreditAmount}.`;
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-022 src/modules/promotion/data/queries.ts:975 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         c97831de28c9
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/promotion/data/queries.ts:975
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
+source:     const carryNote = `Credit carried forward from ${runDetail.run.sourceSessionLabel}: ₹${entry.openingCreditAmount}.`;
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-023 src/modules/repayment-plans/domain/schedule.ts:154 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         2c00e47f6a64
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/repayment-plans/domain/schedule.ts:154
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     message: `At Rs ${payload.monthlyAmount} a month this plan needs ${termMonths} months. The maximum term is ${REPAYMENT_PLAN_MAX_TERM_MONTHS} months — Rs ${minimumMonthlyAmountForMaxTerm(payload.openingBalance)} a month or more clears it in time.`,
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-024 src/modules/students/ui/student-form.tsx:597 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         fa4421e4091f
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/students/ui/student-form.tsx:597
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     ? "Tuition becomes Rs 0"
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-025 src/modules/students/ui/student-form.tsx:600 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         2b088d7895ad
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/students/ui/student-form.tsx:600
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     : `Tuition becomes Rs ${policy.fixedTuitionAmount ?? 0}`}
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-026 src/platform/config/fee-rules.ts:180 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         8fbc39394e1b
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/platform/config/fee-rules.ts:180
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     lateFeeLabel: "Flat Rs 1000",
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-027 src/platform/pdf/document-kit.tsx:52 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         f36caaafe374
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/platform/pdf/document-kit.tsx:52
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
+source:     return `Rs. ${rounded.toLocaleString("en-IN")}`;
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-028 src/app/protected/students/close-due-actions.ts:47 rounds `value` where the domain core truncates it
+
+```
+id:         dba4a7b5967c
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
-surface:    app/protected/students/close-due-actions.ts:47
-expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (lib/fees/conventional-discount-rules.ts:16, lib/fees/conventional-discounts.ts:167, lib/fees/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
+surface:    src/app/protected/students/close-due-actions.ts:47
+expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     return Math.round(value);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
 ```
 
-### P2-095 lib/helpers/amount-in-words-hi.ts:73 rounds `value` where the domain core truncates it
+### P2-029 src/platform/helpers/amount-in-words-hi.ts:73 rounds `value` where the domain core truncates it
 
 ```
-id:         704a40daff70
+id:         1507266ec39f
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
-surface:    lib/helpers/amount-in-words-hi.ts:73
-expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (lib/fees/conventional-discount-rules.ts:16, lib/fees/conventional-discounts.ts:167, lib/fees/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
+surface:    src/platform/helpers/amount-in-words-hi.ts:73
+expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     const amount = Math.max(Math.round(value || 0), 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
 ```
 
-### P2-096 lib/helpers/amount-in-words.ts:84 rounds `value` where the domain core truncates it
+### P2-030 src/platform/helpers/amount-in-words.ts:84 rounds `value` where the domain core truncates it
 
 ```
-id:         43f40d0a8389
+id:         a4d229dbf12d
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
-surface:    lib/helpers/amount-in-words.ts:84
-expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (lib/fees/conventional-discount-rules.ts:16, lib/fees/conventional-discounts.ts:167, lib/fees/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
+surface:    src/platform/helpers/amount-in-words.ts:84
+expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     const amount = Math.max(Math.round(value || 0), 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
 ```
 
-### P2-097 lib/pdf/document-kit.tsx:51 rounds `value` where the domain core truncates it
+### P2-031 src/platform/pdf/document-kit.tsx:51 rounds `value` where the domain core truncates it
 
 ```
-id:         042f6e21f7f4
+id:         518230cb1c38
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
-surface:    lib/pdf/document-kit.tsx:51
-expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (lib/fees/conventional-discount-rules.ts:16, lib/fees/conventional-discounts.ts:167, lib/fees/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
+surface:    src/platform/pdf/document-kit.tsx:51
+expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     const rounded = Math.round(value || 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
 ```
 
-### P2-098 private.enforce_max_active_conventional_discounts is defined without a pinned search_path
+### P2-032 private.enforce_max_active_conventional_discounts is defined without a pinned search_path
 
 ```
 id:         e1f9dd8286ee
@@ -1325,7 +467,7 @@ why:        It runs as the caller, so this is not escalation today. It is still 
 fix:        Add `set search_path to 'pg_catalog', 'pg_temp'` (or `'public'` where the body needs it) in a new migration that `create or replace`s the function. Never edit the migration that is already applied.
 ```
 
-### P2-099 private.prevent_receipt_adjustment_mutation is defined without a pinned search_path
+### P2-033 private.prevent_receipt_adjustment_mutation is defined without a pinned search_path
 
 ```
 id:         d0ed42f13c3a
@@ -1338,7 +480,7 @@ why:        It runs as the caller, so this is not escalation today. It is still 
 fix:        Add `set search_path to 'pg_catalog', 'pg_temp'` (or `'public'` where the body needs it) in a new migration that `create or replace`s the function. Never edit the migration that is already applied.
 ```
 
-### P2-100 private.enforce_max_active_conventional_discounts_in_schema is defined without a pinned search_path
+### P2-034 private.enforce_max_active_conventional_discounts_in_schema is defined without a pinned search_path
 
 ```
 id:         03d2d34f1092
@@ -1351,7 +493,7 @@ why:        It runs as the caller, so this is not escalation today. It is still 
 fix:        Add `set search_path to 'pg_catalog', 'pg_temp'` (or `'public'` where the body needs it) in a new migration that `create or replace`s the function. Never edit the migration that is already applied.
 ```
 
-### P2-101 private.enforce_third_child_traceability is defined without a pinned search_path
+### P2-035 private.enforce_third_child_traceability is defined without a pinned search_path
 
 ```
 id:         5fad48a7287b
@@ -1364,7 +506,7 @@ why:        It runs as the caller, so this is not escalation today. It is still 
 fix:        Add `set search_path to 'pg_catalog', 'pg_temp'` (or `'public'` where the body needs it) in a new migration that `create or replace`s the function. Never edit the migration that is already applied.
 ```
 
-### P2-102 private.derive_family_child_client_request_id is defined without a pinned search_path
+### P2-036 private.derive_family_child_client_request_id is defined without a pinned search_path
 
 ```
 id:         ef43cda43d2b
@@ -1377,7 +519,7 @@ why:        It runs as the caller, so this is not escalation today. It is still 
 fix:        Add `set search_path to 'pg_catalog', 'pg_temp'` (or `'public'` where the body needs it) in a new migration that `create or replace`s the function. Never edit the migration that is already applied.
 ```
 
-### P2-103 public.refresh_financial_materialized_views is defined without a pinned search_path
+### P2-037 public.refresh_financial_materialized_views is defined without a pinned search_path
 
 ```
 id:         1d4c0f440e4f
@@ -1390,7 +532,7 @@ why:        SECURITY DEFINER with an unpinned search_path is the classic privile
 fix:        Add `set search_path to 'pg_catalog', 'pg_temp'` (or `'public'` where the body needs it) in a new migration that `create or replace`s the function. Never edit the migration that is already applied.
 ```
 
-### P2-104 private.prevent_notion_sync_log_mutation is defined without a pinned search_path
+### P2-038 private.prevent_notion_sync_log_mutation is defined without a pinned search_path
 
 ```
 id:         d89b1bb2ecf4
@@ -1403,7 +545,7 @@ why:        It runs as the caller, so this is not escalation today. It is still 
 fix:        Add `set search_path to 'pg_catalog', 'pg_temp'` (or `'public'` where the body needs it) in a new migration that `create or replace`s the function. Never edit the migration that is already applied.
 ```
 
-### P2-105 public.v_notion_student_fee_summary does not set security_invoker
+### P2-039 public.v_notion_student_fee_summary does not set security_invoker
 
 ```
 id:         fe4b790a9ade
@@ -1416,7 +558,7 @@ why:        Without security_invoker a view reads its base tables as the view ow
 fix:        Recreate the view with `with (security_invoker = true)` in a new migration — or, if it is deliberately a controlled escape hatch for a service role, say so in a comment on the view so the next reader sees a decision instead of an omission.
 ```
 
-### P2-106 public.v_notion_daily_collection_summary does not set security_invoker
+### P2-040 public.v_notion_daily_collection_summary does not set security_invoker
 
 ```
 id:         553a7439553c
@@ -1429,7 +571,7 @@ why:        Without security_invoker a view reads its base tables as the view ow
 fix:        Recreate the view with `with (security_invoker = true)` in a new migration — or, if it is deliberately a controlled escape hatch for a service role, say so in a comment on the view so the next reader sees a decision instead of an omission.
 ```
 
-### P2-107 public.v_notion_family_fee_summary does not set security_invoker
+### P2-041 public.v_notion_family_fee_summary does not set security_invoker
 
 ```
 id:         66b34a387be6
@@ -1442,12 +584,12 @@ why:        Without security_invoker a view reads its base tables as the view ow
 fix:        Recreate the view with `with (security_invoker = true)` in a new migration — or, if it is deliberately a controlled escape hatch for a service role, say so in a comment on the view so the next reader sees a decision instead of an omission.
 ```
 
-### P3-108 app/protected/admin-tools/session-health/session-health-grid.tsx hardcodes the live session 2026-27
+### P3-042 src/app/protected/admin-tools/session-health/session-health-grid.tsx hardcodes the live session 2026-27
 
 ```
-id:         94f0156f981e
+id:         29e73ec10600
 rule:       scan.observation  [heuristic]  layer: static
-surface:    app/protected/admin-tools/session-health/session-health-grid.tsx:64
+surface:    src/app/protected/admin-tools/session-health/session-health-grid.tsx:64
 expected:   The live session label is written down in as few places as possible, so that the next rollover is a data change rather than a code change.
 actual:     "2026-27" appears as a comparison against the live session. Nothing in this module writes through a Supabase client and it is not a "use server" action, so no ledger is at risk — this is inventory of where the live year is baked in, not a defect.
 source:     is_current: sessionLabel === "2026-27",
@@ -1455,38 +597,38 @@ why:        Every hardcoded copy is a place the AY 2027-28 rollover has to find.
 fix:        Prefer the resolved session — getActiveSessionLabel(), the switcher's value, or FALLBACK_OFFICE_SESSION_LABEL in lib/session/available-sessions.ts, which is the one place this label is meant to live.
 ```
 
-### P3-109 app/protected/exports/page.tsx declares revalidate = 60, which never takes effect
+### P3-043 src/app/protected/exports/page.tsx declares revalidate = 60, which never takes effect
 
 ```
-id:         731cf2e7d806
+id:         274e90575771
 rule:       scan.observation  [heuristic]  layer: static
-surface:    app/protected/exports/page.tsx:13
+surface:    src/app/protected/exports/page.tsx:13
 expected:   A route segment's caching directive describes what actually happens to that segment.
-actual:     revalidate = 60 is declared here and cannot apply. app/layout.tsx sets dynamic = "force-dynamic" at the root. This surface also reaches cookies() through its auth call, which opts the render out of caching on its own.
+actual:     revalidate = 60 is declared here and cannot apply. src/app/layout.tsx sets dynamic = "force-dynamic" at the root. This surface also reaches cookies() through its auth call, which opts the render out of caching on its own.
 source:     export const revalidate = 60;
 why:        Not a data-exposure risk today, and deliberately filed as an observation rather than a config risk so it cannot gate: docs/design/design-system.md section 5.6 records the force-dynamic decision and says to leave it alone. What it is, is a line that tells the next reader this page is cached for a minute when it is rendered fresh every time — so a performance investigation starts from a false premise, and if the auth call ever moves the directive is sitting there ready to be believed.
 fix:        Delete the directive, or keep it with a comment saying it is aspirational and what would have to change for it to apply.
 ```
 
-### P3-110 app/protected/fee-setup/page.tsx declares revalidate = 60, which never takes effect
+### P3-044 src/app/protected/fee-setup/page.tsx declares revalidate = 60, which never takes effect
 
 ```
-id:         15d0b9823058
+id:         83bf35a40105
 rule:       scan.observation  [heuristic]  layer: static
-surface:    app/protected/fee-setup/page.tsx:35
+surface:    src/app/protected/fee-setup/page.tsx:35
 expected:   A route segment's caching directive describes what actually happens to that segment.
-actual:     revalidate = 60 is declared here and cannot apply. app/layout.tsx sets dynamic = "force-dynamic" at the root. This surface also reaches cookies() through its auth call, which opts the render out of caching on its own.
+actual:     revalidate = 60 is declared here and cannot apply. src/app/layout.tsx sets dynamic = "force-dynamic" at the root. This surface also reaches cookies() through its auth call, which opts the render out of caching on its own.
 source:     export const revalidate = 60;
 why:        Not a data-exposure risk today, and deliberately filed as an observation rather than a config risk so it cannot gate: docs/design/design-system.md section 5.6 records the force-dynamic decision and says to leave it alone. What it is, is a line that tells the next reader this page is cached for a minute when it is rendered fresh every time — so a performance investigation starts from a false premise, and if the auth call ever moves the directive is sitting there ready to be believed.
 fix:        Delete the directive, or keep it with a comment saying it is aspirational and what would have to change for it to apply.
 ```
 
-### P3-111 app/protected/students/[studentId]/page.tsx hardcodes the live session 2026-27
+### P3-045 src/app/protected/students/[studentId]/page.tsx hardcodes the live session 2026-27
 
 ```
-id:         61f4e4399cee
+id:         47c54957c6e2
 rule:       scan.observation  [heuristic]  layer: static
-surface:    app/protected/students/[studentId]/page.tsx:1214
+surface:    src/app/protected/students/[studentId]/page.tsx:1214
 expected:   The live session label is written down in as few places as possible, so that the next rollover is a data change rather than a code change.
 actual:     "2026-27" appears as a fallback for a value read at runtime. Nothing in this module writes through a Supabase client and it is not a "use server" action, so no ledger is at risk — this is inventory of where the live year is baked in, not a defect.
 source:     sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
@@ -1494,12 +636,12 @@ why:        Every hardcoded copy is a place the AY 2027-28 rollover has to find.
 fix:        Prefer the resolved session — getActiveSessionLabel(), the switcher's value, or FALLBACK_OFFICE_SESSION_LABEL in lib/session/available-sessions.ts, which is the one place this label is meant to live.
 ```
 
-### P3-112 app/protected/students/[studentId]/page.tsx hardcodes the live session 2026-27
+### P3-046 src/app/protected/students/[studentId]/page.tsx hardcodes the live session 2026-27
 
 ```
-id:         28b441346547
+id:         64c2f2cbce10
 rule:       scan.observation  [heuristic]  layer: static
-surface:    app/protected/students/[studentId]/page.tsx:1353
+surface:    src/app/protected/students/[studentId]/page.tsx:1353
 expected:   The live session label is written down in as few places as possible, so that the next rollover is a data change rather than a code change.
 actual:     "2026-27" appears as a fallback for a value read at runtime. Nothing in this module writes through a Supabase client and it is not a "use server" action, so no ledger is at risk — this is inventory of where the live year is baked in, not a defect.
 source:     sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
@@ -1507,12 +649,12 @@ why:        Every hardcoded copy is a place the AY 2027-28 rollover has to find.
 fix:        Prefer the resolved session — getActiveSessionLabel(), the switcher's value, or FALLBACK_OFFICE_SESSION_LABEL in lib/session/available-sessions.ts, which is the one place this label is meant to live.
 ```
 
-### P3-113 lib/session/available-sessions.ts hardcodes the live session 2026-27
+### P3-047 src/platform/session/available-sessions.ts hardcodes the live session 2026-27
 
 ```
-id:         549c5647f417
+id:         84e55bc7a515
 rule:       scan.observation  [heuristic]  layer: static
-surface:    lib/session/available-sessions.ts:17
+surface:    src/platform/session/available-sessions.ts:17
 expected:   The live session label is written down in as few places as possible, so that the next rollover is a data change rather than a code change.
 actual:     "2026-27" appears as a named constant. Nothing in this module writes through a Supabase client and it is not a "use server" action, so no ledger is at risk — this is inventory of where the live year is baked in, not a defect.
 source:     export const FALLBACK_OFFICE_SESSION_LABEL = "2026-27";
@@ -1520,12 +662,12 @@ why:        Every hardcoded copy is a place the AY 2027-28 rollover has to find.
 fix:        Prefer the resolved session — getActiveSessionLabel(), the switcher's value, or FALLBACK_OFFICE_SESSION_LABEL in lib/session/available-sessions.ts, which is the one place this label is meant to live.
 ```
 
-### P3-114 lib/session/available-sessions.ts hardcodes the live session 2026-27
+### P3-048 src/platform/session/available-sessions.ts hardcodes the live session 2026-27
 
 ```
-id:         10ed860dd2d8
+id:         f338f189ce40
 rule:       scan.observation  [heuristic]  layer: static
-surface:    lib/session/available-sessions.ts:34
+surface:    src/platform/session/available-sessions.ts:34
 expected:   The live session label is written down in as few places as possible, so that the next rollover is a data change rather than a code change.
 actual:     "2026-27" appears as an entry in a literal list. Nothing in this module writes through a Supabase client and it is not a "use server" action, so no ledger is at risk — this is inventory of where the live year is baked in, not a defect.
 source:     "2026-27",
@@ -1533,7 +675,7 @@ why:        Every hardcoded copy is a place the AY 2027-28 rollover has to find.
 fix:        Prefer the resolved session — getActiveSessionLabel(), the switcher's value, or FALLBACK_OFFICE_SESSION_LABEL in lib/session/available-sessions.ts, which is the one place this label is meant to live.
 ```
 
-### P3-115 workers/schoolfees-mcp/src/prompts.mjs hardcodes the live session 2026-27
+### P3-049 workers/schoolfees-mcp/src/prompts.mjs hardcodes the live session 2026-27
 
 ```
 id:         6a4ef1318b79
@@ -1546,7 +688,7 @@ why:        Every hardcoded copy is a place the AY 2027-28 rollover has to find.
 fix:        Prefer the resolved session — getActiveSessionLabel(), the switcher's value, or FALLBACK_OFFICE_SESSION_LABEL in lib/session/available-sessions.ts, which is the one place this label is meant to live.
 ```
 
-### P3-116 workers/schoolfees-mcp/src/toolkit.mjs hardcodes the live session 2026-27
+### P3-050 workers/schoolfees-mcp/src/toolkit.mjs hardcodes the live session 2026-27
 
 ```
 id:         2548978eeea8
@@ -1559,7 +701,7 @@ why:        Every hardcoded copy is a place the AY 2027-28 rollover has to find.
 fix:        Prefer the resolved session — getActiveSessionLabel(), the switcher's value, or FALLBACK_OFFICE_SESSION_LABEL in lib/session/available-sessions.ts, which is the one place this label is meant to live.
 ```
 
-### P3-117 workers/schoolfees-mcp/src/tools/orientation.mjs hardcodes the live session 2026-27
+### P3-051 workers/schoolfees-mcp/src/tools/orientation.mjs hardcodes the live session 2026-27
 
 ```
 id:         71c5eebdf8dc
@@ -1572,7 +714,7 @@ why:        Every hardcoded copy is a place the AY 2027-28 rollover has to find.
 fix:        Prefer the resolved session — getActiveSessionLabel(), the switcher's value, or FALLBACK_OFFICE_SESSION_LABEL in lib/session/available-sessions.ts, which is the one place this label is meant to live.
 ```
 
-### P3-118 workers/schoolfees-mcp/worker.mjs hardcodes the live session 2026-27
+### P3-052 workers/schoolfees-mcp/worker.mjs hardcodes the live session 2026-27
 
 ```
 id:         474b40f71cd8
@@ -1589,8 +731,7 @@ fix:        Prefer the resolved session — getActiveSessionLabel(), the switche
 
 | Rule | Severity | Count |
 |---|---|---:|
-| `scan.dead-export` | P2 | 59 / 59 |
-| `scan.money-format-raw` | P2 | 32 / 32 |
+| `scan.money-format-raw` | P2 | 25 / 25 |
 | `scan.sql-risk` | P2 | 10 / 10 |
 | `scan.rounding-policy-mixed` | P2 | 4 / 4 |
 | `scan.config-risk` | P2 | 2 / 2 |

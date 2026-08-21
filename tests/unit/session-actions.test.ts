@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { vi } from "vitest";
-import { mergeRequiredOfficeSessions } from "@/lib/session/available-sessions";
+import { mergeRequiredOfficeSessions } from "@/platform/session/available-sessions";
 
 vi.mock("server-only", () => ({}));
 

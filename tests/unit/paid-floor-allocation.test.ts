@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   allocateChargesRespectingPaidFloors,
   type PaidFloorRow,
-} from "@/lib/fees/paid-floor-allocation";
+} from "@/modules/fees/domain/paid-floor-allocation";
 
 const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
 

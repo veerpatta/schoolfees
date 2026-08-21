@@ -34,13 +34,16 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 function sourceFiles() {
-  return [...walk(join(root, "components")), ...walk(join(root, "app"))];
+  return walk(join(root, "src"));
 }
 
 /** Detector C also has to reach lib/, where the locale provider lives. */
 function clientModules() {
   const out: string[] = [];
-  for (const dir of ["components", "app", "lib", "hooks"]) {
+  // One root, not a list. Everything the app ships lives under src/, so a
+  // folder added later (src/modules/* in the feature-first split) is covered
+  // without anybody remembering to widen this.
+  for (const dir of ["src"]) {
     const base = join(root, dir);
     if (!existsSync(base)) continue;
     for (const entry of readdirSync(base)) {
@@ -129,8 +132,8 @@ const files = sourceFiles().map((file) => ({
 const A_KNOWN_GAPS: string[] = [
   // Auth surfaces: success is a server redirect away from the page, so there is
   // no post-action render on which to show a message. Errors render inline.
-  "app/page.tsx",
-  "components/login-form.tsx",
+  "src/app/page.tsx",
+  "src/ui/auth/login-form.tsx",
 ];
 
 describe("every useActionState surface reports its result", () => {
@@ -163,17 +166,17 @@ describe("every useActionState surface reports its result", () => {
  * report an outcome even though this file cannot see it.
  */
 const B_ALLOWED: Record<string, string> = {
-  "app/protected/admin-tools/page.tsx": "redirects to ?reconciled=/?error=, rendered by session-health",
-  "app/protected/admin-tools/session-health/session-health-grid.tsx": "redirects with a banner",
-  "app/protected/admin-tools/promotion/page.tsx": "redirects to ?notice=/?error=, rendered by the run page",
-  "components/imports/batch-upload-card.tsx": "redirects to ?notice=/?error=, rendered by the imports workflow",
-  "components/imports/column-mapping-card.tsx": "redirects to ?notice=/?error=",
-  "components/imports/duplicate-audit-panel.tsx": "redirects to ?notice=/?error=",
-  "components/imports/import-commit-card.tsx": "redirects to ?notice=/?error=",
-  "components/imports/row-detail-card.tsx": "redirects to ?notice=/?error=",
-  "components/logout-button.tsx": "sign-out; landing on the login page is the outcome",
-  "components/admin/app-topbar.tsx": "sign-out; landing on the login page is the outcome",
-  "components/mobile-app/account-card.tsx": "sign-out; landing on the login page is the outcome",
+  "src/app/protected/admin-tools/page.tsx": "redirects to ?reconciled=/?error=, rendered by session-health",
+  "src/app/protected/admin-tools/session-health/session-health-grid.tsx": "redirects with a banner",
+  "src/app/protected/admin-tools/promotion/page.tsx": "redirects to ?notice=/?error=, rendered by the run page",
+  "src/modules/imports/ui/batch-upload-card.tsx": "redirects to ?notice=/?error=, rendered by the imports workflow",
+  "src/modules/imports/ui/column-mapping-card.tsx": "redirects to ?notice=/?error=",
+  "src/modules/imports/ui/duplicate-audit-panel.tsx": "redirects to ?notice=/?error=",
+  "src/modules/imports/ui/import-commit-card.tsx": "redirects to ?notice=/?error=",
+  "src/modules/imports/ui/row-detail-card.tsx": "redirects to ?notice=/?error=",
+  "src/ui/auth/logout-button.tsx": "sign-out; landing on the login page is the outcome",
+  "src/ui/shell/app-topbar.tsx": "sign-out; landing on the login page is the outcome",
+  "src/ui/mobile/account-card.tsx": "sign-out; landing on the login page is the outcome",
 };
 
 const B_KNOWN_GAPS: string[] = Object.keys(B_ALLOWED);
@@ -227,7 +230,7 @@ const PENDING_KNOWN_GAPS: string[] = [
   // The per-entry decision <select> submits its own tiny form inside a wide
   // table of them. A spinner per row would be noise; the redirect and the
   // FlashNotice are the signal.
-  "app/protected/admin-tools/promotion/[runId]/page.tsx",
+  "src/app/protected/admin-tools/promotion/[runId]/page.tsx",
 ];
 
 describe("fire-and-forget action forms show they are working", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { renderFeeStatementPdf, type FeePdfStudent } from "@/lib/students/fee-statement-pdf";
-import type { FeeBreakdownSummary } from "@/lib/fees/fee-breakdown-summary";
+import { renderFeeStatementPdf, type FeePdfStudent } from "@/modules/students/domain/fee-statement-pdf";
+import type { FeeBreakdownSummary } from "@/modules/fees/domain/fee-breakdown-summary";
 
 function summary(): FeeBreakdownSummary {
   return {

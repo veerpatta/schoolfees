@@ -3,7 +3,7 @@ import bundleAnalyzer from "@next/bundle-analyzer";
 import createNextIntlPlugin from "next-intl/plugin";
 import { withSentryConfig } from "@sentry/nextjs";
 
-const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+const withNextIntl = createNextIntlPlugin("./src/platform/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   compress: true,

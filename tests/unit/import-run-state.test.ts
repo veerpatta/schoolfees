@@ -4,7 +4,7 @@ import {
   STALE_IMPORT_RUN_MS,
   STUDENT_IMPORT_COMMIT_CHUNK_SIZE,
   isStaleImportRun,
-} from "@/lib/import/run-state";
+} from "@/modules/imports/domain/run-state";
 
 const NOW = Date.parse("2026-08-06T09:00:00.000Z");
 const at = (msAgo: number) => new Date(NOW - msAgo).toISOString();

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { executeStudentImportDryRun } from "@/lib/import/dryRun";
-import { studentImportFieldDefinitions } from "@/lib/import/mapping";
-import { deriveAnomalyCategoriesForRow, isCorrectionQueueRow } from "@/lib/import/review";
+import { executeStudentImportDryRun } from "@/modules/imports/domain/dryRun";
+import { studentImportFieldDefinitions } from "@/modules/imports/domain/mapping";
+import { deriveAnomalyCategoriesForRow, isCorrectionQueueRow } from "@/modules/imports/domain/review";
 
 const classes = [
   {

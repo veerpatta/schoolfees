@@ -27,8 +27,9 @@
  *
  *   3. `scan.money-format-raw` — the grep-ability rule.
  *      `scripts/audit-money-formatting.mjs` already enforces it, but only over
- *      `app/` and `components/`, and only for "Rs." with the period. This
- *      extends it into `lib/` and `workers/` (which that script never walks)
+ *      `src/app/`, `src/components/` and `src/ui/`, and only for "Rs." with the
+ *      period. This extends it into `src/lib/`, `src/platform/` and `workers/`
+ *      (which that script never walks)
  *      and adds the no-period "Rs " spelling everywhere. Same escape hatch,
  *      same allowlist — a rule with two different answers is worse than one
  *      rule with a narrow scope.
@@ -109,7 +110,7 @@ function isMoneyExpression(text) {
  * Comment-blanked lines, same length and same count as `file.lines`.
  *
  * Every rule below reads these instead of the raw text, because this repo
- * comments heavily and in money vocabulary — `lib/fees/generator.ts:536` says
+ * comments heavily and in money vocabulary — `src/lib/fees/generator.ts:536` says
  * `the receipt said "Rs 3,100 received"` in prose, and a formatting rule that
  * cannot tell prose from a template literal reports it forever. A `//` inside
  * a string literal is blanked too, which costs a false negative and never a
@@ -331,26 +332,33 @@ function findRoundThenValidate(file, code) {
  *
  * `workers/schoolfees-mcp/src/format.mjs` *is* the worker's currency helper.
  * The MCP worker is a separate Cloudflare bundle that cannot import from
- * `lib/`, so its formatter is a deliberate mirror rather than a bypass — the
+ * `src/lib/`, so its formatter is a deliberate mirror rather than a bypass — the
  * same relationship `docs/modules/mcp-server.md` describes for
- * `src/permissions.mjs` and `lib/auth/roles.ts`.
+ * `src/permissions.mjs` and `src/platform/auth/roles.ts`.
  */
 const FORMAT_ALLOWLIST = new Set([
-  "lib/helpers/currency.ts",
-  "components/ui/money.tsx",
-  "components/ui/money-breakdown.tsx",
-  "components/ui/money-with-definition.tsx",
-  "components/ui/money-glossary.tsx",
+  "src/platform/helpers/currency.ts",
+  "src/ui/primitives/money.tsx",
+  "src/ui/primitives/money-with-definition.tsx",
+  "src/ui/primitives/money-glossary.tsx",
   "workers/schoolfees-mcp/src/format.mjs",
 ]);
 
 /**
- * Only `lib/` and `workers/` are swept for the four patterns
- * `scripts/audit-money-formatting.mjs` already owns. Reporting a violation the
- * repo's own CI script reports would mean two failure messages for one line
- * and two places to add the same exception.
+ * The half of the tree `scripts/audit-money-formatting.mjs` does NOT walk.
+ * That script owns `src/app`, `src/ui` and each module's own `ui` folder;
+ * this sweeps the
+ * rest for the same four patterns. Reporting a violation the repo's own CI
+ * script reports would mean two failure messages for one line and two places
+ * to add the same exception.
+ *
+ * Keep this in step with SCAN_DIRS in that script — the two are complements,
+ * and the failure is silent in both directions: overlap double-reports, and a
+ * gap means nobody looks at all. `modules` is listed ahead of the feature-first
+ * split so the domain code stays covered the day it moves there.
  */
-const AUDIT_BLIND_SPOT = /^(?:lib|workers|hooks|utils|i18n)\//;
+const AUDIT_BLIND_SPOT =
+  /^(?:src\/(?:platform|messages)\/|workers\/|src\/modules\/[^\/]+\/(?:domain|data)\/)/;
 
 const FORMAT_PATTERNS = [
   {
@@ -451,8 +459,8 @@ export async function run({ project, sink, coverage }) {
         fix:
           `Drop the ${hit.rounder} from ${hit.producer}() and let Number.isInteger do the job it `
           + "was written for — the shape already used by parsePaymentAmount in "
-          + "app/protected/payments/actions.ts and parseAmount in "
-          + "app/protected/ledger/actions.ts, both of which validate the raw Number().",
+          + "src/app/protected/payments/actions.ts and parseAmount in "
+          + "src/app/protected/ledger/actions.ts, both of which validate the raw Number().",
       });
     }
 
@@ -558,7 +566,7 @@ export async function run({ project, sink, coverage }) {
             expected:
               "Every rupee a person reads is produced by formatInr() or <Money />, and every other "
               + "en-IN grouped number by the plain formatter beside it, so a find-references on "
-              + "lib/helpers/currency.ts reaches every one of them.",
+              + "src/platform/helpers/currency.ts reaches every one of them.",
             actual:
               `This line uses ${rule.name} directly.`
               + (rule.auditOwns
@@ -582,7 +590,7 @@ export async function run({ project, sink, coverage }) {
 
     /* 4. gather coercions for the cross-file rounding-policy comparison ---- */
     for (const hit of findCoercions(file, code)) {
-      if (file.rel === "lib/helpers/currency.ts") continue;
+      if (file.rel === "src/platform/helpers/currency.ts") continue;
       if (hit.rounder === "Math.trunc") {
         if (!truncByOperand.has(hit.operand)) truncByOperand.set(hit.operand, []);
         truncByOperand.get(hit.operand).push(hit);
@@ -616,7 +624,7 @@ export async function run({ project, sink, coverage }) {
       expected:
         "One rounding policy per rupee. The domain core coerces a money value to whole rupees "
         + "with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, "
-        + "lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure "
+        + "src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure "
         + "reaches the ledger, the receipt and the export with the same value.",
       actual:
         `This coerces \`${hit.operand}\` with Math.round, while ${twins.length} other site`
@@ -659,7 +667,7 @@ export async function run({ project, sink, coverage }) {
       + "over lib/, workers/, hooks/, utils/ and i18n/, which that script never walks; across "
       + "the whole tree it adds the no-period \"Rs \" spelling its regex misses. "
       + "Intl.DateTimeFormat is not reported at all — it is a date, not money, and "
-      + "lib/helpers/date.ts is its canonical home. (5) scan.rounding-policy-mixed is heuristic "
+      + "src/platform/helpers/date.ts is its canonical home. (5) scan.rounding-policy-mixed is heuristic "
       + "by registration: it matches on the coerced value's base name, so it sees "
       + "Math.round(value) against Math.trunc(value) and cannot see the same quantity coerced "
       + "under two different names. Comments are blanked before any rule reads a line, which "

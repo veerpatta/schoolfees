@@ -2,7 +2,7 @@ import { render, act } from "@testing-library/react";
 import { useCallback, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useUrlFilterState } from "@/hooks/use-url-filter-state";
+import { useUrlFilterState } from "@/ui/hooks/use-url-filter-state";
 
 /**
  * The journey no suite covered: filter a list, open a record, press back.

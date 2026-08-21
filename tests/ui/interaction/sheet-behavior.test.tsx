@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Sheet, releaseAllSheetScrollLocks } from "@/components/ui/sheet";
+import { Sheet, releaseAllSheetScrollLocks } from "@/ui/primitives/sheet";
 
 /**
  * Real DOM behavior tests. The pre-existing tests/ui suites assert that the

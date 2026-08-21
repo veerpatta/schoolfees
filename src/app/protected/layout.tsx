@@ -1,0 +1,66 @@
+import { CommandHost } from "@/ui/command/command-host";
+import { KeyboardOffsetProvider } from "@/ui/system/keyboard-offset-provider";
+import { DashboardShell } from "@/ui/shell/dashboard-shell";
+import { getVisibleProtectedNavigation } from "@/platform/config/navigation";
+import { hasRolePermission } from "@/platform/auth/roles";
+import { getAppMode } from "@/platform/env";
+import { getViewSessionCookie } from "@/platform/session/cookie";
+import { resolveViewSession } from "@/platform/session/resolver";
+import { requireAuthenticatedStaff } from "@/platform/supabase/session";
+
+export default async function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [staff, resolvedSession] = await Promise.all([
+    requireAuthenticatedStaff(),
+    getViewSessionCookie().then((cookieSession) =>
+      resolveViewSession({ cookieSession }),
+    ),
+  ]);
+  const isTestDatabase = getAppMode() === "test";
+  // CommandHost is a client component. ProtectedNavigationItem.icon is a
+  // LucideIcon (React component) which can't cross the server→client
+  // boundary in Next.js App Router. We strip icons here and pass plain
+  // JSON-serializable data; the nav provider on the client re-attaches
+  // a generic icon. (Bug repro: leaving the icon in causes the protected
+  // layout to render the generic "Check the deployment environment values"
+  // error fallback in prod.)
+  const navigation = getVisibleProtectedNavigation(staff.appRole).map((item) => ({
+    href: item.href,
+    label: item.label,
+    description: item.description,
+    aliases: item.aliases,
+  }));
+  const canViewStudents = hasRolePermission(staff.appRole, "students:view");
+  const canViewReceipts = hasRolePermission(staff.appRole, "receipts:view");
+
+  const shellChildren = (
+    <>
+      <KeyboardOffsetProvider />
+      {isTestDatabase ? (
+        <div className="mb-4 rounded-md border border-destructive/40 bg-destructive px-4 py-2 text-center text-xs font-bold uppercase tracking-[0.14em] text-destructive-foreground shadow-sm">
+          TEST DATABASE - Staging deployment
+        </div>
+      ) : null}
+      {children}
+      <CommandHost
+        navigation={navigation}
+        canViewStudents={canViewStudents}
+        canViewReceipts={canViewReceipts}
+      />
+    </>
+  );
+
+  return (
+    <DashboardShell
+      staffEmail={staff.email ?? "Authorized staff"}
+      staffRole={staff.appRole}
+      viewSessionLabel={resolvedSession.sessionLabel}
+      viewSessionIsTest={resolvedSession.isTest}
+    >
+      {shellChildren}
+    </DashboardShell>
+  );
+}

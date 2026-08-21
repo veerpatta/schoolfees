@@ -6,7 +6,7 @@ import {
   buildInstallmentDueDate,
   normalizeFeeHeadId,
   parseAcademicSessionLabel,
-} from "@/lib/config/fee-rules";
+} from "@/platform/config/fee-rules";
 
 describe("fee-rules", () => {
   describe("getDefaultAcademicSessionLabel", () => {

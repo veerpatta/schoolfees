@@ -11,13 +11,13 @@ const hasAnyStaffPermission = vi.fn();
 const revalidatePath = vi.fn();
 const revalidateTag = vi.fn();
 
-vi.mock("@/lib/import/data", () => ({
+vi.mock("@/modules/imports/data/queries", () => ({
   createStudentImportBatch,
   getStudentImportBatchSummary,
   commitStudentImportBatch,
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   getAuthenticatedStaff,
   hasStaffPermission,
   hasAnyStaffPermission,

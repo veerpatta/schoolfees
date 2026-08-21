@@ -6,7 +6,7 @@ const getFeePolicySummary = vi.fn();
 const getStudentDetail = vi.fn();
 const createClient = vi.fn();
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary,
   getFeePolicyForSession: vi.fn(async (sessionLabel: string) => ({
     academicSessionLabel: sessionLabel,
@@ -15,15 +15,15 @@ vi.mock("@/lib/fees/data", () => ({
   })),
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentDetail,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically: vi.fn(),
 }));
 
@@ -76,7 +76,7 @@ describe("payment session guard", () => {
       ]),
     );
 
-    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+    const { preflightPaymentPosting } = await import("@/modules/payments/data/queries");
 
     await expect(
       preflightPaymentPosting({
@@ -102,7 +102,7 @@ describe("payment session guard", () => {
     });
     createClient.mockResolvedValue(preflightClient());
 
-    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+    const { preflightPaymentPosting } = await import("@/modules/payments/data/queries");
 
     await expect(
       preflightPaymentPosting({

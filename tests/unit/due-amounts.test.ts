@@ -4,7 +4,7 @@ import {
   calculateInstallmentBasePending,
   calculateOverdueBaseAmount,
   calculatePendingLateFeeAmount,
-} from "@/lib/fees/due-amounts";
+} from "@/modules/fees/domain/due-amounts";
 
 describe("due amount helpers", () => {
   it("keeps overdue installment balance separate from pending late fee", () => {

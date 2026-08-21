@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { rolePermissions, staffRoles } from "@/lib/auth/roles";
+import { rolePermissions, staffRoles } from "@/platform/auth/roles";
 import {
   describeIdentity,
   identityCan,
@@ -13,7 +13,7 @@ import {
 
 /**
  * The Worker ships to Cloudflare on its own and cannot import
- * `lib/auth/roles.ts`, so it keeps a copy of the role matrix. A copy can drift,
+ * `src/platform/auth/roles.ts`, so it keeps a copy of the role matrix. A copy can drift,
  * and a drifted copy either hides a tool from someone entitled to it or hands
  * one to someone who is not. This test is the thing that stops that.
  */

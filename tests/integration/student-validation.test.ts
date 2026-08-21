@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { validateStudentInput } from "@/lib/students/validation";
-import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
+import { validateStudentInput } from "@/modules/students/domain/validation";
+import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/modules/students/domain/info-fields";
 
 const classIds = new Set(["class-1"]);
 const routeIds = new Set(["route-1"]);

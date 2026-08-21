@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   suggestPhoneLabel,
   type PhoneResponsiveness,
-} from "@/lib/defaulters/cadence";
+} from "@/modules/defaulters/domain/cadence";
 
 function stat(partial: Partial<PhoneResponsiveness> & { label: string }): PhoneResponsiveness {
   return {

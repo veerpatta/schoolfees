@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { amountInWordsHindi } from "@/lib/helpers/amount-in-words-hi";
+import { amountInWordsHindi } from "@/platform/helpers/amount-in-words-hi";
 
 describe("amountInWordsHindi", () => {
   it("renders zero", () => {

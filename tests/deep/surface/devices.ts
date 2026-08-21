@@ -2,7 +2,7 @@ import { registerDimension } from "../lib/coverage";
 
 /**
  * Three viewports, because the app renders genuinely different components at
- * each — `components/*\/mobile-*` screens, a bottom nav, and takeover routes
+ * each — `src/components/*\/mobile-*` screens, a bottom nav, and takeover routes
  * that hide the tab bar. A responsive-CSS-only app would not need this; this
  * one has a separate phone Payment Desk with its own CI line budget.
  *

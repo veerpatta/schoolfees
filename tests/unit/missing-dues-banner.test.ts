@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("MissingDuesBanner shared component (audit 1.13 + 1.14)", () => {
   const source = readFileSync(
-    join(process.cwd(), "components/shared/missing-dues-banner.tsx"),
+    join(process.cwd(), "src/ui/shared/missing-dues-banner.tsx"),
     "utf8",
   );
 
@@ -27,19 +27,19 @@ describe("MissingDuesBanner shared component (audit 1.13 + 1.14)", () => {
 
 describe("Defaulters page mounts the missing-dues banner (audit 1.14)", () => {
   const page = readFileSync(
-    join(process.cwd(), "app/protected/defaulters/page.tsx"),
+    join(process.cwd(), "src/app/protected/defaulters/page.tsx"),
     "utf8",
   );
 
   it("imports MissingDuesBanner and passes data.missingDuesRows.length", () => {
-    expect(page).toContain('from "@/components/shared/missing-dues-banner"');
+    expect(page).toContain('from "@/ui/shared/missing-dues-banner"');
     expect(page).toContain("<MissingDuesBanner missingCount={data.missingDuesRows.length} />");
   });
 });
 
 describe("Imports page surfaces ledger-sync errors as the banner (audit 1.13)", () => {
   const page = readFileSync(
-    join(process.cwd(), "app/protected/imports/page.tsx"),
+    join(process.cwd(), "src/app/protected/imports/page.tsx"),
     "utf8",
   );
 

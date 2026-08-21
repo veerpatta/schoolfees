@@ -56,8 +56,8 @@ vi.mock("@/app/protected/students/close-due-actions", () => ({
     (closeDueAsDiscountAction as unknown as (...a: unknown[]) => unknown)(...args),
 }));
 
-const { StudentDangerZone } = await import("@/components/students/student-danger-zone");
-const { ToastViewport } = await import("@/components/ui/toast");
+const { StudentDangerZone } = await import("@/modules/students/ui/student-danger-zone");
+const { ToastViewport } = await import("@/ui/primitives/toast");
 
 const safety = {
   studentId: "s-1",

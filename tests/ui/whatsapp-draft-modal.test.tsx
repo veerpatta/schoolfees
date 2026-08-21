@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/ui/sheet", () => ({
+vi.mock("@/ui/primitives/sheet", () => ({
   Sheet: ({ children, title, description }: {
     children: React.ReactNode;
     title?: string;
@@ -21,10 +21,10 @@ vi.mock("@/components/ui/sheet", () => ({
     ),
 }));
 
-import { WhatsAppDraftModal } from "@/components/defaulters/whatsapp-draft-modal";
+import { WhatsAppDraftModal } from "@/modules/defaulters/ui/whatsapp-draft-modal";
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 function render(node: React.ReactElement): string {

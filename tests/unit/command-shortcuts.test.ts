@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SHORTCUTS, groupShortcuts } from "@/lib/command/shortcuts";
+import { SHORTCUTS, groupShortcuts } from "@/ui/command/shortcuts";
 
 describe("command/shortcuts", () => {
   it("registers the canonical global keys", () => {

@@ -39,7 +39,7 @@
  *      asked for explicitly with `--fuzz-remote`.
  *   2. Session label. The live label `2026-27` is refused outright, at any
  *      URL, in any mode. Every request also pins `vpps_view_session` to the
- *      test label, because `app/protected/layout.tsx` resolves the session
+ *      test label, because `src/app/protected/layout.tsx` resolves the session
  *      from that cookie and an export route that resolved to the live ledger
  *      would write real families into this run's JSONL.
  *   3. Methods. GET and HEAD only, unless `--fuzz-writes` is passed.
@@ -84,7 +84,7 @@ const TEST_SESSION_PREFIXES = ["TEST-", "UAT-", "DEMO-"];
 const DEFAULT_SESSION =
   process.env.SCHOOLFEES_SMOKE_SESSION?.trim() || "TEST-2026-27";
 
-/** The session cookie `app/protected/layout.tsx` reads. Mirrors writes.ts. */
+/** The session cookie `src/app/protected/layout.tsx` reads. Mirrors writes.ts. */
 const VIEW_SESSION_COOKIE = "vpps_view_session";
 
 /** Mirrors `WRITE_ALLOWED_HOSTS`. Loopback is handled separately, by shape. */
@@ -120,7 +120,7 @@ const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0
  */
 const NEVER_FUZZ = new Map([
   [
-    "app/auth/confirm/route.ts",
+    "src/app/auth/confirm/route.ts",
     "Exchanges a one-time OTP token for a session and writes the auth cookie jar. A fuzz pass "
       + "that happened to be handed a live token would consume it, and every subsequent request "
       + "in the run would be authenticated as somebody nobody chose.",
@@ -139,7 +139,7 @@ const HEAVY_ROUTES = /\/(exports|export|template)\//;
 const HEAVY_VARIANT_CAP = 8;
 
 /** Mirrors `PUBLIC_BY_DESIGN` in checks/guards.mjs — a 2xx here is not a bypass. */
-const PUBLIC_BY_DESIGN = new Set(["app/api/manifest/route.ts", "app/auth/confirm/route.ts"]);
+const PUBLIC_BY_DESIGN = new Set(["src/app/api/manifest/route.ts", "src/app/auth/confirm/route.ts"]);
 
 /** Reaching one of these means the route can refuse an anonymous caller. */
 const GUARD_MARKERS =
@@ -301,10 +301,10 @@ function safeDecode(value) {
 
 /* ═══════════════════════════════════════════════ target enumeration */
 
-/** `app/protected/receipts/[receiptId]/detail/route.ts` becomes its URL shape. */
+/** `src/app/protected/receipts/[receiptId]/detail/route.ts` becomes its URL shape. */
 function routePathFor(rel) {
   return rel
-    .replace(/^app/, "")
+    .replace(/^src\/app/, "")
     .replace(/\/route\.[tj]sx?$/, "")
     .split("/")
     .filter((segment) => !/^\(.*\)$/.test(segment))

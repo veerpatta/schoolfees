@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   activeReceiptTemplateBody,
   buildReceiptShareMessage,
-} from "@/lib/receipts/share-message";
-import { buildReceiptShareDocs } from "@/lib/receipts/share-docs";
-import { receiptCardFilename, receiptPdfFilename } from "@/lib/receipts/document-names";
+} from "@/modules/receipts/domain/share-message";
+import { buildReceiptShareDocs } from "@/modules/receipts/domain/share-docs";
+import { receiptCardFilename, receiptPdfFilename } from "@/modules/receipts/domain/document-names";
 
 const receipt = {
   receiptNumber: "SVP20260819-0012",

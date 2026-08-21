@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("Master Data session delete confirmation (audit 1.23)", () => {
   const source = readFileSync(
-    join(process.cwd(), "components/master-data/master-data-client.tsx"),
+    join(process.cwd(), "src/modules/master-data/ui/master-data-client.tsx"),
     "utf8",
   );
 

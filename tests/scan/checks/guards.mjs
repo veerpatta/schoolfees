@@ -3,11 +3,11 @@
  *
  * This app has three layers and only the third is authorisation:
  *
- *   1. `proxy.ts` → `lib/supabase/middleware.ts` redirects an unauthenticated
+ *   1. `src/proxy.ts` → `src/platform/supabase/middleware.ts` redirects an unauthenticated
  *      visitor away from `/protected/**`. It checks no permission, and — this
  *      is the part that matters — it does not cover `/api/**` at all. An
- *      `app/api/.../route.ts` with no helper call is open to the internet.
- *   2. `app/protected/layout.tsx` calls `requireAuthenticatedStaff()`. Still
+ *      `src/app/api/.../route.ts` with no helper call is open to the internet.
+ *   2. `src/app/protected/layout.tsx` calls `requireAuthenticatedStaff()`. Still
  *      no permission: every signed-in staff member passes, including
  *      `view_only`.
  *   3. The per-surface `requireStaffPermission(...)` / `hasStaffPermission(...)`
@@ -27,13 +27,13 @@
  *   if (!staff || !hasStaffPermission(staff, "payments:bulk")) …
  *
  * And one idiom looks like a guard and is not: `hasRolePermission` from
- * `@/lib/auth/roles` shapes the UI (which shortcuts to show, which nav item to
- * render). Counting it would bless `app/api/manifest/route.ts`, which uses it
+ * `@/platform/auth/roles` shapes the UI (which shortcuts to show, which nav item to
+ * render). Counting it would bless `src/app/api/manifest/route.ts`, which uses it
  * to *choose* a payload and never to deny. It is excluded here on purpose.
  *
  * The known-hard case is the indirect guard: the four promotion actions in
- * `app/protected/admin-tools/promotion/actions.ts` hold no check themselves
- * and delegate to `lib/promotion/data.ts`, which calls
+ * `src/app/protected/admin-tools/promotion/actions.ts` hold no check themselves
+ * and delegate to `src/modules/promotion/data/queries.ts`, which calls
  * `requireStaffPermission("students:write")`. A file-local rule reports four
  * false positives there, and four false positives is how a P0 rule gets muted.
  * So the check follows one hop into locally-imported modules before it accuses
@@ -64,20 +64,20 @@ const AUTH_ONLY = ["getAuthenticatedStaff", "requireAuthenticatedStaff"];
  * rule is trying to force.
  */
 const PUBLIC_BY_DESIGN = new Map([
-  ["app/auth/confirm/route.ts", "Supabase OTP verification — the pre-auth entry point itself."],
+  ["src/app/auth/confirm/route.ts", "Supabase OTP verification — the pre-auth entry point itself."],
   [
-    "app/r/[code]/page.tsx",
+    "src/app/r/[code]/page.tsx",
     "The QR receipt-verification page a parent opens without an account. Deliberately minimal "
       + "disclosure — receipt number, date, amount, reversed? — behind a point lookup on "
       + "receipt_number, and noindex. Widening what it returns is the change that needs review, "
       + "not the absence of a staff guard.",
   ],
   [
-    "app/api/manifest/route.ts",
+    "src/app/api/manifest/route.ts",
     "The PWA manifest. Reads the session opportunistically to pick shortcuts and never denies; carries no student data.",
   ],
   [
-    "app/auth/login/actions.ts",
+    "src/app/auth/login/actions.ts",
     "Sign-in. Guarding it would require the session it exists to create.",
   ],
 ]);
@@ -85,10 +85,10 @@ const PUBLIC_BY_DESIGN = new Map([
 /**
  * The sign-in flow. Pre-auth by definition — login, sign-up, the password
  * reset pair, and the two result screens. A route handler under here is not
- * covered: `app/auth/confirm/route.ts` is listed individually above, so
+ * covered: `src/app/auth/confirm/route.ts` is listed individually above, so
  * adding a second handler to this directory still has to be argued for.
  */
-const PRE_AUTH_ZONE = /^app\/auth\/[^/]+\/page\.tsx$/;
+const PRE_AUTH_ZONE = /^src\/app\/auth\/[^/]+\/page\.tsx$/;
 
 /** Shared-secret surfaces: no staff session, but a token that must be checked. */
 const SECRET_GUARDED = [
@@ -114,7 +114,10 @@ function guardsViaImport(file, project) {
     const imported = project.get(target);
     if (!imported) continue;
     // Only follow into modules the file could plausibly be delegating to.
-    if (!/^(lib|app|utils)\//.test(target)) continue;
+    // platform/ matters most here: requireAuthenticatedStaff lives in
+    // src/platform/supabase/session.ts, so a route that delegates its guard
+    // reads as unguarded if this does not follow into it. utils/ is gone.
+    if (!/^src\/(lib|app|platform|ui|modules)\//.test(target)) continue;
     const found = mentions(imported.text, PERMISSION_GUARDS);
     if (found.length > 0) return { via: target, helpers: found };
   }
@@ -200,7 +203,7 @@ export async function run({ project, sink, coverage }) {
           file.lines.findIndex((line) => new RegExp(`\\b${auth[0]}\\s*\\(`).test(line))
         ],
         why:
-          "app/protected/layout.tsx already establishes the session. A surface that stops "
+          "src/app/protected/layout.tsx already establishes the session. A surface that stops "
           + "there is guarded against the public and open to the whole staff roll.",
         fix:
           "Add requireStaffPermission(\"<permission>\") — or, for the manual idiom, "
@@ -222,7 +225,7 @@ export async function run({ project, sink, coverage }) {
         + "verifies no shared secret, and delegates to no locally-imported module that does.",
       evidence: file.lines.slice(0, 3).join(" ").slice(0, 200),
       why:
-        file.rel.startsWith("app/api/")
+        file.rel.startsWith("src/app/api/")
           ? "proxy.ts redirects unauthenticated traffic away from /protected only. /api/** is not "
             + "covered, so an unguarded handler here is reachable without a session at all."
           : "The protected layout covers authentication, but a surface that never names a "

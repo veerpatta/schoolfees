@@ -11,12 +11,12 @@ function readRepoFile(path: string) {
 
 describe("read-only UX audit implementation", () => {
   it("students filters default to active status from one shared normalizer", () => {
-    const page = readRepoFile("app/protected/students/page.tsx");
-    const indexRoute = readRepoFile("app/protected/students/index/route.ts");
-    const normalizer = readRepoFile("lib/students/filter-params.ts");
-    const bulkDialog = readRepoFile("components/students/student-bulk-import-dialog.tsx");
+    const page = readRepoFile("src/app/protected/students/page.tsx");
+    const indexRoute = readRepoFile("src/app/protected/students/index/route.ts");
+    const normalizer = readRepoFile("src/modules/students/domain/filter-params.ts");
+    const bulkDialog = readRepoFile("src/modules/students/ui/student-bulk-import-dialog.tsx");
     // Students chrome copy now lives in the next-intl Students namespace.
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Students: Record<string, string>;
     };
 
@@ -37,10 +37,10 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("login stays minimal and staff-safe", () => {
-    const layout = readRepoFile("app/auth/layout.tsx");
-    const login = readRepoFile("components/login-form.tsx");
-    const notice = readRepoFile("components/auth/auth-config-notice.tsx");
-    const authError = readRepoFile("app/auth/error.tsx");
+    const layout = readRepoFile("src/app/auth/layout.tsx");
+    const login = readRepoFile("src/ui/auth/login-form.tsx");
+    const notice = readRepoFile("src/ui/auth/auth-config-notice.tsx");
+    const authError = readRepoFile("src/app/auth/error.tsx");
     const combined = [layout, login, notice, authError].join("\n");
 
     expect(layout).toContain("Shri Veer Patta Senior Secondary School");
@@ -56,14 +56,14 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("read-only finance filters no longer need manual apply buttons", () => {
-    const transactions = readRepoFile("components/transactions/transactions-client-shell.tsx");
-    const reports = readRepoFile("app/protected/reports/page.tsx");
-    const defaulters = readRepoFile("components/defaulters/defaulter-filters.tsx");
-    const defaultersPage = readRepoFile("app/protected/defaulters/page.tsx");
-    const defaultersWorkspace = readRepoFile("components/defaulters/defaulters-workspace.tsx");
-    const receipts = readRepoFile("app/protected/receipts/page.tsx");
+    const transactions = readRepoFile("src/modules/transactions/ui/transactions-client-shell.tsx");
+    const reports = readRepoFile("src/app/protected/reports/page.tsx");
+    const defaulters = readRepoFile("src/modules/defaulters/ui/defaulter-filters.tsx");
+    const defaultersPage = readRepoFile("src/app/protected/defaulters/page.tsx");
+    const defaultersWorkspace = readRepoFile("src/modules/defaulters/ui/defaulters-workspace.tsx");
+    const receipts = readRepoFile("src/app/protected/receipts/page.tsx");
     // Transactions filter labels now live in the Transactions namespace.
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Transactions: Record<string, string>;
     };
 
@@ -81,10 +81,10 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("payment desk and ledger open selected students without extra load buttons", () => {
-    const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
-    const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
-    const paymentData = readRepoFile("lib/payments/data.ts");
-    const ledger = readRepoFile("components/ledger/ledger-client.tsx");
+    const paymentDesk = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
+    const paymentData = readRepoFile("src/modules/payments/data/queries.ts");
+    const ledger = readRepoFile("src/modules/reports/ui/ledger-client.tsx");
 
     expect(paymentDesk).not.toContain("AutoSubmitForm");
     expect(paymentDesk).not.toContain("Continue with this student");
@@ -101,12 +101,12 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("mobile payment layout avoids stacked bottom bars", () => {
-    const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
-    const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
-    const topbar = readRepoFile("components/admin/app-topbar.tsx");
-    const shell = readRepoFile("components/admin/dashboard-shell.tsx");
-    const mobileNav = readRepoFile("components/admin/mobile-bottom-nav.tsx");
-    const globals = readRepoFile("app/globals.css");
+    const paymentDesk = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
+    const topbar = readRepoFile("src/ui/shell/app-topbar.tsx");
+    const shell = readRepoFile("src/ui/shell/dashboard-shell.tsx");
+    const mobileNav = readRepoFile("src/ui/shell/mobile-bottom-nav.tsx");
+    const globals = readRepoFile("src/app/globals.css");
 
     expect(topbar).not.toContain("hideMobileBottomNav");
     expect(topbar).toContain("hidden border-b");
@@ -115,10 +115,10 @@ describe("read-only UX audit implementation", () => {
     // header, so the shell must NOT reintroduce a sticky one — and the
     // controls it used to carry have to live somewhere reachable.
     expect(shell).not.toContain("<MobileHeader");
-    expect(readRepoFile("components/dashboard/mobile-dashboard-screen.tsx")).toContain(
+    expect(readRepoFile("src/modules/dashboard/ui/mobile-dashboard-screen.tsx")).toContain(
       "MobileSessionPill",
     );
-    expect(readRepoFile("app/protected/settings/page.tsx")).toContain("MobileAccountCard");
+    expect(readRepoFile("src/app/protected/settings/page.tsx")).toContain("MobileAccountCard");
     expect(topbar).not.toContain("fixed inset-x-0 bottom-0");
     expect(shell).toContain("<MobileBottomNav");
     expect(shell).toContain("staffRole={staffRole}");
@@ -134,19 +134,19 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("accountant and read-only roles do not get technical diagnostics by default", () => {
-    const paymentsPage = readRepoFile("app/protected/payments/page.tsx");
+    const paymentsPage = readRepoFile("src/app/protected/payments/page.tsx");
 
     expect(paymentsPage).toContain("canViewDiagnostics={staff.appRole === \"admin\"}");
     expect(paymentsPage).not.toContain("canViewDiagnostics={true}");
   });
 
   it("dashboard hides repair console and Admin Tools shows automatic sync status", () => {
-    const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
-    const advanced = readRepoFile("app/protected/admin-tools/page.tsx");
-    const navigation = readRepoFile("lib/config/navigation.ts");
+    const dashboard = readRepoFile("src/app/protected/dashboard/page.tsx");
+    const advanced = readRepoFile("src/app/protected/admin-tools/page.tsx");
+    const navigation = readRepoFile("src/platform/config/navigation.ts");
     // Admin Tools / Dashboard wording now lives in the next-intl AdminTools
     // and Dashboard namespaces.
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       AdminTools: Record<string, string>;
       Dashboard: Record<string, string>;
     };
@@ -170,7 +170,7 @@ describe("read-only UX audit implementation", () => {
     // Session Health is reached from the live System Status card now, not a
     // separate hub item — but its reconcile action stays fees:write gated.
     const sessionHealthActions = readRepoFile(
-      "app/protected/admin-tools/session-health/actions.ts",
+      "src/app/protected/admin-tools/session-health/actions.ts",
     );
     expect(sessionHealthActions).toContain('requireStaffPermission("fees:write")');
     expect(navigation).not.toContain('title: "System Readiness"');
@@ -178,20 +178,20 @@ describe("read-only UX audit implementation", () => {
 
   it("uses office-friendly wording on daily pages", () => {
     const dailyFiles = [
-      "app/protected/dashboard/page.tsx",
-      "app/protected/students/page.tsx",
-      "app/protected/transactions/page.tsx",
-      "app/protected/defaulters/page.tsx",
-      "app/protected/receipts/page.tsx",
-      "components/payments/payment-desk-mobile.tsx",
-      "components/students/student-list-table.tsx",
-      "components/students/student-form.tsx",
-      "components/ledger/ledger-client.tsx",
-      "components/fees/fee-setup-client.tsx",
+      "src/app/protected/dashboard/page.tsx",
+      "src/app/protected/students/page.tsx",
+      "src/app/protected/transactions/page.tsx",
+      "src/app/protected/defaulters/page.tsx",
+      "src/app/protected/receipts/page.tsx",
+      "src/modules/payments/ui/payment-desk-mobile.tsx",
+      "src/modules/students/ui/student-list-table.tsx",
+      "src/modules/students/ui/student-form.tsx",
+      "src/modules/reports/ui/ledger-client.tsx",
+      "src/modules/fees/ui/fee-setup-client.tsx",
     ];
     const combined = dailyFiles.map(readRepoFile).join("\n");
     // Fee Setup / Students wording now lives in their next-intl namespaces.
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       FeeSetup: Record<string, string>;
       Students: Record<string, string>;
     };
@@ -212,16 +212,16 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("daily tables expose compact default columns", () => {
-    const studentsTable = readRepoFile("components/students/student-list-table.tsx");
-    const transactions = readRepoFile("components/transactions/transactions-client-shell.tsx");
-    const transactionLazyTables = readRepoFile("components/transactions/transactions-lazy-tables.tsx");
-    const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
-    const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
+    const studentsTable = readRepoFile("src/modules/students/ui/student-list-table.tsx");
+    const transactions = readRepoFile("src/modules/transactions/ui/transactions-client-shell.tsx");
+    const transactionLazyTables = readRepoFile("src/modules/transactions/ui/transactions-lazy-tables.tsx");
+    const defaulters = readRepoFile("src/app/protected/defaulters/page.tsx");
+    const dashboard = readRepoFile("src/app/protected/dashboard/page.tsx");
     // Defaulters labels now live in the next-intl Defaulters namespace;
     // Dashboard KPI labels live in the Dashboard namespace;
     // Transactions column headers live in the Transactions namespace;
     // Students table headers live in the Students namespace.
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Defaulters: Record<string, string>;
       Dashboard: Record<string, string>;
       Transactions: Record<string, string>;
@@ -250,16 +250,16 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("write actions still revalidate finance surfaces", () => {
-    expect(readRepoFile("app/protected/payments/actions.ts")).toContain(
+    expect(readRepoFile("src/app/protected/payments/actions.ts")).toContain(
       "revalidateSessionFinance(",
     );
-    expect(readRepoFile("app/protected/fee-setup/actions.ts")).toContain(
+    expect(readRepoFile("src/app/protected/fee-setup/actions.ts")).toContain(
       "revalidateCoreFinancePaths()",
     );
-    expect(readRepoFile("app/protected/imports/actions.ts")).toContain(
+    expect(readRepoFile("src/app/protected/imports/actions.ts")).toContain(
       "revalidateImportPostCommit",
     );
-    expect(readRepoFile("app/protected/students/actions.ts")).toContain(
+    expect(readRepoFile("src/app/protected/students/actions.ts")).toContain(
       "revalidateFinanceSurfaces({ studentIds: [studentId] })",
     );
   });

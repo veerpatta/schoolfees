@@ -5,7 +5,7 @@ import {
   buildWorkbookStatus,
   distributeLateFeeWaiver,
   normalizeWorkbookClassLabel,
-} from "@/lib/fees/workbook";
+} from "@/modules/fees/domain/workbook";
 
 describe("workbook fee helpers", () => {
   it("normalizes workbook class aliases", () => {

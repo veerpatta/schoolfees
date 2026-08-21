@@ -11,25 +11,25 @@ const updateAcademicSession = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
-vi.mock("@/lib/session/active", () => ({
+vi.mock("@/platform/session/active", () => ({
   getActiveSessionLabel,
 }));
 
-vi.mock("@/lib/session/set-active", () => ({
+vi.mock("@/platform/session/set-active", () => ({
   setActiveSessionLabel,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/master-data/data", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/master-data/data")>(
-    "@/lib/master-data/data",
+vi.mock("@/modules/master-data/data/queries", async () => {
+  const actual = await vi.importActual<typeof import("@/modules/master-data/data/queries")>(
+    "@/modules/master-data/data/queries",
   );
 
   return {
@@ -154,7 +154,7 @@ describe("Master Data active session toggle", () => {
       }),
     });
 
-    const { getMasterDataPageData } = await import("@/lib/master-data/data");
+    const { getMasterDataPageData } = await import("@/modules/master-data/data/queries");
     const data = await getMasterDataPageData();
 
     const liveRow = data.sessions.find((session) => session.session_label === "2025-26");
@@ -162,7 +162,7 @@ describe("Master Data active session toggle", () => {
     expect(liveRow?.is_current).toBe(true);
     expect(staleRow?.is_current).toBe(false);
 
-    const { MasterDataClient } = await import("@/components/master-data/master-data-client");
+    const { MasterDataClient } = await import("@/modules/master-data/ui/master-data-client");
     const html = renderToStaticMarkup(
       React.createElement(MasterDataClient, {
         sessions: data.sessions,

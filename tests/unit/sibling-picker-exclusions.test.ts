@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { resolveSiblingPickerExclusions } from "@/lib/students/family-link";
+import { resolveSiblingPickerExclusions } from "@/modules/students/domain/family-link";
 
 const SELF = "22222222-2222-4222-8222-222222222222";
 const SIBLING = "33333333-3333-4333-8333-333333333333";
@@ -34,8 +34,8 @@ describe("sibling picker exclusions", () => {
     const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
     for (const path of [
-      "components/students/family-panel.tsx",
-      "components/students/mobile-student-family-tab.tsx",
+      "src/modules/students/ui/family-panel.tsx",
+      "src/modules/students/ui/mobile-student-family-tab.tsx",
     ]) {
       const source = read(path);
       expect(source, path).toContain("resolveSiblingPickerExclusions");

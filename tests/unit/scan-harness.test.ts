@@ -38,7 +38,7 @@ describe("the scan sink speaks the deep harness's finding shape", () => {
     // both harnesses.
     const fingerprint = fingerprintOf("route answered 500 at 2026-08-19T10:00:00Z");
     expect(fingerprint).toContain("<timestamp>");
-    expect(findingId("scan.route-unguarded", "app/api/x/route.ts:1", fingerprint)).toHaveLength(12);
+    expect(findingId("scan.route-unguarded", "src/app/api/x/route.ts:1", fingerprint)).toHaveLength(12);
   });
 
   it("normalises away everything that varies between two runs of one bug", () => {
@@ -52,7 +52,7 @@ describe("the scan sink speaks the deep harness's finding shape", () => {
     for (const variant of ["empty-body", "nul-byte", "5mb-body"]) {
       sink.record({
         rule: "fuzz.route-500",
-        file: "app/api/imports/students/upload/route.ts",
+        file: "src/app/api/imports/students/upload/route.ts",
         line: 10,
         title: "answers 500",
         expected: "400",
@@ -124,12 +124,12 @@ describe("the guard check actually detects an unguarded route", () => {
   it("fires on a handler with no auth and no permission, and stays quiet on a guarded one", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "scan-guards-"));
     try {
-      mkdirSync(path.join(root, "app/api/open"), { recursive: true });
-      mkdirSync(path.join(root, "app/api/closed"), { recursive: true });
+      mkdirSync(path.join(root, "src/app/api/open"), { recursive: true });
+      mkdirSync(path.join(root, "src/app/api/closed"), { recursive: true });
       writeFileSync(
-        path.join(root, "app/api/open/route.ts"),
+        path.join(root, "src/app/api/open/route.ts"),
         [
-          'import { createClient } from "@/lib/supabase/server";',
+          'import { createClient } from "@/platform/supabase/server";',
           "export async function GET() {",
           "  const supabase = await createClient();",
           '  const { data } = await supabase.from("students").select("*");',
@@ -139,9 +139,9 @@ describe("the guard check actually detects an unguarded route", () => {
         "utf8",
       );
       writeFileSync(
-        path.join(root, "app/api/closed/route.ts"),
+        path.join(root, "src/app/api/closed/route.ts"),
         [
-          'import { requireStaffPermission } from "@/lib/supabase/session";',
+          'import { requireStaffPermission } from "@/platform/supabase/session";',
           "export async function GET() {",
           '  await requireStaffPermission("students:view");',
           "  return Response.json({ ok: true });",
@@ -156,8 +156,8 @@ describe("the guard check actually detects an unguarded route", () => {
       await guards.run({ project, sink, coverage });
 
       const surfaces = sink.all().map((finding) => finding.surface);
-      expect(surfaces).toContain("app/api/open/route.ts:1");
-      expect(surfaces.some((surface) => surface.startsWith("app/api/closed"))).toBe(false);
+      expect(surfaces).toContain("src/app/api/open/route.ts:1");
+      expect(surfaces.some((surface) => surface.startsWith("src/app/api/closed"))).toBe(false);
       expect(sink.all()[0].severity).toBe("P0");
     } finally {
       rmSync(root, { recursive: true, force: true });

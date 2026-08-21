@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
+import { createBilingualReceiptTranslator } from "@/platform/i18n/bilingual-receipt";
 
 describe("createBilingualReceiptTranslator", () => {
   const t = createBilingualReceiptTranslator();

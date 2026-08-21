@@ -6,8 +6,8 @@ import {
   getQuickAmountChipClassName,
   getQuickAmountChipLabel,
   getQuickAmountChipVariant,
-} from "@/components/payments/payment-desk-emi-banner";
-import { formatInr } from "@/lib/helpers/currency";
+} from "@/modules/payments/ui/payment-desk-emi-banner";
+import { formatInr } from "@/platform/helpers/currency";
 
 import {
   buildPaymentDeskSearchIndex,
@@ -19,10 +19,10 @@ import {
   shouldBlockClientSubmission,
   shouldShowPaymentActionState,
   validatePaymentDraft,
-} from "@/lib/payments/payment-desk-workflow";
-import { normalizeAmountInputShorthand } from "@/lib/payments/payment-desk-client-helpers";
-import type { SelectedStudentSummary } from "@/lib/payments/types";
-import { buildReceiptPreviewAllocation } from "@/lib/payments/allocation";
+} from "@/modules/payments/domain/payment-desk-workflow";
+import { normalizeAmountInputShorthand } from "@/modules/payments/domain/payment-desk-client-helpers";
+import type { SelectedStudentSummary } from "@/modules/payments/domain/types";
+import { buildReceiptPreviewAllocation } from "@/modules/payments/domain/allocation";
 
 const selectedStudent = {
   id: "student-1",
@@ -313,7 +313,7 @@ describe("payment desk cashier workflow", () => {
 
   it("collect another payment preserves class filter and re-opens student picker", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const body = component.match(
@@ -334,7 +334,7 @@ describe("payment desk cashier workflow", () => {
 
   it("mobile class stats use cached summaries and report zero pending when all cached students are paid", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const statsBody = component.match(
@@ -349,7 +349,7 @@ describe("payment desk cashier workflow", () => {
 
   it("mobile class streak skips the class picker after repeated same-class use", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const restoreEffect = component.match(
@@ -376,7 +376,7 @@ describe("payment desk cashier workflow", () => {
 
   it("gates the desktop last-class restore on an affirmative desktop query, not !isMobileView", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const restoreEffect = component.match(
@@ -398,7 +398,7 @@ describe("payment desk cashier workflow", () => {
 
   it("all classes reset keeps the student picker open and searchable", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const body = component.match(
@@ -416,7 +416,7 @@ describe("payment desk cashier workflow", () => {
 
   it("shows today receipt banner when same student has a receipt on payment date", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const collectAnotherBody = component.match(
@@ -454,7 +454,7 @@ describe("payment desk cashier workflow", () => {
 
   it("mode kept reminder appears only before the next student is selected", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -465,11 +465,11 @@ describe("payment desk cashier workflow", () => {
 
   it("selected student banner has an accessible change button that clears the student", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const sheet = readFileSync(
-      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
 
@@ -481,7 +481,7 @@ describe("payment desk cashier workflow", () => {
 
   it("cash payments under the fast-post threshold submit without opening the confirm sheet", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const openConfirmationBody = component.match(
@@ -503,7 +503,7 @@ describe("payment desk cashier workflow", () => {
 
   it("today collection ticker receives optimistic increment after success", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const successEffect = component.match(
@@ -525,7 +525,7 @@ describe("payment desk cashier workflow", () => {
     expect(normalizeAmountInputShorthand("1250")).toBe("1250");
 
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -535,7 +535,7 @@ describe("payment desk cashier workflow", () => {
 
   it("recent student shortcuts use the requested storage key and are posted-payment driven", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -551,7 +551,7 @@ describe("payment desk cashier workflow", () => {
 
   it("filtered student list boosts recently posted students after search and class filters", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -562,7 +562,7 @@ describe("payment desk cashier workflow", () => {
 
   it("success handling stores the last amount and triggers mobile haptics once per receipt", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const successEffect = component.match(
@@ -572,7 +572,7 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("const [lastPostedAmount, setLastPostedAmount] = useState<number | null>(null)");
     expect(successEffect).toContain("setLastPostedAmount(state.amountReceived)");
     // navigator.vibrate now lives in the shared hooks/use-haptics.ts primitive.
-    expect(component).toContain('from "@/hooks/use-haptics"');
+    expect(component).toContain('from "@/ui/hooks/use-haptics"');
     expect(successEffect).toContain("optimisticReceiptKeyRef.current = actionStateKey");
     expect(component).toContain("lastPostedAmount={lastPostedAmount}");
     expect(component).toContain("setPaymentAmountInput(String(lastPostedAmount))");
@@ -580,11 +580,11 @@ describe("payment desk cashier workflow", () => {
 
   it("payment feedback includes toast, distinct haptics, and improved skeleton markers", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const confirmSheet = readFileSync(
-      join(process.cwd(), "components/payments/confirm-receipt-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/confirm-receipt-sheet.tsx"),
       "utf8",
     );
 
@@ -602,7 +602,7 @@ describe("payment desk cashier workflow", () => {
 
   it("payment date backdated warning is visible and non-dismissable", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const backdatedBlock = component.match(
@@ -616,7 +616,7 @@ describe("payment desk cashier workflow", () => {
 
   it("desktop amount input supports F1-F4 payment mode hotkeys and Enter to review", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const desktopAmountInput = component.match(
@@ -755,27 +755,27 @@ describe("payment desk cashier workflow", () => {
 
   it("payment desk split keeps the required cashier dialogs and locked states", () => {
     const wrapper = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-entry-client.tsx"),
       "utf8",
     );
     const mobile = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const desktop = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-desktop.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-desktop.tsx"),
       "utf8",
     );
     const duplicate = readFileSync(
-      join(process.cwd(), "components/payments/duplicate-receipt-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/duplicate-receipt-sheet.tsx"),
       "utf8",
     );
     const success = readFileSync(
-      join(process.cwd(), "components/payments/success-receipt-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/success-receipt-sheet.tsx"),
       "utf8",
     );
     const mobileSheet = readFileSync(
-      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
     const component = [wrapper, mobile, desktop, duplicate, success, mobileSheet].join("\n");
@@ -795,7 +795,7 @@ describe("payment desk cashier workflow", () => {
     // the Payments next-intl namespace during the Payment Desk i18n port —
     // assert against messages/en.json instead of the component source.
     const englishMessages = JSON.parse(
-      readFileSync(join(process.cwd(), "messages/en.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "src/messages/en.json"), "utf-8"),
     ) as { Payments: Record<string, string> };
     expect(englishMessages.Payments.duplicateLatestReceiptPrefix).toContain("Latest receipt:");
     expect(component).toContain("Amount to refund/adjust");
@@ -825,21 +825,21 @@ describe("payment desk cashier workflow", () => {
 
   it("payment desk entry keeps one client state owner for mobile and desktop", () => {
     const wrapper = readFileSync(
-      join(process.cwd(), "components/payments/payment-entry-client.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-entry-client.tsx"),
       "utf8",
     );
     const desktop = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-desktop.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-desktop.tsx"),
       "utf8",
     );
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
     expect(wrapper).toContain("PaymentDeskClient");
     expect(wrapper).not.toContain("PaymentDeskDesktop");
-    expect(wrapper).toContain('import("@/components/payments/payment-desk-mobile")');
+    expect(wrapper).toContain('import("@/modules/payments/ui/payment-desk-mobile")');
     expect(wrapper).toContain("ssr: false");
     expect(wrapper).not.toContain("md:hidden");
     expect(wrapper).not.toContain("hidden md:block");
@@ -861,11 +861,11 @@ describe("payment desk cashier workflow", () => {
 
   it("student combobox declares listbox popup semantics for mobile and desktop search", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const mobileSheet = readFileSync(
-      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
     const combined = `${component}\n${mobileSheet}`;
@@ -877,7 +877,7 @@ describe("payment desk cashier workflow", () => {
 
   it("all three payment desk overlay dialogs are rendered via createPortal", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -909,7 +909,7 @@ describe("payment desk cashier workflow", () => {
 
   it("confirm receipt sheet has no horizontal scrolling allocation table", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/confirm-receipt-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/confirm-receipt-sheet.tsx"),
       "utf8",
     );
 
@@ -934,7 +934,7 @@ describe("payment desk cashier workflow", () => {
 
   it("success receipt sheet shows receipt number prominently and has a next-student CTA", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/success-receipt-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/success-receipt-sheet.tsx"),
       "utf8",
     );
 
@@ -955,7 +955,7 @@ describe("payment desk cashier workflow", () => {
 
   it("success receipt sheet offers a WhatsApp deep link only when a phone is available", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/success-receipt-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/success-receipt-sheet.tsx"),
       "utf8",
     );
 
@@ -968,14 +968,14 @@ describe("payment desk cashier workflow", () => {
 
   it("payee summary strip component contains sticky header and risk pills", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payee-summary-strip.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payee-summary-strip.tsx"),
       "utf8",
     );
     // Overdue / Credit / Paid today badge labels now live in the Payments
     // next-intl namespace; component still owns the sticky layout + the
     // risk-pill branches and the props that drive them.
     const englishMessages = JSON.parse(
-      readFileSync(join(process.cwd(), "messages/en.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "src/messages/en.json"), "utf-8"),
     ) as { Payments: Record<string, string> };
 
     expect(component).toContain("sticky");
@@ -992,7 +992,7 @@ describe("payment desk cashier workflow", () => {
 
   it("collect another payment dismisses stale receipt success state in the component", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -1006,7 +1006,7 @@ describe("payment desk cashier workflow", () => {
 
   it("keeps mobile and desktop student picker refs separate for touch selection", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -1022,7 +1022,7 @@ describe("payment desk cashier workflow", () => {
 
   it("late fee waiver is a checkbox and not a normal free text amount field", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -1038,7 +1038,7 @@ describe("payment desk cashier workflow", () => {
 
   it("payment-desk waive is permanent: routes through waive_late_fee, posts with zero writeoff (A1/A3)", () => {
     const action = readFileSync(
-      join(process.cwd(), "app/protected/payments/actions.ts"),
+      join(process.cwd(), "src/app/protected/payments/actions.ts"),
       "utf8",
     );
 
@@ -1052,7 +1052,7 @@ describe("payment desk cashier workflow", () => {
 
   it("quick discount and late fee waiver update locally without refetching dues", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -1063,11 +1063,11 @@ describe("payment desk cashier workflow", () => {
 
   it("payment desk student picker uses accessible combobox with virtualized result rows", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const mobileSheet = readFileSync(
-      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
     const combined = `${component}\n${mobileSheet}`;
@@ -1090,7 +1090,7 @@ describe("payment desk cashier workflow", () => {
 
   it("class selection auto-opens student picker without jumping the page", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const body = component.match(
@@ -1111,7 +1111,7 @@ describe("payment desk cashier workflow", () => {
 
   it("fast payment form keeps amount entry ahead of dues review and does not auto-fill amount", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -1128,11 +1128,11 @@ describe("payment desk cashier workflow", () => {
 
   it("mobile cashier CTA remains disabled while summary or preview is loading", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const mobileSheet = readFileSync(
-      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
 
@@ -1162,7 +1162,7 @@ describe("payment desk cashier workflow", () => {
 
   it("desktop desk shows a selected-student loading state immediately", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -1173,7 +1173,7 @@ describe("payment desk cashier workflow", () => {
 
   it("student selection retries when a prefetch summary was empty", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -1185,7 +1185,7 @@ describe("payment desk cashier workflow", () => {
 
   it("student selection clears stale dues immediately and caches successful summaries", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const selectBody = component.match(
@@ -1202,11 +1202,11 @@ describe("payment desk cashier workflow", () => {
 
   it("records selected-student timing marks and persists successful summaries", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const metrics = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-metrics.ts"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-metrics.ts"),
       "utf8",
     );
 
@@ -1222,19 +1222,19 @@ describe("payment desk cashier workflow", () => {
 
   it("mobile navigation and payment entry remain optimized for fast cashier flow", () => {
     const paymentDesk = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const topbar = readFileSync(
-      join(process.cwd(), "components/admin/app-topbar.tsx"),
+      join(process.cwd(), "src/ui/shell/app-topbar.tsx"),
       "utf8",
     );
     const shell = readFileSync(
-      join(process.cwd(), "components/admin/dashboard-shell.tsx"),
+      join(process.cwd(), "src/ui/shell/dashboard-shell.tsx"),
       "utf8",
     );
     const mobileNav = readFileSync(
-      join(process.cwd(), "components/admin/mobile-bottom-nav.tsx"),
+      join(process.cwd(), "src/ui/shell/mobile-bottom-nav.tsx"),
       "utf8",
     );
 
@@ -1255,7 +1255,7 @@ describe("payment desk cashier workflow", () => {
   it("receipt_view_labels_current_balance_vs_receipt_balance", () => {
     // Labels live in the Receipts namespace; the component reads them via t(...).
     const englishMessages = JSON.parse(
-      readFileSync(join(process.cwd(), "messages/en.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "src/messages/en.json"), "utf-8"),
     ) as { Receipts: Record<string, string> };
 
     expect(englishMessages.Receipts.balanceAfterThisReceipt).toBe("Balance after this receipt");
@@ -1264,7 +1264,7 @@ describe("payment desk cashier workflow", () => {
 
   it("mobile payment mode is an inline 4-button segment, not a sheet", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
 
@@ -1280,7 +1280,7 @@ describe("payment desk cashier workflow", () => {
 
   it("error banner renders above the payment card, not below the review button", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
 
@@ -1294,7 +1294,7 @@ describe("payment desk cashier workflow", () => {
 
   it("collect button lives inside the full-screen mobile sheet", () => {
     const component = readFileSync(
-      join(process.cwd(), "components/payments/mobile-payment-flow-sheet.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/mobile-payment-flow-sheet.tsx"),
       "utf8",
     );
 

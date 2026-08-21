@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeCellText, parseCell } from "@/lib/students/bulk-update/cells";
+import { normalizeCellText, parseCell } from "@/modules/students/domain/bulk-update/cells";
 import {
   buildBulkUpdatePreview,
   buildLookupResolver,
   type BulkUpdateSnapshotStudent,
-} from "@/lib/students/bulk-update/diff";
-import { getBulkUpdateField, resolveBulkUpdateFields } from "@/lib/students/bulk-update/fields";
+} from "@/modules/students/domain/bulk-update/diff";
+import { getBulkUpdateField, resolveBulkUpdateFields } from "@/modules/students/domain/bulk-update/fields";
 
 const lookups = buildLookupResolver({
   classes: [

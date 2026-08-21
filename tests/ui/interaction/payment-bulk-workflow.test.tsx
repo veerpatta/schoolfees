@@ -2,8 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { BulkPaymentWorkflow } from "@/components/payments/bulk/bulk-payment-workflow";
-import type { PaymentImportBatchSummary } from "@/lib/payments/bulk/types";
+import { BulkPaymentWorkflow } from "@/modules/payments/ui/bulk/bulk-payment-workflow";
+import type { PaymentImportBatchSummary } from "@/modules/payments/domain/bulk/types";
 
 const BATCH_SUMMARY: PaymentImportBatchSummary = {
   batchId: "00000000-0000-4000-8000-000000000001",

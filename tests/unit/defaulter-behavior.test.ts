@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyPaymentBehavior,
   type BehaviorInput,
-} from "@/lib/defaulters/behavior";
+} from "@/modules/defaulters/domain/behavior";
 
 const base: BehaviorInput = {
   installmentsPaidOnTime: 0,

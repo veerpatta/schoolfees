@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveReceiptSessionLabel } from "@/lib/receipts/session-label";
+import { resolveReceiptSessionLabel } from "@/modules/receipts/domain/session-label";
 
 describe("resolveReceiptSessionLabel", () => {
   it("prints the payment installment session for backdated payments", () => {

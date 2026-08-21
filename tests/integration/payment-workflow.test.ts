@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildPaymentDeskSuccessActions,
   buildPaymentQuickAmounts,
-} from "@/lib/payments/workflow";
+} from "@/modules/payments/domain/workflow";
 
 describe("payment desk success workflow", () => {
   it("returns the main next-step shortcuts after posting a payment", () => {

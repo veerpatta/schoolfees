@@ -17,8 +17,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const REPO_ROOT = join(__dirname, "..");
 
-const HI_PATH = join(REPO_ROOT, "messages/hi.json");
-const HI_EN_PATH = join(REPO_ROOT, "messages/hi-en.json");
+const HI_PATH = join(REPO_ROOT, "src/messages/hi.json");
+const HI_EN_PATH = join(REPO_ROOT, "src/messages/hi-en.json");
 
 // path = "Namespace.subKey...leafKey" (joined with "."). Object means leaf has
 // { hi, hiEn } pair. Missing entries are reported at the end.

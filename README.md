@@ -128,7 +128,7 @@ flowchart LR
 
 ## 🧩 Modules
 
-All staff modules live under `app/protected/` with a parallel three-layer shape:
+All staff modules live under `src/app/protected/` with a parallel three-layer shape:
 `app/protected/<module>` (routes) + `components/<module>` (UI) + `lib/<module>` (domain logic).
 
 | | Module | Route | What it does |
@@ -161,7 +161,7 @@ on the student page, the Payment Desk, Defaulters and Exports; the one status vi
 
 ## 👥 Roles & Access
 
-Five roles (`lib/auth/roles.ts`). Navigation visibility and landing routes are permission-driven.
+Five roles (`src/platform/auth/roles.ts`). Navigation visibility and landing routes are permission-driven.
 
 | Role | 🏠 Lands on | Can do |
 |---|---|---|
@@ -258,7 +258,7 @@ Every export streams **all rows** (no page caps) as XLSX. 🧾
 
 ## 🧮 Fee engine internals
 
-Engine: **`workbook_v1`** (`lib/fees/`, `lib/workbook/`).
+Engine: **`workbook_v1`** (`src/modules/fees/`, `src/modules/fees/data/`).
 
 | Object | Role |
 |---|---|
@@ -273,7 +273,7 @@ Engine: **`workbook_v1`** (`lib/fees/`, `lib/workbook/`).
 | `process_refund_with_adjustment` | Posts reversal adjustments for a refund |
 | `delete_academic_session_safe` | Guarded ≤30-day, zero-payment session delete |
 
-📐 Canonical fee rules: [`docs/product/school-rules.md`](docs/product/school-rules.md) + [`lib/config/fee-rules.ts`](lib/config/fee-rules.ts).
+📐 Canonical fee rules: [`docs/product/school-rules.md`](docs/product/school-rules.md) + [`src/platform/config/fee-rules.ts`](src/platform/config/fee-rules.ts).
 
 ---
 
@@ -375,7 +375,8 @@ Test layout: `tests/unit` (pure/domain) · `tests/integration` (workflows) · `t
 |---|---|
 | [`docs/product/`](docs/product) | Project context, MVP scope, **school rules**, roadmap |
 | [`docs/modules/`](docs/modules) | Per-module guides (import, payment-desk, exports, …) |
-| [`docs/maps/`](docs/maps) | Folder map, database map, module map, danger zones |
+| [`docs/maps/`](docs/maps) | **Generated repo map**, database map, danger zones, legacy routes |
+| [`src/modules/`](src/modules) | A README per feature: what it owns, its invariants, what must never happen |
 | [`docs/workflows/`](docs/workflows) | Test-data setup, production operations, **agent bulk operations** |
 | [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) | Contributor + agent guide |
 | [`PRODUCTION_OPERATIONS_CHECKLIST.md`](PRODUCTION_OPERATIONS_CHECKLIST.md) · [`UAT_CHECKLIST.md`](UAT_CHECKLIST.md) | Go-live & UAT |

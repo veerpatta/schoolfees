@@ -11,7 +11,7 @@ import {
  * Inputs the app should refuse gracefully.
  *
  * The distinction that runs through all of it is **404 versus 500**. A junk id
- * is a missing record, not a broken server: `lib/helpers/uuid.ts` exists
+ * is a missing record, not a broken server: `src/platform/helpers/uuid.ts` exists
  * because a non-UUID path segment used to reach Postgres and come back as
  * `invalid input syntax for type uuid`, which is a 500 for what is plainly a
  * typo in a URL.

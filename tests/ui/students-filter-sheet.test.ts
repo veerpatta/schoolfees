@@ -16,7 +16,7 @@ function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-const QUICK_LOAD = "components/students/student-quick-load.tsx";
+const QUICK_LOAD = "src/modules/students/ui/student-quick-load.tsx";
 
 describe("Students filter sheet", () => {
   it("pins a live count where the Apply button used to be", () => {
@@ -54,7 +54,7 @@ describe("Students filter sheet", () => {
   });
 
   it("sorts in SQL on both passes, so the list does not reshuffle mid-load", () => {
-    const data = read("lib/students/data.ts");
+    const data = read("src/modules/students/data/queries.ts");
 
     // One helper, used by the identity and the financial pass. A different
     // order in either shows the list visibly reordering itself as the enriched
@@ -71,7 +71,7 @@ describe("Students filter sheet", () => {
   });
 
   it("keeps sort in the URL so a filtered list can be linked as seen", () => {
-    const params = read("lib/students/filter-params.ts");
+    const params = read("src/modules/students/domain/filter-params.ts");
 
     expect(params).toContain('params.set("sort", filters.sort)');
     expect(params).toContain('read("sort")');

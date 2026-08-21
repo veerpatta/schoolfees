@@ -9,9 +9,9 @@ function readRepoFile(path: string) {
 
 describe("mobile UX roadmap implementation", () => {
   it("serves a role-aware PWA manifest with the VPPS brand colors", () => {
-    const layout = readRepoFile("app/layout.tsx");
+    const layout = readRepoFile("src/app/layout.tsx");
     const staticManifest = readRepoFile("public/manifest.webmanifest");
-    const apiManifest = readRepoFile("app/api/manifest/route.ts");
+    const apiManifest = readRepoFile("src/app/api/manifest/route.ts");
 
     // The manifest link is hand-rendered rather than declared through
     // `metadata.manifest`, and crossOrigin is the entire reason. A manifest is
@@ -34,7 +34,7 @@ describe("mobile UX roadmap implementation", () => {
   });
 
   it("launches the PWA on the role's home rather than the /protected redirect hop", () => {
-    const apiManifest = readRepoFile("app/api/manifest/route.ts");
+    const apiManifest = readRepoFile("src/app/api/manifest/route.ts");
 
     // `/protected` exists only to redirect() to the role's default route from a
     // Server Component. Pointing start_url at it put a render-time redirect on
@@ -45,7 +45,7 @@ describe("mobile UX roadmap implementation", () => {
   });
 
   it("declares the fields Chrome needs to treat the install as an app", () => {
-    const apiManifest = readRepoFile("app/api/manifest/route.ts");
+    const apiManifest = readRepoFile("src/app/api/manifest/route.ts");
     const staticManifest = JSON.parse(readRepoFile("public/manifest.webmanifest")) as {
       id: string;
       scope: string;
@@ -74,7 +74,7 @@ describe("mobile UX roadmap implementation", () => {
   });
 
   it("clears cached student data when the login screen is shown", () => {
-    const loginPage = readRepoFile("app/auth/login/page.tsx");
+    const loginPage = readRepoFile("src/app/auth/login/page.tsx");
 
     // The office counter is a shared device, and logoutAction is a Server
     // Action that cannot reach Cache Storage or IndexedDB. Reaching the login
@@ -113,8 +113,8 @@ describe("mobile UX roadmap implementation", () => {
   });
 
   it("keeps touch-sized mobile payment controls and the requested success haptic pattern", () => {
-    const paymentDesk = readRepoFile("components/payments/payment-desk-mobile.tsx");
-    const mobileSheet = readRepoFile("components/payments/mobile-payment-flow-sheet.tsx");
+    const paymentDesk = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
     expect(paymentDesk).toContain(`triggerHaptic("success")`);
     // Touch-sized controls in the Ledger Calm composer: the mode segmented row
@@ -129,9 +129,9 @@ describe("mobile UX roadmap implementation", () => {
   });
 
   it("makes the dashboard mobile view complete instead of hiding secondary data", () => {
-    const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
+    const dashboard = readRepoFile("src/app/protected/dashboard/page.tsx");
     // Dashboard copy now lives in the next-intl Dashboard namespace.
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Dashboard: Record<string, string>;
     };
 
@@ -144,14 +144,14 @@ describe("mobile UX roadmap implementation", () => {
     // card moved onto the Overview board when the phone gained the board
     // switcher, so "expected this year" is asserted against that file — the
     // figure still has to be on a phone, just not on the home screen.
-    const mobileHome = readRepoFile("components/dashboard/mobile-dashboard-screen.tsx");
-    const mobileBoards = readRepoFile("components/dashboard/mobile-boards.tsx");
+    const mobileHome = readRepoFile("src/modules/dashboard/ui/mobile-dashboard-screen.tsx");
+    const mobileBoards = readRepoFile("src/modules/dashboard/ui/mobile-boards.tsx");
     expect(mobileBoards).toContain('t("expectedThisYear")');
     expect(mobileHome).toContain('t("oldBalance")');
     expect(mobileHome).toContain('t("collectCta")');
 
     const mobileMessages = (
-      JSON.parse(readRepoFile("messages/en.json")) as { MobileApp: Record<string, string> }
+      JSON.parse(readRepoFile("src/messages/en.json")) as { MobileApp: Record<string, string> }
     ).MobileApp;
     expect(mobileMessages.expectedThisYear).toBe("Expected this year");
     expect(mobileMessages.oldBalance).toBe("Old balance");
@@ -163,10 +163,10 @@ describe("mobile UX roadmap implementation", () => {
   });
 
   it("adds mobile WhatsApp follow-up and collapsible filters to Defaulters", () => {
-    const defaulters = readRepoFile("app/protected/defaulters/page.tsx");
-    const filters = readRepoFile("components/defaulters/defaulter-filters.tsx");
-    const workspace = readRepoFile("components/defaulters/defaulters-workspace.tsx");
-    const englishMessages = JSON.parse(readRepoFile("messages/en.json")) as {
+    const defaulters = readRepoFile("src/app/protected/defaulters/page.tsx");
+    const filters = readRepoFile("src/modules/defaulters/ui/defaulter-filters.tsx");
+    const workspace = readRepoFile("src/modules/defaulters/ui/defaulters-workspace.tsx");
+    const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Defaulters: Record<string, string>;
     };
 
@@ -194,8 +194,8 @@ describe("mobile UX roadmap implementation", () => {
   });
 
   it("uses a More overflow tab for the eight-module mobile workspace", () => {
-    const mobileNav = readRepoFile("components/admin/mobile-bottom-nav.tsx");
-    const navigation = readRepoFile("lib/config/navigation.ts");
+    const mobileNav = readRepoFile("src/ui/shell/mobile-bottom-nav.tsx");
+    const navigation = readRepoFile("src/platform/config/navigation.ts");
 
     expect(navigation).toContain("getMobilePrimaryNavigation");
     // The visible "More" label and the overflow's open/close aria-labels are
@@ -208,14 +208,14 @@ describe("mobile UX roadmap implementation", () => {
   });
 
   it("bumps the mobile session pill to a 44px touch target", () => {
-    const sessionPill = readRepoFile("components/admin/mobile-session-pill.tsx");
+    const sessionPill = readRepoFile("src/ui/shell/mobile-session-pill.tsx");
 
     expect(sessionPill).toContain("h-11");
     expect(sessionPill).not.toContain("inline-flex h-8");
   });
 
   it("keeps Money tabular for all amount surfaces", () => {
-    const money = readRepoFile("components/ui/money.tsx");
+    const money = readRepoFile("src/ui/primitives/money.tsx");
 
     expect(money).toContain("tabular");
   });
@@ -226,7 +226,7 @@ describe("mobile UX roadmap implementation", () => {
   // guard becomes a contract: it exists, and it is gated on the permission that
   // governs issuing a parent-facing receipt rather than merely reading one.
   it("serves the receipt PDF from a print-gated server route", () => {
-    const routePath = "app/protected/receipts/[receiptId]/pdf/route.ts";
+    const routePath = "src/app/protected/receipts/[receiptId]/pdf/route.ts";
     expect(existsSync(join(process.cwd(), routePath))).toBe(true);
 
     const route = readRepoFile(routePath);

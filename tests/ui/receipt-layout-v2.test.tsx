@@ -2,10 +2,10 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ReceiptDocument } from "@/components/receipts/receipt-document";
-import { ReceiptDocumentV2 } from "@/components/receipts/receipt-document-v2";
-import { createBilingualReceiptTranslator } from "@/lib/i18n/bilingual-receipt";
-import type { ReceiptDetail } from "@/lib/receipts/types";
+import { ReceiptDocument } from "@/modules/receipts/ui/receipt-document";
+import { ReceiptDocumentV2 } from "@/modules/receipts/ui/receipt-document-v2";
+import { createBilingualReceiptTranslator } from "@/platform/i18n/bilingual-receipt";
+import type { ReceiptDetail } from "@/modules/receipts/domain/types";
 
 // Parent-facing receipts always render English + Devanagari Hindi together.
 const t = createBilingualReceiptTranslator();

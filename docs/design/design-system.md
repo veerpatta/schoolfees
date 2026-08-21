@@ -22,15 +22,15 @@ ones so the bar stays where it is.
 | Shadows | Border at rest, soft shadow on hover/elevated, deeper on modals |
 | Animation | 4 canonical keyframes: `fade-in · slide-up · scale-in · shimmer-x` |
 
-All visual values flow from `app/globals.css` (HSL tokens) and
+All visual values flow from `src/app/globals.css` (HSL tokens) and
 `tailwind.config.ts` (semantic color names). Pages **must** consume the
 semantic names — never raw Tailwind hues. The migration scripts in
 `scripts/_archive/design-tokens-migration/` prove this was enforceable — they are
 archived now that the migration is done.
 
-Phase E adds a formal token registry in `lib/design/office-tokens.ts`. The
+Phase E adds a formal token registry in `src/ui/design/office-tokens.ts`. The
 registry maps office-friendly token names to the CSS variables in
-`app/globals.css`, and quality tests verify that each registered variable exists
+`src/app/globals.css`, and quality tests verify that each registered variable exists
 before visual work is treated as complete.
 
 ---
@@ -132,7 +132,7 @@ For each significant screen, decisions were made against four questions:
   reading.
 - **No charting library.** `/protected/dashboard` sits under a gzip ceiling in
   `quality/route-bundle-baseline.json` with single-digit KB of headroom; recharts
-  is ~100 KB. Every chart is hand-rolled SVG in `components/dashboard/tiles.tsx`
+  is ~100 KB. Every chart is hand-rolled SVG in `src/modules/dashboard/ui/tiles.tsx`
   on the `--chart-1…5` tokens, which had been defined and unused since the token
   migration.
 - **A tile is one label, one number, one visual, at most one short footnote.**
@@ -296,10 +296,10 @@ diff, or because they need an independent design pass.
 
 ### 5.1 Split the Payment Desk client (high reward, medium risk)
 
-`components/payments/payment-desk-mobile.tsx` remains the current large Payment
+`src/modules/payments/ui/payment-desk-mobile.tsx` remains the current large Payment
 Desk state owner. Phase B started the split by routing `payment-entry-client.tsx`
 through a single client instance, extracting cache helpers, and moving reusable
-desktop layout framing into `components/payments/payment-desk/payment-desk-layout.tsx`.
+desktop layout framing into `src/modules/payments/ui/payment-desk/payment-desk-layout.tsx`.
 The next split should continue separating shared cashier state from mobile and
 desktop layout pieces. Suggested split:
 
@@ -312,6 +312,34 @@ desktop layout pieces. Suggested split:
 
 Each split should be covered by the existing integration tests in
 `tests/integration/payment-desk-workflow.test.ts` before any state moves.
+
+**Re-examined 2026-08-21, during the feature-first restructure, and deliberately
+left alone.** What that pass established, so the next person does not have to:
+
+- The file is now `src/modules/payments/ui/payment-desk-mobile.tsx`.
+- It is **one component**. `PaymentDeskClient` runs from line 223 to the end —
+  3,292 lines — holding **96** hook calls. There are no nested components to
+  lift out; the sections above are boundaries in the JSX, not in the code.
+- The heavy sheets (confirm, success, duplicate, mobile flow) are already behind
+  `next/dynamic`, so the remaining bytes are the component itself.
+- **54** of the repository's source-path test literals point at this file. A
+  split has to repoint them, not delete them.
+- Its budget is now **3516 with zero headroom** — the next line added fails CI.
+
+The order that looks safest, smallest blast radius first:
+
+1. `<ReceiptPreview>` — reads the latest receipt and renders links. Closest to
+   presentational; touches the least state.
+2. `<StudentDuesBreakdown>` — the installment table and credit/refund state.
+3. `<AmountForm>` — amount, quick amounts, mode, received-by, notes.
+4. `<StudentPicker>` — class filter, search, recents, virtualized combobox.
+   Most state (streaks, stored preferences, prefetch), so last of the four.
+5. `<ConfirmSheet>` — leave until the other four have settled.
+
+Do it as its own change, and verify it by posting real payments in
+`TEST-2026-27`, not only by running the suite. This is the only
+payment-posting surface in the application; a regression here is a cashier
+taking money the ledger does not record.
 
 ### 5.2 Dark mode
 
@@ -367,7 +395,7 @@ actually reach the server. See §5.6 for why that is currently *all* of them.
 
 ### 5.6 `force-dynamic` in the root layout — investigated, leave it alone
 
-`app/layout.tsx` sets `export const dynamic = "force-dynamic"`. It looks like
+`src/app/layout.tsx` sets `export const dynamic = "force-dynamic"`. It looks like
 the single biggest cause of slow navigation — it appears to force a server
 round trip for every route change and defeat the Router Cache. **It is not, and
 removing it would change nothing.** Recorded here so this is not re-litigated.
@@ -377,8 +405,8 @@ load-bearing:
 
 | Cause | Where | Why it cannot move |
 |---|---|---|
-| `cookies()` for locale | `i18n/request.ts:24`, awaited by the root layout via `getLocale()` | `isLocaleSwitcherEnabled()` defaults to **true**, so the cookie is read on every request |
-| `cookies()` for auth | `lib/supabase/server.ts:9`, via `requireAuthenticatedStaff()` in `app/protected/layout.tsx:18` | Session and RBAC are read per request; this is the security boundary |
+| `cookies()` for locale | `src/platform/i18n/request.ts:24`, awaited by the root layout via `getLocale()` | `isLocaleSwitcherEnabled()` defaults to **true**, so the cookie is read on every request |
+| `cookies()` for auth | `src/platform/supabase/server.ts:9`, via `requireAuthenticatedStaff()` in `src/app/protected/layout.tsx:18` | Session and RBAC are read per request; this is the security boundary |
 
 Reading `cookies()` opts a route into dynamic rendering on its own. So the
 directive is not what makes the app dynamic — the cookie reads are, and neither
@@ -451,7 +479,7 @@ about that were wrong, and each is the kind of thing a later reader will
 helpfully "fix" back.
 
 **A manifest is fetched without cookies.** `metadata.manifest` in
-`app/layout.tsx` emitted `<link rel="manifest" href="/api/manifest">` with no
+`src/app/layout.tsx` emitted `<link rel="manifest" href="/api/manifest">` with no
 `crossorigin`, and a manifest request omits credentials unless the link says
 `use-credentials`. Next only sets that attribute on Vercel *preview*
 deployments (`lib/metadata/metadata.js`, guarded on `VERCEL_ENV`). So in
@@ -460,7 +488,7 @@ null, the role fell back to `view_only` — and every installed app, whoever
 owned it, launched on Dashboard with no Payment Desk shortcut. The route had
 been role-aware since it was written and had never once acted on it.
 
-The link is therefore **hand-rendered** in `app/layout.tsx` with
+The link is therefore **hand-rendered** in `src/app/layout.tsx` with
 `crossOrigin="use-credentials"`. Moving it back to `metadata.manifest` silently
 reverts the bug.
 
@@ -473,7 +501,7 @@ renamed to `v2` because renaming is what actually evicts the already-written
 copies from devices in the field (the `activate` handler deletes anything not
 on `KEEPABLE_CACHES`).
 
-The same reasoning is why `app/auth/login/page.tsx` mounts
+The same reasoning is why `src/app/auth/login/page.tsx` mounts
 `<SignedOutCachePurge />`. `logoutAction` is a Server Action and cannot reach
 Cache Storage or IndexedDB at all; reaching the login page proves there is no
 session, so purging there is unconditionally safe and also covers the ways a
@@ -517,7 +545,7 @@ halves of the symptom came from that, in order:
    the filters still sitting in the address bar. The evidence was gone before
    anything could read it. Then the list refetched, unfiltered.
 
-`hooks/use-url-filter-state.ts` is the one mechanism all four lists now use.
+`src/ui/hooks/use-url-filter-state.ts` is the one mechanism all four lists now use.
 Four rules, and each fixes one of the faults above:
 
 - **On mount, the URL wins over the props when they disagree.** It is what the
@@ -529,7 +557,7 @@ Four rules, and each fixes one of the faults above:
 - **Re-derive on `popstate`.**
 - **`replaceState`, never `pushState`, for a filter change.** Typing is not a
   destination, and an entry per keystroke would also compete with the single
-  history entry `components/ui/sheet.tsx` pushes per open. Transactions keeps
+  history entry `src/ui/primitives/sheet.tsx` pushes per open. Transactions keeps
   exactly two `pushState` calls — switching board and applying a saved view —
   because those *are* destinations.
 
@@ -542,14 +570,14 @@ which looks exactly like a fresh arrival, so without that guard the old year's
 class id was replayed into the new one.
 
 sessionStorage rather than localStorage is also what keeps this out of
-`lib/cache/signed-out-purge.ts` — a tab-scoped store clears itself when the
+`src/modules/payments/domain/signed-out-purge.ts` — a tab-scoped store clears itself when the
 staff session ends, so class and student ids never outlive a sign-out on a
 shared counter device.
 
 Related: **where Back goes.** Three detail pages each hardcoded the parent they
 expected (`returnTo?.startsWith("/protected/students")`), so a child opened
 from Transactions failed the check and Back fell through to a bare, unfiltered
-list. `lib/navigation/return-to.ts` accepts any `/protected/` path and rejects
+list. `src/platform/navigation/return-to.ts` accepts any `/protected/` path and rejects
 everything else — an unchecked `returnTo` is an open redirect wearing a Back
 button.
 
@@ -657,12 +685,12 @@ that never stops is the same dead-click bug in a new costume.
 
 | File | Role |
 |---|---|
-| `app/globals.css` | Token graph, four canonical keyframes, legacy aliases |
+| `src/app/globals.css` | Token graph, four canonical keyframes, legacy aliases |
 | `tailwind.config.ts` | Semantic color scale, radius, shadow, font-family tokens |
-| `app/layout.tsx` | Inter + Source Serif 4 via `next/font/google` |
-| `components/ui/*` | Every primitive listed in §2 |
-| `components/admin/dashboard-shell.tsx` | Sidebar + Topbar + MobileBottomNav + RouteProgress |
-| `components/office/office-ui.tsx` | Cross-page office patterns — all token-driven |
+| `src/app/layout.tsx` | Inter + Source Serif 4 via `next/font/google` |
+| `src/ui/primitives/*` | Every primitive listed in §2 |
+| `src/ui/shell/dashboard-shell.tsx` | Sidebar + Topbar + MobileBottomNav + RouteProgress |
+| `src/ui/office/office-ui.tsx` | Cross-page office patterns — all token-driven |
 | `scripts/_archive/design-tokens-migration/` | The one-time token migration, kept for reference |
 
 If you change any token in `globals.css`, the whole app cascades — no need to

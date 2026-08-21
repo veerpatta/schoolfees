@@ -113,15 +113,15 @@ function makeQueryBuilder<T>(result: { data: T; error: null }) {
   };
 }
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary,
 }));
 
-vi.mock("@/lib/fees/generator", () => ({
+vi.mock("@/modules/fees/data/generator", () => ({
   generateSessionLedgersAction,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically: vi.fn(async (payload: { studentIds: string[] }) => {
     const studentIds = payload.studentIds;
     await generateSessionLedgersAction({ scopedStudentIds: studentIds });
@@ -133,13 +133,13 @@ vi.mock("@/lib/system-sync/finance-sync", () => ({
   }),
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   createStudent,
   getStudentDetail,
   updateStudent,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from(table: string) {
       if (table === "import_batches") {
@@ -206,7 +206,7 @@ describe("student import commit workflow", () => {
   });
 
   it("creates students and triggers scoped ledger generation for imported rows", async () => {
-    const { commitStudentImportBatch } = await import("@/lib/import/data");
+    const { commitStudentImportBatch } = await import("@/modules/imports/data/queries");
 
     const result = await commitStudentImportBatch("batch-1");
 
@@ -221,7 +221,7 @@ describe("student import commit workflow", () => {
   }, 15000);
 
   it("shows a field-level import error when fee override persistence fails", async () => {
-    const { commitStudentImportBatch } = await import("@/lib/import/data");
+    const { commitStudentImportBatch } = await import("@/modules/imports/data/queries");
     createStudent.mockRejectedValue(
       new Error(
         'new row for relation "student_fee_overrides" violates check constraint "student_fee_overrides_check"',

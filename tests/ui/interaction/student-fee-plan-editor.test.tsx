@@ -3,8 +3,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { StudentFeePlanEditButton } from "@/components/students/student-fee-plan-edit-button";
-import type { StudentFeePlanHead } from "@/components/students/student-fee-plan-sheet";
+import { StudentFeePlanEditButton } from "@/modules/students/ui/student-fee-plan-edit-button";
+import type { StudentFeePlanHead } from "@/modules/students/ui/student-fee-plan-sheet";
 
 // The sheet imports a "use server" module; stub it so the client tree renders.
 vi.mock("@/app/protected/students/fee-plan-actions", () => ({

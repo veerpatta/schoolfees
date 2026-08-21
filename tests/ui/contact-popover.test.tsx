@@ -6,7 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 // Sheet uses createPortal and document — skip its internals for SSR tests.
-vi.mock("@/components/ui/sheet", () => ({
+vi.mock("@/ui/primitives/sheet", () => ({
   Sheet: ({ children, title, description }: {
     children: React.ReactNode;
     title?: string;
@@ -35,10 +35,10 @@ vi.mock("react", async () => {
   };
 });
 
-import { ContactPopover } from "@/components/defaulters/contact-popover";
+import { ContactPopover } from "@/modules/defaulters/ui/contact-popover";
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 function render(node: React.ReactElement): string {

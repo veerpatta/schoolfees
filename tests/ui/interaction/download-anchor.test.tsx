@@ -2,9 +2,9 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DownloadAnchor } from "@/components/ui/download-anchor";
-import { ToastViewport } from "@/components/ui/toast";
-import { DOWNLOAD_TOKEN_COOKIE, DOWNLOAD_TOKEN_PARAM } from "@/lib/helpers/download-token";
+import { DownloadAnchor } from "@/ui/primitives/download-anchor";
+import { ToastViewport } from "@/ui/primitives/toast";
+import { DOWNLOAD_TOKEN_COOKIE, DOWNLOAD_TOKEN_PARAM } from "@/platform/helpers/download-token";
 
 function anchor() {
   return screen.getByRole("link", { name: /export/i }) as HTMLAnchorElement;

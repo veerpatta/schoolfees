@@ -5,15 +5,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
-import { FeeSetupClient } from "@/components/fees/fee-setup-client";
-import type { FeeSetupActionState, FeeSetupPageData } from "@/lib/fees/types";
+import { FeeSetupClient } from "@/modules/fees/ui/fee-setup-client";
+import type { FeeSetupActionState, FeeSetupPageData } from "@/modules/fees/domain/types";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 const noopFeeSetupAction = async (): Promise<FeeSetupActionState> => ({

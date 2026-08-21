@@ -1,7 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SuccessReceiptSheet } from "@/components/payments/success-receipt-sheet";
+import { SuccessReceiptSheet } from "@/modules/payments/ui/success-receipt-sheet";
 
 /**
  * The saved receipt is step 4 of the collect flow, not a panel over step 3.

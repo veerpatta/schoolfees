@@ -89,7 +89,7 @@ workers/schoolfees-mcp/
     server.mjs         Assembles tools, resources and prompts per identity
     scope.mjs          Which students count — the load-bearing module
     supabase.mjs       REST + RPC, paging, degradation log
-    permissions.mjs    Role → permission matrix, mirrored from lib/auth/roles.ts
+    permissions.mjs    Role → permission matrix, mirrored from src/platform/auth/roles.ts
     freshness.mjs      Materialized-view staleness
     format.mjs         Money, pagination, projection
     toolkit.mjs        Shared input schemas, the permission gate, result envelope
@@ -164,7 +164,7 @@ projection. Everything else answers in one call.
 `get_student_financial_history`, `get_family`
 
 `query_students` is the general-purpose query: all 27 filter chips from
-`lib/segments/student-segments.ts` over `v_student_directory`, plus amount ranges,
+`src/modules/students/domain/student-segments.ts` over `v_student_directory`, plus amount ranges,
 grouping and totals. It exists so an unanticipated question does not need a new
 tool and a redeploy.
 
@@ -228,7 +228,7 @@ one of those permissions. A tool a caller cannot use is not in their
   `identity: { kind: "service" }`.
 
 Both lanes read Supabase with the service-role key, so the gate is the tool list,
-not RLS. `src/permissions.mjs` mirrors `lib/auth/roles.ts` and
+not RLS. `src/permissions.mjs` mirrors `src/platform/auth/roles.ts` and
 `tests/unit/mcp-permissions.test.ts` fails if the copy drifts.
 
 ## Data freshness
@@ -279,7 +279,7 @@ npx vitest run tests/unit/mcp-scope.test.ts \
 
 - `mcp-scope` — each rule's predicate, and the refusal to guess when no scope is
   named.
-- `mcp-permissions` — the mirrored role matrix equals `lib/auth/roles.ts`.
+- `mcp-permissions` — the mirrored role matrix equals `src/platform/auth/roles.ts`.
 - `schoolfees-worker-digest` — drives the real transport against a mocked
   Supabase. Its fixture deliberately mixes an active payer, a student who left
   after paying, and a student who left having paid nothing. The old fixture had a

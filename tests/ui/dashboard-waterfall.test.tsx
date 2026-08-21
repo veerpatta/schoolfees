@@ -33,7 +33,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next-intl/server", async () => {
   const actual = await vi.importActual<typeof import("next-intl")>("next-intl");
   const messages = JSON.parse(
-    readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+    readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
   );
   return {
     getTranslations: async (namespace: string) =>
@@ -41,15 +41,15 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
   hasStaffPermission,
 }));
 
-vi.mock("@/lib/session/cookie", () => ({ getViewSessionCookie }));
-vi.mock("@/lib/session/resolver", () => ({ resolveViewSession }));
+vi.mock("@/platform/session/cookie", () => ({ getViewSessionCookie }));
+vi.mock("@/platform/session/resolver", () => ({ resolveViewSession }));
 
-vi.mock("@/lib/dashboard/data", () => ({
+vi.mock("@/modules/dashboard/data/queries", () => ({
   getDashboardAboveFoldData,
   getDashboardPageData,
   getRouteCollectionSummary,
@@ -57,7 +57,7 @@ vi.mock("@/lib/dashboard/data", () => ({
   scheduleDashboardAutoPrepare,
 }));
 
-vi.mock("@/lib/activity/events", () => ({ getTodayActivityCounts }));
+vi.mock("@/modules/activity/data/events", () => ({ getTodayActivityCounts }));
 
 const KPIS = {
   totalStudents: 560,

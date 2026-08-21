@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildRecoveryDesk,
   type RecoveryDeskInput,
-} from "@/lib/defaulters/recovery";
-import type { DefaulterContactSummary } from "@/lib/defaulters/cadence";
-import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
+} from "@/modules/defaulters/domain/recovery";
+import type { DefaulterContactSummary } from "@/modules/defaulters/domain/cadence";
+import type { DefaulterSummaryRow } from "@/modules/defaulters/domain/types";
 
 const TODAY = new Date("2026-05-24T12:00:00Z");
 

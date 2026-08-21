@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createClient = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
@@ -54,7 +54,7 @@ describe("receipts + ledger session scope", () => {
   });
 
   it("scopes the receipts list to the installment-frozen session, not current class", async () => {
-    const { getReceiptsPage } = await import("@/lib/receipts/data");
+    const { getReceiptsPage } = await import("@/modules/receipts/data/queries");
 
     await getReceiptsPage("", { page: 1, pageSize: 30 }, "TEST-2026-27");
 
@@ -74,7 +74,7 @@ describe("receipts + ledger session scope", () => {
   });
 
   it("scopes the ledger student picker to the installment-frozen session", async () => {
-    const { getLedgerPageData } = await import("@/lib/ledger/data");
+    const { getLedgerPageData } = await import("@/modules/reports/data/ledger-queries");
 
     await getLedgerPageData({
       searchQuery: "",
@@ -106,8 +106,8 @@ describe("receipts + ledger session scope", () => {
     // come from serialising a uuid list into a PostgREST filter: e97f283
     // (receipt-id batch), d0d43b9 (today's snapshot), and the Ledger page.
     const sources = [
-      readFileSync(join(process.cwd(), "lib/receipts/data.ts"), "utf8"),
-      readFileSync(join(process.cwd(), "lib/ledger/data.ts"), "utf8"),
+      readFileSync(join(process.cwd(), "src/modules/receipts/data/queries.ts"), "utf8"),
+      readFileSync(join(process.cwd(), "src/modules/reports/data/ledger-queries.ts"), "utf8"),
     ];
 
     for (const source of sources) {
@@ -117,7 +117,7 @@ describe("receipts + ledger session scope", () => {
   });
 
   it("leaves the ledger student picker unscoped when no session is supplied", async () => {
-    const { getLedgerPageData } = await import("@/lib/ledger/data");
+    const { getLedgerPageData } = await import("@/modules/reports/data/ledger-queries");
 
     await getLedgerPageData({
       searchQuery: "",

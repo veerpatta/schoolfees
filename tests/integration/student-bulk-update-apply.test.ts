@@ -31,11 +31,11 @@ const supabaseStub = {
   },
 };
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => supabaseStub),
 }));
 
-function row(overrides: Partial<import("@/lib/students/bulk-update/diff").BulkUpdateRowResult>) {
+function row(overrides: Partial<import("@/modules/students/domain/bulk-update/diff").BulkUpdateRowResult>) {
   return {
     sheetRow: 2,
     studentId: "s-1",
@@ -44,7 +44,7 @@ function row(overrides: Partial<import("@/lib/students/bulk-update/diff").BulkUp
     changes: [],
     errors: [],
     ...overrides,
-  } as import("@/lib/students/bulk-update/diff").BulkUpdateRowResult;
+  } as import("@/modules/students/domain/bulk-update/diff").BulkUpdateRowResult;
 }
 
 function change(
@@ -75,7 +75,7 @@ describe("applyBulkUpdate", () => {
   });
 
   it("writes every changed column for a student in one statement", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
 
     const outcome = await applyBulkUpdate([
       row({
@@ -94,7 +94,7 @@ describe("applyBulkUpdate", () => {
   });
 
   it("never writes a row that carries an error", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
 
     const outcome = await applyBulkUpdate([
       row({
@@ -111,7 +111,7 @@ describe("applyBulkUpdate", () => {
   });
 
   it("collects per-student failures instead of aborting the whole run", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
     failFor = new Set(["s-2"]);
 
     const outcome = await applyBulkUpdate([
@@ -127,7 +127,7 @@ describe("applyBulkUpdate", () => {
   // The staged import commits strictly one row at a time, which is what pushed a
   // 531-row file past the 300s function ceiling. This path must overlap.
   it("applies rows concurrently rather than one at a time", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
 
     const rows = Array.from({ length: 60 }, (_, index) =>
       row({
@@ -148,7 +148,7 @@ describe("applyBulkUpdate", () => {
   });
 
   it("does nothing when there is nothing to apply", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
 
     const outcome = await applyBulkUpdate([]);
 

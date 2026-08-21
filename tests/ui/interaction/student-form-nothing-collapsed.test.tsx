@@ -4,9 +4,9 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
-import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
-import { INITIAL_STUDENT_FORM_ACTION_STATE } from "@/lib/students/types";
-import type { StudentFormActionState } from "@/lib/students/types";
+import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/modules/students/domain/info-fields";
+import { INITIAL_STUDENT_FORM_ACTION_STATE } from "@/modules/students/domain/types";
+import type { StudentFormActionState } from "@/modules/students/domain/types";
 
 /**
  * The edit form put 19 of its 27 controls behind three closed `<details>`, one
@@ -20,7 +20,7 @@ import type { StudentFormActionState } from "@/lib/students/types";
  * Everything is visible now. Pinned structurally, so a future "let's tidy this
  * up by collapsing the long bits" has to argue with a failing test.
  */
-const { StudentForm } = await import("@/components/students/student-form");
+const { StudentForm } = await import("@/modules/students/ui/student-form");
 
 const CLASS_OPTIONS = [{ id: "class-5", label: "Class 5", sessionLabel: "TEST-2026-27" }];
 const ROUTE_OPTIONS = [
@@ -65,7 +65,7 @@ const action = vi.fn(
 // namespace, so the form now needs the intl context the phone surfaces already
 // had.
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 function renderForm(overrides: Partial<typeof EMPTY_VALUES> = {}) {

@@ -89,7 +89,7 @@ function builder(table: string) {
   return api;
 }
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => ({ from: (table: string) => builder(table) })),
 }));
 
@@ -135,7 +135,7 @@ describe("bulk update of the New/Old flag", () => {
   });
 
   it("updates the existing fee-override row rather than inserting a second one", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
     existingOverrideFor = new Set(["s-1"]);
 
     const outcome = await applyBulkUpdate([row("s-1", [typeChange("new")])]);
@@ -148,7 +148,7 @@ describe("bulk update of the New/Old flag", () => {
   });
 
   it("creates a fee-override row, with a reason, when the student has none", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
 
     const outcome = await applyBulkUpdate([row("s-1", [typeChange("new")])]);
 
@@ -168,7 +168,7 @@ describe("bulk update of the New/Old flag", () => {
   });
 
   it("reports a clear failure when the class has no active fee setting", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
 
     const outcome = await applyBulkUpdate([row("s-3", [typeChange("new")], "SVP-003")]);
 
@@ -181,7 +181,7 @@ describe("bulk update of the New/Old flag", () => {
   });
 
   it("splits a mixed row across both tables", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
     existingOverrideFor = new Set(["s-2"]);
 
     const outcome = await applyBulkUpdate([row("s-2", [phoneChange, typeChange("new")])]);
@@ -199,7 +199,7 @@ describe("bulk update of the New/Old flag", () => {
   });
 
   it("does not touch fee_settings when no fee-profile field is in play", async () => {
-    const { applyBulkUpdate } = await import("@/lib/students/bulk-update/data");
+    const { applyBulkUpdate } = await import("@/modules/students/data/bulk-update/data");
 
     await applyBulkUpdate([row("s-1", [phoneChange])]);
 

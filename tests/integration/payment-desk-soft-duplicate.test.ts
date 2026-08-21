@@ -11,14 +11,14 @@ describe("DuplicatePaymentWarning shape (audit 1.4)", () => {
   });
 
   it("carries a kind field, defaulting to 'near-duplicate'", async () => {
-    const { DuplicatePaymentWarning } = await import("@/lib/payments/data");
+    const { DuplicatePaymentWarning } = await import("@/modules/payments/data/queries");
     const error = new DuplicatePaymentWarning({ id: "rec-1", receiptNumber: "TST/26-27/0001" });
     expect(error.kind).toBe("near-duplicate");
     expect(error.message).toContain("Open the latest receipt");
   });
 
   it("renders a daily-amount message with the amount and date when kind is 'daily-amount'", async () => {
-    const { DuplicatePaymentWarning } = await import("@/lib/payments/data");
+    const { DuplicatePaymentWarning } = await import("@/modules/payments/data/queries");
     const error = new DuplicatePaymentWarning(
       { id: "rec-1", receiptNumber: "TST/26-27/0001" },
       { kind: "daily-amount", amount: 3000, paymentDate: "2026-05-28" },
@@ -35,7 +35,7 @@ describe("postStudentPayment wires the soft daily-amount check (audit 1.4)", () 
   // simulate in a unit test. These guard the code path that the cashier walks
   // through when they fat-finger an amount or paste the wrong UPI reference.
   const source = readFileSync(
-    join(process.cwd(), "lib/payments/data.ts"),
+    join(process.cwd(), "src/modules/payments/data/queries.ts"),
     "utf8",
   );
 
@@ -86,7 +86,7 @@ describe("postStudentPayment wires the soft daily-amount check (audit 1.4)", () 
 
 describe("submitPaymentEntryAction passes acknowledgeDailyDuplicate (audit 1.4)", () => {
   const source = readFileSync(
-    join(process.cwd(), "app/protected/payments/actions.ts"),
+    join(process.cwd(), "src/app/protected/payments/actions.ts"),
     "utf8",
   );
 
@@ -119,7 +119,7 @@ describe("DuplicateReceiptSheet Continue-anyway path (audit 1.4 hotfix)", () => 
   // set the hidden input's DOM value to "true" before submitting so
   // FormData snapshots the acknowledged flag.
   const source = readFileSync(
-    join(process.cwd(), "components/payments/payment-desk-mobile.tsx"),
+    join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
     "utf8",
   );
 

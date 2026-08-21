@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
  */
 
 const source = readFileSync(
-  join(process.cwd(), "components/staff/staff-management-client.tsx"),
+  join(process.cwd(), "src/modules/staff/ui/staff-management-client.tsx"),
   "utf8",
 );
 

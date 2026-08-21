@@ -4,7 +4,7 @@ import { join, relative, sep } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { isUuid } from "@/lib/helpers/uuid";
+import { isUuid } from "@/platform/helpers/uuid";
 
 const repoRoot = process.cwd();
 
@@ -33,7 +33,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const routeFiles = walk(join(repoRoot, "app")).filter((file) => {
+const routeFiles = walk(join(repoRoot, "src/app")).filter((file) => {
   const rel = relative(repoRoot, file).split(sep).join("/");
   return UUID_SEGMENTS.some((segment) => rel.includes(`[${segment}]`));
 });
@@ -56,7 +56,7 @@ describe("dynamic route uuid guards", () => {
         guarded,
         `${relativePath} passes its id straight to a query. A mistyped or stale URL ` +
           "will raise 'invalid input syntax for type uuid' as an unhandled 500. " +
-          'Add `if (!isUuid(id)) notFound()` from "@/lib/helpers/uuid" before the first read.',
+          'Add `if (!isUuid(id)) notFound()` from "@/platform/helpers/uuid" before the first read.',
       ).toBe(true);
     },
   );

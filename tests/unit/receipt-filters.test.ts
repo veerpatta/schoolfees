@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readerFromRecord, readerFromSearchParams } from "@/lib/navigation/search-params";
+import { readerFromRecord, readerFromSearchParams } from "@/platform/navigation/search-params";
 import {
   EMPTY_RECEIPT_FILTERS,
   countActiveReceiptFilters,
@@ -8,7 +8,7 @@ import {
   receiptFiltersToParams,
   resolveDateRange,
   type ReceiptFilters,
-} from "@/lib/receipts/filters";
+} from "@/modules/receipts/domain/filters";
 
 /** 14 August 2026 is a Friday. */
 const TODAY = "2026-08-14";

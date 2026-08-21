@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getStudentDeletePolicy } from "@/lib/students/delete-policy";
+import { getStudentDeletePolicy } from "@/modules/students/domain/delete-policy";
 
 describe("student delete policy", () => {
   it("allows hard delete for a no-history student", () => {

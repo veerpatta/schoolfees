@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ConventionalDiscountCalculationType } from "@/lib/fees/types";
+import type { ConventionalDiscountCalculationType } from "@/modules/fees/domain/types";
 
 // Exercises the admin-client write path of upsertConventionalDiscountPolicies — in
 // particular the fallback-backed save: getConventionalDiscountPolicies hands the UI
@@ -17,8 +17,8 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: state.createAdminClient }));
-vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/platform/supabase/admin", () => ({ createAdminClient: state.createAdminClient }));
+vi.mock("@/platform/supabase/server", () => ({ createClient: vi.fn() }));
 
 class MockQuery {
   select() {
@@ -94,7 +94,7 @@ describe("upsertConventionalDiscountPolicies", () => {
   it("persists fallback built-ins (id:null) as built-in instead of rejecting them", async () => {
     // No existing rows -> the form submitted the fallback built-ins with id:null.
     state.responses = [{ data: [], error: null }];
-    const { upsertConventionalDiscountPolicies } = await import("@/lib/fees/conventional-discounts");
+    const { upsertConventionalDiscountPolicies } = await import("@/modules/fees/data/conventional-discounts");
 
     await expect(
       upsertConventionalDiscountPolicies({
@@ -118,7 +118,7 @@ describe("upsertConventionalDiscountPolicies", () => {
 
   it("persists a new custom policy as not built-in", async () => {
     state.responses = [{ data: [], error: null }];
-    const { upsertConventionalDiscountPolicies } = await import("@/lib/fees/conventional-discounts");
+    const { upsertConventionalDiscountPolicies } = await import("@/modules/fees/data/conventional-discounts");
 
     await upsertConventionalDiscountPolicies({
       academicSessionLabel: "TEST-2026-27",
@@ -146,7 +146,7 @@ describe("upsertConventionalDiscountPolicies", () => {
   it("blocks renaming an existing built-in policy", async () => {
     // Existing persisted built-in row.
     state.responses = [{ data: [{ id: "p-rte", code: "rte", is_builtin: true }], error: null }];
-    const { upsertConventionalDiscountPolicies } = await import("@/lib/fees/conventional-discounts");
+    const { upsertConventionalDiscountPolicies } = await import("@/modules/fees/data/conventional-discounts");
 
     await expect(
       upsertConventionalDiscountPolicies({

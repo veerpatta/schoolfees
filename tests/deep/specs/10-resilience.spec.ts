@@ -328,7 +328,7 @@ test.describe("resilience", () => {
  * Back. The failure needed three steps in order — filter, leave, return — and
  * no single page load could show it.
  *
- * `hooks/use-url-filter-state.ts` documents the mechanism: filters lived in
+ * `src/ui/hooks/use-url-filter-state.ts` documents the mechanism: filters lived in
  * `useState`, an effect mirrored them out with `history.replaceState`, and
  * `replaceState` creates no router-cache entry. Going back restored the tree
  * rendered for the UNFILTERED url, the mirror effect fired, and it wrote that

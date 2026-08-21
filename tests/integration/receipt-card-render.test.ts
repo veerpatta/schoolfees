@@ -11,12 +11,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * are a PNG, across the branches that change the tree.
  */
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission: vi.fn().mockResolvedValue({ id: "staff-1" }),
 }));
 
 const getReceiptDetail = vi.fn();
-vi.mock("@/lib/receipts/data", () => ({
+vi.mock("@/modules/receipts/data/queries", () => ({
   getReceiptDetail: (...args: unknown[]) => getReceiptDetail(...args),
 }));
 

@@ -5,11 +5,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
-import type { StudentFormActionState } from "@/lib/students/types";
+import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/modules/students/domain/info-fields";
+import type { StudentFormActionState } from "@/modules/students/domain/types";
 
 const messages = JSON.parse(
-  readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
 );
 
 const useActionState = vi.fn();
@@ -72,7 +72,7 @@ describe("student form accessibility", () => {
     };
     useActionState.mockReturnValue([state, vi.fn(), false]);
 
-    const { StudentForm } = await import("@/components/students/student-form");
+    const { StudentForm } = await import("@/modules/students/ui/student-form");
     const html = renderToStaticMarkup(
       // The student information fieldset reads its labels from the `Students`
       // namespace, so the form now needs the intl context.

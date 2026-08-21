@@ -1,8 +1,8 @@
 /**
  * Three catalogues that have to stay the same shape.
  *
- * `i18n/request.ts` picks one of `messages/en.json`, `messages/hi.json` and
- * `messages/hi-en.json` from the `vpps_locale` cookie and hands the whole
+ * `src/platform/i18n/request.ts` picks one of `src/messages/en.json`, `src/messages/hi.json` and
+ * `src/messages/hi-en.json` from the `vpps_locale` cookie and hands the whole
  * object to next-intl. There is no build step that compares them, no type that
  * ties a key to a catalogue, and — this is the part that matters — no runtime
  * error when a key is absent. next-intl resolves a missing key to the key's
@@ -46,15 +46,15 @@ export const id = "i18n";
 export const title = "Locale catalogue parity and key resolution";
 
 /**
- * The locale catalogues, read from `i18n/locales.ts` rather than globbed.
+ * The locale catalogues, read from `src/platform/i18n/locales.ts` rather than globbed.
  *
- * `messages/` also holds `receipts-bilingual.json`, which is not a locale — it
+ * `src/messages/` also holds `receipts-bilingual.json`, which is not a locale — it
  * is the fixed en+hi pair printed on every receipt regardless of the staff
  * member's UI language, and it is loaded directly, not through next-intl. A
  * glob would compare it against `en.json` and report two thousand missing
  * keys.
  */
-const LOCALES_MODULE = "i18n/locales.ts";
+const LOCALES_MODULE = "src/platform/i18n/locales.ts";
 const FALLBACK_LOCALES = ["en", "hi", "hi-en"];
 
 function readSupportedLocales(project) {
@@ -225,7 +225,7 @@ export async function run({ project, sink, coverage }) {
   const catalogues = new Map();
   const unreadable = [];
   for (const locale of locales) {
-    const rel = `messages/${locale}.json`;
+    const rel = `src/messages/${locale}.json`;
     const file = project.get(rel);
     if (!file) {
       unreadable.push(`${rel} (absent)`);
@@ -272,7 +272,7 @@ export async function run({ project, sink, coverage }) {
           title: `${catalogue.rel} is missing "${key}", which ${present.join(" and ")} define`,
           expected:
             `All ${locales.length} catalogues under messages/ carry the same dotted key set. `
-            + "i18n/request.ts loads exactly one of them per request and next-intl has no "
+            + "src/platform/i18n/request.ts loads exactly one of them per request and next-intl has no "
             + "fallback chain between them.",
           actual:
             `"${key}" exists in ${present.join(", ")} but not in ${locale}. `

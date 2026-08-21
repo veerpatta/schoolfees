@@ -4,7 +4,7 @@ import {
   acquireSheetScrollLock,
   releaseAllSheetScrollLocks,
   releaseSheetScrollLock,
-} from "@/components/ui/sheet";
+} from "@/ui/primitives/sheet";
 
 /**
  * Freezing the page behind an overlay, on the element that actually scrolls.

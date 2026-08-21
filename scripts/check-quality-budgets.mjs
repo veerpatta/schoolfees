@@ -6,13 +6,18 @@ const budgets = JSON.parse(await readFile("quality/office-quality-budgets.json",
 const files = [
   {
     label: "Payment Desk client",
-    path: "components/payments/payment-desk-mobile.tsx",
+    path: "src/modules/payments/ui/payment-desk-mobile.tsx",
     maxLines: budgets.performance.sourceBudgets.paymentDeskClientMaxLines,
   },
   {
     label: "Student form",
-    path: "components/students/student-form.tsx",
+    path: "src/modules/students/ui/student-form.tsx",
     maxLines: budgets.performance.sourceBudgets.studentFormMaxLines,
+  },
+  {
+    label: "Fee Setup client",
+    path: "src/modules/fees/ui/fee-setup-client.tsx",
+    maxLines: budgets.performance.sourceBudgets.feeSetupClientMaxLines,
   },
 ];
 

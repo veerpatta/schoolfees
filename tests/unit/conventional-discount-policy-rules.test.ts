@@ -8,7 +8,7 @@ import {
   normalizeAssignmentPolicySelection,
   normalizeConventionalDiscountCode,
   validateConventionalDiscountPolicyInput,
-} from "@/lib/fees/conventional-discount-rules";
+} from "@/modules/fees/domain/conventional-discount-rules";
 
 describe("isBuiltinConventionalDiscountCode", () => {
   it("recognises the three school defaults regardless of case/whitespace", () => {

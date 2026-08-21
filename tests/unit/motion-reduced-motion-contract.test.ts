@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
  * animating class must therefore be listed there, or a motion-sensitive user
  * gets the animation anyway. This test enforces that contract.
  */
-const css = readFileSync(join(process.cwd(), "app", "globals.css"), "utf8");
+const css = readFileSync(join(process.cwd(), "src/app", "globals.css"), "utf8");
 
 function reducedMotionBlock(): string {
   const start = css.indexOf("@media (prefers-reduced-motion: reduce)");

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hasRolePermission, resolveStaffRole, type StaffPermission } from "@/lib/auth/roles";
+import { hasRolePermission, resolveStaffRole, type StaffPermission } from "@/platform/auth/roles";
 import {
   advancedHubSections,
   getDefaultProtectedHref,
@@ -9,7 +9,7 @@ import {
   getProtectedRouteMeta,
   getVisibleProtectedNavigation,
   isMobileTakeoverRoute,
-} from "@/lib/config/navigation";
+} from "@/platform/config/navigation";
 
 describe("office navigation", () => {
   it("sends accountants to the payment desk by default", () => {

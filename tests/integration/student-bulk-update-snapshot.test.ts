@@ -62,7 +62,7 @@ function builder(table: string) {
   return api;
 }
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => ({ from: (table: string) => builder(table) })),
 }));
 
@@ -75,7 +75,7 @@ describe("bulk update snapshot", () => {
   // A withdrawn student keeps their old class_id, so an unfiltered Nursery
   // download listed six children who had left the school.
   it("includes only active students", async () => {
-    const { loadBulkUpdateSnapshot } = await import("@/lib/students/bulk-update/data");
+    const { loadBulkUpdateSnapshot } = await import("@/modules/students/data/bulk-update/data");
 
     const snapshot = await loadBulkUpdateSnapshot(["class-1"]);
 
@@ -87,7 +87,7 @@ describe("bulk update snapshot", () => {
   });
 
   it("asks the database for active students rather than filtering after the fact", async () => {
-    const { loadBulkUpdateSnapshot } = await import("@/lib/students/bulk-update/data");
+    const { loadBulkUpdateSnapshot } = await import("@/modules/students/data/bulk-update/data");
 
     await loadBulkUpdateSnapshot(["class-1"]);
 
@@ -97,7 +97,7 @@ describe("bulk update snapshot", () => {
   });
 
   it("returns names A-Z, not in SR order", async () => {
-    const { loadBulkUpdateSnapshot } = await import("@/lib/students/bulk-update/data");
+    const { loadBulkUpdateSnapshot } = await import("@/modules/students/data/bulk-update/data");
 
     const snapshot = await loadBulkUpdateSnapshot(["class-1"]);
 
@@ -107,7 +107,7 @@ describe("bulk update snapshot", () => {
   });
 
   it("does no work at all when no class is selected", async () => {
-    const { loadBulkUpdateSnapshot } = await import("@/lib/students/bulk-update/data");
+    const { loadBulkUpdateSnapshot } = await import("@/modules/students/data/bulk-update/data");
 
     expect(await loadBulkUpdateSnapshot([])).toEqual([]);
     expect(queries).toHaveLength(0);

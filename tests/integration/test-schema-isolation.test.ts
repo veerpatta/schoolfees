@@ -83,7 +83,7 @@ describe("test schema isolation", () => {
   });
 
   it("defaults server clients to the production public schema", async () => {
-    const { createClient } = await import("@/lib/supabase/server");
+    const { createClient } = await import("@/platform/supabase/server");
 
     await createClient();
 
@@ -100,8 +100,8 @@ describe("test schema isolation", () => {
     setRequiredEnv("test");
 
     const [{ createClient }, { createAdminClient }] = await Promise.all([
-      import("@/lib/supabase/server"),
-      import("@/lib/supabase/admin"),
+      import("@/platform/supabase/server"),
+      import("@/platform/supabase/admin"),
     ]);
 
     await createClient();
@@ -126,7 +126,7 @@ describe("test schema isolation", () => {
   it("rejects unknown APP_MODE values", async () => {
     setRequiredEnv("staging");
 
-    const { getAppMode } = await import("@/lib/env");
+    const { getAppMode } = await import("@/platform/env");
 
     expect(() => getAppMode()).toThrow("Invalid APP_MODE");
   });
@@ -134,7 +134,7 @@ describe("test schema isolation", () => {
   it("does not let the legacy public mode variable select the database schema", async () => {
     process.env.NEXT_PUBLIC_APP_MODE = "test";
 
-    const { getAppMode, getSupabaseSchemaForAppMode } = await import("@/lib/env");
+    const { getAppMode, getSupabaseSchemaForAppMode } = await import("@/platform/env");
 
     expect(getAppMode()).toBe("production");
     expect(getSupabaseSchemaForAppMode()).toBe("public");
@@ -142,11 +142,11 @@ describe("test schema isolation", () => {
 
   it("keeps runtime code on APP_MODE instead of the legacy public mode variable", () => {
     const protectedLayout = readFileSync(
-      join(repoRoot, "app", "protected", "layout.tsx"),
+      join(repoRoot, "src/app", "protected", "layout.tsx"),
       "utf8",
     );
     const schoolConfig = readFileSync(
-      join(repoRoot, "lib", "config", "school.ts"),
+      join(repoRoot, "src/platform", "config", "school.ts"),
       "utf8",
     );
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPreDueReminderList } from "@/lib/defaulters/pre-due";
-import type { DefaulterSummaryRow } from "@/lib/defaulters/types";
+import { buildPreDueReminderList } from "@/modules/defaulters/domain/pre-due";
+import type { DefaulterSummaryRow } from "@/modules/defaulters/domain/types";
 
 function row(
   studentId: string,

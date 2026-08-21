@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("payment desk preview cache (audit 1.10)", () => {
   const source = readFileSync(
-    join(process.cwd(), "app/protected/payments/preview/route.ts"),
+    join(process.cwd(), "src/app/protected/payments/preview/route.ts"),
     "utf8",
   );
 

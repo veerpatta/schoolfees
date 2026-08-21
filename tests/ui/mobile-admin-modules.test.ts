@@ -16,7 +16,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  */
 
 describe("Fee Setup — phone amount steppers", () => {
-  const client = read("components/fees/fee-setup-client.tsx");
+  const client = read("src/modules/fees/ui/fee-setup-client.tsx");
 
   it("drives the same updater as the typed field", () => {
     // Both the stepper and the number input call updateClassAnnualTuition,
@@ -41,7 +41,7 @@ describe("Fee Setup — phone amount steppers", () => {
   it("steps by a figure that suits annual amounts, not the mock's monthly one", () => {
     // The prototype nudges ₹50 because it edits a monthly fee. At ₹50 a tap,
     // moving a ₹20,000 annual tuition is 400 taps.
-    const kit = read("components/mobile-app/amount-stepper.tsx");
+    const kit = read("src/ui/mobile/amount-stepper.tsx");
     expect(kit).toContain("step = 500");
   });
 
@@ -53,7 +53,7 @@ describe("Fee Setup — phone amount steppers", () => {
 });
 
 describe("More hub", () => {
-  const nav = read("components/admin/mobile-bottom-nav.tsx");
+  const nav = read("src/ui/shell/mobile-bottom-nav.tsx");
 
   it("closes with the account row and build line from the design", () => {
     expect(nav).toContain("initialsFromEmail");

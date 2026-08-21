@@ -24,11 +24,11 @@ function readRepoCode(path: string) {
 
 describe("session switcher preload", () => {
   it("preloads session rows in the protected shell instead of fetching after mount", () => {
-    const shell = readRepoFile("components/admin/dashboard-shell.tsx");
-    const shellPill = readRepoFile("components/admin/shell-session-pill.tsx");
-    const desktopPill = readRepoFile("components/admin/session-pill.tsx");
-    const mobilePill = readRepoFile("components/admin/mobile-session-pill.tsx");
-    const switcher = readRepoFile("lib/session/switcher.ts");
+    const shell = readRepoFile("src/ui/shell/dashboard-shell.tsx");
+    const shellPill = readRepoFile("src/ui/shell/shell-session-pill.tsx");
+    const desktopPill = readRepoFile("src/ui/shell/session-pill.tsx");
+    const mobilePill = readRepoFile("src/ui/shell/mobile-session-pill.tsx");
+    const switcher = readRepoFile("src/platform/session/switcher.ts");
 
     // The shell still preloads the rows; it no longer BLOCKS on them. It starts
     // getSessionSwitcherData() and hands the promise to <ShellSessionPill>
@@ -45,10 +45,10 @@ describe("session switcher preload", () => {
     // shell no longer renders a phone app bar. Both pills must still open with
     // rows already in hand; the point of this guard is that neither fetches
     // after mount.
-    const dashboard = readRepoFile("app/protected/dashboard/page.tsx");
+    const dashboard = readRepoFile("src/app/protected/dashboard/page.tsx");
     expect(dashboard).toContain("getSessionSwitcherData()");
     expect(dashboard).toContain("sessionOptions={sessionSwitcher.availableSessions}");
-    expect(readRepoFile("components/dashboard/mobile-dashboard-screen.tsx")).toContain(
+    expect(readRepoFile("src/modules/dashboard/ui/mobile-dashboard-screen.tsx")).toContain(
       "initialSessions={sessionOptions}",
     );
     expect(desktopPill).toContain("if (initialSessions.length > 0)");
@@ -58,8 +58,8 @@ describe("session switcher preload", () => {
   });
 
   it("session switching keeps the user on the same page with visible transition state", () => {
-    const desktopPill = readRepoCode("components/admin/session-pill.tsx");
-    const mobilePill = readRepoCode("components/admin/mobile-session-pill.tsx");
+    const desktopPill = readRepoCode("src/ui/shell/session-pill.tsx");
+    const mobilePill = readRepoCode("src/ui/shell/mobile-session-pill.tsx");
     const combined = `${desktopPill}\n${mobilePill}`;
 
     expect(combined).toContain("optimisticLabel");
@@ -82,7 +82,7 @@ describe("session switcher preload", () => {
   });
 
   it("desktop session switching uses the shared Radix menu instead of native details", () => {
-    const desktopPill = readRepoFile("components/admin/session-pill.tsx");
+    const desktopPill = readRepoFile("src/ui/shell/session-pill.tsx");
 
     expect(desktopPill).toContain("DropdownMenu");
     expect(desktopPill).not.toContain("<details");
@@ -90,9 +90,9 @@ describe("session switcher preload", () => {
   });
 
   it("mobile session switching closes the sheet and always clears scroll locks", () => {
-    const mobilePill = readRepoFile("components/admin/mobile-session-pill.tsx");
-    const sheet = readRepoFile("components/ui/sheet.tsx");
-    const scrollMain = readRepoFile("components/admin/scroll-restoring-main.tsx");
+    const mobilePill = readRepoFile("src/ui/shell/mobile-session-pill.tsx");
+    const sheet = readRepoFile("src/ui/primitives/sheet.tsx");
+    const scrollMain = readRepoFile("src/ui/shell/scroll-restoring-main.tsx");
 
     expect(sheet).toContain("sheetScrollLockCount");
     expect(sheet).toContain("document.documentElement.style.overflow");

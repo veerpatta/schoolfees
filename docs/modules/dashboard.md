@@ -5,8 +5,8 @@ Five analytical boards behind a switcher, under a money band that stays put.
 | | |
 |---|---|
 | Route | `/protected/dashboard?view=overview\|collection\|recovery\|classes\|latefee` |
-| Components | `components/dashboard/` — `money-band.tsx`, `view-switcher.tsx`, `boards.tsx`, `tiles.tsx` (desk) · `mobile-dashboard-screen.tsx`, `mobile-boards.tsx`, `mobile-board-charts.tsx` (phone) |
-| Lib | `lib/dashboard/` — `analytics.ts`, `data.ts`, `summary.ts`, `kpi-delta.ts`, `mobile-derived.ts` |
+| Components | `src/modules/dashboard/ui/` — `money-band.tsx`, `view-switcher.tsx`, `boards.tsx`, `tiles.tsx` (desk) · `mobile-dashboard-screen.tsx`, `mobile-boards.tsx`, `mobile-board-charts.tsx` (phone) |
+| Lib | `src/modules/dashboard/` — `analytics.ts`, `data.ts`, `summary.ts`, `kpi-delta.ts`, `mobile-derived.ts` |
 | DB | `get_dashboard_summary`, `get_dashboard_fee_split`, `get_dashboard_analytics` |
 
 ## The money band

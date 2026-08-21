@@ -518,7 +518,7 @@ const PATH_CASES = [
     kind: "path",
     describe: "free text where a UUID belongs",
     why:
-      "`lib/helpers/uuid.ts` exists because this reached Postgres and came back as "
+      "`src/platform/helpers/uuid.ts` exists because this reached Postgres and came back as "
       + "`invalid input syntax for type uuid` — a 500 for what is plainly a typo. "
       + "`negatives.ts` covers the pages; these are the handlers behind them.",
     apply(request) {

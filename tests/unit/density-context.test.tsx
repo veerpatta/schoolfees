@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DENSITY_SAFE_DEFAULT } from "@/lib/design/density-context";
+import { DENSITY_SAFE_DEFAULT } from "@/ui/design/density-context";
 
 /**
  * Locks the inert "no provider mounted" contract that `useDensity()`

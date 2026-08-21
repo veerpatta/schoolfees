@@ -19,7 +19,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next-intl/server", async () => {
   const actual = await vi.importActual<typeof import("next-intl")>("next-intl");
   const messages = JSON.parse(
-    readFileSync(join(process.cwd(), "messages", "en.json"), "utf-8"),
+    readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),
   );
   return {
     getTranslations: async (namespace: string) =>
@@ -30,7 +30,7 @@ vi.mock("next-intl/server", async () => {
 // The page asks for segment-chip counts on every render. Real counts need a
 // request-scoped Supabase client; this test is about the page surviving a data
 // failure, not about the counts.
-vi.mock("@/lib/segments/directory", () => ({
+vi.mock("@/modules/students/data/directory", () => ({
   getStudentSegmentCounts: vi.fn(async () => ({
     scopeTotal: 0,
     populationTotal: 0,
@@ -39,9 +39,9 @@ vi.mock("@/lib/segments/directory", () => ({
   })),
 }));
 
-vi.mock("@/lib/students/data", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/students/data")>(
-    "@/lib/students/data",
+vi.mock("@/modules/students/data/queries", async () => {
+  const actual = await vi.importActual<typeof import("@/modules/students/data/queries")>(
+    "@/modules/students/data/queries",
   );
 
   return {
@@ -52,16 +52,16 @@ vi.mock("@/lib/students/data", async () => {
   };
 });
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
   hasStaffPermission,
 }));
 
-vi.mock("@/lib/session/cookie", () => ({
+vi.mock("@/platform/session/cookie", () => ({
   getViewSessionCookie: vi.fn(async () => null),
 }));
 
-vi.mock("@/lib/session/resolver", () => ({
+vi.mock("@/platform/session/resolver", () => ({
   resolveViewSession: vi.fn(async () => ({
     sessionLabel: "2026-27",
     source: "policy",
@@ -69,16 +69,16 @@ vi.mock("@/lib/session/resolver", () => ({
   })),
 }));
 
-vi.mock("@/components/students/student-bulk-import-dialog", () => ({
+vi.mock("@/modules/students/ui/student-bulk-import-dialog", () => ({
   StudentBulkImportDialogTrigger: () => React.createElement("button", null, "Bulk Add Students"),
 }));
 
-vi.mock("@/components/students/student-list-table", () => ({
+vi.mock("@/modules/students/ui/student-list-table", () => ({
   StudentListTable: ({ students }: { students: unknown[] }) =>
     React.createElement("div", null, `students:${students.length}`),
 }));
 
-vi.mock("@/components/students/student-quick-load", () => ({
+vi.mock("@/modules/students/ui/student-quick-load", () => ({
   StudentQuickLoad: ({ initialStudents, initialTotalCount }: {
     initialStudents: unknown[];
     initialTotalCount: number;
@@ -90,7 +90,7 @@ vi.mock("@/components/students/student-quick-load", () => ({
     ),
 }));
 
-vi.mock("@/components/students/student-session-mismatch-actions", () => ({
+vi.mock("@/modules/students/ui/student-session-mismatch-actions", () => ({
   StudentSessionMismatchActions: () => React.createElement("div", null, "session-mismatch"),
 }));
 

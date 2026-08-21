@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createFakeSupabase, type FakeSupabase } from "@/tests/helpers/fake-supabase";
+import { createFakeSupabase, type FakeSupabase } from "../helpers/fake-supabase";
 
 vi.mock("server-only", () => ({}));
 
@@ -22,20 +22,20 @@ const prepareDuesForStudentsAutomatically = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient: vi.fn(async () => supabase),
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/lib/fees/conventional-discounts", () => ({
+vi.mock("@/modules/fees/data/conventional-discounts", () => ({
   applyThirdChildPolicyForFamilyGroup,
   deactivateAutomaticThirdChildAssignments,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
 }));
 

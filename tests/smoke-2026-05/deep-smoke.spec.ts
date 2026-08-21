@@ -336,7 +336,7 @@ async function auditRoute(page: Page, testInfo: TestInfo, route: string, finding
       expected: "No horizontal scrolling on mobile/tablet.",
       actual: `scrollWidth ${health.scrollWidth}, clientWidth ${health.clientWidth}.`,
       screenshot: shot,
-      suspectedFile: "components/admin/mobile-bottom-nav.tsx",
+      suspectedFile: "src/ui/shell/mobile-bottom-nav.tsx",
       risk: "Mobile cashier/admin workflows become harder to use.",
     });
   }
@@ -598,7 +598,7 @@ test("deep route and workflow smoke", async ({ page, request }, testInfo) => {
       expected: "TEST-2026-27 exists and is visible in the session switcher/topbar.",
       actual: "TEST-2026-27 was not visible after navigating with the session query parameter.",
       screenshot: await screenshot(page, "bug-test-session-missing"),
-      suspectedFile: "lib/session/switcher.ts",
+      suspectedFile: "src/platform/session/switcher.ts",
       risk: "All write-path smoke must stop to avoid mutating live 2026-27 data.",
     });
   }
@@ -681,7 +681,7 @@ test("deep route and workflow smoke", async ({ page, request }, testInfo) => {
         expected: "Mobile primary/bottom navigation is present and tappable.",
         actual: "No nav element containing expected mobile labels was detected.",
         screenshot: await screenshot(page, `bug-bottom-nav-${testInfo.project.name}`),
-        suspectedFile: "components/admin/mobile-bottom-nav.tsx",
+        suspectedFile: "src/ui/shell/mobile-bottom-nav.tsx",
         risk: "Mobile staff may lose core navigation.",
       });
     }

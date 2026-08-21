@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { hasRolePermission, type StaffRole } from "@/lib/auth/roles";
+import { hasRolePermission, type StaffRole } from "@/platform/auth/roles";
 
 const requireStaffPermission = vi.fn();
 const createClient = vi.fn();
@@ -30,24 +30,24 @@ vi.mock("next/server", () => ({
   },
 }));
 
-vi.mock("@/lib/supabase/session", () => ({
+vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/activity/events", () => ({
+vi.mock("@/modules/activity/data/events", () => ({
   recordActivity,
 }));
 
-vi.mock("@/lib/system-sync/finance-revalidation", () => ({
+vi.mock("@/modules/system-sync/domain/finance-revalidation", () => ({
   revalidateAfterPaymentPosting,
   revalidateSessionFinance,
 }));
 
-vi.mock("@/lib/system-sync/financial-view-refresh", () => ({
+vi.mock("@/modules/system-sync/data/financial-view-refresh", () => ({
   drainFinancialViewRefresh,
 }));
 

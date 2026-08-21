@@ -13,7 +13,7 @@ async function loadTimer(env: Record<string, string | undefined>) {
       vi.stubEnv(key, value);
     }
   }
-  return import("@/lib/observability/timing");
+  return import("@/platform/observability/timing");
 }
 
 afterEach(() => {

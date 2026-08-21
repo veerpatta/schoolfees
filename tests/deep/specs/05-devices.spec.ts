@@ -72,7 +72,7 @@ test("phone and tablet keep their primary navigation", async ({
       target,
       session: TEST_SESSION,
       device,
-      suspectedFile: "components/admin/mobile-bottom-nav.tsx",
+      suspectedFile: "src/ui/shell/mobile-bottom-nav.tsx",
       evidence: {
         screenshot: await screenshot(page, `no-bottom-nav-${device}`),
         reproCommand: reproCommand({ target, grep: "primary navigation", project: device }),

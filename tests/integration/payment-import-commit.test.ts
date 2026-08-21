@@ -5,10 +5,10 @@ vi.mock("server-only", () => ({}));
 const createClient = vi.fn();
 const postStudentPayment = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({ createClient }));
-vi.mock("@/lib/payments/data", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/data")>(
-    "@/lib/payments/data",
+vi.mock("@/platform/supabase/server", () => ({ createClient }));
+vi.mock("@/modules/payments/data/queries", async () => {
+  const actual = await vi.importActual<typeof import("@/modules/payments/data/queries")>(
+    "@/modules/payments/data/queries",
   );
   return {
     ...actual,
@@ -146,7 +146,7 @@ describe("commitPaymentImportRows", () => {
     const rows = [rowSeed({ id: "row-1" }), rowSeed({ id: "row-2" })];
     const { rowUpdates } = mockClient(rows);
 
-    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    const { commitPaymentImportRows } = await import("@/modules/payments/data/bulk/data");
     const result = await commitPaymentImportRows({
       batchId: "batch-1",
       rowIds: ["row-1", "row-2"],
@@ -178,7 +178,7 @@ describe("commitPaymentImportRows", () => {
     ];
     mockClient(rows);
 
-    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    const { commitPaymentImportRows } = await import("@/modules/payments/data/bulk/data");
     const result = await commitPaymentImportRows({
       batchId: "batch-1",
       rowIds: ["row-1"],
@@ -197,7 +197,7 @@ describe("commitPaymentImportRows", () => {
     ];
     mockClient(rows);
 
-    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    const { commitPaymentImportRows } = await import("@/modules/payments/data/bulk/data");
     const result = await commitPaymentImportRows({
       batchId: "batch-1",
       rowIds: ["row-1", "row-2"],
@@ -221,7 +221,7 @@ describe("commitPaymentImportRows", () => {
     ];
     mockClient(rows);
 
-    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    const { commitPaymentImportRows } = await import("@/modules/payments/data/bulk/data");
     await commitPaymentImportRows({
       batchId: "batch-1",
       rowIds: ["row-1"],
@@ -244,7 +244,7 @@ describe("commitPaymentImportRows", () => {
     ];
     mockClient(rows);
 
-    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    const { commitPaymentImportRows } = await import("@/modules/payments/data/bulk/data");
     await commitPaymentImportRows({
       batchId: "batch-1",
       rowIds: ["row-1"],
@@ -267,7 +267,7 @@ describe("commitPaymentImportRows", () => {
     ];
     mockClient(rows);
 
-    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    const { commitPaymentImportRows } = await import("@/modules/payments/data/bulk/data");
     await commitPaymentImportRows({
       batchId: "batch-1",
       rowIds: ["row-1"],
@@ -287,7 +287,7 @@ describe("commitPaymentImportRows", () => {
     const rows = [rowSeed({ id: "row-1", existing_receipt_duplicate: true })];
     mockClient(rows);
 
-    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    const { commitPaymentImportRows } = await import("@/modules/payments/data/bulk/data");
     await commitPaymentImportRows({
       batchId: "batch-1",
       rowIds: ["row-1"],
@@ -309,7 +309,7 @@ describe("commitPaymentImportRows", () => {
     const rows = [rowSeed({ id: "row-1" }), rowSeed({ id: "row-2" })];
     const { rowUpdates } = mockClient(rows);
 
-    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    const { commitPaymentImportRows } = await import("@/modules/payments/data/bulk/data");
     const result = await commitPaymentImportRows({
       batchId: "batch-1",
       rowIds: ["row-1", "row-2"],
@@ -326,7 +326,7 @@ describe("commitPaymentImportRows", () => {
     const rows = [rowSeed({ id: "row-1", validation_status: "error" })];
     mockClient(rows);
 
-    const { commitPaymentImportRows } = await import("@/lib/payments/bulk/data");
+    const { commitPaymentImportRows } = await import("@/modules/payments/data/bulk/data");
     const result = await commitPaymentImportRows({
       batchId: "batch-1",
       rowIds: ["row-1"],

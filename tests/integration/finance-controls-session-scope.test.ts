@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createClient = vi.fn();
 
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
@@ -97,7 +97,7 @@ describe("finance controls session scope (promoted student)", () => {
   });
 
   it("keeps the receipt under the session its installment was frozen in", async () => {
-    const { getFinanceControlsPageData } = await import("@/lib/finance-controls/data");
+    const { getFinanceControlsPageData } = await import("@/modules/finance-controls/data/queries");
 
     const data = await getFinanceControlsPageData(PAYMENT_DATE, OLD_SESSION);
 
@@ -108,7 +108,7 @@ describe("finance controls session scope (promoted student)", () => {
   });
 
   it("does not surface the receipt under the student's new current-class session", async () => {
-    const { getFinanceControlsPageData } = await import("@/lib/finance-controls/data");
+    const { getFinanceControlsPageData } = await import("@/modules/finance-controls/data/queries");
 
     const data = await getFinanceControlsPageData(PAYMENT_DATE, NEW_SESSION);
 

@@ -31,11 +31,14 @@
  *      symbols — is code that runs nowhere: declared, exported, and never
  *      named again by anything.
  *
- * That last set is the interesting one, and it is not theoretical.
- * `hooks/use-online-status.ts` and `components/ui/empty-state.tsx` are both
+ * That last set is the interesting one, and it is not theoretical. It once
+ * held `src/ui/hooks/use-online-status.ts` and `src/ui/primitives/empty-state.tsx`, both
  * named in `quality/office-quality-budgets.json` as extractions made to bring
- * a file under its line budget — the extraction happened and the call site was
- * never rewired, so the budget note describes a refactor that did not land.
+ * a file under its line budget: the extraction happened, the call site was
+ * never rewired, and the budget note described a refactor that had not landed.
+ * Both were deleted in the feature-first restructure, along with 57 others and
+ * a superseded 1,437-line copy of the fee-setup change engine. The rule found
+ * all of it; nothing else in this repository would have.
  *
  * The Next.js exclusions are not a nicety; without them the rule is wrong
  * rather than noisy. Nothing imports the default export of a `page.tsx` — the
@@ -95,8 +98,8 @@ const FRAMEWORK_EXPORT = new Set([
 ]);
 
 /**
- * Loaded by a tool, not by an import. `proxy.ts` is Next's request hook for
- * this repo (root `proxy.ts` delegates to `lib/supabase/proxy.ts`);
+ * Loaded by a tool, not by an import. `src/proxy.ts` is Next's request hook for
+ * this repo (root `src/proxy.ts` delegates to `src/platform/supabase/proxy.ts`);
  * `instrumentation*.ts` and `sentry.*.config.ts` are picked up by name.
  */
 const CONFIG_FILE = new Set([
@@ -106,14 +109,14 @@ const CONFIG_FILE = new Set([
   "vitest.config.ts",
   "postcss.config.mjs",
   "playwright.config.ts",
-  "proxy.ts",
+  "src/proxy.ts",
   "middleware.ts",
-  "instrumentation.ts",
-  "instrumentation-client.ts",
+  "src/instrumentation.ts",
+  "src/instrumentation-client.ts",
   "sentry.client.config.ts",
   "sentry.server.config.ts",
   "sentry.edge.config.ts",
-  "i18n/request.ts",
+  "src/platform/i18n/request.ts",
 ]);
 
 /** A barrel re-exports on someone else's behalf; its own names are not the API. */
@@ -292,7 +295,7 @@ export async function run({ project, sink, coverage }) {
   for (const file of candidates) {
     if (starReExported.has(file.rel)) continue;
 
-    const isApp = file.rel.startsWith("app/");
+    const isApp = file.rel.startsWith("src/app/");
     for (const symbol of parseExports(file)) {
       examined += 1;
 

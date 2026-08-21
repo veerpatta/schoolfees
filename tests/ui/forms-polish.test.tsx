@@ -2,8 +2,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { SaveBar } from "@/components/forms/save-bar";
-import { WhyDisabled } from "@/components/forms/why-disabled";
+import { SaveBar } from "@/ui/forms/save-bar";
+import { WhyDisabled } from "@/ui/forms/why-disabled";
 
 describe("SaveBar — SSR contract", () => {
   it("renders nothing when not dirty and not saving", () => {

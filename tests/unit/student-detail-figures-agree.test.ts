@@ -12,9 +12,9 @@ import { describe, expect, it } from "vitest";
  * server component behind eight data fetches, and what actually broke was
  * always "somebody read the other field", which is exactly what this catches.
  */
-const PAGE = join(process.cwd(), "app/protected/students/[studentId]/page.tsx");
-const QUICK_REFERENCE = join(process.cwd(), "components/students/student-quick-reference.tsx");
-const MONEY_BAND = join(process.cwd(), "components/students/student-money-band.tsx");
+const PAGE = join(process.cwd(), "src/app/protected/students/[studentId]/page.tsx");
+const QUICK_REFERENCE = join(process.cwd(), "src/modules/students/ui/student-quick-reference.tsx");
+const MONEY_BAND = join(process.cwd(), "src/modules/students/ui/student-money-band.tsx");
 
 function read(path: string) {
   return readFileSync(path, "utf8");

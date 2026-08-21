@@ -20,7 +20,7 @@ import { renderToString } from "react-dom/server";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useMediaQuery } from "@/ui/hooks/use-media-query";
 
 const DESKTOP_QUERY = "(min-width: 768px)";
 

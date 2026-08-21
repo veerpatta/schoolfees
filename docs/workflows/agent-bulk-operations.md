@@ -21,7 +21,7 @@ Always take the highest rung that can do the job.
 
 Rung 2 is not a formality. Those three surfaces already carry the guards a script would have
 to reinvent: RBAC, session scoping, server-side diff recomputation, chunking, idempotency
-keys, dues rework and cache invalidation. `app/protected/students/bulk-update/actions.ts`
+keys, dues rework and cache invalidation. `src/app/protected/students/bulk-update/actions.ts`
 recomputes the diff from the uploaded file on apply — the client never sends a change list —
 so what gets written is always what the server itself derived from current stored values.
 A hand-rolled script starts with none of that.
@@ -98,7 +98,7 @@ node scripts/bulk-apply.mjs --plan plans/fix-transport-routes.json --session TES
 - **`--session 2026-27` is refused unless `--live` is also passed.** Until now that boundary
   was prose in five different files and nothing in the code. It is now a check.
 - **Every headless change writes an audit row.** `recordActivity()` in
-  `lib/activity/events.ts` returns early when `userId` is falsy, so an agent's writes are
+  `src/modules/activity/data/events.ts` returns early when `userId` is falsy, so an agent's writes are
   invisible in the Activity feed unless something else records them. The harness writes to
   `audit_logs` with a system actor so the change is attributable afterwards.
 - **The fee engine is called with `useAdmin: true`.** A headless caller has no session, so the

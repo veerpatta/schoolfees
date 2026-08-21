@@ -14,16 +14,16 @@ Lookup, reprint, share and reversal state for posted receipts.
 | Routes | `/protected/receipts`, `/protected/receipts/[receiptId]` |
 | Handlers | `/protected/receipts/search`, `/protected/receipts/[receiptId]/detail` |
 | Public | `/r/[code]` — parent-facing verification page, no login |
-| Components | `components/receipts/` |
-| Lib | `lib/receipts/` |
+| Components | `src/modules/receipts/ui/` |
+| Lib | `src/modules/receipts/` |
 
-`components/receipts/` holds three documents — `receipt-document-v3.tsx` (current),
+`src/modules/receipts/ui/` holds three documents — `receipt-document-v3.tsx` (current),
 `receipt-document-v2.tsx` and `receipt-document.tsx` (kept so an old receipt reprints as it
 was issued) — plus the preview sheet, print/share actions, the undo action and the reversed
 badge.
 
 Parent-facing documents are **bilingual English + Hindi**, from
-`messages/receipts-bilingual.json`.
+`src/messages/receipts-bilingual.json`.
 
 ## Reversal is visible, never silent
 
@@ -77,7 +77,7 @@ one applies, so a receipt eleven minutes old shows the admin reversal and nothin
 
 ## Stamps
 
-`components/ui/stamp.tsx` is the one stamp component — variants `paid`, `year-cleared`,
+`src/ui/primitives/stamp.tsx` is the one stamp component — variants `paid`, `year-cleared`,
 `void`, `draft`, `advance`, `closed-as-discount`. It replaced six hand-rolled copies.
 
 It is theme-aware on screen but **forced to dark ink for print**, so a stamp survives a

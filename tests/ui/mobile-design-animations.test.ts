@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const globals = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+const globals = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
 
 /**
  * Every animation the mobile v2 design specifies must exist, and — with one
@@ -70,7 +70,7 @@ describe("mobile v2 animation spec", () => {
     // is what keeps it from being applied to two screens and forgotten on
     // the rest, which is the state this replaced.
     const kit = readFileSync(
-      join(process.cwd(), "components/mobile-app/mobile-kit.tsx"),
+      join(process.cwd(), "src/ui/mobile/mobile-kit.tsx"),
       "utf8",
     );
     const screen = kit.slice(kit.indexOf("export function MobileScreen"));
@@ -82,7 +82,7 @@ describe("mobile v2 animation spec", () => {
 
   it("keeps the connection dot honest rather than decorative", () => {
     const pill = readFileSync(
-      join(process.cwd(), "components/mobile-app/connection-pill.tsx"),
+      join(process.cwd(), "src/ui/mobile/connection-pill.tsx"),
       "utf8",
     );
     // A hard-coded "Online" would be a lie the moment the office drops Wi-Fi.
