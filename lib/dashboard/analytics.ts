@@ -263,10 +263,6 @@ export const DASHBOARD_VIEWS = [
 
 export type DashboardView = (typeof DASHBOARD_VIEWS)[number];
 
-export function emptyDashboardAnalytics(sessionLabel: string): DashboardAnalytics {
-  return { ...EMPTY_ANALYTICS, sessionLabel };
-}
-
 export function resolveDashboardView(value: string | string[] | undefined): DashboardView {
   // searchParams hands back string[] when a key repeats. Taking [0] rather than
   // stringifying avoids "overview,collection" silently falling through to the

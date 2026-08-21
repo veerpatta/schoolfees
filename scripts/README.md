@@ -72,3 +72,23 @@ Added since this index was written:
   carries the same guards plus a `from*` re-check at apply time, and asks the app to bust its
   caches afterwards, which a Node process cannot do itself. There is no UI for it on purpose.
   `node scripts/bulk-apply.mjs --plan <file.json> --session TEST-2026-27 --apply --allow-fee-impact`
+
+## Retired scripts
+
+`scripts/_archive/` and `scripts/_revamp/` were deleted in the feature-first
+restructure. They held finished one-time work that had already run against
+production, and a directory of scripts nobody may run is a directory every
+reader still has to rule out.
+
+They are not gone, only out of the way. The one worth naming is the May 2026
+workbook import — it produced the data now in the live `2026-27` session, so
+its normalisation rules (class names, transport routes, payment modes, date
+parsing) are the answer to "why is this row shaped like this?":
+
+```bash
+git log --oneline --all -- scripts/_archive/2026-05-import/
+git show <commit>:scripts/_archive/2026-05-import/vpps-import-latest-2026-05-15.mjs
+```
+
+`tests/unit/vpps-import-latest.test.ts` pinned those rules and was removed with
+the script it tested; the same `git show` recovers it.

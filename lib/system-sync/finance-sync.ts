@@ -40,21 +40,6 @@ export type { AutomaticDuesPreparationResult };
 export { getLiveDataHealth } from "@/lib/system-sync/live-data-health";
 export type { LiveDataHealth } from "@/lib/system-sync/live-data-health";
 
-export async function syncStudentDues(studentIds: readonly string[]) {
-  return syncStudentFinancials({
-    studentIds,
-    reason: "Prepare student dues",
-  });
-}
-
-export async function syncStudentDuesAsSystem(studentIds: readonly string[]) {
-  return syncStudentFinancials({
-    studentIds,
-    reason: "Prepare student dues",
-    useSystemClient: true,
-  });
-}
-
 export async function prepareDuesForStudentsAutomatically(payload: {
   studentIds: readonly string[];
   sessionLabel?: string;
@@ -71,30 +56,12 @@ export async function prepareDuesForStudentsAutomatically(payload: {
   return toAutomaticDuesPreparationResult(payload.studentIds, result);
 }
 
-export async function syncSessionDues(sessionLabel: string) {
-  return syncSessionFinancials({
-    sessionLabel,
-    reason: "Prepare session dues",
-  });
-}
-
 export async function syncAfterStudentChange(studentId: string) {
   return syncAfterStudentChangeLegacy({ studentId });
 }
 
-export async function syncAfterBulkStudentImport(studentIds: readonly string[]) {
-  return syncAfterStudentBulkImportLegacy({ studentIds });
-}
-
 export async function syncAfterStudentBulkImport(payload: { studentIds: readonly string[] }) {
   return syncAfterStudentBulkImportLegacy(payload);
-}
-
-export async function syncAfterFeeSetupPublish(sessionLabel: string) {
-  return syncSessionFinancials({
-    sessionLabel,
-    reason: "Fee Setup published",
-  });
 }
 
 export async function syncAfterFeeSetupChangeForSession(sessionLabel: string) {

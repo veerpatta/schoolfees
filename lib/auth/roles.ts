@@ -197,10 +197,6 @@ export function resolveStaffRole(value: unknown): StaffRole {
   return "view_only";
 }
 
-export function isStaffPermission(value: unknown): value is StaffPermission {
-  return typeof value === "string" && staffPermissions.includes(value as StaffPermission);
-}
-
 export function hasRolePermission(role: StaffRole, permission: StaffPermission) {
   return rolePermissions[role].includes(permission);
 }

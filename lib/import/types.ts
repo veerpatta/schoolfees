@@ -314,9 +314,3 @@ export type StudentImportActionState = {
   syncOutcome?: OfficeSyncOutcome | null;
 };
 
-export const INITIAL_STUDENT_IMPORT_ACTION_STATE: StudentImportActionState = {
-  status: "idle",
-  message: null,
-  batchId: null,
-  syncOutcome: null,
-};

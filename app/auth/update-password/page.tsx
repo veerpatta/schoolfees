@@ -1,5 +1,5 @@
 import { AuthConfigNotice } from "@/components/auth/auth-config-notice";
-import { UpdatePasswordForm } from "@/components/update-password-form";
+import { UpdatePasswordForm } from "@/components/auth/update-password-form";
 import { hasRequiredEnvVars } from "@/lib/env";
 
 export default function Page() {

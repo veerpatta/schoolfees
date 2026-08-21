@@ -233,59 +233,6 @@ export function OfficeNextActions({
   );
 }
 
-export function ClassTabs({
-  basePath,
-  classOptions,
-  activeClassId,
-  query = {},
-  allLabel = "All classes",
-}: {
-  basePath: string;
-  classOptions: Array<{ id: string; label: string }>;
-  activeClassId: string;
-  query?: Record<string, string | null | undefined>;
-  allLabel?: string;
-}) {
-  const buildHref = (classId: string) => {
-    const params = new URLSearchParams();
-    Object.entries(query).forEach(([key, value]) => {
-      if (value) params.set(key, value);
-    });
-    if (classId) {
-      params.set("classId", classId);
-    } else {
-      params.delete("classId");
-    }
-    const queryString = params.toString();
-    return queryString ? `${basePath}?${queryString}` : basePath;
-  };
-
-  const tabClass = (active: boolean) =>
-    cn(
-      "inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
-      active
-        ? "border-foreground bg-foreground text-background"
-        : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:text-foreground",
-    );
-
-  return (
-    <div className="flex flex-wrap gap-1.5 rounded-md bg-surface-2 p-1">
-      <Link href={buildHref("")} className={tabClass(!activeClassId)}>
-        {allLabel}
-      </Link>
-      {classOptions.map((item) => (
-        <Link
-          key={item.id}
-          href={buildHref(item.id)}
-          className={tabClass(item.id === activeClassId)}
-        >
-          {item.label}
-        </Link>
-      ))}
-    </div>
-  );
-}
-
 type RecentStudentContext = {
   id: string;
   fullName: string;

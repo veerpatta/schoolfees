@@ -57,23 +57,6 @@ export async function listWhatsappTemplates(options: {
   return ((data ?? []) as Row[]).map(mapRow);
 }
 
-export async function getWhatsappTemplate(id: string): Promise<WhatsappTemplate | null> {
-  const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from("whatsapp_templates")
-    .select("id, name, body, placeholders, category, is_active, created_at, updated_at")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    if ((error as { code?: string }).code === "42P01") return null;
-    throw new Error(`Failed to load template: ${error.message}`);
-  }
-
-  return data ? mapRow(data as Row) : null;
-}
-
 export type WhatsappTemplateInput = {
   name: string;
   body: string;

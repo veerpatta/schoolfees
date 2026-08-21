@@ -150,7 +150,6 @@ describe("source of truth audit fixes", () => {
 
   it("repair_actions_preserve_student_session_and_payment_history", () => {
     const financialSync = readRepoFile("lib/system-sync/financial-sync.ts");
-    const dashboardActions = readRepoFile("app/protected/dashboard/actions.ts");
     const verifyScript = readRepoFile("scripts/verify-live-fee-health.mjs");
 
     const alignFunction = financialSync.slice(
@@ -166,7 +165,12 @@ describe("source of truth audit fixes", () => {
     expect(financialSync).toContain("studentsMissingInstallments.map((row) => row.studentId)");
     expect(financialSync).toContain("scopedStudentIds: studentIds");
     expect(financialSync).toContain("useAdminClient: payload.useSystemClient");
-    expect(dashboardActions).toContain("a database update is pending");
+    // The Payment Desk repair action this used to pin is gone. It guarded a
+    // real property — refuse to "fix" dues while a migration is pending — but
+    // for an action that was exported, never imported and never reachable from
+    // any screen. Deleted with the other 58 dead exports in the feature-first
+    // restructure. The live repair path is alignAcademicCurrentSessionWithFeeSetup
+    // above, which this test still covers in full.
     expect(verifyScript).not.toContain(".insert(");
     expect(verifyScript).not.toContain(".update(");
     expect(verifyScript).not.toContain(".delete(");

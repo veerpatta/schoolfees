@@ -31,11 +31,14 @@
  *      symbols — is code that runs nowhere: declared, exported, and never
  *      named again by anything.
  *
- * That last set is the interesting one, and it is not theoretical.
- * `hooks/use-online-status.ts` and `components/ui/empty-state.tsx` are both
+ * That last set is the interesting one, and it is not theoretical. It once
+ * held `hooks/use-online-status.ts` and `components/ui/empty-state.tsx`, both
  * named in `quality/office-quality-budgets.json` as extractions made to bring
- * a file under its line budget — the extraction happened and the call site was
- * never rewired, so the budget note describes a refactor that did not land.
+ * a file under its line budget: the extraction happened, the call site was
+ * never rewired, and the budget note described a refactor that had not landed.
+ * Both were deleted in the feature-first restructure, along with 57 others and
+ * a superseded 1,437-line copy of the fee-setup change engine. The rule found
+ * all of it; nothing else in this repository would have.
  *
  * The Next.js exclusions are not a nicety; without them the rule is wrong
  * rather than noisy. Nothing imports the default export of a `page.tsx` — the

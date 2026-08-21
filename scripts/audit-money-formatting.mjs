@@ -24,7 +24,6 @@ const SCAN_DIRS = ["app", "components"];
 
 const ALLOWLIST = new Set([
   path.normalize("components/ui/money.tsx"),
-  path.normalize("components/ui/money-breakdown.tsx"),
   path.normalize("components/ui/money-with-definition.tsx"),
   path.normalize("components/ui/money-glossary.tsx"),
 ]);

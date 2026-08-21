@@ -15,8 +15,3 @@ export const schoolProfile = {
   staffAudience: "Office and accounts staff",
 } as const;
 
-export const productPrinciples = [
-  "Keep the system internal and task-focused for school staff.",
-  "Replace workbook steps gradually instead of forcing a hard cutover.",
-  "Preserve who changed what and when for every fee operation.",
-] as const;

@@ -26,7 +26,3 @@ export function normalizeAmountInputShorthand(value: string) {
   return String(Math.round(amount * multiplier));
 }
 
-export function sanitizeWholeInput(value: string) {
-  return value.replace(/\D/g, "");
-}
-

@@ -17,19 +17,6 @@ export const ACTIVITY_KINDS = [
 
 export type ActivityKind = (typeof ACTIVITY_KINDS)[number];
 
-const KIND_LABEL: Record<ActivityKind, string> = {
-  payment_posted: "Payment posted",
-  payment_undone: "Payment undone",
-  payment_reversed: "Receipt reversed",
-  receipt_printed: "Receipt printed",
-  student_edited: "Student edited",
-  student_view: "Student viewed",
-  export_downloaded: "Export downloaded",
-  defaulter_contacted: "Defaulter contacted",
-  defaulter_no_call_set: "No-call flag changed",
-  import_committed: "Import committed",
-};
-
 const KIND_TONE: Record<ActivityKind, "success" | "info" | "warning" | "muted"> = {
   payment_posted: "success",
   payment_undone: "warning",
@@ -42,10 +29,6 @@ const KIND_TONE: Record<ActivityKind, "success" | "info" | "warning" | "muted"> 
   defaulter_no_call_set: "warning",
   import_committed: "warning",
 };
-
-export function activityKindLabel(kind: string): string {
-  return (KIND_LABEL as Record<string, string>)[kind] ?? kind;
-}
 
 export function activityKindTone(kind: string): "success" | "info" | "warning" | "muted" {
   return (KIND_TONE as Record<string, "success" | "info" | "warning" | "muted">)[kind] ?? "muted";
@@ -167,36 +150,3 @@ export async function getTodayActivityCounts(
   return counts;
 }
 
-/**
- * Per-ref-id most-recent timestamp for a user (used by the "Last viewed by
- * you" hint on the student list). Returns a Map keyed by refId.
- */
-export async function getLastEventByRef(
-  userId: string,
-  kind: ActivityKind,
-  refIds: string[],
-): Promise<Map<string, string>> {
-  if (refIds.length === 0) return new Map();
-  const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from("user_activity_events")
-    .select("ref_id, created_at")
-    .eq("user_id", userId)
-    .eq("kind", kind)
-    .in("ref_id", refIds)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    if ((error as { code?: string }).code === "42P01") return new Map();
-    throw new Error(`Failed to load last-view timestamps: ${error.message}`);
-  }
-
-  const result = new Map<string, string>();
-  for (const row of (data ?? []) as Array<{ ref_id: string | null; created_at: string }>) {
-    if (row.ref_id && !result.has(row.ref_id)) {
-      result.set(row.ref_id, row.created_at);
-    }
-  }
-  return result;
-}

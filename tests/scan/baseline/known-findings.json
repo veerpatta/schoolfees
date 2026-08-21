@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-19T16:10:36.463Z",
+  "generatedAt": "2026-08-21T09:02:59.363Z",
   "_comment": [
     "The noise budget and the waiver list for tests/scan.",
     "",
@@ -16,8 +16,7 @@
   ],
   "waivers": [],
   "noiseBudget": {
-    "scan.dead-export": 59,
-    "scan.money-format-raw": 32,
+    "scan.money-format-raw": 25,
     "scan.config-risk": 2,
     "scan.rounding-policy-mixed": 4,
     "scan.sql-risk": 10,

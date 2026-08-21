@@ -1634,18 +1634,6 @@ function mapImportSaveError(error: unknown): ImportIssue {
   };
 }
 
-export async function getResumableFailedRowCount(batchId: string) {
-  const rowRecords = await getImportRowsByBatchId(batchId);
-
-  return rowRecords
-    .map(toImportRowDetail)
-    .filter(
-      (row) =>
-        row.status === "invalid" &&
-        row.errors.some(isImportSaveError),
-    ).length;
-}
-
 export async function resumeStudentImportBatch(batchId: string) {
   const batchRow = await getImportBatchById(batchId);
 

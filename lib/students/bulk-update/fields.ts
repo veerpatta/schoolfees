@@ -303,6 +303,3 @@ export function resolveBulkUpdateFields(keys: readonly string[]): BulkUpdateFiel
   return BULK_UPDATE_FIELDS.filter((field) => wanted.has(field.key));
 }
 
-export function bulkUpdateFieldsAffectFees(fields: readonly BulkUpdateField[]) {
-  return fields.some((field) => field.affectsFees);
-}

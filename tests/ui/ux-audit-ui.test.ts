@@ -38,7 +38,7 @@ describe("read-only UX audit implementation", () => {
 
   it("login stays minimal and staff-safe", () => {
     const layout = readRepoFile("app/auth/layout.tsx");
-    const login = readRepoFile("components/login-form.tsx");
+    const login = readRepoFile("components/auth/login-form.tsx");
     const notice = readRepoFile("components/auth/auth-config-notice.tsx");
     const authError = readRepoFile("app/auth/error.tsx");
     const combined = [layout, login, notice, authError].join("\n");

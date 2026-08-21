@@ -109,57 +109,6 @@ export function formatPaymentModeLabel(value: PaymentMode) {
   return PAYMENT_MODE_LABELS[value];
 }
 
-export const CORE_FEE_HEADS = [
-  {
-    id: "tuition_fee",
-    label: "Tuition fee",
-    amount: 0,
-    applicationType: "annual_fixed",
-    isRefundable: false,
-    chargeFrequency: "recurring",
-    isMandatory: true,
-    includeInWorkbookCalculation: true,
-    isActive: true,
-    notes: null,
-  },
-  {
-    id: "transport_fee",
-    label: "Transport fee",
-    amount: 0,
-    applicationType: "annual_fixed",
-    isRefundable: false,
-    chargeFrequency: "recurring",
-    isMandatory: false,
-    includeInWorkbookCalculation: true,
-    isActive: true,
-    notes: null,
-  },
-  {
-    id: "books_fee",
-    label: "Books fee",
-    amount: 0,
-    applicationType: "annual_fixed",
-    isRefundable: false,
-    chargeFrequency: "one_time",
-    isMandatory: false,
-    includeInWorkbookCalculation: false,
-    isActive: true,
-    notes: null,
-  },
-  {
-    id: "admission_activity_misc_fee",
-    label: "Admission / activity / misc fee",
-    amount: 0,
-    applicationType: "annual_fixed",
-    isRefundable: false,
-    chargeFrequency: "one_time",
-    isMandatory: true,
-    includeInWorkbookCalculation: false,
-    isActive: true,
-    notes: null,
-  },
-] as const satisfies ReadonlyArray<FeeHeadDefinition>;
-
 export function normalizeFeeHeadId(value: string) {
   return value
     .trim()
@@ -213,15 +162,6 @@ export function buildInstallmentDueDate(
   const isoDate = new Date(Date.UTC(year, monthIndex, day)).toISOString().slice(0, 10);
 
   return isoDate;
-}
-
-export function buildDefaultInstallmentSchedule(referenceDate = new Date()) {
-  const academicSessionLabel = getDefaultAcademicSessionLabel(referenceDate);
-
-  return DEFAULT_INSTALLMENT_SCHEDULE.map((item) => ({
-    ...item,
-    dueDate: buildInstallmentDueDate(academicSessionLabel, item.dueDateLabel),
-  }));
 }
 
 export function buildDefaultFeePolicySummary(referenceDate = new Date()) {

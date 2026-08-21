@@ -41,17 +41,6 @@ export const DEFAULTER_CALL_LIST_STATUSES = [
 ] as const satisfies readonly StudentStatus[];
 
 /**
- * Recovery: the non-active complement. Dues still owed by students who are no
- * longer enrolled. Mirrored by lib/recovery/types.ts, which narrows the same
- * three from StudentStatus.
- */
-export const RECOVERY_STATUSES = [
-  "left",
-  "graduated",
-  "inactive",
-] as const satisfies readonly StudentStatus[];
-
-/**
  * Promotion: who can be carried into the next session. `left` and `graduated`
  * are excluded by definition — a student who has left is NEVER rolled over
  * (school rule, 2026-08-18). `inactive` rides along so a temporarily lapsed

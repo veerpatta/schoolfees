@@ -27,6 +27,3 @@ export const CARRY_FORWARD_DUE_DATE = "2026-04-01";
 /** Hard rule: prior-year dues never carry a late fee. */
 export const CARRY_FORWARD_LATE_FEE_FLAT_AMOUNT = 0;
 
-/** Legacy rollback hint. Prefer `student_carry_forward_balances` batch links. */
-export const CARRY_FORWARD_ROLLBACK_HINT =
-  `delete from public.installments where is_carry_forward = true and installment_label = '${CARRY_FORWARD_LABEL}'`;

@@ -8,11 +8,6 @@ export type SetupActionState = {
   message: string | null;
 };
 
-export const INITIAL_SETUP_ACTION_STATE: SetupActionState = {
-  status: "idle",
-  message: null,
-};
-
 export type SetupChecklistStatus = "complete" | "incomplete" | "warning";
 
 export type SetupChecklistItem = {

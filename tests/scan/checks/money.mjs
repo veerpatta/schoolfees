@@ -338,7 +338,6 @@ function findRoundThenValidate(file, code) {
 const FORMAT_ALLOWLIST = new Set([
   "lib/helpers/currency.ts",
   "components/ui/money.tsx",
-  "components/ui/money-breakdown.tsx",
   "components/ui/money-with-definition.tsx",
   "components/ui/money-glossary.tsx",
   "workers/schoolfees-mcp/src/format.mjs",

@@ -2211,7 +2211,3 @@ export async function getStudentFinancialSnapshot(
   )();
 }
 
-export async function getAcceptedPaymentModeOptions() {
-  const policy = await loadGlobalPolicy(false);
-  return policy.acceptedPaymentModes;
-}

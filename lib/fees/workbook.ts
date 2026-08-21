@@ -179,24 +179,6 @@ export function isWorkbookSession(
   return isWorkbookPolicy(policy) && (sessionLabel ?? "").trim() === policy.academicSessionLabel;
 }
 
-export function getWorkbookStudentStatusLabel(studentType: "new" | "existing") {
-  return studentType === "new" ? "New" : "Old";
-}
-
-export function getWorkbookStudentStatusCode(value: string | null | undefined) {
-  const normalized = (value ?? "").trim().toLowerCase();
-
-  if (normalized === "new") {
-    return "new" as const;
-  }
-
-  if (normalized === "old" || normalized === "existing") {
-    return "existing" as const;
-  }
-
-  return null;
-}
-
 export function splitAmountWithRemainderLast(totalAmount: number, count: number) {
   const normalizedTotal = Math.max(0, Math.trunc(totalAmount));
   const normalizedCount = Math.max(1, Math.trunc(count));

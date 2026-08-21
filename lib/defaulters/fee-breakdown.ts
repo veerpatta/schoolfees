@@ -62,14 +62,6 @@ export type FeeBreakdown = {
   recentPayments: FeeBreakdownPayment[];
 };
 
-const STATUS_RANK: Record<FeeBreakdownInstallment["balanceStatus"], number> = {
-  paid: 4,
-  waived: 3,
-  partial: 2,
-  overdue: 1,
-  pending: 0,
-};
-
 /**
  * Full fee breakdown for a single student — used by the Defaulters Worklist
  * Drawer so a fee collector can read it out to the parent on a call.
@@ -166,18 +158,6 @@ export async function getStudentFeeBreakdown(
     }));
 
   return { headline, installments, recentPayments };
-}
-
-/**
- * Suggests which installment to highlight first — the next one the collector
- * should ask the parent about. Picks overdue/partial first, otherwise the
- * earliest open one.
- */
-export function nextFocusInstallment(
-  installments: FeeBreakdownInstallment[],
-): FeeBreakdownInstallment | null {
-  if (installments.length === 0) return null;
-  return [...installments].sort((a, b) => STATUS_RANK[a.balanceStatus] - STATUS_RANK[b.balanceStatus])[0];
 }
 
 async function safeCall<T>(fn: () => Promise<T>): Promise<T | null> {

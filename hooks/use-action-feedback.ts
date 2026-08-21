@@ -41,18 +41,6 @@ const SUCCESS_STATUSES = new Set(["success", "ok", "done", "completed"]);
 const WARNING_STATUSES = new Set(["warning", "needs_review", "partial"]);
 const ERROR_STATUSES = new Set(["error", "failed", "failure"]);
 
-export function isSuccessStatus(status?: string | null) {
-  return SUCCESS_STATUSES.has((status ?? "").toString().toLowerCase());
-}
-
-export function isErrorStatus(status?: string | null) {
-  return ERROR_STATUSES.has((status ?? "").toString().toLowerCase());
-}
-
-export function isWarningStatus(status?: string | null) {
-  return WARNING_STATUSES.has((status ?? "").toString().toLowerCase());
-}
-
 /**
  * Announces the result of a server action and refreshes the page so the change
  * is actually visible.

@@ -528,32 +528,3 @@ export async function resetStaffAccountPassword(input: {
   }
 }
 
-export async function provisionBootstrapStaff(specs: BootstrapStaffSpec[]) {
-  assertStaffManagementConfigured();
-
-  const results: Array<{
-    email: string;
-    role: StaffRole;
-    mode: "created" | "updated";
-  }> = [];
-
-  for (const spec of specs) {
-    const result = await upsertStaffAuthAccount({
-      email: spec.email,
-      fullName: spec.fullName,
-      role: spec.role,
-      password: spec.password,
-      notes: spec.notes,
-      isActive: true,
-      updatePasswordIfExists: true,
-    });
-
-    results.push({
-      email: result.authUser.email ?? spec.email,
-      role: spec.role,
-      mode: result.mode,
-    });
-  }
-
-  return results;
-}

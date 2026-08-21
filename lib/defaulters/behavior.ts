@@ -81,10 +81,3 @@ export function classifyPaymentBehavior(input: BehaviorInput): PaymentBehavior {
   return "reliable";
 }
 
-export const PAYMENT_BEHAVIORS: readonly PaymentBehavior[] = [
-  "reliable",
-  "delays_but_pays",
-  "chronic",
-  "non_responsive",
-  "new",
-];

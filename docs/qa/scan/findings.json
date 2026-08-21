@@ -1,5 +1,5 @@
 {
-  "runId": "202608210346",
+  "runId": "202608210902",
   "verdict": {
     "pass": true,
     "reasons": [],
@@ -10,94 +10,10 @@
   "counts": {
     "P0": 0,
     "P1": 0,
-    "P2": 107,
+    "P2": 41,
     "P3": 11
   },
   "findings": [
-    {
-      "id": "9ea45244d931",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "app/protected/dashboard/actions.ts:33",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "app/protected/dashboard/actions.ts:33 exports repairCurrentSessionDuesAction, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`repairCurrentSessionDuesAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/dashboard/actions.ts, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`repairCurrentSessionDuesAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/dashboard/actions.ts, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export async function repairCurrentSessionDuesAction(formData: FormData) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file app/protected/dashboard/actions.ts"
-      },
-      "suspectedFile": "app/protected/dashboard/actions.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.408Z"
-    },
-    {
-      "id": "d17950f88466",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "app/protected/dashboard/actions.ts:56",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "app/protected/dashboard/actions.ts:56 exports syncCurrentSessionAction, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`syncCurrentSessionAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/dashboard/actions.ts, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`syncCurrentSessionAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/dashboard/actions.ts, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export async function syncCurrentSessionAction(formData: FormData) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file app/protected/dashboard/actions.ts"
-      },
-      "suspectedFile": "app/protected/dashboard/actions.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.409Z"
-    },
-    {
-      "id": "d7aaa0e0a9f1",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "app/protected/dashboard/actions.ts:69",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "app/protected/dashboard/actions.ts:69 exports repairPaymentDeskDataAction, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`repairPaymentDeskDataAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/dashboard/actions.ts, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`repairPaymentDeskDataAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/dashboard/actions.ts, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export async function repairPaymentDeskDataAction(formData: FormData) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file app/protected/dashboard/actions.ts"
-      },
-      "suspectedFile": "app/protected/dashboard/actions.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.409Z"
-    },
     {
       "id": "61d36ee125f3",
       "rule": "scan.money-format-raw",
@@ -124,7 +40,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.683Z"
+      "firstSeenAt": "2026-08-21T09:02:50.873Z"
     },
     {
       "id": "c7171e66df11",
@@ -152,7 +68,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.684Z"
+      "firstSeenAt": "2026-08-21T09:02:50.873Z"
     },
     {
       "id": "e6285f1c60c6",
@@ -180,35 +96,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.684Z"
-    },
-    {
-      "id": "6db3ac7289ea",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "app/protected/master-data/actions.ts:226",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "app/protected/master-data/actions.ts:226 exports copySessionAction, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`copySessionAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/master-data/actions.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
-      "fingerprint": "`copySessionAction` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside app/protected/master-data/actions.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function copySessionAction("
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file app/protected/master-data/actions.ts"
-      },
-      "suspectedFile": "app/protected/master-data/actions.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.414Z"
+      "firstSeenAt": "2026-08-21T09:02:50.873Z"
     },
     {
       "id": "95115ff651f8",
@@ -236,7 +124,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.694Z"
+      "firstSeenAt": "2026-08-21T09:02:50.884Z"
     },
     {
       "id": "81edcaa65ee8",
@@ -264,7 +152,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.695Z"
+      "firstSeenAt": "2026-08-21T09:02:50.885Z"
     },
     {
       "id": "75976d2f1a8f",
@@ -292,287 +180,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.698Z"
-    },
-    {
-      "id": "7c46aa9be0f0",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/auth-button.tsx:7",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/auth-button.tsx:7 exports AuthButton, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`AuthButton` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/auth-button.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`AuthButton` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/auth-button.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export async function AuthButton() {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/auth-button.tsx"
-      },
-      "suspectedFile": "components/auth-button.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.425Z"
-    },
-    {
-      "id": "1832767df0f8",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/dashboard/class-installment-matrix.tsx:13",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/dashboard/class-installment-matrix.tsx:13 exports ClassInstallmentMatrixTable, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`ClassInstallmentMatrixTable` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/class-installment-matrix.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`ClassInstallmentMatrixTable` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/class-installment-matrix.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function ClassInstallmentMatrixTable({ matrix }: Props) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/dashboard/class-installment-matrix.tsx"
-      },
-      "suspectedFile": "components/dashboard/class-installment-matrix.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.427Z"
-    },
-    {
-      "id": "570f9bcde435",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/dashboard/copy-reminder-button.tsx:12",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/dashboard/copy-reminder-button.tsx:12 exports CopyReminderButton, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`CopyReminderButton` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/copy-reminder-button.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`CopyReminderButton` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/copy-reminder-button.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function CopyReminderButton({ text }: CopyReminderButtonProps) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/dashboard/copy-reminder-button.tsx"
-      },
-      "suspectedFile": "components/dashboard/copy-reminder-button.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.427Z"
-    },
-    {
-      "id": "6d91bf838729",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/dashboard/morning-brief-shelf.tsx:12",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/dashboard/morning-brief-shelf.tsx:12 exports MorningBriefShelf, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`MorningBriefShelf` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/morning-brief-shelf.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`MorningBriefShelf` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/morning-brief-shelf.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function MorningBriefShelf({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/dashboard/morning-brief-shelf.tsx"
-      },
-      "suspectedFile": "components/dashboard/morning-brief-shelf.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.428Z"
-    },
-    {
-      "id": "327eb5f297c3",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/dashboard/role-focus-actions.tsx:18",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/dashboard/role-focus-actions.tsx:18 exports RoleFocusActions, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`RoleFocusActions` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/role-focus-actions.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`RoleFocusActions` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/dashboard/role-focus-actions.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export async function RoleFocusActions({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/dashboard/role-focus-actions.tsx"
-      },
-      "suspectedFile": "components/dashboard/role-focus-actions.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.429Z"
-    },
-    {
-      "id": "3436e86fa9bc",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/data-table/selection-bar.tsx:24",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/data-table/selection-bar.tsx:24 exports SelectionBar, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`SelectionBar` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/data-table/selection-bar.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`SelectionBar` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/data-table/selection-bar.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function SelectionBar({ count, noun, onClear, actions, className }: SelectionBarProps) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/data-table/selection-bar.tsx"
-      },
-      "suspectedFile": "components/data-table/selection-bar.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.429Z"
-    },
-    {
-      "id": "052187ab7727",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/data-table/table-toolbar.tsx:33",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/data-table/table-toolbar.tsx:33 exports TableToolbar, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`TableToolbar` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/data-table/table-toolbar.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`TableToolbar` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/data-table/table-toolbar.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function TableToolbar({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/data-table/table-toolbar.tsx"
-      },
-      "suspectedFile": "components/data-table/table-toolbar.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.430Z"
-    },
-    {
-      "id": "2f8cf2a0602d",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/mobile-app/mobile-option-sheet.tsx:28",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/mobile-app/mobile-option-sheet.tsx:28 exports MobileOptionSheet, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`MobileOptionSheet` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/mobile-app/mobile-option-sheet.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`MobileOptionSheet` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/mobile-app/mobile-option-sheet.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function MobileOptionSheet({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/mobile-app/mobile-option-sheet.tsx"
-      },
-      "suspectedFile": "components/mobile-app/mobile-option-sheet.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.437Z"
-    },
-    {
-      "id": "76274f1cd31e",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/office/office-ui.tsx:236",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/office/office-ui.tsx:236 exports ClassTabs, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`ClassTabs` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/office/office-ui.tsx, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "fingerprint": "`ClassTabs` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/office/office-ui.tsx, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function ClassTabs({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/office/office-ui.tsx"
-      },
-      "suspectedFile": "components/office/office-ui.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.438Z"
-    },
-    {
-      "id": "738ddcb58da5",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/sign-up-form.tsx:20",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/sign-up-form.tsx:20 exports SignUpForm, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`SignUpForm` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/sign-up-form.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`SignUpForm` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/sign-up-form.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function SignUpForm({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/sign-up-form.tsx"
-      },
-      "suspectedFile": "components/sign-up-form.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.446Z"
+      "firstSeenAt": "2026-08-21T09:02:50.889Z"
     },
     {
       "id": "1fb0a3d2cce9",
@@ -600,7 +208,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.717Z"
+      "firstSeenAt": "2026-08-21T09:02:50.915Z"
     },
     {
       "id": "b290acd79aa1",
@@ -628,383 +236,19 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.717Z"
+      "firstSeenAt": "2026-08-21T09:02:50.915Z"
     },
     {
-      "id": "84db05c8bda5",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/transactions/mobile-day-summary.tsx:82",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/transactions/mobile-day-summary.tsx:82 exports todaySummaryDateLabel, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`todaySummaryDateLabel` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/transactions/mobile-day-summary.tsx, at its own declaration. 1 module(s) import this file, none of them for this name.",
-      "fingerprint": "`todaySummaryDateLabel` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/transactions/mobile-day-summary.tsx, at its own declaration. 1 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function todaySummaryDateLabel() {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/transactions/mobile-day-summary.tsx"
-      },
-      "suspectedFile": "components/transactions/mobile-day-summary.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.456Z"
-    },
-    {
-      "id": "6b7efc4aa5f5",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/trust/audit-link.tsx:21",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/trust/audit-link.tsx:21 exports AuditLink, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`AuditLink` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/trust/audit-link.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`AuditLink` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/trust/audit-link.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function AuditLink({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/trust/audit-link.tsx"
-      },
-      "suspectedFile": "components/trust/audit-link.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.459Z"
-    },
-    {
-      "id": "dde8762b4548",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/ui/empty-state.tsx:18",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/ui/empty-state.tsx:18 exports EmptyState, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`EmptyState` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/ui/empty-state.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`EmptyState` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/ui/empty-state.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function EmptyState({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/ui/empty-state.tsx"
-      },
-      "suspectedFile": "components/ui/empty-state.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.460Z"
-    },
-    {
-      "id": "e4a429e84173",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "components/ui/money-breakdown.tsx:34",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "components/ui/money-breakdown.tsx:34 exports MoneyBreakdown, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`MoneyBreakdown` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/ui/money-breakdown.tsx, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`MoneyBreakdown` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside components/ui/money-breakdown.tsx, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function MoneyBreakdown({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file components/ui/money-breakdown.tsx"
-      },
-      "suspectedFile": "components/ui/money-breakdown.tsx",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.460Z"
-    },
-    {
-      "id": "389f90efa2aa",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "hooks/use-action-feedback.ts:44",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "hooks/use-action-feedback.ts:44 exports isSuccessStatus, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`isSuccessStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-action-feedback.ts, at its own declaration. 14 module(s) import this file, none of them for this name.",
-      "fingerprint": "`isSuccessStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-action-feedback.ts, at its own declaration. 14 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function isSuccessStatus(status?: string | null) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file hooks/use-action-feedback.ts"
-      },
-      "suspectedFile": "hooks/use-action-feedback.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.462Z"
-    },
-    {
-      "id": "edfd3ec4ea2a",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "hooks/use-action-feedback.ts:48",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "hooks/use-action-feedback.ts:48 exports isErrorStatus, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`isErrorStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-action-feedback.ts, at its own declaration. 14 module(s) import this file, none of them for this name.",
-      "fingerprint": "`isErrorStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-action-feedback.ts, at its own declaration. 14 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function isErrorStatus(status?: string | null) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file hooks/use-action-feedback.ts"
-      },
-      "suspectedFile": "hooks/use-action-feedback.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.463Z"
-    },
-    {
-      "id": "46a61be8cdac",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "hooks/use-action-feedback.ts:52",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "hooks/use-action-feedback.ts:52 exports isWarningStatus, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`isWarningStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-action-feedback.ts, at its own declaration. 14 module(s) import this file, none of them for this name.",
-      "fingerprint": "`isWarningStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-action-feedback.ts, at its own declaration. 14 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function isWarningStatus(status?: string | null) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file hooks/use-action-feedback.ts"
-      },
-      "suspectedFile": "hooks/use-action-feedback.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.463Z"
-    },
-    {
-      "id": "0026ec56efc9",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "hooks/use-online-status.ts:18",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "hooks/use-online-status.ts:18 exports useOnlineStatus, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`useOnlineStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-online-status.ts, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`useOnlineStatus` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside hooks/use-online-status.ts, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function useOnlineStatus(recoveredHoldMs = 6000): ConnectivityStatus {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file hooks/use-online-status.ts"
-      },
-      "suspectedFile": "hooks/use-online-status.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.463Z"
-    },
-    {
-      "id": "983b11761ee8",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/activity/events.ts:174",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/activity/events.ts:174 exports getLastEventByRef, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`getLastEventByRef` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/activity/events.ts, at its own declaration. 13 module(s) import this file, none of them for this name.",
-      "fingerprint": "`getLastEventByRef` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/activity/events.ts, at its own declaration. 13 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function getLastEventByRef("
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/activity/events.ts"
-      },
-      "suspectedFile": "lib/activity/events.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.464Z"
-    },
-    {
-      "id": "b94019a41799",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/activity/events.ts:46",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/activity/events.ts:46 exports activityKindLabel, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`activityKindLabel` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/activity/events.ts, at its own declaration. 13 module(s) import this file, none of them for this name.",
-      "fingerprint": "`activityKindLabel` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/activity/events.ts, at its own declaration. 13 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function activityKindLabel(kind: string): string {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/activity/events.ts"
-      },
-      "suspectedFile": "lib/activity/events.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.464Z"
-    },
-    {
-      "id": "30dee605d925",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/auth/roles.ts:200",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/auth/roles.ts:200 exports isStaffPermission, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`isStaffPermission` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/auth/roles.ts, at its own declaration. 33 module(s) import this file, none of them for this name.",
-      "fingerprint": "`isStaffPermission` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/auth/roles.ts, at its own declaration. 33 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function isStaffPermission(value: unknown): value is StaffPermission {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/auth/roles.ts"
-      },
-      "suspectedFile": "lib/auth/roles.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.464Z"
-    },
-    {
-      "id": "4be23f178426",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/config/fee-rules.ts:112",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/config/fee-rules.ts:112 exports CORE_FEE_HEADS, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`CORE_FEE_HEADS` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/config/fee-rules.ts, at its own declaration. 26 module(s) import this file, none of them for this name.",
-      "fingerprint": "`CORE_FEE_HEADS` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/config/fee-rules.ts, at its own declaration. 26 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export const CORE_FEE_HEADS = ["
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/config/fee-rules.ts"
-      },
-      "suspectedFile": "lib/config/fee-rules.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.465Z"
-    },
-    {
-      "id": "ff1f3ce63b50",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/config/fee-rules.ts:218",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/config/fee-rules.ts:218 exports buildDefaultInstallmentSchedule, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`buildDefaultInstallmentSchedule` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/config/fee-rules.ts, at its own declaration. 26 module(s) import this file, none of them for this name.",
-      "fingerprint": "`buildDefaultInstallmentSchedule` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/config/fee-rules.ts, at its own declaration. 26 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function buildDefaultInstallmentSchedule(referenceDate = new Date()) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/config/fee-rules.ts"
-      },
-      "suspectedFile": "lib/config/fee-rules.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.465Z"
-    },
-    {
-      "id": "6813c7ad98b7",
+      "id": "893eeec03a40",
       "rule": "scan.money-format-raw",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "lib/config/fee-rules.ts:240",
+      "surface": "lib/config/fee-rules.ts:180",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "lib/config/fee-rules.ts:240 formats a rupee figure without lib/helpers/currency.ts",
+      "title": "lib/config/fee-rules.ts:180 formats a rupee figure without lib/helpers/currency.ts",
       "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.",
       "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
       "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
@@ -1020,119 +264,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.724Z"
-    },
-    {
-      "id": "77f906e851c5",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/config/school.ts:18",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/config/school.ts:18 exports productPrinciples, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`productPrinciples` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/config/school.ts, at its own declaration. 19 module(s) import this file, none of them for this name.",
-      "fingerprint": "`productPrinciples` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/config/school.ts, at its own declaration. 19 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export const productPrinciples = ["
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/config/school.ts"
-      },
-      "suspectedFile": "lib/config/school.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.467Z"
-    },
-    {
-      "id": "f3028c35115e",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/dashboard/analytics.ts:266",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/dashboard/analytics.ts:266 exports emptyDashboardAnalytics, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`emptyDashboardAnalytics` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/dashboard/analytics.ts, at its own declaration. 8 module(s) import this file, none of them for this name.",
-      "fingerprint": "`emptyDashboardAnalytics` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/dashboard/analytics.ts, at its own declaration. 8 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function emptyDashboardAnalytics(sessionLabel: string): DashboardAnalytics {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/dashboard/analytics.ts"
-      },
-      "suspectedFile": "lib/dashboard/analytics.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.467Z"
-    },
-    {
-      "id": "38c6cc737193",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/dashboard/anomaly-rules.ts:39",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/dashboard/anomaly-rules.ts:39 exports evaluateDashboardAnomalies, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`evaluateDashboardAnomalies` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/dashboard/anomaly-rules.ts, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`evaluateDashboardAnomalies` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/dashboard/anomaly-rules.ts, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function evaluateDashboardAnomalies(input: {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/dashboard/anomaly-rules.ts"
-      },
-      "suspectedFile": "lib/dashboard/anomaly-rules.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.468Z"
-    },
-    {
-      "id": "28382271fe65",
-      "rule": "scan.money-format-raw",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/dashboard/anomaly-rules.ts:54",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/dashboard/anomaly-rules.ts:54 formats a rupee figure without lib/helpers/currency.ts",
-      "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.",
-      "actual": "This line uses toLocaleString(\"en-IN\") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.",
-      "fingerprint": "This line uses toLocaleString(\"en-IN\") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads lib/.",
-      "evidence": {
-        "consoleTail": [
-          "detail: `₹${payment.amount.toLocaleString(\"en-IN\")} is over ${PRICE_SPIKE_MULTIPLIER}× the ${payment.classLabel} average (~₹${avg.toLocaleString(\"en-IN\")}).`,"
-        ],
-        "reproCommand": "npm run scan -- --only scan.money-format-raw --file lib/dashboard/anomaly-rules.ts"
-      },
-      "suspectedFile": "lib/dashboard/anomaly-rules.ts",
-      "why": "The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.",
-      "fix": "Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.725Z"
+      "firstSeenAt": "2026-08-21T09:02:50.925Z"
     },
     {
       "id": "6f3f8ce58f51",
@@ -1160,343 +292,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.726Z"
-    },
-    {
-      "id": "f1dde52c9be9",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/data-table/keyboard-nav.ts:27",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/data-table/keyboard-nav.ts:27 exports useRowKeyboardNav, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`useRowKeyboardNav` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/data-table/keyboard-nav.ts, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`useRowKeyboardNav` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/data-table/keyboard-nav.ts, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function useRowKeyboardNav({"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/data-table/keyboard-nav.ts"
-      },
-      "suspectedFile": "lib/data-table/keyboard-nav.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.469Z"
-    },
-    {
-      "id": "3f495318f658",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/defaulters/behavior.ts:84",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/defaulters/behavior.ts:84 exports PAYMENT_BEHAVIORS, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`PAYMENT_BEHAVIORS` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/defaulters/behavior.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "fingerprint": "`PAYMENT_BEHAVIORS` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/defaulters/behavior.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export const PAYMENT_BEHAVIORS: readonly PaymentBehavior[] = ["
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/defaulters/behavior.ts"
-      },
-      "suspectedFile": "lib/defaulters/behavior.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.470Z"
-    },
-    {
-      "id": "34df813867dd",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/defaulters/fee-breakdown.ts:176",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/defaulters/fee-breakdown.ts:176 exports nextFocusInstallment, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`nextFocusInstallment` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/defaulters/fee-breakdown.ts, at its own declaration. 2 module(s) import this file, none of them for this name.",
-      "fingerprint": "`nextFocusInstallment` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/defaulters/fee-breakdown.ts, at its own declaration. 2 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function nextFocusInstallment("
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/defaulters/fee-breakdown.ts"
-      },
-      "suspectedFile": "lib/defaulters/fee-breakdown.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.472Z"
-    },
-    {
-      "id": "400b4e8420c7",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/config-change.ts:1269",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/config-change.ts:1269 exports createConfigChangePreview, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`createConfigChangePreview` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/config-change.ts, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`createConfigChangePreview` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/config-change.ts, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export async function createConfigChangePreview<S extends ConfigChangeScope>(payload: {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/fees/config-change.ts"
-      },
-      "suspectedFile": "lib/fees/config-change.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.474Z"
-    },
-    {
-      "id": "df174ca3957f",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/config-change.ts:1322",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/config-change.ts:1322 exports applyConfigChangeBatch, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`applyConfigChangeBatch` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/config-change.ts, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`applyConfigChangeBatch` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/config-change.ts, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export async function applyConfigChangeBatch(batchId: string) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/fees/config-change.ts"
-      },
-      "suspectedFile": "lib/fees/config-change.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.474Z"
-    },
-    {
-      "id": "a58b7f72cd8b",
-      "rule": "scan.money-format-raw",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/config-change.ts:195",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/config-change.ts:195 formats a rupee figure without lib/helpers/currency.ts",
-      "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.",
-      "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "evidence": {
-        "consoleTail": [
-          ".map(([head, amount]) => `${head}: Rs ${amount}`)"
-        ],
-        "reproCommand": "npm run scan -- --only scan.money-format-raw --file lib/fees/config-change.ts"
-      },
-      "suspectedFile": "lib/fees/config-change.ts",
-      "why": "The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.",
-      "fix": "Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.729Z"
-    },
-    {
-      "id": "b056bef0c0d5",
-      "rule": "scan.money-format-raw",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/config-change.ts:233",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/config-change.ts:233 formats a rupee figure without lib/helpers/currency.ts",
-      "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.",
-      "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "evidence": {
-        "consoleTail": [
-          "return value === null ? \"Not set\" : `Rs ${value}`;"
-        ],
-        "reproCommand": "npm run scan -- --only scan.money-format-raw --file lib/fees/config-change.ts"
-      },
-      "suspectedFile": "lib/fees/config-change.ts",
-      "why": "The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.",
-      "fix": "Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.729Z"
-    },
-    {
-      "id": "9773749ff24d",
-      "rule": "scan.money-format-raw",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/config-change.ts:410",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/config-change.ts:410 formats a rupee figure without lib/helpers/currency.ts",
-      "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.",
-      "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "evidence": {
-        "consoleTail": [
-          "formatter: (value) => `Rs ${Number(value ?? 0)}`,"
-        ],
-        "reproCommand": "npm run scan -- --only scan.money-format-raw --file lib/fees/config-change.ts"
-      },
-      "suspectedFile": "lib/fees/config-change.ts",
-      "why": "The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.",
-      "fix": "Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.730Z"
-    },
-    {
-      "id": "5848277a6356",
-      "rule": "scan.money-format-raw",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/config-change.ts:417",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/config-change.ts:417 formats a rupee figure without lib/helpers/currency.ts",
-      "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.",
-      "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "evidence": {
-        "consoleTail": [
-          "formatter: (value) => `Rs ${Number(value ?? 0)}`,"
-        ],
-        "reproCommand": "npm run scan -- --only scan.money-format-raw --file lib/fees/config-change.ts"
-      },
-      "suspectedFile": "lib/fees/config-change.ts",
-      "why": "The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.",
-      "fix": "Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.730Z"
-    },
-    {
-      "id": "afefa2f89db1",
-      "rule": "scan.money-format-raw",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/config-change.ts:424",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/config-change.ts:424 formats a rupee figure without lib/helpers/currency.ts",
-      "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.",
-      "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "evidence": {
-        "consoleTail": [
-          "formatter: (value) => `Rs ${Number(value ?? 0)}`,"
-        ],
-        "reproCommand": "npm run scan -- --only scan.money-format-raw --file lib/fees/config-change.ts"
-      },
-      "suspectedFile": "lib/fees/config-change.ts",
-      "why": "The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.",
-      "fix": "Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.730Z"
-    },
-    {
-      "id": "83537cfe46bc",
-      "rule": "scan.money-format-raw",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/config-change.ts:756",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/config-change.ts:756 formats a rupee figure without lib/helpers/currency.ts",
-      "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.",
-      "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
-      "evidence": {
-        "consoleTail": [
-          "lateFeeLabel: `Flat Rs ${globalPayload.lateFeeFlatAmount}`,"
-        ],
-        "reproCommand": "npm run scan -- --only scan.money-format-raw --file lib/fees/config-change.ts"
-      },
-      "suspectedFile": "lib/fees/config-change.ts",
-      "why": "The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.",
-      "fix": "Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.730Z"
-    },
-    {
-      "id": "69ba6ccf4702",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/policy.ts:2214",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/policy.ts:2214 exports getAcceptedPaymentModeOptions, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`getAcceptedPaymentModeOptions` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/policy.ts, at its own declaration. 7 module(s) import this file, none of them for this name.",
-      "fingerprint": "`getAcceptedPaymentModeOptions` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/policy.ts, at its own declaration. 7 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function getAcceptedPaymentModeOptions() {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/fees/policy.ts"
-      },
-      "suspectedFile": "lib/fees/policy.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.478Z"
+      "firstSeenAt": "2026-08-21T09:02:50.927Z"
     },
     {
       "id": "6f2e755b28fe",
@@ -1524,7 +320,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.734Z"
+      "firstSeenAt": "2026-08-21T09:02:50.932Z"
     },
     {
       "id": "967c4b11c809",
@@ -1552,7 +348,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.736Z"
+      "firstSeenAt": "2026-08-21T09:02:50.934Z"
     },
     {
       "id": "7173d1e42d0a",
@@ -1580,7 +376,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.737Z"
+      "firstSeenAt": "2026-08-21T09:02:50.934Z"
     },
     {
       "id": "3389c61a597d",
@@ -1608,7 +404,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.737Z"
+      "firstSeenAt": "2026-08-21T09:02:50.935Z"
     },
     {
       "id": "8444e1f0c663",
@@ -1636,119 +432,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.737Z"
-    },
-    {
-      "id": "4fe47058613f",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/workbook.ts:182",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/workbook.ts:182 exports getWorkbookStudentStatusLabel, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`getWorkbookStudentStatusLabel` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/workbook.ts, at its own declaration. 10 module(s) import this file, none of them for this name.",
-      "fingerprint": "`getWorkbookStudentStatusLabel` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/workbook.ts, at its own declaration. 10 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function getWorkbookStudentStatusLabel(studentType: \"new\" | \"existing\") {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/fees/workbook.ts"
-      },
-      "suspectedFile": "lib/fees/workbook.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.481Z"
-    },
-    {
-      "id": "0906e82189b9",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/fees/workbook.ts:186",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/fees/workbook.ts:186 exports getWorkbookStudentStatusCode, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`getWorkbookStudentStatusCode` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/workbook.ts, at its own declaration. 10 module(s) import this file, none of them for this name.",
-      "fingerprint": "`getWorkbookStudentStatusCode` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/fees/workbook.ts, at its own declaration. 10 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function getWorkbookStudentStatusCode(value: string | null | undefined) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/fees/workbook.ts"
-      },
-      "suspectedFile": "lib/fees/workbook.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.482Z"
-    },
-    {
-      "id": "bdcdd628432e",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/helpers/time-ago.ts:5",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/helpers/time-ago.ts:5 exports timeAgoShort, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`timeAgoShort` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/helpers/time-ago.ts, at its own declaration. Nothing imports this module at all.",
-      "fingerprint": "`timeAgoShort` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/helpers/time-ago.ts, at its own declaration. Nothing imports this module at all.",
-      "evidence": {
-        "consoleTail": [
-          "export function timeAgoShort(iso: string | null | undefined, now: Date = new Date()): string | null {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/helpers/time-ago.ts"
-      },
-      "suspectedFile": "lib/helpers/time-ago.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.485Z"
-    },
-    {
-      "id": "23f128e8ff8e",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/import/data.ts:1637",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/import/data.ts:1637 exports getResumableFailedRowCount, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`getResumableFailedRowCount` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/import/data.ts, at its own declaration. 8 module(s) import this file, none of them for this name.",
-      "fingerprint": "`getResumableFailedRowCount` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/import/data.ts, at its own declaration. 8 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function getResumableFailedRowCount(batchId: string) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/import/data.ts"
-      },
-      "suspectedFile": "lib/import/data.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.489Z"
+      "firstSeenAt": "2026-08-21T09:02:50.935Z"
     },
     {
       "id": "9c13443b4a2e",
@@ -1776,7 +460,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.741Z"
+      "firstSeenAt": "2026-08-21T09:02:50.939Z"
     },
     {
       "id": "85326416c93a",
@@ -1804,35 +488,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.741Z"
-    },
-    {
-      "id": "6d90f0b9ad4f",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/import/types.ts:317",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/import/types.ts:317 exports INITIAL_STUDENT_IMPORT_ACTION_STATE, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`INITIAL_STUDENT_IMPORT_ACTION_STATE` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/import/types.ts, at its own declaration. 19 module(s) import this file, none of them for this name.",
-      "fingerprint": "`INITIAL_STUDENT_IMPORT_ACTION_STATE` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/import/types.ts, at its own declaration. 19 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export const INITIAL_STUDENT_IMPORT_ACTION_STATE: StudentImportActionState = {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/import/types.ts"
-      },
-      "suspectedFile": "lib/import/types.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.492Z"
+      "firstSeenAt": "2026-08-21T09:02:50.939Z"
     },
     {
       "id": "4e08ea2be7b1",
@@ -1860,7 +516,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.745Z"
+      "firstSeenAt": "2026-08-21T09:02:50.943Z"
     },
     {
       "id": "24b0a019324c",
@@ -1888,35 +544,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.746Z"
-    },
-    {
-      "id": "b299d4bd8bb8",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/payments/payment-desk-client-helpers.ts:29",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/payments/payment-desk-client-helpers.ts:29 exports sanitizeWholeInput, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`sanitizeWholeInput` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/payments/payment-desk-client-helpers.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "fingerprint": "`sanitizeWholeInput` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/payments/payment-desk-client-helpers.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function sanitizeWholeInput(value: string) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/payments/payment-desk-client-helpers.ts"
-      },
-      "suspectedFile": "lib/payments/payment-desk-client-helpers.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.498Z"
+      "firstSeenAt": "2026-08-21T09:02:50.943Z"
     },
     {
       "id": "90f90eb3c31d",
@@ -1944,7 +572,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.747Z"
+      "firstSeenAt": "2026-08-21T09:02:50.945Z"
     },
     {
       "id": "3916822fe748",
@@ -1972,35 +600,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.748Z"
-    },
-    {
-      "id": "ebe1ca4a63ae",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/prev-year-dues/constants.ts:31",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/prev-year-dues/constants.ts:31 exports CARRY_FORWARD_ROLLBACK_HINT, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`CARRY_FORWARD_ROLLBACK_HINT` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/prev-year-dues/constants.ts, at its own declaration. 5 module(s) import this file, none of them for this name.",
-      "fingerprint": "`CARRY_FORWARD_ROLLBACK_HINT` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/prev-year-dues/constants.ts, at its own declaration. 5 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export const CARRY_FORWARD_ROLLBACK_HINT ="
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/prev-year-dues/constants.ts"
-      },
-      "suspectedFile": "lib/prev-year-dues/constants.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.500Z"
+      "firstSeenAt": "2026-08-21T09:02:50.946Z"
     },
     {
       "id": "71328496a8aa",
@@ -2028,7 +628,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.750Z"
+      "firstSeenAt": "2026-08-21T09:02:50.947Z"
     },
     {
       "id": "2780b1b9f789",
@@ -2056,7 +656,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.750Z"
+      "firstSeenAt": "2026-08-21T09:02:50.948Z"
     },
     {
       "id": "3d8759c4fedb",
@@ -2084,19 +684,19 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.753Z"
+      "firstSeenAt": "2026-08-21T09:02:50.950Z"
     },
     {
-      "id": "e45aba201c53",
+      "id": "66f85c666492",
       "rule": "scan.money-format-raw",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "lib/setup/data.ts:271",
+      "surface": "lib/setup/data.ts:191",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "lib/setup/data.ts:271 formats a rupee figure without lib/helpers/currency.ts",
+      "title": "lib/setup/data.ts:191 formats a rupee figure without lib/helpers/currency.ts",
       "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on lib/helpers/currency.ts reaches every one of them.",
       "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
       "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
@@ -2112,455 +712,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.755Z"
-    },
-    {
-      "id": "778c9f420ddc",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/setup/data.ts:603",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/setup/data.ts:603 exports saveSetupPolicy, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`saveSetupPolicy` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "fingerprint": "`saveSetupPolicy` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function saveSetupPolicy(input: SaveSetupPolicyInput) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/setup/data.ts"
-      },
-      "suspectedFile": "lib/setup/data.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.509Z"
-    },
-    {
-      "id": "a6ba2030ab24",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/setup/data.ts:630",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/setup/data.ts:630 exports saveSetupSchoolDefaults, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`saveSetupSchoolDefaults` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "fingerprint": "`saveSetupSchoolDefaults` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function saveSetupSchoolDefaults(input: SaveSetupSchoolDefaultsInput) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/setup/data.ts"
-      },
-      "suspectedFile": "lib/setup/data.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.509Z"
-    },
-    {
-      "id": "58d9e866bb1c",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/setup/data.ts:647",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/setup/data.ts:647 exports saveSetupClasses, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`saveSetupClasses` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "fingerprint": "`saveSetupClasses` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function saveSetupClasses("
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/setup/data.ts"
-      },
-      "suspectedFile": "lib/setup/data.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.510Z"
-    },
-    {
-      "id": "46638d795f6a",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/setup/data.ts:748",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/setup/data.ts:748 exports saveSetupRoutes, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`saveSetupRoutes` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "fingerprint": "`saveSetupRoutes` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function saveSetupRoutes(rows: SaveSetupRouteRowInput[]) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/setup/data.ts"
-      },
-      "suspectedFile": "lib/setup/data.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.510Z"
-    },
-    {
-      "id": "44279c9aff70",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/setup/data.ts:816",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/setup/data.ts:816 exports saveSetupClassDefaults, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`saveSetupClassDefaults` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "fingerprint": "`saveSetupClassDefaults` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function saveSetupClassDefaults(rows: SaveSetupClassDefaultInput[]) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/setup/data.ts"
-      },
-      "suspectedFile": "lib/setup/data.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.510Z"
-    },
-    {
-      "id": "33af632ac393",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/setup/data.ts:848",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/setup/data.ts:848 exports markSetupStageComplete, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`markSetupStageComplete` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "fingerprint": "`markSetupStageComplete` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/data.ts, at its own declaration. 4 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function markSetupStageComplete(completionNotes: string | null) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/setup/data.ts"
-      },
-      "suspectedFile": "lib/setup/data.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.510Z"
-    },
-    {
-      "id": "70f106e01fbd",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/setup/types.ts:11",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/setup/types.ts:11 exports INITIAL_SETUP_ACTION_STATE, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`INITIAL_SETUP_ACTION_STATE` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/types.ts, at its own declaration. 2 module(s) import this file, none of them for this name.",
-      "fingerprint": "`INITIAL_SETUP_ACTION_STATE` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/setup/types.ts, at its own declaration. 2 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export const INITIAL_SETUP_ACTION_STATE: SetupActionState = {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/setup/types.ts"
-      },
-      "suspectedFile": "lib/setup/types.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.510Z"
-    },
-    {
-      "id": "e9314bebd404",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/staff-management/data.ts:531",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/staff-management/data.ts:531 exports provisionBootstrapStaff, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`provisionBootstrapStaff` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/staff-management/data.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
-      "fingerprint": "`provisionBootstrapStaff` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/staff-management/data.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function provisionBootstrapStaff(specs: BootstrapStaffSpec[]) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/staff-management/data.ts"
-      },
-      "suspectedFile": "lib/staff-management/data.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.511Z"
-    },
-    {
-      "id": "9627716695e3",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/students/bulk-update/fields.ts:306",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/students/bulk-update/fields.ts:306 exports bulkUpdateFieldsAffectFees, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`bulkUpdateFieldsAffectFees` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/students/bulk-update/fields.ts, at its own declaration. 12 module(s) import this file, none of them for this name.",
-      "fingerprint": "`bulkUpdateFieldsAffectFees` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/students/bulk-update/fields.ts, at its own declaration. 12 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export function bulkUpdateFieldsAffectFees(fields: readonly BulkUpdateField[]) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/students/bulk-update/fields.ts"
-      },
-      "suspectedFile": "lib/students/bulk-update/fields.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.512Z"
-    },
-    {
-      "id": "19f968d51205",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/students/constants.ts:16",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/students/constants.ts:16 exports STUDENT_IMPORT_FIELDS, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`STUDENT_IMPORT_FIELDS` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/students/constants.ts, at its own declaration. 9 module(s) import this file, none of them for this name.",
-      "fingerprint": "`STUDENT_IMPORT_FIELDS` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/students/constants.ts, at its own declaration. 9 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export const STUDENT_IMPORT_FIELDS: ReadonlyArray<{"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/students/constants.ts"
-      },
-      "suspectedFile": "lib/students/constants.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.512Z"
-    },
-    {
-      "id": "cabe9ff9a6cd",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/students/populations.ts:48",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/students/populations.ts:48 exports RECOVERY_STATUSES, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`RECOVERY_STATUSES` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/students/populations.ts, at its own declaration. 7 module(s) import this file, none of them for this name.",
-      "fingerprint": "`RECOVERY_STATUSES` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/students/populations.ts, at its own declaration. 7 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export const RECOVERY_STATUSES = ["
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/students/populations.ts"
-      },
-      "suspectedFile": "lib/students/populations.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.517Z"
-    },
-    {
-      "id": "5046654ef96b",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/system-sync/finance-sync.ts:43",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/system-sync/finance-sync.ts:43 exports syncStudentDues, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`syncStudentDues` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "fingerprint": "`syncStudentDues` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function syncStudentDues(studentIds: readonly string[]) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/system-sync/finance-sync.ts"
-      },
-      "suspectedFile": "lib/system-sync/finance-sync.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.519Z"
-    },
-    {
-      "id": "d89153079c1e",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/system-sync/finance-sync.ts:50",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/system-sync/finance-sync.ts:50 exports syncStudentDuesAsSystem, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`syncStudentDuesAsSystem` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "fingerprint": "`syncStudentDuesAsSystem` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function syncStudentDuesAsSystem(studentIds: readonly string[]) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/system-sync/finance-sync.ts"
-      },
-      "suspectedFile": "lib/system-sync/finance-sync.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.519Z"
-    },
-    {
-      "id": "570015bf8698",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/system-sync/finance-sync.ts:85",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/system-sync/finance-sync.ts:85 exports syncAfterBulkStudentImport, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`syncAfterBulkStudentImport` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "fingerprint": "`syncAfterBulkStudentImport` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function syncAfterBulkStudentImport(studentIds: readonly string[]) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/system-sync/finance-sync.ts"
-      },
-      "suspectedFile": "lib/system-sync/finance-sync.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.520Z"
-    },
-    {
-      "id": "d63567455b66",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/system-sync/finance-sync.ts:93",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/system-sync/finance-sync.ts:93 exports syncAfterFeeSetupPublish, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`syncAfterFeeSetupPublish` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "fingerprint": "`syncAfterFeeSetupPublish` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/system-sync/finance-sync.ts, at its own declaration. 23 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function syncAfterFeeSetupPublish(sessionLabel: string) {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/system-sync/finance-sync.ts"
-      },
-      "suspectedFile": "lib/system-sync/finance-sync.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.520Z"
-    },
-    {
-      "id": "c5205c26fe9b",
-      "rule": "scan.dead-export",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "lib/whatsapp-templates/data.ts:60",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "lib/whatsapp-templates/data.ts:60 exports getWhatsappTemplate, which nothing uses",
-      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`getWhatsappTemplate` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/whatsapp-templates/data.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
-      "fingerprint": "`getWhatsappTemplate` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside lib/whatsapp-templates/data.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
-      "evidence": {
-        "consoleTail": [
-          "export async function getWhatsappTemplate(id: string): Promise<WhatsappTemplate | null> {"
-        ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file lib/whatsapp-templates/data.ts"
-      },
-      "suspectedFile": "lib/whatsapp-templates/data.ts",
-      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
-      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.522Z"
+      "firstSeenAt": "2026-08-21T09:02:50.953Z"
     },
     {
       "id": "049f65ad0240",
@@ -2588,7 +740,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.528Z"
+      "firstSeenAt": "2026-08-21T09:02:56.413Z"
     },
     {
       "id": "3e78126f9bc3",
@@ -2616,7 +768,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.534Z"
+      "firstSeenAt": "2026-08-21T09:02:56.418Z"
     },
     {
       "id": "24b0182ad346",
@@ -2644,7 +796,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.767Z"
+      "firstSeenAt": "2026-08-21T09:02:50.964Z"
     },
     {
       "id": "704a40daff70",
@@ -2672,7 +824,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.767Z"
+      "firstSeenAt": "2026-08-21T09:02:50.964Z"
     },
     {
       "id": "43f40d0a8389",
@@ -2700,7 +852,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.768Z"
+      "firstSeenAt": "2026-08-21T09:02:50.964Z"
     },
     {
       "id": "042f6e21f7f4",
@@ -2728,7 +880,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.768Z"
+      "firstSeenAt": "2026-08-21T09:02:50.964Z"
     },
     {
       "id": "e1f9dd8286ee",
@@ -2756,7 +908,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.161Z"
+      "firstSeenAt": "2026-08-21T09:02:56.114Z"
     },
     {
       "id": "d0ed42f13c3a",
@@ -2784,7 +936,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.161Z"
+      "firstSeenAt": "2026-08-21T09:02:56.114Z"
     },
     {
       "id": "03d2d34f1092",
@@ -2812,7 +964,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.161Z"
+      "firstSeenAt": "2026-08-21T09:02:56.114Z"
     },
     {
       "id": "5fad48a7287b",
@@ -2840,7 +992,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.161Z"
+      "firstSeenAt": "2026-08-21T09:02:56.114Z"
     },
     {
       "id": "ef43cda43d2b",
@@ -2868,7 +1020,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.160Z"
+      "firstSeenAt": "2026-08-21T09:02:56.113Z"
     },
     {
       "id": "1d4c0f440e4f",
@@ -2896,7 +1048,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.161Z"
+      "firstSeenAt": "2026-08-21T09:02:56.114Z"
     },
     {
       "id": "d89b1bb2ecf4",
@@ -2924,7 +1076,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.161Z"
+      "firstSeenAt": "2026-08-21T09:02:56.114Z"
     },
     {
       "id": "fe4b790a9ade",
@@ -2952,7 +1104,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.162Z"
+      "firstSeenAt": "2026-08-21T09:02:56.115Z"
     },
     {
       "id": "553a7439553c",
@@ -2980,7 +1132,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.162Z"
+      "firstSeenAt": "2026-08-21T09:02:56.114Z"
     },
     {
       "id": "66b34a387be6",
@@ -3008,7 +1160,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.162Z"
+      "firstSeenAt": "2026-08-21T09:02:56.114Z"
     },
     {
       "id": "94f0156f981e",
@@ -3036,7 +1188,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.539Z"
+      "firstSeenAt": "2026-08-21T09:02:50.739Z"
     },
     {
       "id": "731cf2e7d806",
@@ -3064,7 +1216,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.527Z"
+      "firstSeenAt": "2026-08-21T09:02:56.412Z"
     },
     {
       "id": "15d0b9823058",
@@ -3092,7 +1244,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:44.527Z"
+      "firstSeenAt": "2026-08-21T09:02:56.412Z"
     },
     {
       "id": "61f4e4399cee",
@@ -3120,7 +1272,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.555Z"
+      "firstSeenAt": "2026-08-21T09:02:50.754Z"
     },
     {
       "id": "28b441346547",
@@ -3148,7 +1300,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.555Z"
+      "firstSeenAt": "2026-08-21T09:02:50.754Z"
     },
     {
       "id": "549c5647f417",
@@ -3176,7 +1328,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.636Z"
+      "firstSeenAt": "2026-08-21T09:02:50.831Z"
     },
     {
       "id": "10ed860dd2d8",
@@ -3204,7 +1356,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.637Z"
+      "firstSeenAt": "2026-08-21T09:02:50.832Z"
     },
     {
       "id": "6a4ef1318b79",
@@ -3232,7 +1384,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.652Z"
+      "firstSeenAt": "2026-08-21T09:02:50.841Z"
     },
     {
       "id": "2548978eeea8",
@@ -3260,7 +1412,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.654Z"
+      "firstSeenAt": "2026-08-21T09:02:50.843Z"
     },
     {
       "id": "71c5eebdf8dc",
@@ -3288,7 +1440,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.656Z"
+      "firstSeenAt": "2026-08-21T09:02:50.844Z"
     },
     {
       "id": "474b40f71cd8",
@@ -3316,7 +1468,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-21T03:46:38.658Z"
+      "firstSeenAt": "2026-08-21T09:02:50.847Z"
     }
   ]
 }

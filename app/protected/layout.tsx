@@ -1,10 +1,9 @@
 import { CommandHost } from "@/components/command/command-host";
 import { KeyboardOffsetProvider } from "@/components/system/keyboard-offset-provider";
 import { DashboardShell } from "@/components/admin/dashboard-shell";
-import { DashboardShellV2 } from "@/components/admin/dashboard-shell-v2";
 import { getVisibleProtectedNavigation } from "@/lib/config/navigation";
 import { hasRolePermission } from "@/lib/auth/roles";
-import { getAppMode, isShellV2Enabled } from "@/lib/env";
+import { getAppMode } from "@/lib/env";
 import { getViewSessionCookie } from "@/lib/session/cookie";
 import { resolveViewSession } from "@/lib/session/resolver";
 import { requireAuthenticatedStaff } from "@/lib/supabase/session";
@@ -36,7 +35,6 @@ export default async function ProtectedLayout({
   }));
   const canViewStudents = hasRolePermission(staff.appRole, "students:view");
   const canViewReceipts = hasRolePermission(staff.appRole, "receipts:view");
-  const shellV2 = isShellV2Enabled();
 
   const shellChildren = (
     <>
@@ -54,19 +52,6 @@ export default async function ProtectedLayout({
       />
     </>
   );
-
-  if (shellV2) {
-    return (
-      <DashboardShellV2
-        staffEmail={staff.email ?? "Authorized staff"}
-        staffRole={staff.appRole}
-        viewSessionLabel={resolvedSession.sessionLabel}
-        viewSessionIsTest={resolvedSession.isTest}
-      >
-        {shellChildren}
-      </DashboardShellV2>
-    );
-  }
 
   return (
     <DashboardShell

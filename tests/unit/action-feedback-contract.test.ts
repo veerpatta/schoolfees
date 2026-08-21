@@ -130,7 +130,7 @@ const A_KNOWN_GAPS: string[] = [
   // Auth surfaces: success is a server redirect away from the page, so there is
   // no post-action render on which to show a message. Errors render inline.
   "app/page.tsx",
-  "components/login-form.tsx",
+  "components/auth/login-form.tsx",
 ];
 
 describe("every useActionState surface reports its result", () => {
@@ -171,7 +171,7 @@ const B_ALLOWED: Record<string, string> = {
   "components/imports/duplicate-audit-panel.tsx": "redirects to ?notice=/?error=",
   "components/imports/import-commit-card.tsx": "redirects to ?notice=/?error=",
   "components/imports/row-detail-card.tsx": "redirects to ?notice=/?error=",
-  "components/logout-button.tsx": "sign-out; landing on the login page is the outcome",
+  "components/auth/logout-button.tsx": "sign-out; landing on the login page is the outcome",
   "components/admin/app-topbar.tsx": "sign-out; landing on the login page is the outcome",
   "components/mobile-app/account-card.tsx": "sign-out; landing on the login page is the outcome",
 };

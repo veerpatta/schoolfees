@@ -109,20 +109,6 @@ export function isLocaleSwitcherEnabled() {
   return truthyEnvValues.has(value.toLowerCase());
 }
 
-// Gates the redesigned admin shell (tighter sidebar, header session pill,
-// global Cmd/Ctrl+K command palette, top-bar overflow). Default OFF in
-// production, ON in preview and APP_MODE=test. Old shell remains available
-// through an explicit falsy rollback flag for the first production release.
-export function isShellV2Enabled() {
-  const value = getOptionalEnvVar("SHELL_V2");
-
-  if (value) {
-    return truthyEnvValues.has(value.toLowerCase());
-  }
-
-  return getOptionalEnvVar("VERCEL_ENV") === "preview" || getAppMode() === "test";
-}
-
 // Gates CREATION of monthly EMI repayment plans. The schema and every read
 // surface ship everywhere; only activation / reschedule / cancel sit behind
 // this, so the feature can be exercised on TEST-2026-27 and reviewed before

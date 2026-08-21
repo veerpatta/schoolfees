@@ -2,7 +2,6 @@
 
 import { HeroMoney, InkCard, MobileLabel } from "@/components/mobile-app/mobile-kit";
 import { formatInr } from "@/lib/helpers/currency";
-import { formatTodayBadge } from "@/lib/helpers/date";
 import { cn } from "@/lib/utils";
 
 import type { TodaySnapshot } from "./transactions-client-shell";
@@ -78,7 +77,3 @@ export function MobileDaySummary({
   );
 }
 
-/** Kept next to the component so the "today" wording has one source. */
-export function todaySummaryDateLabel() {
-  return formatTodayBadge(new Date());
-}
