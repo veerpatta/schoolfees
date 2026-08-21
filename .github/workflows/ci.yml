@@ -46,6 +46,12 @@ jobs:
       - name: Source + money-formatting budgets
         run: npm run quality:budgets
 
+      # Layering. Ratchets like the budgets above: a new cross-layer import or a
+      # new module cycle fails; the debt recorded in the baseline is allowed to
+      # stay until somebody pays it down. Counts may fall, never rise.
+      - name: Architecture layering
+        run: npm run quality:architecture
+
   # Route-bundle ceilings need a production build, so this is a separate job:
   # it must not delay the fast feedback above, and a bundle regression is a
   # different conversation from a broken test.

@@ -3,7 +3,7 @@ import "server-only";
 import { getMasterDataOptions } from "@/modules/master-data/data/queries";
 import { createClient } from "@/platform/supabase/server";
 import type { StaffRole } from "@/platform/auth/roles";
-import type { OfficeWorkflowGuard } from "@/platform/readiness";
+import type { OfficeWorkflowGuard } from "@/modules/fees/domain/readiness";
 
 function buildGuard(
   title: string,

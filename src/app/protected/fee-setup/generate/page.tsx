@@ -6,7 +6,7 @@ import { GenerateLedgerClient } from "@/modules/fees/ui/generate-ledger-client";
 import { WorkflowGuard } from "@/ui/office/office-ui";
 import { INITIAL_LEDGER_REGENERATION_ACTION_STATE } from "@/modules/fees/domain/types";
 import { getOfficeHomeData } from "@/modules/fees/data/office-home";
-import { getOfficeWorkflowReadiness } from "@/platform/readiness";
+import { getOfficeWorkflowReadiness } from "@/modules/fees/domain/readiness";
 import { getSetupWizardData } from "@/modules/fees/data/setup-queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import { runLedgerRegenerationAction } from "./actions";

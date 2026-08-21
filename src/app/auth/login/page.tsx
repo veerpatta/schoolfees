@@ -1,5 +1,5 @@
 import { AuthConfigNotice } from "@/ui/auth/auth-config-notice";
-import { SignedOutCachePurge } from "@/ui/auth/signed-out-cache-purge";
+import { SignedOutCachePurge } from "@/modules/payments/ui/signed-out-cache-purge";
 import { getAuthenticatedStaff } from "@/platform/supabase/session";
 import { hasRequiredEnvVars } from "@/platform/env";
 import { LoginForm } from "@/ui/auth/login-form";

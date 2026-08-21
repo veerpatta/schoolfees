@@ -7,7 +7,7 @@ import { TrustBadge } from "@/ui/trust/trust-badge";
 import { MoneyGlossaryLink } from "@/ui/primitives/money-glossary";
 import { getOfficeWorkbookData } from "@/modules/transactions/data/dues";
 import { resolveOfficeWorkbookView } from "@/modules/transactions/domain/workbook";
-import { getOfficeWorkflowReadiness } from "@/platform/readiness";
+import { getOfficeWorkflowReadiness } from "@/modules/fees/domain/readiness";
 import { getFeePolicySummary } from "@/modules/fees/domain/queries";
 import { getSetupWizardDataLight } from "@/modules/fees/data/setup-queries";
 import { getStudentFormOptions } from "@/modules/students/data/queries";

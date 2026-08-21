@@ -32,7 +32,7 @@ import { formatInr } from "@/platform/helpers/currency";
 import { formatDateTimeIst, formatShortDate } from "@/platform/helpers/date";
 import { isCarryForwardInstallment } from "@/modules/prev-year-dues/domain/display";
 import { getFeePolicySummary } from "@/modules/fees/domain/queries";
-import { getOfficeWorkflowReadiness } from "@/platform/readiness";
+import { getOfficeWorkflowReadiness } from "@/modules/fees/domain/readiness";
 import { getSetupWizardDataLight } from "@/modules/fees/data/setup-queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 

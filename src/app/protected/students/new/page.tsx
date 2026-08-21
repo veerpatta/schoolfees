@@ -2,7 +2,7 @@ import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
 import { WorkflowGuard } from "@/ui/office/office-ui";
 import { StudentForm } from "@/modules/students/ui/student-form";
-import { getOfficeWorkflowReadiness } from "@/platform/readiness";
+import { getOfficeWorkflowReadiness } from "@/modules/fees/domain/readiness";
 import { getSetupWizardDataLight } from "@/modules/fees/data/setup-queries";
 import { getStudentFormOptions } from "@/modules/students/data/queries";
 import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/modules/students/domain/info-fields";

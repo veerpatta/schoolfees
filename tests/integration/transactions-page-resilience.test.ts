@@ -75,7 +75,7 @@ vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary,
 }));
 
-vi.mock("@/platform/readiness", () => ({
+vi.mock("@/modules/fees/domain/readiness", () => ({
   getOfficeWorkflowReadiness,
 }));
 

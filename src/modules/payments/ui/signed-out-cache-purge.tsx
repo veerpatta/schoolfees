@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { purgeSignedOutCaches } from "@/platform/cache/signed-out-purge";
+import { purgeSignedOutCaches } from "@/modules/payments/domain/signed-out-purge";
 
 /**
  * Wipes cached school data whenever the login screen is shown.
