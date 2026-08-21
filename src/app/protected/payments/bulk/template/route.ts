@@ -1,4 +1,4 @@
-import { buildPaymentImportTemplateFile } from "@/lib/payments/bulk/template";
+import { buildPaymentImportTemplateFile } from "@/modules/payments/domain/bulk/template";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 
 import { withDownloadToken } from "@/platform/helpers/download-token";

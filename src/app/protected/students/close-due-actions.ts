@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/platform/supabase/server";
 import { requireStaffPermission } from "@/platform/supabase/session";
-import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
+import { revalidateSessionFinance } from "@/modules/system-sync/domain/finance-revalidation";
 
 export type CloseDueActionState = {
   status: "idle" | "success" | "error";

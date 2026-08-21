@@ -125,7 +125,7 @@ const MIRRORS = [
     sides: [
       {
         name: "buildRepaymentSchedule + addMonthsClamped + calculateRepaymentTermMonths",
-        file: "src/lib/repayment-plans/schedule.ts",
+        file: "src/modules/repayment-plans/domain/schedule.ts",
         from: "export function addMonthsClamped",
         to: "}));",
       },
@@ -150,7 +150,7 @@ const MIRRORS = [
     sides: [
       {
         name: "calculateConventionalPolicyTuition",
-        file: "src/lib/fees/conventional-discount-rules.ts",
+        file: "src/modules/fees/domain/conventional-discount-rules.ts",
         from: "export function calculateConventionalPolicyTuition",
         to: "return toWholeNumber(payload.policy.fixedTuitionAmount);",
       },
@@ -172,7 +172,7 @@ const MIRRORS = [
     sides: [
       {
         name: "plannedAmountDue",
-        file: "src/lib/fees/generator.ts",
+        file: "src/modules/fees/data/generator.ts",
         from: "function plannedAmountDue",
         to: "}",
       },
@@ -196,7 +196,7 @@ const MIRRORS = [
     sides: [
       {
         name: "calculatePendingLateFeeAmount",
-        file: "src/lib/fees/due-amounts.ts",
+        file: "src/modules/fees/domain/due-amounts.ts",
         from: "export function calculatePendingLateFeeAmount",
         to: "}",
       },
@@ -233,7 +233,7 @@ const MIRRORS = [
     sides: [
       {
         name: "isYearCleared",
-        file: "src/lib/fees/year-clear.ts",
+        file: "src/modules/fees/domain/year-clear.ts",
         from: "export function isYearCleared",
         to: "return input.outstandingAmount",
       },
@@ -258,7 +258,7 @@ const MIRRORS = [
     sides: [
       {
         name: "hasFeeException",
-        file: "src/lib/students/data.ts",
+        file: "src/modules/students/data/queries.ts",
         from: "const hasFeeException =",
         to: "Boolean(override.other_adjustment_head?.trim())",
       },
@@ -288,7 +288,7 @@ const MIRRORS = [
       },
       {
         name: "workbook activeOnly filter",
-        file: "src/lib/workbook/data.ts",
+        file: "src/modules/fees/data/queries.ts",
         from: "query.or(\"record_status.eq.active,total_paid.gt.0\")",
         to: "query.or(\"record_status.eq.active,total_paid.gt.0\")",
       },

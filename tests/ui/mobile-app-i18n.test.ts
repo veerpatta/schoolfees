@@ -50,7 +50,7 @@ describe("mobile app i18n", () => {
 
   it("leaves no untranslated string in the phone home screen", () => {
     const source = readFileSync(
-      join(process.cwd(), "src/components/dashboard/mobile-dashboard-screen.tsx"),
+      join(process.cwd(), "src/modules/dashboard/ui/mobile-dashboard-screen.tsx"),
       "utf8",
     );
     // Every visible label goes through t(...); the only bare text left should

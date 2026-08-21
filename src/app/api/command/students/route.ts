@@ -11,8 +11,8 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 
-import { getStudents } from "@/lib/students/data";
-import { EMPTY_STUDENT_FILTERS } from "@/lib/students/types";
+import { getStudents } from "@/modules/students/data/queries";
+import { EMPTY_STUDENT_FILTERS } from "@/modules/students/domain/types";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";

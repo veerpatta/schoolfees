@@ -1,11 +1,11 @@
 import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
 import { WorkflowGuard } from "@/ui/office/office-ui";
-import { StudentForm } from "@/components/students/student-form";
+import { StudentForm } from "@/modules/students/ui/student-form";
 import { getOfficeWorkflowReadiness } from "@/platform/readiness";
-import { getSetupWizardDataLight } from "@/lib/setup/data";
-import { getStudentFormOptions } from "@/lib/students/data";
-import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/lib/students/info-fields";
+import { getSetupWizardDataLight } from "@/modules/fees/data/setup-queries";
+import { getStudentFormOptions } from "@/modules/students/data/queries";
+import { EMPTY_STUDENT_INFO_FORM_INPUT } from "@/modules/students/domain/info-fields";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 import { createStudentAction } from "../actions";

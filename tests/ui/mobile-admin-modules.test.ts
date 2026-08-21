@@ -16,7 +16,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  */
 
 describe("Fee Setup — phone amount steppers", () => {
-  const client = read("src/components/fees/fee-setup-client.tsx");
+  const client = read("src/modules/fees/ui/fee-setup-client.tsx");
 
   it("drives the same updater as the typed field", () => {
     // Both the stepper and the number input call updateClassAnnualTuition,

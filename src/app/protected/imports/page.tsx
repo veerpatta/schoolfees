@@ -1,10 +1,10 @@
 import { WorkflowGuard } from "@/ui/office/office-ui";
-import { StudentImportWorkflow } from "@/components/imports/student-import-workflow";
+import { StudentImportWorkflow } from "@/modules/imports/ui/student-import-workflow";
 import { MissingDuesBanner } from "@/ui/shared/missing-dues-banner";
-import { createEmptyImportPageData, getStudentImportPageData } from "@/lib/import/data";
-import { getDuplicateAuditSummary } from "@/lib/import/duplicate-audit";
-import { getStudentImportWorkflowReadiness } from "@/lib/import/readiness";
-import { getStudentFormOptions } from "@/lib/students/data";
+import { createEmptyImportPageData, getStudentImportPageData } from "@/modules/imports/data/queries";
+import { getDuplicateAuditSummary } from "@/modules/imports/data/duplicate-audit";
+import { getStudentImportWorkflowReadiness } from "@/modules/imports/data/readiness";
+import { getStudentFormOptions } from "@/modules/students/data/queries";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";

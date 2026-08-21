@@ -1,7 +1,7 @@
 // Action-state shapes for the bulk update workspace. Kept out of the
 // "use server" module so the client component can import the constants.
 
-import type { BulkUpdatePreview } from "@/lib/students/bulk-update/diff";
+import type { BulkUpdatePreview } from "@/modules/students/domain/bulk-update/diff";
 
 export type BulkUpdatePreviewState = {
   status: "idle" | "success" | "error";

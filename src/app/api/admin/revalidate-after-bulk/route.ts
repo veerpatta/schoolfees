@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { parseAcademicSessionLabel } from "@/platform/config/fee-rules";
-import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+import { revalidateSessionFinance } from "@/modules/system-sync/domain/finance-revalidation";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 
 /**
  * Let a headless correction run ask the app to refresh what it has cached.

@@ -35,7 +35,7 @@ vi.mock("react", async () => {
   };
 });
 
-import { ContactPopover } from "@/components/defaulters/contact-popover";
+import { ContactPopover } from "@/modules/defaulters/ui/contact-popover";
 
 const messages = JSON.parse(
   readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),

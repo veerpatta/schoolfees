@@ -1,7 +1,7 @@
 import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
 import { StatusBadge } from "@/ui/shell/status-badge";
-import { StaffManagementClient } from "@/components/staff/staff-management-client";
+import { StaffManagementClient } from "@/modules/staff/ui/staff-management-client";
 import {
   createStaffAccountAction,
   resetStaffPasswordAction,
@@ -12,7 +12,7 @@ import {
   INITIAL_STAFF_FORM_ACTION_STATE,
   isStaffManagementConfigured,
   listStaffAccounts,
-} from "@/lib/staff-management/data";
+} from "@/modules/staff/data/queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 export default async function StaffPage() {

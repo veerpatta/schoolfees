@@ -3,7 +3,7 @@ import {
   paymentDeskStudentSummaryKeyPrefix,
   paymentDeskSummaryDbName,
   serviceWorkerCachePrefix,
-} from "@/lib/payments/payment-desk-cache-keys";
+} from "@/modules/payments/domain/payment-desk-cache-keys";
 
 /**
  * Clear every client-side copy of school data that a signed-in session left

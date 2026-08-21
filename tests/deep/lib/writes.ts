@@ -73,7 +73,7 @@ export async function readSessionCookie(
 }
 
 export async function assertWritable(ctx: WriteContext): Promise<void> {
-  // 1. The subject. Mirrors the `TEST-` shape `src/lib/students/delete-policy.ts`
+  // 1. The subject. Mirrors the `TEST-` shape `src/modules/students/domain/delete-policy.ts`
   //    uses, so the harness and the app agree on what a test student is.
   const admissionNo = ctx.subject.admissionNo?.toUpperCase() ?? "";
   if (!admissionNo.startsWith("TEST-")) {

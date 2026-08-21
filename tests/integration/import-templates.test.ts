@@ -5,7 +5,7 @@ import {
   buildAddStudentsTemplateWorkbook,
   buildUpdateStudentsTemplateWorkbook,
   workbookToXlsxBuffer,
-} from "@/lib/import/templates";
+} from "@/modules/imports/domain/templates";
 
 function readSheet(workbook: XLSX.WorkBook, sheetName: string) {
   return XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[sheetName], {

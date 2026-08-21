@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 
-import { buildPaymentImportTemplateWorkbook } from "@/lib/payments/bulk/template";
-import { PAYMENT_IMPORT_MAX_ROWS, PAYMENT_TEMPLATE_HEADERS } from "@/lib/payments/bulk/types";
+import { buildPaymentImportTemplateWorkbook } from "@/modules/payments/domain/bulk/template";
+import { PAYMENT_IMPORT_MAX_ROWS, PAYMENT_TEMPLATE_HEADERS } from "@/modules/payments/domain/bulk/types";
 
 describe("bulk payment workbook template", () => {
   it("keeps the upload sheet first and includes task-oriented instructions", async () => {

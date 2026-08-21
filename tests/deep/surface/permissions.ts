@@ -175,7 +175,7 @@ export const IN_PAGE_GATES: readonly InPageGate[] = [
  * Gates this suite deliberately does NOT assert, and why.
  *
  * Both live behind an interaction: the contact-log form is inside
- * `src/components/defaulters/contact-popover.tsx` and the payment history inside the
+ * `src/modules/defaulters/ui/contact-popover.tsx` and the payment history inside the
  * worklist drawer, so neither control exists on a freshly loaded page. Locators
  * written against them matched nothing and produced two confident P0s about
  * permissions that are, as far as anyone can tell, working.

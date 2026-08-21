@@ -22,11 +22,11 @@ vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
-vi.mock("@/lib/fees/generator", () => ({
+vi.mock("@/modules/fees/data/generator", () => ({
   generateSessionLedgersAction,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   revalidateSessionFinance,
 }));
 

@@ -1,5 +1,5 @@
 import { formatInr } from "@/platform/helpers/currency";
-import type { ShellPulse } from "@/lib/dashboard/shell-metrics";
+import type { ShellPulse } from "@/modules/dashboard/data/shell-metrics";
 
 /**
  * The sidebar footer's "Day so far" card: today's collected total and receipt

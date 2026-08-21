@@ -7,7 +7,7 @@ const createClient = vi.fn();
 const revalidatePath = vi.fn();
 const revalidateTag = vi.fn();
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary: vi.fn(async () => ({
     academicSessionLabel: "TEST-2026-27",
     calculationModel: "workbook_v1",
@@ -18,7 +18,7 @@ vi.mock("@/lib/fees/data", () => ({
   })),
 }));
 
-vi.mock("@/lib/fees/generator", () => ({
+vi.mock("@/modules/fees/data/generator", () => ({
   generateSessionLedgersAction,
 }));
 
@@ -65,7 +65,7 @@ describe("session-aware student sync", () => {
 
   describe("syncStudentFinancials — sessionLabel provided at call site", () => {
     it("passes scopedSessionLabel to the generator when sessionLabel is given", async () => {
-      const { syncStudentFinancials } = await import("@/lib/system-sync/financial-sync");
+      const { syncStudentFinancials } = await import("@/modules/system-sync/data/financial-sync");
 
       await syncStudentFinancials({
         studentIds: ["student-in-2026-27"],
@@ -86,7 +86,7 @@ describe("session-aware student sync", () => {
       // The fee policy mock returns TEST-2026-27 as active, but we pass sessionLabel explicitly.
       generateSessionLedgersAction.mockResolvedValue(makeSuccessResult("2026-27"));
 
-      const { syncStudentFinancials } = await import("@/lib/system-sync/financial-sync");
+      const { syncStudentFinancials } = await import("@/modules/system-sync/data/financial-sync");
 
       const result = await syncStudentFinancials({
         studentIds: ["student-real"],
@@ -125,7 +125,7 @@ describe("session-aware student sync", () => {
         .mockResolvedValueOnce(makeSuccessResult("2026-27"))
         .mockResolvedValueOnce(makeSuccessResult("TEST-2026-27"));
 
-      const { syncStudentFinancials } = await import("@/lib/system-sync/financial-sync");
+      const { syncStudentFinancials } = await import("@/modules/system-sync/data/financial-sync");
 
       const result = await syncStudentFinancials({
         studentIds: ["student-a", "student-b"],
@@ -166,7 +166,7 @@ describe("session-aware student sync", () => {
         .mockResolvedValueOnce(makeSuccessResult("2026-27", { installmentsToInsert: 4 }))
         .mockResolvedValueOnce(makeSuccessResult("fallback", { installmentsToInsert: 2 }));
 
-      const { syncStudentFinancials } = await import("@/lib/system-sync/financial-sync");
+      const { syncStudentFinancials } = await import("@/modules/system-sync/data/financial-sync");
 
       const result = await syncStudentFinancials({
         studentIds: ["student-a", "student-b"],
@@ -190,7 +190,7 @@ describe("session-aware student sync", () => {
       // createClient returns undefined — resolveStudentSessions will throw and return empty map.
       createClient.mockResolvedValue(undefined);
 
-      const { syncStudentFinancials } = await import("@/lib/system-sync/financial-sync");
+      const { syncStudentFinancials } = await import("@/modules/system-sync/data/financial-sync");
 
       await syncStudentFinancials({
         studentIds: ["student-1"],
@@ -214,7 +214,7 @@ describe("session-aware student sync", () => {
         .mockRejectedValueOnce(new Error("Missing environment variable: SUPABASE_SERVICE_ROLE_KEY"))
         .mockResolvedValueOnce(makeSuccessResult("2026-27"));
 
-      const { syncStudentFinancials } = await import("@/lib/system-sync/financial-sync");
+      const { syncStudentFinancials } = await import("@/modules/system-sync/data/financial-sync");
 
       await syncStudentFinancials({
         studentIds: ["student-1"],
@@ -255,7 +255,7 @@ describe("session-aware student sync", () => {
       });
 
       const { prepareDuesForStudentsAutomatically } = await import(
-        "@/lib/system-sync/finance-sync"
+        "@/modules/system-sync/domain/finance-sync"
       );
 
       await prepareDuesForStudentsAutomatically({
@@ -277,7 +277,7 @@ describe("session-aware student sync", () => {
   describe("Admin Tools status label", () => {
     it("returns Synced when healthy and auto sync did not run", async () => {
       const { isUnavailableSystemSyncHealth } = await import(
-        "@/lib/system-sync/health-fallback"
+        "@/modules/system-sync/domain/health-fallback"
       );
 
       // Verify the sentinel: a healthy health object is NOT unavailable.
@@ -294,7 +294,7 @@ describe("session-aware student sync", () => {
 
     it("buildUnavailableSystemSyncHealth does not surface as healthy", async () => {
       const { buildUnavailableSystemSyncHealth, isUnavailableSystemSyncHealth } = await import(
-        "@/lib/system-sync/health-fallback"
+        "@/modules/system-sync/domain/health-fallback"
       );
 
       const health = buildUnavailableSystemSyncHealth("2026-27", "Service role key missing");

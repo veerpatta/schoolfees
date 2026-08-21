@@ -10,7 +10,7 @@ import {
   CADENCE_VALUES,
   DEFAULT_CADENCE,
   REMINDER_CADENCES,
-} from "@/lib/whatsapp/reminder-cadence";
+} from "@/modules/whatsapp/domain/reminder-cadence";
 
 /**
  * The cadence decides how often a real parent is messaged about money. Getting

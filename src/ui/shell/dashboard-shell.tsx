@@ -12,8 +12,8 @@ import {
 } from "@/ui/shell/shell-session-pill";
 import { SessionSwitchOverlayMount } from "@/ui/shell/session-switch-overlay";
 import { getDefaultProtectedHref } from "@/platform/config/navigation";
-import { EMPTY_SHELL_PULSE, getShellPulse } from "@/lib/dashboard/shell-metrics";
-import { getFeePolicyForSession } from "@/lib/fees/data";
+import { EMPTY_SHELL_PULSE, getShellPulse } from "@/modules/dashboard/data/shell-metrics";
+import { getFeePolicyForSession } from "@/modules/fees/domain/queries";
 import { getSessionSwitcherData } from "@/platform/session/switcher";
 import { SessionSwitchingProvider } from "@/platform/session/switching-context";
 

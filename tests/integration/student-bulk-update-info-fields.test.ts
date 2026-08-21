@@ -5,8 +5,8 @@ import {
   buildBulkUpdatePreview,
   buildLookupResolver,
   type BulkUpdateSnapshotStudent,
-} from "@/lib/students/bulk-update/diff";
-import { resolveBulkUpdateFields } from "@/lib/students/bulk-update/fields";
+} from "@/modules/students/domain/bulk-update/diff";
+import { resolveBulkUpdateFields } from "@/modules/students/domain/bulk-update/fields";
 import {
   BULK_UPDATE_LISTS_SHEET_NAME,
   BULK_UPDATE_SHEET_NAME,
@@ -15,8 +15,8 @@ import {
   buildTemplateHeaders,
   readBulkUpdateSheet,
   workbookToBuffer,
-} from "@/lib/students/bulk-update/workbook";
-import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+} from "@/modules/students/domain/bulk-update/workbook";
+import { STUDENT_INFO_FIELDS } from "@/modules/students/domain/info-fields";
 
 /**
  * Bulk editing the 25 information fields.

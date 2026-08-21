@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { resolveStudentPolicyBreakdown } from "@/lib/fees/policy";
+import { resolveStudentPolicyBreakdown } from "@/modules/fees/data/policy";
 import type {
   ClassFeeDefault,
   FeePolicySummary,
   SchoolFeeDefault,
   StudentConventionalDiscountAssignment,
   StudentFeeOverride,
-} from "@/lib/fees/types";
+} from "@/modules/fees/domain/types";
 
 vi.mock("server-only", () => ({}));
 

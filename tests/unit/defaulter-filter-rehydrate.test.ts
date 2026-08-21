@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
  */
 
 const rehydrator = readFileSync(
-  join(process.cwd(), "src/components/defaulters/defaulter-filter-rehydrator.tsx"),
+  join(process.cwd(), "src/modules/defaulters/ui/defaulter-filter-rehydrator.tsx"),
   "utf8",
 );
 const hook = readFileSync(join(process.cwd(), "src/ui/hooks/use-url-filter-state.ts"), "utf8");
@@ -78,7 +78,7 @@ describe("Defaulters page mounts the rehydrator (audit 1.15)", () => {
 
   it("imports and renders DefaulterFilterRehydrator", () => {
     expect(page).toContain("DefaulterFilterRehydrator");
-    expect(page).toContain('from "@/components/defaulters/defaulter-filter-rehydrator"');
+    expect(page).toContain('from "@/modules/defaulters/ui/defaulter-filter-rehydrator"');
     expect(page).toContain("<DefaulterFilterRehydrator filters={filters} sessionLabel={viewSession.sessionLabel} />");
   });
 });

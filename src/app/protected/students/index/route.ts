@@ -1,14 +1,14 @@
 import {
   normalizeStudentFilters,
   readerFromSearchParams,
-} from "@/lib/students/filter-params";
+} from "@/modules/students/domain/filter-params";
 import { NextResponse } from "next/server";
 
-import { getPaymentDeskStudentIndex } from "@/lib/payments/data";
-import { getStudentSegmentCounts } from "@/lib/segments/directory";
-import { STUDENT_PAGE_SIZE } from "@/lib/students/constants";
-import { getStudentsIdentityPage, getStudentsPage } from "@/lib/students/data";
-import type { StudentListFilters } from "@/lib/students/types";
+import { getPaymentDeskStudentIndex } from "@/modules/payments/data/queries";
+import { getStudentSegmentCounts } from "@/modules/students/data/directory";
+import { STUDENT_PAGE_SIZE } from "@/modules/students/domain/constants";
+import { getStudentsIdentityPage, getStudentsPage } from "@/modules/students/data/queries";
+import type { StudentListFilters } from "@/modules/students/domain/types";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 function normalizeFilters(params: URLSearchParams): StudentListFilters {

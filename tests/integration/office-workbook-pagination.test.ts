@@ -22,18 +22,18 @@ const getStudentDirectoryIds = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/workbook/data", () => ({
+vi.mock("@/modules/fees/data/queries", () => ({
   getWorkbookClassOptions: vi.fn(async () => []),
   getWorkbookStudentFinancials: (...args: unknown[]) => getWorkbookStudentFinancials(...args),
   getWorkbookTransactions: (...args: unknown[]) => getWorkbookTransactions(...args),
 }));
 
-vi.mock("@/lib/segments/directory", () => ({
+vi.mock("@/modules/students/data/directory", () => ({
   getStudentDirectoryIds: (...args: unknown[]) => getStudentDirectoryIds(...args),
 }));
 
-vi.mock("@/lib/fees/data", () => ({ getFeePolicySummary: vi.fn(async () => ({})) }));
-vi.mock("@/lib/reports/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({ getFeePolicySummary: vi.fn(async () => ({})) }));
+vi.mock("@/modules/reports/data/queries", () => ({
   getReportsPageData: vi.fn(async () => ({})),
   normalizeReportFilters: vi.fn((value: unknown) => value),
 }));
@@ -95,7 +95,7 @@ type PagedResult = {
 };
 
 async function loadStudentDues(page: number): Promise<PagedResult> {
-  const { getOfficeWorkbookData } = await import("@/lib/transactions/dues");
+  const { getOfficeWorkbookData } = await import("@/modules/transactions/data/dues");
   const result = await getOfficeWorkbookData({
     view: "student_dues",
     classId: "",
@@ -155,7 +155,7 @@ describe("segment scope", () => {
       totalCount: 2,
     });
 
-    const { getOfficeWorkbookData } = await import("@/lib/transactions/dues");
+    const { getOfficeWorkbookData } = await import("@/modules/transactions/data/dues");
     await getOfficeWorkbookData({
       view: "student_dues",
       classId: "",

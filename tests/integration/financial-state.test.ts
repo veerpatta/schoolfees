@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { calculateStudentFinancialState } from "@/lib/finance/financial-state";
+import { calculateStudentFinancialState } from "@/modules/finance-controls/domain/financial-state";
 
 describe("student financial state", () => {
   it("fee_setup_reduction_after_payment_creates_credit_balance", () => {

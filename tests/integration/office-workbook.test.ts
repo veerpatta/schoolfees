@@ -8,7 +8,7 @@ import {
   buildOfficeWorkbookHref,
   normalizeOfficeWorkbookView,
   officeWorkbookViewI18nPrefix,
-} from "@/lib/transactions/workbook";
+} from "@/modules/transactions/domain/workbook";
 
 describe("office workbook helpers", () => {
   it("falls back to receipt register for unknown workbook views", () => {
@@ -16,7 +16,7 @@ describe("office workbook helpers", () => {
   });
 
   it("reports whether workbook view params were recognized", async () => {
-    const { resolveOfficeWorkbookView } = await import("@/lib/transactions/workbook");
+    const { resolveOfficeWorkbookView } = await import("@/modules/transactions/domain/workbook");
 
     expect(resolveOfficeWorkbookView("imports")).toEqual({
       view: "transactions",
@@ -84,10 +84,10 @@ describe("office workbook helpers", () => {
 
   it("transactions UI exposes a payment-mode filter and one-click receipt reprint links", () => {
     const source = readFileSync(
-      join(process.cwd(), "src/components/transactions/transactions-client-shell.tsx"),
+      join(process.cwd(), "src/modules/transactions/ui/transactions-client-shell.tsx"),
       "utf8",
     );
-    const workbookData = readFileSync(join(process.cwd(), "src/lib/workbook/data.ts"), "utf8");
+    const workbookData = readFileSync(join(process.cwd(), "src/modules/fees/data/queries.ts"), "utf8");
 
     // The phone header still filters by mode with chips; the desk toolbar now
     // uses a select instead, because the chip row was single-select anyway and

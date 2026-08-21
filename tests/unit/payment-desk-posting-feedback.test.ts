@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { derivePaymentDeskControllerView } from "@/lib/payments/payment-desk-controller";
+import { derivePaymentDeskControllerView } from "@/modules/payments/domain/payment-desk-controller";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
@@ -20,8 +20,8 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  * These tests exist so a refactor cannot quietly restore the dead interval.
  */
 describe("payment desk shows that a post is in flight", () => {
-  const desk = read("src/components/payments/payment-desk-mobile.tsx");
-  const flowSheet = read("src/components/payments/mobile-payment-flow-sheet.tsx");
+  const desk = read("src/modules/payments/ui/payment-desk-mobile.tsx");
+  const flowSheet = read("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
   it("derives a posting phase distinct from review and receipt", () => {
     const posting = derivePaymentDeskControllerView({ phase: "posting" } as never);
@@ -46,7 +46,7 @@ describe("payment desk shows that a post is in flight", () => {
 
   it("imports the posting screen statically so it is on screen within a frame", () => {
     // A dynamic import would reintroduce the very wait this removes.
-    expect(desk).toContain('import { PostingReceiptSheet } from "@/components/payments/posting-receipt-sheet"');
+    expect(desk).toContain('import { PostingReceiptSheet } from "@/modules/payments/ui/posting-receipt-sheet"');
     expect(desk).not.toMatch(/dynamic\(\s*\(\)\s*=>\s*import\("@\/components\/payments\/posting-receipt-sheet"/);
   });
 
@@ -75,14 +75,14 @@ describe("payment desk shows that a post is in flight", () => {
       desk.indexOf("function selectStudent("),
       desk.indexOf("function selectStudent(") + 900,
     );
-    expect(selectStudentBody).toContain('import("@/components/payments/success-receipt-sheet")');
+    expect(selectStudentBody).toContain('import("@/modules/payments/ui/success-receipt-sheet")');
   });
 
   it("never claims a receipt exists before the server says so", () => {
     // Optimistic UI stays banned for financial mutations
     // (docs/design/design-system.md §5.7). The posting screen may show the
     // amount and the student — both already true — but no receipt number.
-    const posting = read("src/components/payments/posting-receipt-sheet.tsx");
+    const posting = read("src/modules/payments/ui/posting-receipt-sheet.tsx");
 
     expect(posting).not.toContain("receiptNumber");
     expect(posting).not.toMatch(/Payment Successful|Receipt saved/);

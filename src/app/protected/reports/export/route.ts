@@ -5,7 +5,7 @@ import {
   getReportCsvData,
   normalizeReportFilters,
   serializeCsv,
-} from "@/lib/reports/data";
+} from "@/modules/reports/data/queries";
 import {
   getAuthenticatedStaff,
   hasStaffPermission,

@@ -3,14 +3,14 @@ import { notFound } from "next/navigation";
 import { isUuid } from "@/platform/helpers/uuid";
 
 import { PageHeader } from "@/ui/shell/page-header";
-import { MasterStatementDocument } from "@/components/students/master-statement-document";
-import { MasterStatementPrintActions } from "@/components/students/master-statement-print-actions";
+import { MasterStatementDocument } from "@/modules/students/ui/master-statement-document";
+import { MasterStatementPrintActions } from "@/modules/students/ui/master-statement-print-actions";
 import { formatShortDate, partsToIso, todayPartsIst } from "@/platform/helpers/date";
 import {
   getRepaymentPlanDetail,
   getRepaymentPlanHistory,
-} from "@/lib/repayment-plans/data";
-import { getStudentWorkspaceData } from "@/lib/students/workspace";
+} from "@/modules/repayment-plans/data/queries";
+import { getStudentWorkspaceData } from "@/modules/students/data/workspace";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 type StudentStatementPageProps = {

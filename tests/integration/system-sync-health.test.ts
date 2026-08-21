@@ -9,7 +9,7 @@ vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary,
 }));
 
@@ -151,7 +151,7 @@ describe("system sync health", () => {
       }),
     });
 
-    const { getSystemSyncHealth } = await import("@/lib/system-sync/financial-sync");
+    const { getSystemSyncHealth } = await import("@/modules/system-sync/data/financial-sync");
     const health = await getSystemSyncHealth();
 
     expect(classSelect).toHaveBeenCalledWith("id, session_label, class_name, section, stream_name");
@@ -274,7 +274,7 @@ describe("system sync health", () => {
       }),
     });
 
-    const { getLiveDataHealth } = await import("@/lib/system-sync/live-data-health");
+    const { getLiveDataHealth } = await import("@/modules/system-sync/domain/live-data-health");
     const health = await getLiveDataHealth();
 
     expect(health.activeFeePolicySession).toBe("2026-27");

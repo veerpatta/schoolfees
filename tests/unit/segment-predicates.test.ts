@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { applySegmentFilters, familiesInSelection } from "@/lib/segments/apply";
-import { SEGMENT_BY_ID, type SegmentId } from "@/lib/segments/student-segments";
+import { applySegmentFilters, familiesInSelection } from "@/modules/students/domain/apply";
+import { SEGMENT_BY_ID, type SegmentId } from "@/modules/students/domain/student-segments";
 
 vi.mock("server-only", () => ({}));
 

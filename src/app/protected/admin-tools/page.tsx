@@ -14,9 +14,9 @@ import { advancedHubSections } from "@/platform/config/navigation";
 import { appendSessionParam } from "@/platform/navigation/session-href";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
-import { getOpenRefundCount } from "@/lib/finance-controls/open-refunds";
-import { getSystemSyncHealth, type SystemSyncHealth } from "@/lib/system-sync/finance-sync";
-import { getErrorMessage } from "@/lib/system-sync/health-fallback";
+import { getOpenRefundCount } from "@/modules/finance-controls/data/open-refunds";
+import { getSystemSyncHealth, type SystemSyncHealth } from "@/modules/system-sync/domain/finance-sync";
+import { getErrorMessage } from "@/modules/system-sync/domain/health-fallback";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
 
 import { reconcileSessionAction } from "./session-health/actions";

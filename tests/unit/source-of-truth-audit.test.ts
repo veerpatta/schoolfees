@@ -13,15 +13,15 @@ describe("source of truth audit fixes", () => {
   it("active_session_label_is_the_only_active_session_read_source", () => {
     const filesToAudit = [
       "src/platform/session/resolver.ts",
-      "src/lib/fees/policy.ts",
-      "src/lib/master-data/data.ts",
-      "src/lib/students/data.ts",
-      "src/lib/system-sync/financial-sync.ts",
-      "src/lib/setup/data.ts",
-      "src/lib/import/data.ts",
-      "src/lib/payments/data.ts",
-      "src/lib/dashboard/data.ts",
-      "src/lib/defaulters/data.ts",
+      "src/modules/fees/data/policy.ts",
+      "src/modules/master-data/data/queries.ts",
+      "src/modules/students/data/queries.ts",
+      "src/modules/system-sync/data/financial-sync.ts",
+      "src/modules/fees/data/setup-queries.ts",
+      "src/modules/imports/data/queries.ts",
+      "src/modules/payments/data/queries.ts",
+      "src/modules/dashboard/data/queries.ts",
+      "src/modules/defaulters/data/queries.ts",
       "src/app/protected/session/actions.ts",
     ];
 
@@ -37,7 +37,7 @@ describe("source of truth audit fixes", () => {
     }
 
     const setActive = readRepoFile("src/platform/session/set-active.ts");
-    const feePolicy = readRepoFile("src/lib/fees/policy.ts");
+    const feePolicy = readRepoFile("src/modules/fees/data/policy.ts");
 
     expect(setActive).not.toContain(".from(\"fee_policy_configs\")");
     expect(setActive).toContain(".from(\"academic_sessions\")");
@@ -48,7 +48,7 @@ describe("source of truth audit fixes", () => {
   });
 
   it("reports_outstanding_uses_workbook_balances", () => {
-    const reportsData = readRepoFile("src/lib/reports/data.ts");
+    const reportsData = readRepoFile("src/modules/reports/data/queries.ts");
 
     expect(reportsData).toContain('.from("v_workbook_installment_balances")');
     expect(reportsData).toContain("pending_amount");
@@ -58,8 +58,8 @@ describe("source of truth audit fixes", () => {
   });
 
   it("student_ledger_current_outstanding_matches_payment_desk", () => {
-    const reportsData = readRepoFile("src/lib/reports/data.ts");
-    const paymentsData = readRepoFile("src/lib/payments/data.ts");
+    const reportsData = readRepoFile("src/modules/reports/data/queries.ts");
+    const paymentsData = readRepoFile("src/modules/payments/data/queries.ts");
 
     expect(reportsData).toContain('.from("v_workbook_installment_balances")');
     expect(reportsData).toContain('.select("pending_amount")');
@@ -68,7 +68,7 @@ describe("source of truth audit fixes", () => {
   });
 
   it("defaulters_shows_missing_dues_warning_for_active_students_without_financial_rows", () => {
-    const defaultersData = readRepoFile("src/lib/defaulters/data.ts");
+    const defaultersData = readRepoFile("src/modules/defaulters/data/queries.ts");
     const defaultersPage = readRepoFile("src/app/protected/defaulters/page.tsx");
     // Headings live in the next-intl Defaulters namespace; assert the i18n key
     // wiring rather than the literal English strings.
@@ -88,7 +88,7 @@ describe("source of truth audit fixes", () => {
   });
 
   it("import_status_change_to_active_generates_dues", () => {
-    const importData = readRepoFile("src/lib/import/data.ts");
+    const importData = readRepoFile("src/modules/imports/data/queries.ts");
 
     expect(importData).toContain("shouldSyncStudentDuesForChange");
     expect(importData).toContain("studentsToRegenerate.add(importedStudentId)");
@@ -96,9 +96,9 @@ describe("source of truth audit fixes", () => {
   });
 
   it("payment_desk_pending_matches_rpc_for_payment_date", () => {
-    const paymentData = readRepoFile("src/lib/payments/data.ts");
+    const paymentData = readRepoFile("src/modules/payments/data/queries.ts");
     const previewRoute = readRepoFile("src/app/protected/payments/preview/route.ts");
-    const paymentClient = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
+    const paymentClient = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
     const migration = readRepoFile("supabase/migrations/20260425090000_payment_date_workbook_preview.sql");
 
     expect(paymentData).toContain("preview_workbook_payment_allocation");
@@ -111,7 +111,7 @@ describe("source of truth audit fixes", () => {
   });
 
   it("transactions_class_register_exports_missing_dues", () => {
-    const officeDues = readRepoFile("src/lib/transactions/dues.ts");
+    const officeDues = readRepoFile("src/modules/transactions/data/dues.ts");
     const transactionsExport = readRepoFile("src/app/protected/transactions/export/route.ts");
 
     expect(officeDues).toContain('"missing_dues" as const');
@@ -121,10 +121,10 @@ describe("source of truth audit fixes", () => {
   });
 
   it("active_session_consistency_across_students_dashboard_payment", () => {
-    const financialSync = readRepoFile("src/lib/system-sync/financial-sync.ts");
+    const financialSync = readRepoFile("src/modules/system-sync/data/financial-sync.ts");
     const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
     const dashboardActions = readRepoFile("src/app/protected/dashboard/actions.ts");
-    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const dashboardData = readRepoFile("src/modules/dashboard/data/queries.ts");
     // "Open Fee Data Troubleshooting" now lives in the Dashboard namespace.
     const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Dashboard: Record<string, string>;
@@ -149,7 +149,7 @@ describe("source of truth audit fixes", () => {
   });
 
   it("repair_actions_preserve_student_session_and_payment_history", () => {
-    const financialSync = readRepoFile("src/lib/system-sync/financial-sync.ts");
+    const financialSync = readRepoFile("src/modules/system-sync/data/financial-sync.ts");
     const verifyScript = readRepoFile("scripts/verify-live-fee-health.mjs");
 
     const alignFunction = financialSync.slice(
@@ -177,8 +177,8 @@ describe("source of truth audit fixes", () => {
   });
 
   it("workbook_fee_setup_saves_selected_session_without_switching_default", () => {
-    const workbookSetupChange = readRepoFile("src/lib/fees/workbook-setup-change.ts");
-    const feePolicy = readRepoFile("src/lib/fees/policy.ts");
+    const workbookSetupChange = readRepoFile("src/modules/fees/data/workbook-setup-change.ts");
+    const feePolicy = readRepoFile("src/modules/fees/data/policy.ts");
 
     expect(workbookSetupChange).toContain("activateSession: false");
     expect(workbookSetupChange).toMatch(/getFeeSetupPageData\(\{\s+sessionLabel: payload\.academicSessionLabel/);

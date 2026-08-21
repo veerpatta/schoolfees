@@ -12,47 +12,47 @@ import {
   MobileStatStrip,
 } from "@/ui/mobile/mobile-kit";
 import { OfficeRecentTracker, ValueStatePill } from "@/ui/office/office-ui";
-import { MobileStudentFamilyTab } from "@/components/students/mobile-student-family-tab";
-import { MobileStudentProfile } from "@/components/students/mobile-student-profile";
-import { StudentAboutPanel } from "@/components/students/student-about-panel";
-import { StudentDangerZone } from "@/components/students/student-danger-zone";
-import { StudentDetailHeader } from "@/components/students/student-detail-header";
-import { StudentInfoGroupEditButton } from "@/components/students/student-info-sheet";
-import { StudentFeePlanEditButton } from "@/components/students/student-fee-plan-edit-button";
-import { StudentMoneyBand } from "@/components/students/student-money-band";
-import { StudentQuickReference } from "@/components/students/student-quick-reference";
-import { StudentRepaymentPlanCard } from "@/components/students/student-repayment-plan-card";
-import { ShareFeeWhatsApp } from "@/components/students/share-fee-whatsapp";
-import { StudentReceiptsPanel } from "@/components/students/student-receipts-panel";
-import { StudentWorkspaceTabs } from "@/components/students/student-workspace-tabs";
-import { StudentFamilyPanel } from "@/components/students/family-panel";
+import { MobileStudentFamilyTab } from "@/modules/students/ui/mobile-student-family-tab";
+import { MobileStudentProfile } from "@/modules/students/ui/mobile-student-profile";
+import { StudentAboutPanel } from "@/modules/students/ui/student-about-panel";
+import { StudentDangerZone } from "@/modules/students/ui/student-danger-zone";
+import { StudentDetailHeader } from "@/modules/students/ui/student-detail-header";
+import { StudentInfoGroupEditButton } from "@/modules/students/ui/student-info-sheet";
+import { StudentFeePlanEditButton } from "@/modules/students/ui/student-fee-plan-edit-button";
+import { StudentMoneyBand } from "@/modules/students/ui/student-money-band";
+import { StudentQuickReference } from "@/modules/students/ui/student-quick-reference";
+import { StudentRepaymentPlanCard } from "@/modules/students/ui/student-repayment-plan-card";
+import { ShareFeeWhatsApp } from "@/modules/students/ui/share-fee-whatsapp";
+import { StudentReceiptsPanel } from "@/modules/students/ui/student-receipts-panel";
+import { StudentWorkspaceTabs } from "@/modules/students/ui/student-workspace-tabs";
+import { StudentFamilyPanel } from "@/modules/students/ui/family-panel";
 import { Badge } from "@/ui/primitives/badge";
 import { Money } from "@/ui/primitives/money";
 import { Notice } from "@/ui/primitives/notice";
 import { Section } from "@/ui/primitives/section";
-import { buildFeeBreakupDisplayRows } from "@/lib/fees/display-breakdown";
-import { splitAmountWithRemainderLast } from "@/lib/fees/workbook";
+import { buildFeeBreakupDisplayRows } from "@/modules/fees/domain/display-breakdown";
+import { splitAmountWithRemainderLast } from "@/modules/fees/domain/workbook";
 import { getDefaultAcademicSessionLabel } from "@/platform/config/fee-rules";
 import {
   getDisplayInstallmentLabel,
   isCarryForwardInstallment,
-} from "@/lib/prev-year-dues/display";
+} from "@/modules/prev-year-dues/domain/display";
 import { cn } from "@/platform/utils";
 import {
   calculateOverdueBaseAmount,
   calculatePendingLateFeeAmount,
-} from "@/lib/fees/due-amounts";
+} from "@/modules/fees/domain/due-amounts";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatDateTimeIst, formatShortDate, partsToIso, todayPartsIst } from "@/platform/helpers/date";
-import { getRepaymentPlanDetail } from "@/lib/repayment-plans/data";
-import { recordActivity } from "@/lib/activity/events";
-import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/lib/students/data";
+import { getRepaymentPlanDetail } from "@/modules/repayment-plans/data/queries";
+import { recordActivity } from "@/modules/activity/data/events";
+import { getStudentDeletionSafety, getStudentFamilyMembersDetail } from "@/modules/students/data/queries";
 import {
   STUDENT_INFO_GROUPS,
   getStudentInfoFieldsByGroup,
   getStudentInfoOptionKey,
-} from "@/lib/students/info-fields";
-import { getStudentWorkspaceData } from "@/lib/students/workspace";
+} from "@/modules/students/domain/info-fields";
+import { getStudentWorkspaceData } from "@/modules/students/data/workspace";
 import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
 import { safeReturnTo } from "@/platform/navigation/return-to";
 

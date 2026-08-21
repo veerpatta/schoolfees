@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
-import { listActivity, activityKindTone, ACTIVITY_KINDS, type ActivityKind } from "@/lib/activity/events";
+import { listActivity, activityKindTone, ACTIVITY_KINDS, type ActivityKind } from "@/modules/activity/data/events";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatDateTimeIst } from "@/platform/helpers/date";
 import { appendSessionParam } from "@/platform/navigation/session-href";

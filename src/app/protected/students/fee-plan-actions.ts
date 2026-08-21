@@ -2,19 +2,19 @@
 
 import { after } from "next/server";
 
-import { recordActivity } from "@/lib/activity/events";
+import { recordActivity } from "@/modules/activity/data/events";
 import { normalizeFeeHeadId } from "@/platform/config/fee-rules";
 import {
   applyConventionalDiscountsToTuition,
   getStudentConventionalDiscountAssignments,
   saveStudentConventionalDiscountAssignments,
-} from "@/lib/fees/conventional-discounts";
-import { upsertStudentFeeOverride } from "@/lib/fees/data";
+} from "@/modules/fees/data/conventional-discounts";
+import { upsertStudentFeeOverride } from "@/modules/fees/domain/queries";
 import { createClient } from "@/platform/supabase/server";
 import { requireStaffPermission } from "@/platform/supabase/session";
-import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
-import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
+import { prepareDuesForStudentsAutomatically } from "@/modules/system-sync/domain/finance-sync";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
+import { publishOfficeSyncEvent } from "@/modules/system-sync/data/office-sync-events";
 import {
   MAX_CUSTOM_FEE_HEADS,
   MAX_FEE_HEAD_LABEL_LENGTH,

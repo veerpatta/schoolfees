@@ -17,7 +17,7 @@ vi.mock("@/platform/supabase/server", () => ({
 const {
   applyThirdChildPolicyForFamilyGroup,
   deactivateAutomaticThirdChildAssignments,
-} = await import("@/lib/fees/conventional-discounts");
+} = await import("@/modules/fees/data/conventional-discounts");
 
 const SESSION = "TEST-2026-27";
 const THIRD_CHILD_POLICY = {

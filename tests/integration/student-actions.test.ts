@@ -13,7 +13,7 @@ vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   createStudent,
   archiveStudent: vi.fn(),
   hardDeleteStudent: vi.fn(),
@@ -23,11 +23,11 @@ vi.mock("@/lib/students/data", () => ({
   updateStudent,
 }));
 
-vi.mock("@/lib/fees/conventional-discounts", () => ({
+vi.mock("@/modules/fees/data/conventional-discounts", () => ({
   applyThirdChildPolicyForStudentFamilies: vi.fn(async () => []),
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
   revalidateFinanceSurfaces,
 }));

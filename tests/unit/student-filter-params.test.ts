@@ -5,7 +5,7 @@ import {
   readerFromRecord,
   readerFromSearchParams,
   studentFiltersToParams,
-} from "@/lib/students/filter-params";
+} from "@/modules/students/domain/filter-params";
 
 /**
  * There used to be two of these, and they disagreed on the one thing that

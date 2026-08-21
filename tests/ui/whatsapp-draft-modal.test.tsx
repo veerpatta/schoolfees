@@ -21,7 +21,7 @@ vi.mock("@/ui/primitives/sheet", () => ({
     ),
 }));
 
-import { WhatsAppDraftModal } from "@/components/defaulters/whatsapp-draft-modal";
+import { WhatsAppDraftModal } from "@/modules/defaulters/ui/whatsapp-draft-modal";
 
 const messages = JSON.parse(
   readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),

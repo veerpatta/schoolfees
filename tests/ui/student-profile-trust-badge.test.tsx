@@ -2,7 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { StudentMoneyBand } from "@/components/students/student-money-band";
+import { StudentMoneyBand } from "@/modules/students/ui/student-money-band";
 
 /**
  * The badge used to sit in the identity strip's due panel. It now sits on the

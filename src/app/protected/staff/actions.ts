@@ -7,7 +7,7 @@ import {
   resetStaffAccountPassword,
   updateStaffAccount,
   type StaffFormActionState,
-} from "@/lib/staff-management/data";
+} from "@/modules/staff/data/queries";
 import { isStaffRole } from "@/platform/auth/roles";
 import { requireStaffPermission } from "@/platform/supabase/session";
 

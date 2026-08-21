@@ -1,5 +1,5 @@
 import type { StaffRole } from "@/platform/auth/roles";
-import type { SetupReadinessSummary, SetupWizardData } from "@/lib/setup/types";
+import type { SetupReadinessSummary, SetupWizardData } from "@/modules/fees/domain/setup-types";
 
 export type OfficeWorkflowKey =
   | "add_student"

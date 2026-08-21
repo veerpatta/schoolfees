@@ -60,7 +60,7 @@ unauthenticated traffic away from `/protected` only — it does not cover
 the URL. A handler that calls `getAuthenticatedStaff()` and stops is open to the
 whole staff roll, `view_only` included. It follows one import hop before it
 accuses anybody, because the promotion actions delegate their guard to
-`src/lib/promotion/data.ts` and four false positives is how a P0 rule gets muted.
+`src/modules/promotion/data/queries.ts` and four false positives is how a P0 rule gets muted.
 
 **`mirror-drift`** is the highest-value check here. This codebase writes several
 rules twice — once in TypeScript, once in PL/pgSQL — and says so out loud

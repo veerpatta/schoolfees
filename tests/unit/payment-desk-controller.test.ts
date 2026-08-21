@@ -4,8 +4,8 @@ import {
   derivePaymentDeskControllerView,
   initialPaymentDeskControllerState,
   paymentDeskControllerReducer,
-} from "@/lib/payments/payment-desk-controller";
-import type { PaymentEntryActionState } from "@/lib/payments/types";
+} from "@/modules/payments/domain/payment-desk-controller";
+import type { PaymentEntryActionState } from "@/modules/payments/domain/types";
 
 function transition(
   events: Parameters<typeof paymentDeskControllerReducer>[1][],

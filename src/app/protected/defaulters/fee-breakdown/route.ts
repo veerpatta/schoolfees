@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getStudentFeeBreakdown } from "@/lib/defaulters/fee-breakdown";
+import { getStudentFeeBreakdown } from "@/modules/defaulters/domain/fee-breakdown";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 /**

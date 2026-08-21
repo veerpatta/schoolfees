@@ -23,7 +23,7 @@
  * Three things this check refuses to accuse, each learned from a real line in
  * the tree:
  *
- *   - **The shape is not the label.** `src/components/dashboard/boards.tsx` has
+ *   - **The shape is not the label.** `src/modules/dashboard/ui/boards.tsx` has
  *     `months.at(-1)?.month ?? "2026-04"`, which matches `\d{4}-\d{2}` and is a
  *     month. So the year arithmetic from `parseAcademicSessionLabel` is applied
  *     too: the suffix must be the start year plus one. `2026-04` is not a

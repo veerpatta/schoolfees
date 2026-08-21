@@ -1,14 +1,14 @@
 "use server";
 
-import { recordActivity } from "@/lib/activity/events";
-import { insertDefaulterContacts } from "@/lib/defaulters/contacts";
+import { recordActivity } from "@/modules/activity/data/events";
+import { insertDefaulterContacts } from "@/modules/defaulters/data/contacts";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import {
   configuredCampaignName,
   isAisensyConfigured,
   sendAisensyCampaignMessage,
-} from "@/lib/whatsapp/aisensy";
+} from "@/modules/whatsapp/data/aisensy";
 import {
   istToday,
   loadReminderAudience,
@@ -16,13 +16,13 @@ import {
   resolveCurrentSessionLabel,
   type ReminderCandidate,
   type ReminderFilters,
-} from "@/lib/whatsapp/fee-reminders";
-import { addDays, CADENCE_VALUES } from "@/lib/whatsapp/reminder-cadence";
-import { toWhatsappDestination } from "@/lib/whatsapp/phone";
+} from "@/modules/whatsapp/domain/fee-reminders";
+import { addDays, CADENCE_VALUES } from "@/modules/whatsapp/domain/reminder-cadence";
+import { toWhatsappDestination } from "@/modules/whatsapp/domain/phone";
 import {
   buildReminderParams,
   FEE_REMINDER_TEMPLATE_DEADLINE,
-} from "@/lib/whatsapp/reminder-template";
+} from "@/modules/whatsapp/domain/reminder-template";
 
 export type SendRemindersState = {
   status: "idle" | "success" | "partial" | "error";

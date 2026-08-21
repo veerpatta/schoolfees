@@ -1,5 +1,5 @@
 import { PageHeader } from "@/ui/shell/page-header";
-import { MasterDataClient } from "@/components/master-data/master-data-client";
+import { MasterDataClient } from "@/modules/master-data/ui/master-data-client";
 import type { MasterDataActionState } from "@/app/protected/master-data/actions";
 import {
   createClassAction,
@@ -17,7 +17,7 @@ import {
   updateRouteAction,
   updateSessionAction,
 } from "@/app/protected/master-data/actions";
-import { getMasterDataPageData } from "@/lib/master-data/data";
+import { getMasterDataPageData } from "@/modules/master-data/data/queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 const INITIAL_MASTER_DATA_ACTION_STATE: MasterDataActionState = {

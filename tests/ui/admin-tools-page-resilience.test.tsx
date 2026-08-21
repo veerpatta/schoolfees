@@ -25,7 +25,7 @@ vi.mock("@/platform/supabase/session", () => ({
   hasStaffPermission,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   getSystemSyncHealth,
 }));
 

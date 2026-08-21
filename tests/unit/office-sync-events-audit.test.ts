@@ -16,7 +16,7 @@ describe("office sync events", () => {
   // its own casing (CREATE OR REPLACE FUNCTION, SELECT DISTINCT ON). These
   // assertions describe the schema, not its capitalisation.
   const schema = readRepoFile("supabase/schema.sql").toLowerCase();
-    const publisher = readRepoFile("src/lib/system-sync/office-sync-events.ts");
+    const publisher = readRepoFile("src/modules/system-sync/data/office-sync-events.ts");
     const subscriber = readRepoFile("src/ui/shell/office-sync-listener.tsx");
     const shell = readRepoFile("src/ui/shell/dashboard-shell.tsx");
 

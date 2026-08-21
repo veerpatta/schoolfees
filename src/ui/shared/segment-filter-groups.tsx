@@ -10,7 +10,7 @@ import {
   type SegmentCounts,
   type SegmentFamily,
   type SegmentId,
-} from "@/lib/segments/student-segments";
+} from "@/modules/students/domain/student-segments";
 import { cn } from "@/platform/utils";
 
 /**

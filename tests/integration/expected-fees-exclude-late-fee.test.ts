@@ -92,7 +92,7 @@ describe("the glossary states the rule", () => {
 
 describe("the JavaScript dashboard builder agrees", () => {
   const summarySource = readFileSync(
-    path.join(process.cwd(), "src/lib", "dashboard", "summary.ts"),
+    path.join(process.cwd(), "src/modules/dashboard/domain/summary.ts"),
     "utf8",
   );
 

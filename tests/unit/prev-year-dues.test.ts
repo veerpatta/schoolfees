@@ -3,19 +3,19 @@ import { describe, expect, it } from "vitest";
 import {
   buildCarryForwardInstallment,
   selectCarryForwardInstallmentNo,
-} from "@/lib/prev-year-dues/carry-forward";
+} from "@/modules/prev-year-dues/domain/carry-forward";
 import {
   CARRY_FORWARD_DUE_DATE,
   CARRY_FORWARD_INSTALLMENT_NO_BASE,
   CARRY_FORWARD_LABEL,
-} from "@/lib/prev-year-dues/constants";
-import { planDuesRows, summarizeDryRun } from "@/lib/prev-year-dues/matching";
+} from "@/modules/prev-year-dues/domain/constants";
+import { planDuesRows, summarizeDryRun } from "@/modules/prev-year-dues/domain/matching";
 import {
   interpretConfirm,
   parseDuesRows,
   parseRupees,
-} from "@/lib/prev-year-dues/parser";
-import type { MatchableStudent } from "@/lib/prev-year-dues/types";
+} from "@/modules/prev-year-dues/domain/parser";
+import type { MatchableStudent } from "@/modules/prev-year-dues/domain/types";
 
 const HEADERS = {
   reviewGroup: "Review Group",

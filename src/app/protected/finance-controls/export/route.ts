@@ -5,7 +5,7 @@ import {
   getFinanceDayBookCsvData,
   normalizeFinanceDateFilter,
   serializeFinanceDayBookCsv,
-} from "@/lib/finance-controls/data";
+} from "@/modules/finance-controls/data/queries";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 import { resolveViewSession } from "@/platform/session/resolver";
 

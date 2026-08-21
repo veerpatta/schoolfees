@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import {
   getReceiptReversalTotals,
   isReceiptReversed,
-} from "@/lib/receipts/reversals";
+} from "@/modules/receipts/data/reversals";
 import { createAdminClient } from "@/platform/supabase/admin";
 
 // Automatic day close.

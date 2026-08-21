@@ -3,12 +3,12 @@ import { NextResponse } from "next/server";
 import {
   commitStudentImportBatch,
   getStudentImportBatchSummary,
-} from "@/lib/import/data";
+} from "@/modules/imports/data/queries";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 import {
   revalidateCoreFinancePaths,
   revalidateSessionFinance,
-} from "@/lib/system-sync/finance-sync";
+} from "@/modules/system-sync/domain/finance-sync";
 
 // Commits at most STUDENT_IMPORT_COMMIT_CHUNK_SIZE approved rows per request
 // and reports what is left, so a large file is many short requests rather than

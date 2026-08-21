@@ -6,14 +6,14 @@ const generateSessionLedgersAction = vi.fn();
 const revalidatePath = vi.fn();
 const revalidateTag = vi.fn();
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary: vi.fn(async () => ({
     academicSessionLabel: "2026-27",
     calculationModel: "workbook_v1",
   })),
 }));
 
-vi.mock("@/lib/fees/generator", () => ({
+vi.mock("@/modules/fees/data/generator", () => ({
   generateSessionLedgersAction,
 }));
 
@@ -55,7 +55,7 @@ describe("automatic dues preparation", () => {
       errors: [],
     });
 
-    const { prepareDuesForStudentsAutomatically } = await import("@/lib/system-sync/finance-sync");
+    const { prepareDuesForStudentsAutomatically } = await import("@/modules/system-sync/domain/finance-sync");
     const result = await prepareDuesForStudentsAutomatically({
       studentIds: ["student-1"],
       reason: "Student added",
@@ -101,7 +101,7 @@ describe("automatic dues preparation", () => {
       errors: [],
     });
 
-    const { prepareDuesForStudentsAutomatically } = await import("@/lib/system-sync/finance-sync");
+    const { prepareDuesForStudentsAutomatically } = await import("@/modules/system-sync/domain/finance-sync");
     const result = await prepareDuesForStudentsAutomatically({
       studentIds: ["student-1"],
       reason: "Student added",

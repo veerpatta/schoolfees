@@ -12,9 +12,9 @@ const resolveViewSession = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/import/data", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/import/data")>(
-    "@/lib/import/data",
+vi.mock("@/modules/imports/data/queries", async () => {
+  const actual = await vi.importActual<typeof import("@/modules/imports/data/queries")>(
+    "@/modules/imports/data/queries",
   );
 
   return {
@@ -23,11 +23,11 @@ vi.mock("@/lib/import/data", async () => {
   };
 });
 
-vi.mock("@/lib/import/readiness", () => ({
+vi.mock("@/modules/imports/data/readiness", () => ({
   getStudentImportWorkflowReadiness,
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentFormOptions,
 }));
 
@@ -44,7 +44,7 @@ vi.mock("@/platform/session/resolver", () => ({
   resolveViewSession,
 }));
 
-vi.mock("@/components/imports/student-import-workflow", () => ({
+vi.mock("@/modules/imports/ui/student-import-workflow", () => ({
   StudentImportWorkflow: ({ data }: { data: { selectedBatch: unknown } }) =>
     React.createElement("div", null, data.selectedBatch ? "batch" : "empty"),
 }));

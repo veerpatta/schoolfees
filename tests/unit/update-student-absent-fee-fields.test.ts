@@ -40,7 +40,7 @@ const getStudentFormOptions = vi.fn(async () => ({
   resolvedSessionLabel: "2026-27",
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentDetail: (...args: unknown[]) => getStudentDetail(...(args as [])),
   getStudentFormOptions: (...args: unknown[]) => getStudentFormOptions(...(args as [])),
   updateStudent: (...args: unknown[]) => updateStudent(...(args as [])),
@@ -62,8 +62,8 @@ vi.mock("@/platform/supabase/session", () => ({
 vi.mock("@/platform/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
 vi.mock("next/server", () => ({ after: (fn: () => unknown) => fn }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
-vi.mock("@/lib/activity/events", () => ({ recordActivity: vi.fn() }));
-vi.mock("@/lib/fees/conventional-discounts", () => ({
+vi.mock("@/modules/activity/data/events", () => ({ recordActivity: vi.fn() }));
+vi.mock("@/modules/fees/data/conventional-discounts", () => ({
   applyThirdChildPolicyForStudentFamilies: vi.fn(),
 }));
 

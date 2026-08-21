@@ -8,8 +8,8 @@ import { SectionCard } from "@/ui/shell/section-card";
 import { StatusBadge } from "@/ui/shell/status-badge";
 import { AutoSubmitForm } from "@/ui/office/auto-submit-form";
 import { OfficeNotice, WorkflowGuard } from "@/ui/office/office-ui";
-import { PrintReportButton } from "@/components/reports/print-report-button";
-import { ReversedBadge } from "@/components/receipts/reversed-badge";
+import { PrintReportButton } from "@/modules/reports/ui/print-report-button";
+import { ReversedBadge } from "@/modules/receipts/ui/reversed-badge";
 import { cn } from "@/platform/utils";
 import { DownloadAnchor } from "@/ui/primitives/download-anchor";
 import { Button } from "@/ui/primitives/button";
@@ -20,20 +20,20 @@ import {
   getReportAuditNote,
   getReportsPageData,
   normalizeReportFilters,
-} from "@/lib/reports/data";
+} from "@/modules/reports/data/queries";
 import {
   reportDefinitions,
   reportKeys,
   type ReportData,
   type ReportFilters,
   type ReportKey,
-} from "@/lib/reports/types";
+} from "@/modules/reports/domain/types";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatDateTimeIst, formatShortDate } from "@/platform/helpers/date";
-import { isCarryForwardInstallment } from "@/lib/prev-year-dues/display";
-import { getFeePolicySummary } from "@/lib/fees/data";
+import { isCarryForwardInstallment } from "@/modules/prev-year-dues/domain/display";
+import { getFeePolicySummary } from "@/modules/fees/domain/queries";
 import { getOfficeWorkflowReadiness } from "@/platform/readiness";
-import { getSetupWizardDataLight } from "@/lib/setup/data";
+import { getSetupWizardDataLight } from "@/modules/fees/data/setup-queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 type ReportsPageProps = {

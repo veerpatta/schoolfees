@@ -2,8 +2,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { StudentFamilyPanel } from "@/components/students/family-panel";
-import type { StudentFamilyMemberDetail } from "@/lib/students/data";
+import { StudentFamilyPanel } from "@/modules/students/ui/family-panel";
+import type { StudentFamilyMemberDetail } from "@/modules/students/data/queries";
 
 const familyGroupId = "11111111-1111-4111-8111-111111111111";
 const selfStudentId = "22222222-2222-4222-8222-222222222222";

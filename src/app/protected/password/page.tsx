@@ -1,10 +1,10 @@
 import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
-import { PasswordChangeForm } from "@/components/staff/password-change-form";
+import { PasswordChangeForm } from "@/modules/staff/ui/password-change-form";
 import {
   changeOwnPasswordAction,
 } from "@/app/protected/password/actions";
-import { INITIAL_STAFF_FORM_ACTION_STATE } from "@/lib/staff-management/data";
+import { INITIAL_STAFF_FORM_ACTION_STATE } from "@/modules/staff/data/queries";
 import { requireAuthenticatedStaff } from "@/platform/supabase/session";
 
 export default async function PasswordPage() {

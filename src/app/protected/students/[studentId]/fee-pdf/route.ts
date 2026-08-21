@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { isUuid } from "@/platform/helpers/uuid";
-import { getStudentWorkspaceData } from "@/lib/students/workspace";
+import { getStudentWorkspaceData } from "@/modules/students/data/workspace";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 export const runtime = "nodejs";
@@ -26,7 +26,7 @@ export async function GET(
     // Dynamic import so any module-init failure surfaces here (caught below)
     // instead of crashing the function at load time with an opaque 500.
     const { renderFeeStatementPdf, toFeePdfStudent } = await import(
-      "@/lib/students/fee-statement-pdf"
+      "@/modules/students/domain/fee-statement-pdf"
     );
     const pdfStudent = toFeePdfStudent(workspace);
 

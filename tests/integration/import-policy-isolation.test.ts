@@ -4,7 +4,7 @@ import {
   buildAutoColumnMapping,
   getStudentImportColumnMapping,
   studentImportFieldDefinitions,
-} from "@/lib/import/mapping";
+} from "@/modules/imports/domain/mapping";
 
 describe("import isolation from Conventional Discount fields (audit 1.2)", () => {
   it("does not list conventional policy fields in the import field definitions", () => {

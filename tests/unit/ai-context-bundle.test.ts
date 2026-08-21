@@ -3,8 +3,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { STUDENT_SEGMENTS } from "@/lib/segments/student-segments";
-import { buildTransportRouteLabel, hasTransport } from "@/lib/transport/label";
+import { STUDENT_SEGMENTS } from "@/modules/students/domain/student-segments";
+import { buildTransportRouteLabel, hasTransport } from "@/modules/fees/domain/label";
 
 /**
  * The AI context bundle is the one export whose job is to be COMPLETE — it is

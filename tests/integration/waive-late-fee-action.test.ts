@@ -38,16 +38,16 @@ vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/activity/events", () => ({
+vi.mock("@/modules/activity/data/events", () => ({
   recordActivity,
 }));
 
-vi.mock("@/lib/system-sync/finance-revalidation", () => ({
+vi.mock("@/modules/system-sync/domain/finance-revalidation", () => ({
   revalidateAfterPaymentPosting,
   revalidateSessionFinance,
 }));
 
-vi.mock("@/lib/system-sync/financial-view-refresh", () => ({
+vi.mock("@/modules/system-sync/data/financial-view-refresh", () => ({
   drainFinancialViewRefresh,
 }));
 

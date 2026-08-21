@@ -113,8 +113,8 @@ describe("mobile UX roadmap implementation", () => {
   });
 
   it("keeps touch-sized mobile payment controls and the requested success haptic pattern", () => {
-    const paymentDesk = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
-    const mobileSheet = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const paymentDesk = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
     expect(paymentDesk).toContain(`triggerHaptic("success")`);
     // Touch-sized controls in the Ledger Calm composer: the mode segmented row
@@ -144,8 +144,8 @@ describe("mobile UX roadmap implementation", () => {
     // card moved onto the Overview board when the phone gained the board
     // switcher, so "expected this year" is asserted against that file — the
     // figure still has to be on a phone, just not on the home screen.
-    const mobileHome = readRepoFile("src/components/dashboard/mobile-dashboard-screen.tsx");
-    const mobileBoards = readRepoFile("src/components/dashboard/mobile-boards.tsx");
+    const mobileHome = readRepoFile("src/modules/dashboard/ui/mobile-dashboard-screen.tsx");
+    const mobileBoards = readRepoFile("src/modules/dashboard/ui/mobile-boards.tsx");
     expect(mobileBoards).toContain('t("expectedThisYear")');
     expect(mobileHome).toContain('t("oldBalance")');
     expect(mobileHome).toContain('t("collectCta")');
@@ -164,8 +164,8 @@ describe("mobile UX roadmap implementation", () => {
 
   it("adds mobile WhatsApp follow-up and collapsible filters to Defaulters", () => {
     const defaulters = readRepoFile("src/app/protected/defaulters/page.tsx");
-    const filters = readRepoFile("src/components/defaulters/defaulter-filters.tsx");
-    const workspace = readRepoFile("src/components/defaulters/defaulters-workspace.tsx");
+    const filters = readRepoFile("src/modules/defaulters/ui/defaulter-filters.tsx");
+    const workspace = readRepoFile("src/modules/defaulters/ui/defaulters-workspace.tsx");
     const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Defaulters: Record<string, string>;
     };

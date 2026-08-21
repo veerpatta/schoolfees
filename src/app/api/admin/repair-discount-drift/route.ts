@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 import {
   generateSessionLedgersAction,
   previewLedgerGenerationDetailed,
-} from "@/lib/fees/generator";
+} from "@/modules/fees/data/generator";
 import { createAdminClient } from "@/platform/supabase/admin";
-import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+import { revalidateSessionFinance } from "@/modules/system-sync/domain/finance-revalidation";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 
 /**
  * Repair students whose fee ledger disagrees with their resolved fee policy.

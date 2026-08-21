@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   looksLikeReceiptQuery,
   normalizePaymentDeskQuery,
-} from "@/lib/payments/search";
+} from "@/modules/payments/domain/search";
 
 describe("payment desk search helpers", () => {
   it("normalizes free-text search for desk lookup", () => {

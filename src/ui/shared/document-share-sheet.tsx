@@ -8,9 +8,9 @@ import { AlertTriangle, Download, Loader2, MessageCircle, Share2 } from "lucide-
 import { Button } from "@/ui/primitives/button";
 import { Sheet } from "@/ui/primitives/sheet";
 import { toast } from "@/ui/primitives/toast";
-import type { PhoneEntry } from "@/components/students/phone-entries";
+import type { PhoneEntry } from "@/modules/students/ui/phone-entries";
 import { selectShareStrategy, toShareData } from "@/platform/helpers/web-share";
-import { buildWaMeLink } from "@/lib/whatsapp-templates/render";
+import { buildWaMeLink } from "@/modules/whatsapp/domain/render";
 import { cn } from "@/platform/utils";
 
 /**
@@ -36,7 +36,7 @@ import { cn } from "@/platform/utils";
  */
 const PhoneActionMenu = dynamic(
   () =>
-    import("@/components/students/phone-chooser").then((mod) => mod.PhoneActionMenu),
+    import("@/modules/students/ui/phone-chooser").then((mod) => mod.PhoneActionMenu),
   { ssr: false },
 );
 

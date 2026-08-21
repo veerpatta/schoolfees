@@ -10,7 +10,7 @@ function readRepoFile(path: string) {
 }
 
 describe("transactions bulk-print confirmation", () => {
-  const source = readRepoFile("src/components/transactions/transactions-client-shell.tsx");
+  const source = readRepoFile("src/modules/transactions/ui/transactions-client-shell.tsx");
 
   it("uses the inverted guard so OK opens all and Cancel aborts (audit 1.1)", () => {
     // Before the fix the code read:

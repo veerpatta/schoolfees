@@ -9,7 +9,7 @@ function readRepoFile(path: string) {
 
 describe("office performance guardrails", () => {
   it("keeps dashboard overdue counts on the already-loaded installment rows", () => {
-    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const dashboardData = readRepoFile("src/modules/dashboard/data/queries.ts");
 
     expect(dashboardData).not.toContain("overdue workbook installments");
     expect(dashboardData).not.toContain('"active students"');
@@ -21,7 +21,7 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps dashboard health checks scoped to the dashboard path", () => {
-    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const dashboardData = readRepoFile("src/modules/dashboard/data/queries.ts");
     const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
 
     expect(dashboardData).toContain("getDashboardSyncHealth(sessionLabel)");
@@ -41,10 +41,10 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps interactive Transactions limited while allowing full exports", () => {
-    const officeDues = readRepoFile("src/lib/transactions/dues.ts");
+    const officeDues = readRepoFile("src/modules/transactions/data/dues.ts");
     const exportRoute = readRepoFile("src/app/protected/transactions/export/route.ts");
-    const workbookData = readRepoFile("src/lib/workbook/data.ts");
-    const transactionsShell = readRepoFile("src/components/transactions/transactions-client-shell.tsx");
+    const workbookData = readRepoFile("src/modules/fees/data/queries.ts");
+    const transactionsShell = readRepoFile("src/modules/transactions/ui/transactions-client-shell.tsx");
 
     expect(officeDues).toContain("exportAll?: boolean");
     expect(officeDues).toContain("const OFFICE_WORKBOOK_PAGE_SIZE = 100");
@@ -92,10 +92,10 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Defaulters bounded: session-scoped fetch, single pass, short call queue render", () => {
-    const defaultersData = readRepoFile("src/lib/defaulters/data.ts");
-    const defaultersTypes = readRepoFile("src/lib/defaulters/types.ts");
+    const defaultersData = readRepoFile("src/modules/defaulters/data/queries.ts");
+    const defaultersTypes = readRepoFile("src/modules/defaulters/domain/types.ts");
     const defaultersPage = readRepoFile("src/app/protected/defaulters/page.tsx");
-    const defaultersWorkspace = readRepoFile("src/components/defaulters/defaulters-workspace.tsx");
+    const defaultersWorkspace = readRepoFile("src/modules/defaulters/ui/defaulters-workspace.tsx");
 
     // Pagination metadata type is retained (drives the listed-count badge).
     expect(defaultersTypes).toContain("export type DefaultersPagination");
@@ -115,7 +115,7 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Defaulters reads free of blocking writes and duplicated payload", () => {
-    const defaultersData = readRepoFile("src/lib/defaulters/data.ts");
+    const defaultersData = readRepoFile("src/modules/defaulters/data/queries.ts");
     const defaultersActions = readRepoFile("src/app/protected/defaulters/actions.ts");
     const defaultersPage = readRepoFile("src/app/protected/defaulters/page.tsx");
 
@@ -153,9 +153,9 @@ describe("office performance guardrails", () => {
   });
 
   it("scopes workbook reads to the active office session and visible receipts", () => {
-    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
-    const officeData = readRepoFile("src/lib/office/data.ts");
-    const workbookData = readRepoFile("src/lib/workbook/data.ts");
+    const dashboardData = readRepoFile("src/modules/dashboard/data/queries.ts");
+    const officeData = readRepoFile("src/modules/fees/data/office-home.ts");
+    const workbookData = readRepoFile("src/modules/fees/data/queries.ts");
 
     expect(dashboardData).toContain(
       "getWorkbookStudentFinancials({ sessionLabel, activeOnly: true })",
@@ -209,10 +209,10 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Payment Desk dues loading scoped to the selected student", () => {
-    const paymentsData = readRepoFile("src/lib/payments/data.ts");
+    const paymentsData = readRepoFile("src/modules/payments/data/queries.ts");
     const paymentsPage = readRepoFile("src/app/protected/payments/page.tsx");
-    const paymentClient = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
-    const mobileSheet = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const paymentClient = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
     expect(paymentsData).toContain("getPaymentDeskStudentIndex(payload:");
     expect(paymentsData).toContain("getPaymentDeskStudentIndex({ sessionLabel })");
@@ -239,12 +239,12 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Tier 1 performance quick wins in place", () => {
-    const revalidation = readRepoFile("src/lib/system-sync/finance-revalidation.ts");
-    const parser = readRepoFile("src/lib/import/parser.ts");
-    const templates = readRepoFile("src/lib/import/templates.ts");
-    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const revalidation = readRepoFile("src/modules/system-sync/domain/finance-revalidation.ts");
+    const parser = readRepoFile("src/modules/imports/domain/parser.ts");
+    const templates = readRepoFile("src/modules/imports/domain/templates.ts");
+    const dashboardData = readRepoFile("src/modules/dashboard/data/queries.ts");
     const sidebarNav = readRepoFile("src/ui/shell/sidebar-nav.tsx");
-    const paymentsData = readRepoFile("src/lib/payments/data.ts");
+    const paymentsData = readRepoFile("src/modules/payments/data/queries.ts");
 
     expect(revalidation).toContain("const PAYMENT_AFFECTED_PATHS = [");
     expect(revalidation).toContain("const FULL_FINANCE_PATHS = [");
@@ -297,13 +297,13 @@ describe("office performance guardrails", () => {
   });
 
   it("keeps Tier 2 architecture wins in place", () => {
-    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const dashboardData = readRepoFile("src/modules/dashboard/data/queries.ts");
     const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
-    const dashboardPrefetcher = readRepoFile("src/components/dashboard/dashboard-prefetcher.tsx");
-    const transactionsShell = readRepoFile("src/components/transactions/transactions-client-shell.tsx");
-    const transactionsLazyTables = readRepoFile("src/components/transactions/transactions-lazy-tables.tsx");
-    const paymentClient = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
-    const feePolicy = readRepoFile("src/lib/fees/policy.ts");
+    const dashboardPrefetcher = readRepoFile("src/modules/dashboard/ui/dashboard-prefetcher.tsx");
+    const transactionsShell = readRepoFile("src/modules/transactions/ui/transactions-client-shell.tsx");
+    const transactionsLazyTables = readRepoFile("src/modules/transactions/ui/transactions-lazy-tables.tsx");
+    const paymentClient = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
+    const feePolicy = readRepoFile("src/modules/fees/data/policy.ts");
     const staffSession = readRepoFile("src/platform/supabase/session.ts");
 
     expect(dashboardData).toContain('supabase.rpc("get_dashboard_summary"');
@@ -399,9 +399,9 @@ describe("office performance guardrails", () => {
 
   it("keeps payment posting revalidation focused", () => {
     const paymentActions = readRepoFile("src/app/protected/payments/actions.ts");
-    const revalidation = readRepoFile("src/lib/system-sync/finance-revalidation.ts");
-    const syncFacade = readRepoFile("src/lib/system-sync/finance-sync.ts");
-    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const revalidation = readRepoFile("src/modules/system-sync/domain/finance-revalidation.ts");
+    const syncFacade = readRepoFile("src/modules/system-sync/domain/finance-sync.ts");
+    const dashboardData = readRepoFile("src/modules/dashboard/data/queries.ts");
 
     expect(paymentActions).toContain("revalidateSessionFinance(");
     expect(paymentActions).not.toContain("revalidateCoreFinancePaths([studentId])");

@@ -20,7 +20,7 @@ describe("mobile payment bottom sheet flow", () => {
     // gets the same digit-first layout from the OS.
     expect(existsSync(join(process.cwd(), "src/ui/mobile/money-keypad.tsx"))).toBe(false);
 
-    const source = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const source = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
     expect(source).not.toContain("MoneyKeypad");
     expect(source).not.toContain("applyKeypadPress");
 
@@ -35,7 +35,7 @@ describe("mobile payment bottom sheet flow", () => {
   });
 
   it("keeps payment entry on a compact sheet with native numeric amount entry", () => {
-    const source = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const source = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
     expect(source).toContain('fixed inset-0 z-[45] md:hidden');
     expect(source).toContain('"class-picker" | "student-picker" | "payment-entry" | null');
@@ -63,7 +63,7 @@ describe("mobile payment bottom sheet flow", () => {
   });
 
   it("surfaces mobile cashier shortcuts on the Ledger Calm 2.0 composer", () => {
-    const source = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const source = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
     expect(source).toContain("getStudentPendingAmount");
     expect(source).toContain("getClassStats");
@@ -84,7 +84,7 @@ describe("mobile payment bottom sheet flow", () => {
   });
 
   it("keeps swipe-down navigation on the handles only", () => {
-    const source = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const source = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
     expect(source).toContain("function useSwipeDown");
     expect(source).toContain("const classPickerSwipe = useSwipeDown(onClose)");
@@ -95,7 +95,7 @@ describe("mobile payment bottom sheet flow", () => {
   });
 
   it("does not autofocus the mobile student search input when the list opens", () => {
-    const source = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const source = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
     expect(source).toContain("studentSearchInputRef");
     expect(source).not.toContain("autoFocus");
@@ -103,7 +103,7 @@ describe("mobile payment bottom sheet flow", () => {
   });
 
   it("replaces the old mobile-only in-flow sections in Payment Desk", () => {
-    const source = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
+    const source = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
 
     expect(source).toContain("<MobilePaymentFlowSheet");
     expect(source).toContain("mobileSheetView");
@@ -117,7 +117,7 @@ describe("mobile payment bottom sheet flow", () => {
   });
 
   it("keeps the desktop payment form hidden on mobile while preserving hidden submission fields", () => {
-    const source = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
+    const source = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
 
     expect(source).toContain('title="3. Fast Payment"');
     expect(source).toContain('className="hidden md:block"');

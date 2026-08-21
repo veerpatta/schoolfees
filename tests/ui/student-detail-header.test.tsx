@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
-import { StudentDetailHeader } from "@/components/students/student-detail-header";
+import { StudentDetailHeader } from "@/modules/students/ui/student-detail-header";
 
 // The avatar became a photo-edit control, which is translated. The app supplies
 // this context from the root layout; a bare renderToStaticMarkup does not.

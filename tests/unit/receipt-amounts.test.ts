@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildReceiptAdjustmentTotals } from "@/lib/receipts/amounts";
+import { buildReceiptAdjustmentTotals } from "@/modules/receipts/domain/amounts";
 
 describe("receipt display adjustment totals", () => {
   it("keeps the waived late fee visible when the current financial late fee is zero", () => {

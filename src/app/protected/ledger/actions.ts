@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
-import { addPaymentAdjustment } from "@/lib/ledger/data";
-import type { LedgerAdjustmentActionState } from "@/lib/ledger/types";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+import { addPaymentAdjustment } from "@/modules/reports/data/ledger-queries";
+import type { LedgerAdjustmentActionState } from "@/modules/reports/domain/ledger-types";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {

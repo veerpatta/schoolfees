@@ -79,7 +79,7 @@ describe("payment desk survives a route re-render", () => {
     // The trigger. Covered in behavioural terms by
     // tests/ui/interaction/payment-restart.test.tsx; asserted here too because
     // the two halves only make sense together.
-    const desk = read("src/components/payments/payment-desk-mobile.tsx")
+    const desk = read("src/modules/payments/ui/payment-desk-mobile.tsx")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
 

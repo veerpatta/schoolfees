@@ -2,7 +2,7 @@
 
 import { after } from "next/server";
 
-import { recordActivity } from "@/lib/activity/events";
+import { recordActivity } from "@/modules/activity/data/events";
 import {
   matchesDeleteConfirmation,
   type StudentDangerActionState,
@@ -19,29 +19,29 @@ import {
   updateStudentInfo,
   updateStudentPhoto,
   deleteStudentPhotoObject,
-} from "@/lib/students/data";
+} from "@/modules/students/data/queries";
 import type { StudentPhotoActionState } from "@/app/protected/students/student-photo-action-state";
 import {
   getStudentInfoInput,
   getSubmittedStudentInfoFields,
   isDuplicateAadhaarError,
   validateStudentInfoInput,
-} from "@/lib/students/info-fields";
-import type { StudentInfoFields } from "@/lib/students/info-fields";
+} from "@/modules/students/domain/info-fields";
+import type { StudentInfoFields } from "@/modules/students/domain/info-fields";
 import type { StudentInfoActionState } from "@/app/protected/students/student-info-action-state";
 import type { StudentStatus } from "@/platform/db/types";
 import { parseAcademicSessionLabel } from "@/platform/config/fee-rules";
 import { formatInr } from "@/platform/helpers/currency";
-import { applyThirdChildPolicyForStudentFamilies } from "@/lib/fees/conventional-discounts";
+import { applyThirdChildPolicyForStudentFamilies } from "@/modules/fees/data/conventional-discounts";
 import {
   type StudentFormInput,
   type StudentFormActionState,
-} from "@/lib/students/types";
+} from "@/modules/students/domain/types";
 import {
   isDuesSyncRelevantStatus,
   shouldSyncStudentDuesForChange,
-} from "@/lib/students/dues-sync";
-import { getStudentFormInput, validateStudentInput } from "@/lib/students/validation";
+} from "@/modules/students/domain/dues-sync";
+import { getStudentFormInput, validateStudentInput } from "@/modules/students/domain/validation";
 import { createClient } from "@/platform/supabase/server";
 import {
   hasStaffPermission,
@@ -51,15 +51,15 @@ import {
 import {
   prepareDuesForStudentsAutomatically,
   revalidateFinanceSurfaces,
-} from "@/lib/system-sync/finance-sync";
+} from "@/modules/system-sync/domain/finance-sync";
 import {
   buildFailedOfficeSyncOutcome,
   buildOfficeSyncOutcomeFromDuesResult,
   buildSyncedOfficeSyncOutcome,
   type OfficeSyncOutcome,
-} from "@/lib/system-sync/office-sync";
-import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+} from "@/modules/system-sync/domain/office-sync";
+import { publishOfficeSyncEvent } from "@/modules/system-sync/data/office-sync-events";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 
 const DUPLICATE_AADHAAR_MESSAGE =
   "This Aadhaar number is already recorded against another student. Check the number, or open that student's record.";

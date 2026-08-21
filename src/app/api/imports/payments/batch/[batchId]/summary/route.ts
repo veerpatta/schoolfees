@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getPaymentImportBatchSummary } from "@/lib/payments/bulk/data";
+import { getPaymentImportBatchSummary } from "@/modules/payments/data/bulk/data";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 
 type RouteContext = {

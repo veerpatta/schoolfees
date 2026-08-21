@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { parseAcademicSessionLabel } from "@/platform/config/fee-rules";
-import { alignWorkingSessionWithFeeSetup, revalidateFinanceSurfaces } from "@/lib/system-sync/finance-sync";
+import { alignWorkingSessionWithFeeSetup, revalidateFinanceSurfaces } from "@/modules/system-sync/domain/finance-sync";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 function parseSessionLabel(value: FormDataEntryValue | null) {

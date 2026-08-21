@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { EMPTY_STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+import { EMPTY_STUDENT_INFO_FIELDS } from "@/modules/students/domain/info-fields";
 
 const insertPayloads: Array<Array<Record<string, unknown>>> = [];
 const updateCalls: Array<{
@@ -53,7 +53,7 @@ beforeEach(() => {
 
 describe("import row persistence", () => {
   it("inserts raw rows with batch_id, row_index, and raw_payload", async () => {
-    const { insertRawImportRows } = await import("@/lib/import/data");
+    const { insertRawImportRows } = await import("@/modules/imports/data/queries");
 
     await insertRawImportRows("batch-1", "add", [
       {
@@ -82,7 +82,7 @@ describe("import row persistence", () => {
   }, 15000);
 
   it("updates validation rows only within the batch", async () => {
-    const { updateImportRowsForBatch } = await import("@/lib/import/data");
+    const { updateImportRowsForBatch } = await import("@/modules/imports/data/queries");
 
     await updateImportRowsForBatch("batch-1", [
       {

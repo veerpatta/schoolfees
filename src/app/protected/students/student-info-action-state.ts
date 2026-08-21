@@ -3,7 +3,7 @@
 // export async functions, so non-function exports (these constants) must live
 // in a plain module that both the server action and the client sheet import.
 
-import type { StudentInfoErrors } from "@/lib/students/info-fields";
+import type { StudentInfoErrors } from "@/modules/students/domain/info-fields";
 
 export type StudentInfoActionState = {
   status: "idle" | "success" | "error";

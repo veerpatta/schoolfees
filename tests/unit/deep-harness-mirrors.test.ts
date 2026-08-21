@@ -4,8 +4,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { rolePermissions, staffRoles } from "@/platform/auth/roles";
-import { STUDENT_SEGMENTS } from "@/lib/segments/student-segments";
-import { officeWorkbookViews } from "@/lib/transactions/workbook";
+import { STUDENT_SEGMENTS } from "@/modules/students/domain/student-segments";
+import { officeWorkbookViews } from "@/modules/transactions/domain/workbook";
 
 /**
  * The deep harness keeps second copies on purpose. This is what stops them
@@ -78,11 +78,11 @@ describe("deep harness: surface enumerations", () => {
   it("lists the dashboard boards the analytics module actually declares", async () => {
     const { DASHBOARD_VIEW_VALUES } = await import("../deep/surface/params");
 
-    // `src/lib/dashboard/analytics.ts` opens with `import "server-only"`, which
+    // `src/modules/dashboard/data/analytics.ts` opens with `import "server-only"`, which
     // throws in any Node process outside the React Server build — so the
     // harness cannot import it and writes the five values out instead. This
     // reads them back out of the source so the copy cannot drift.
-    const source = read("src/lib/dashboard/analytics.ts");
+    const source = read("src/modules/dashboard/data/analytics.ts");
     const declared = source
       .match(/export const DASHBOARD_VIEWS = \[([\s\S]*?)\]/)?.[1]
       ?.match(/"([a-z]+)"/g)

@@ -188,7 +188,7 @@ describe("receipt session display", () => {
       }),
     });
 
-    const { getReceiptDetail } = await import("@/lib/receipts/data");
+    const { getReceiptDetail } = await import("@/modules/receipts/data/queries");
     const receipt = await getReceiptDetail("receipt-1");
 
     expect(receipt?.sessionLabel).toBe("2025-26");

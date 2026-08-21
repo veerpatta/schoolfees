@@ -5,10 +5,10 @@ import { revalidatePath } from "next/cache";
 import {
   applyLedgerRegenerationBatch,
   createLedgerRegenerationPreview,
-} from "@/lib/fees/regeneration";
-import type { LedgerRegenerationActionState } from "@/lib/fees/types";
+} from "@/modules/fees/data/regeneration";
+import type { LedgerRegenerationActionState } from "@/modules/fees/domain/types";
 import { requireStaffPermission } from "@/platform/supabase/session";
-import { revalidateCoreFinancePaths } from "@/lib/system-sync/finance-sync";
+import { revalidateCoreFinancePaths } from "@/modules/system-sync/domain/finance-sync";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
   const normalized = (value ?? "").toString().trim();

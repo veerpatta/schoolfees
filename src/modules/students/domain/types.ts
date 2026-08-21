@@ -1,0 +1,301 @@
+import type { RepaymentPlanPaymentStatus } from "@/modules/repayment-plans/domain/types";
+import type { SegmentId } from "@/modules/students/domain/student-segments";
+import type { StudentStatus } from "@/platform/db/types";
+import type {
+  StudentInfoFields,
+  StudentInfoFormInput,
+} from "@/modules/students/domain/info-fields";
+import type { OfficeSyncOutcome } from "@/modules/system-sync/domain/office-sync";
+
+export type StudentClassOption = {
+  id: string;
+  label: string;
+  sessionLabel: string;
+};
+
+export type StudentRouteOption = {
+  id: string;
+  label: string;
+  routeCode: string | null;
+  isActive: boolean;
+};
+
+/**
+ * How the roll is ordered.
+ *
+ * Both options sort in SQL, across every matching student, not just the page in
+ * hand. There is deliberately no "dues high to low": the list query runs
+ * against `public.students` and dues are enriched after paging, so a dues sort
+ * could only ever reorder the forty rows already loaded — a control that looks
+ * like a ranking and is not. That ranking exists, correctly, as the Overdue
+ * saved view and the Defaulters screen.
+ */
+export type StudentListSort = "name" | "class";
+
+export type StudentListFilters = {
+  query: string;
+  sessionLabel: string;
+  classId: string;
+  transportRouteId: string;
+  status: "" | StudentStatus;
+  /** Segment chips: money / enrolment / data-quality / fee-profile facets. */
+  segments: SegmentId[];
+  sort: StudentListSort;
+};
+
+export type StudentSessionOption = {
+  value: string;
+  label: string;
+};
+
+export type StudentListItem = {
+  id: string;
+  workbookStudentKey: string;
+  admissionNo: string;
+  fullName: string;
+  dateOfBirth: string | null;
+  status: StudentStatus;
+  studentStatusLabel: "New" | "Old";
+  classLabel: string;
+  transportRouteLabel: string;
+  tuitionFee: number;
+  transportFee: number;
+  academicFee: number;
+  grossBaseBeforeDiscount: number;
+  discountAmount: number;
+  baseTotalDue: number;
+  installment1Base: number;
+  installment2Base: number;
+  installment3Base: number;
+  installment4Base: number;
+  totalPaid: number;
+  /** Balance cleared by a discount-mode write-off. Not cash — see lib/money/glossary.ts. */
+  discountClosedAmount: number;
+  lateFeeTotal: number;
+  totalDue: number;
+  overdueAmount: number;
+  pendingLateFeeAmount: number;
+  hasLateFeeWaiver: boolean;
+  /**
+   * Set when the student is on an ACTIVE monthly EMI plan. Present so the list
+   * can label them: without it the office sees a family months past their
+   * installment dates and no reason why nobody is chasing them.
+   */
+  emiPlan?: StudentEmiPlanBadge | null;
+  hasFeeProfile: boolean;
+  feeProfileStatusLabel: string;
+  fatherPhone: string | null;
+  motherPhone: string | null;
+  nextDueLabel: string | null;
+  nextDueDate: string | null;
+  nextDueAmount: number | null;
+  statusLabel: "" | "PAID" | "NOT STARTED" | "OVERDUE" | "PARTLY PAID";
+  duesStatus: "generated" | "missing_dues" | "needs_repair" | "session_mismatch" | "class_fee_missing";
+  duesStatusLabel: string;
+  lastPaymentDate: string | null;
+  lastPaymentAmount: number;
+  duplicateSrFlag: boolean;
+  missingDobFlag: boolean;
+  missingClassFlag: boolean;
+  missingStatusFlag: boolean;
+  outstandingAmount: number;
+  conventionalDiscountLabels: string[];
+  siblingPill?: StudentSiblingPill | null;
+  updatedAt: string;
+  photoPath?: string | null;
+  /** True during the identity-first response before fee enrichment arrives. */
+  financialLoading?: boolean;
+};
+
+/** Just enough of an EMI plan to label a row without loading the whole plan. */
+export type StudentEmiPlanBadge = {
+  paymentStatus: RepaymentPlanPaymentStatus;
+  monthlyAmount: number;
+  remainingBalance: number;
+  catchUpAmount: number;
+  nextDueDate: string | null;
+  missedInstallmentCount: number;
+  planReviewNeeded: boolean;
+};
+
+/** Always a confirmed family — there is no detected/suspected variety any more. */
+export type StudentSiblingPill = {
+  siblingCount: number;
+  href: string;
+};
+
+/**
+ * The student record as the detail page reads it.
+ *
+ * The 25 optional information fields (Aadhaar, house, district, guardian, …)
+ * are intersected in from `StudentInfoFields` rather than listed here, so their
+ * names are declared exactly once — see `lib/students/info-fields.ts`.
+ */
+export type StudentDetail = StudentInfoFields & {
+  id: string;
+  admissionNo: string;
+  fullName: string;
+  dateOfBirth: string | null;
+  /** Admission date. The column has always existed; nothing read it until now. */
+  joinedOn: string | null;
+  email: string | null;
+  fatherName: string | null;
+  motherName: string | null;
+  fatherPhone: string | null;
+  motherPhone: string | null;
+  address: string | null;
+  classId: string;
+  classLabel: string;
+  classSessionLabel: string;
+  transportRouteId: string | null;
+  transportRouteLabel: string;
+  status: StudentStatus;
+  studentTypeOverride: "new" | "existing" | null;
+  studentStatusLabel: "New" | "Old";
+  tuitionOverride: number | null;
+  transportOverride: number | null;
+  discountAmount: number;
+  /** Effective waiver total from public.student_late_fee_waivers. Read-only. */
+  lateFeeWaiverAmount: number;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
+  overrideReason: string | null;
+  overrideNotes: string | null;
+  conventionalDiscountPolicyIds: string[];
+  conventionalDiscountLabels: string[];
+  conventionalDiscountReason: string | null;
+  conventionalDiscountNotes: string | null;
+  conventionalDiscountFamilyGroupLabel: string | null;
+  conventionalDiscountManualOverrideReason: string | null;
+  tuitionBeforeConventionalDiscount: number;
+  tuitionAfterConventionalDiscount: number;
+  notes: string | null;
+  photoPath: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+  export type StudentDeletionSafety = {
+  studentId: string;
+  hasFinancialHistory: boolean;
+  hardDeleteAllowed: boolean;
+  generatedDuesDeleteAllowed: boolean;
+  canForceDeleteTestRecord: boolean;
+  installmentCount: number;
+  receiptCount: number;
+  paymentCount: number;
+  adjustmentCount: number;
+  refundRequestCount: number;
+  blockedInstallmentCount: number;
+  ledgerRegenerationRowCount: number;
+  importReferenceCount: number;
+  feeOverrideCount: number;
+    auditLogCount: number;
+  /** Blocks hard delete — posted receipt corrections. */
+  receiptAdjustmentCount: number;
+  /** Blocks hard delete — posted receipt finance corrections. */
+  receiptFinanceAdjustmentCount: number;
+  /** Cleaned up by hardDeleteStudent; restricting FK, not posted money. */
+  carryForwardBalanceCount: number;
+  /** Cleaned up by hardDeleteStudent; restricting FK, not posted money. */
+  sessionReanchorLogCount: number;
+  /** Unlinked (student_id set to null) by hardDeleteStudent. */
+  paymentImportRowCount: number;
+    hardDeleteBlockers: string[];
+    sessionLabel: string;
+  admissionNo: string;
+  fullName: string;
+};
+
+export type StudentFormInput = StudentInfoFormInput & {
+  fullName: string;
+  classId: string;
+  admissionNo: string;
+  dateOfBirth: string;
+  fatherName: string;
+  motherName: string;
+  fatherPhone: string;
+  motherPhone: string;
+  address: string;
+  transportRouteId: string;
+  status: string;
+  studentTypeOverride: string;
+  tuitionOverride: string;
+  transportOverride: string;
+  discountAmount: string;
+  otherAdjustmentHead: string;
+  otherAdjustmentAmount: string;
+  feeProfileReason: string;
+  feeProfileNotes: string;
+  conventionalPolicyIds: string[];
+  conventionalDiscountReason: string;
+  conventionalDiscountNotes: string;
+  conventionalDiscountFamilyGroup: string;
+  conventionalDiscountManualOverrideReason: string;
+  notes: string;
+  photoPath: string;
+};
+
+export type StudentValidatedInput = StudentInfoFields & {
+  fullName: string;
+  classId: string;
+  admissionNo: string;
+  dateOfBirth: string | null;
+  fatherName: string | null;
+  motherName: string | null;
+  fatherPhone: string | null;
+  motherPhone: string | null;
+  address: string | null;
+  transportRouteId: string | null;
+  status: StudentStatus;
+  studentTypeOverride: "new" | "existing" | null;
+  tuitionOverride: number | null;
+  transportOverride: number | null;
+  discountAmount: number;
+  otherAdjustmentHead: string | null;
+  otherAdjustmentAmount: number | null;
+  feeProfileReason: string;
+  feeProfileNotes: string | null;
+  conventionalPolicyIds: string[];
+  conventionalDiscountReason: string;
+  conventionalDiscountNotes: string | null;
+  conventionalDiscountFamilyGroup: string | null;
+  conventionalDiscountManualOverrideReason: string | null;
+  notes: string | null;
+  photoPath: string | null;
+};
+
+export type StudentFormFieldErrors = Partial<Record<keyof StudentFormInput, string>>;
+
+export type StudentFormActionState = {
+  /**
+   * "warning" means the record saved but part of the work was skipped — a
+   * discount that could not be applied to an already-paid installment, say.
+   * Reporting that as plain "success" is how a Rs 2,000 discount sat unapplied
+   * for two months (SR 2261).
+   */
+  status: "idle" | "error" | "success" | "warning";
+  message: string | null;
+  fieldErrors: StudentFormFieldErrors;
+  studentId: string | null;
+  submittedValues?: StudentFormInput;
+  syncOutcome?: OfficeSyncOutcome | null;
+};
+
+export const INITIAL_STUDENT_FORM_ACTION_STATE: StudentFormActionState = {
+  status: "idle",
+  message: null,
+  fieldErrors: {},
+  studentId: null,
+  syncOutcome: null,
+};
+
+export const EMPTY_STUDENT_FILTERS: StudentListFilters = {
+  query: "",
+  sessionLabel: "",
+  classId: "",
+  transportRouteId: "",
+  status: "",
+  segments: [],
+  sort: "name",
+};

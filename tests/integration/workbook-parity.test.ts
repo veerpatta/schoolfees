@@ -4,7 +4,7 @@ import {
   buildWorkbookStudentKey,
   buildWorkbookStudentMasterCalculation,
   WORKBOOK_CLASS_TUITION_DEFAULTS,
-} from "@/lib/fees/workbook";
+} from "@/modules/fees/domain/workbook";
 
 const dueDates = ["2026-04-20", "2026-07-20", "2026-10-20", "2027-01-20"];
 

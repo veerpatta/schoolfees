@@ -20,7 +20,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  */
 
 describe("day close reads live, not frozen", () => {
-  const client = read("src/components/finance-controls/finance-controls-client.tsx");
+  const client = read("src/modules/finance-controls/ui/finance-controls-client.tsx");
 
   it("takes the recomputed summary in preference to the stored snapshot", () => {
     // The bug in one line: `closure?.summarySnapshot ?? data.summary`.
@@ -42,7 +42,7 @@ describe("day close reads live, not frozen", () => {
 });
 
 describe("the live summary nets reversals before it is shown", () => {
-  const data = read("src/lib/finance-controls/data.ts");
+  const data = read("src/modules/finance-controls/data/queries.ts");
 
   it("filters reversed receipts out of the day's collection", () => {
     expect(data).toContain("isReceiptReversed(payload.reversalTotals");

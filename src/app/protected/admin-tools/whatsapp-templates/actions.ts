@@ -7,9 +7,9 @@ import {
   createWhatsappTemplate,
   deleteWhatsappTemplate,
   updateWhatsappTemplate,
-} from "@/lib/whatsapp-templates/data";
-import { extractPlaceholders } from "@/lib/whatsapp-templates/render";
-import type { WhatsappTemplateCategory } from "@/lib/whatsapp-templates/types";
+} from "@/modules/whatsapp/data/queries";
+import { extractPlaceholders } from "@/modules/whatsapp/domain/render";
+import type { WhatsappTemplateCategory } from "@/modules/whatsapp/domain/types";
 
 export type TemplateActionState = {
   status: "idle" | "success" | "error";

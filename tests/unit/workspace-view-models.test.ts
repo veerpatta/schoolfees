@@ -4,10 +4,10 @@ import {
   buildDefaulterCallProgress,
   getRecoveryQueuePosition,
   getSelectedRecoveryEntry,
-} from "@/lib/defaulters/workspace";
-import type { RecoveryDeskEntry } from "@/lib/defaulters/recovery";
-import { filterStudentWorkspaceRows } from "@/lib/students/list-view-model";
-import type { StudentListItem } from "@/lib/students/types";
+} from "@/modules/defaulters/domain/workspace";
+import type { RecoveryDeskEntry } from "@/modules/defaulters/domain/recovery";
+import { filterStudentWorkspaceRows } from "@/modules/students/domain/list-view-model";
+import type { StudentListItem } from "@/modules/students/domain/types";
 
 const students = [
   {

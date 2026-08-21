@@ -10,14 +10,14 @@
  * difference is the whole difficulty of this check. It closes over *every*
  * import edge, and two kinds of edge do not put code in a bundle:
  *
- *   1. **`import type`.** `src/components/staff/password-change-form.tsx` does
- *      `import type { StaffFormActionState } from "@/lib/staff-management/data"`.
+ *   1. **`import type`.** `src/modules/staff/ui/password-change-form.tsx` does
+ *      `import type { StaffFormActionState } from "@/modules/staff/data/queries"`.
  *      TypeScript erases that. The raw closure follows it, walks into
- *      `src/lib/staff-management/data.ts`, and lands on `createAdminClient()`.
+ *      `src/modules/staff/data/queries.ts`, and lands on `createAdminClient()`.
  *   2. **The `"use server"` boundary.** A client component that imports
  *      `src/app/protected/payments/actions.ts` does not get that module's code; it
  *      gets a server reference that Next.js turns into a POST. Following that
- *      edge drags `src/lib/fees/policy.ts`, `src/lib/students/data.ts` and most of the
+ *      edge drags `src/modules/fees/data/policy.ts`, `src/modules/students/data/queries.ts` and most of the
  *      data layer into the "client" set.
  *
  * Run raw, `scan.service-role-client-reachable` reports nine modules, all of

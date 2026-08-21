@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
  */
 
 describe("reversed installments are classified on the net", () => {
-  const generator = readFileSync(join(process.cwd(), "src/lib/fees/generator.ts"), "utf8");
+  const generator = readFileSync(join(process.cwd(), "src/modules/fees/data/generator.ts"), "utf8");
 
   it("BOTH paid branches require net applied money, not just gross payments", () => {
     // Two classifiers carry the same paid/partial vocabulary: the withdrawal

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { EMPTY_STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+import { EMPTY_STUDENT_INFO_FIELDS } from "@/modules/students/domain/info-fields";
 
 const insertPayloads: Array<Record<string, unknown>> = [];
 const upsertStudentFeeOverride = vi.fn(async () => undefined);
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary: vi.fn(async () => ({ customFeeHeads: [] })),
   getFeeSetupPageData: vi.fn(async () => ({
     globalPolicy: { academicSessionLabel: "2026-27" },
@@ -17,12 +17,12 @@ vi.mock("@/lib/fees/data", () => ({
   upsertStudentFeeOverride,
 }));
 
-vi.mock("@/lib/fees/conventional-discounts", () => ({
+vi.mock("@/modules/fees/data/conventional-discounts", () => ({
   applyThirdChildPolicyForStudentFamilies: vi.fn(async () => []),
   saveStudentConventionalDiscountAssignments: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/lib/master-data/data", () => ({
+vi.mock("@/modules/master-data/data/queries", () => ({
   getMasterDataOptions: vi.fn(async () => ({ classOptions: [], routeOptions: [] })),
 }));
 
@@ -70,7 +70,7 @@ vi.mock("@/platform/supabase/server", () => ({
 
 describe("createStudent", () => {
   it("generates a temporary SR no when admissionNo is blank", async () => {
-    const { createStudent } = await import("@/lib/students/data");
+    const { createStudent } = await import("@/modules/students/data/queries");
 
     const studentId = await createStudent({
       ...EMPTY_STUDENT_INFO_FIELDS,
@@ -114,7 +114,7 @@ describe("createStudent", () => {
   });
 
   it("persists New student status even when it is the only fee-profile value", async () => {
-    const { createStudent } = await import("@/lib/students/data");
+    const { createStudent } = await import("@/modules/students/data/queries");
 
     await createStudent({
       ...EMPTY_STUDENT_INFO_FIELDS,

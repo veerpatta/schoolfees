@@ -7,18 +7,18 @@ import {
   UPDATE_TEMPLATE_SHEET_NAME,
   buildAddStudentsTemplateFile,
   buildUpdateStudentsTemplateFile,
-} from "@/lib/import/templates";
+} from "@/modules/imports/domain/templates";
 import {
   PAYMENT_MODE_OPTIONS,
   buildPaymentImportTemplateFile,
-} from "@/lib/payments/bulk/template";
+} from "@/modules/payments/domain/bulk/template";
 import {
   BULK_UPDATE_SHEET_NAME,
   buildBulkUpdateTemplateWorkbook,
   buildBulkUpdateValidations,
   workbookToBuffer,
-} from "@/lib/students/bulk-update/workbook";
-import { resolveBulkUpdateFields } from "@/lib/students/bulk-update/fields";
+} from "@/modules/students/domain/bulk-update/workbook";
+import { resolveBulkUpdateFields } from "@/modules/students/domain/bulk-update/fields";
 
 const CLASSES = [{ label: "Nursery" }, { label: "JKG" }, { label: "Class 1 - A" }];
 const ROUTES = [{ label: "Sanganer (R1)" }, { label: "Tonk Road (R2)" }];

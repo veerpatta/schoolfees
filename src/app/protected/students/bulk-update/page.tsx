@@ -1,7 +1,7 @@
 import { PageHeader } from "@/ui/shell/page-header";
-import { BulkUpdateWorkspace } from "@/components/students/bulk-update-workspace";
+import { BulkUpdateWorkspace } from "@/modules/students/ui/bulk-update-workspace";
 import { getActiveSessionLabel } from "@/platform/session/active";
-import { getBulkUpdateClassOptions } from "@/lib/students/bulk-update/data";
+import { getBulkUpdateClassOptions } from "@/modules/students/data/bulk-update/data";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 export default async function StudentBulkUpdatePage() {

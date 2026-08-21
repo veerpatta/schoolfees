@@ -24,11 +24,11 @@ function readCode(path: string) {
     .replace(/^\s*\/\/.*$/gm, "");
 }
 
-const WORKSPACE = "src/components/whatsapp-reminders/reminders-workspace.tsx";
-const PANEL = "src/components/whatsapp-reminders/test-send-panel.tsx";
+const WORKSPACE = "src/modules/whatsapp/ui/reminders-workspace.tsx";
+const PANEL = "src/modules/whatsapp/ui/test-send-panel.tsx";
 const PAGE = "src/app/protected/admin-tools/whatsapp-reminders/page.tsx";
 const ACTIONS = "src/app/protected/admin-tools/whatsapp-reminders/actions.ts";
-const TEMPLATE = "src/lib/whatsapp/reminder-template.ts";
+const TEMPLATE = "src/modules/whatsapp/domain/reminder-template.ts";
 
 describe("WhatsApp reminders on a phone", () => {
   it("clears only the safe area, because /protected/admin-tools is a takeover route", () => {

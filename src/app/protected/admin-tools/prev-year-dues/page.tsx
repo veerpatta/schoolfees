@@ -10,7 +10,7 @@ import {
   getPrevYearImportRows,
   listPrevYearImportBatches,
   summarizeBatchRows,
-} from "@/lib/prev-year-dues/data";
+} from "@/modules/prev-year-dues/data/queries";
 import { requireAnyStaffPermission } from "@/platform/supabase/session";
 
 export const revalidate = 0;

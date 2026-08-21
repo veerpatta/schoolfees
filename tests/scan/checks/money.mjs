@@ -346,7 +346,8 @@ const FORMAT_ALLOWLIST = new Set([
 
 /**
  * The half of the tree `scripts/audit-money-formatting.mjs` does NOT walk.
- * That script owns `src/app`, `src/components` and `src/ui`; this sweeps the
+ * That script owns `src/app`, `src/ui` and each module's own `ui` folder;
+ * this sweeps the
  * rest for the same four patterns. Reporting a violation the repo's own CI
  * script reports would mean two failure messages for one line and two places
  * to add the same exception.
@@ -356,7 +357,8 @@ const FORMAT_ALLOWLIST = new Set([
  * gap means nobody looks at all. `modules` is listed ahead of the feature-first
  * split so the domain code stays covered the day it moves there.
  */
-const AUDIT_BLIND_SPOT = /^(?:src\/(?:lib|platform|modules|messages)|workers)\//;
+const AUDIT_BLIND_SPOT =
+  /^(?:src\/(?:platform|messages)\/|workers\/|src\/modules\/[^\/]+\/(?:domain|data)\/)/;
 
 const FORMAT_PATTERNS = [
   {

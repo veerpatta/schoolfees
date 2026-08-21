@@ -5,8 +5,8 @@ import {
   clearCachedPaymentDeskStudentSummary,
   loadCachedPaymentDeskStudentSummary,
   saveCachedPaymentDeskStudentSummary,
-} from "@/lib/payments/payment-desk-summary-cache";
-import type { PaymentDeskStudentSummary } from "@/lib/payments/types";
+} from "@/modules/payments/domain/payment-desk-summary-cache";
+import type { PaymentDeskStudentSummary } from "@/modules/payments/domain/types";
 
 function installLocalStorageMock() {
   const store = new Map<string, string>();

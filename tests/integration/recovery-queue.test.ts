@@ -72,7 +72,7 @@ describe("getRecoveryQueue", () => {
 
   it("returns an empty queue when no student has left owing", async () => {
     seed({ students: [] });
-    const { getRecoveryQueue } = await import("@/lib/recovery/data");
+    const { getRecoveryQueue } = await import("@/modules/recovery/data/queries");
 
     const data = await getRecoveryQueue();
 
@@ -114,7 +114,7 @@ describe("getRecoveryQueue", () => {
         },
       ],
     });
-    const { getRecoveryQueue } = await import("@/lib/recovery/data");
+    const { getRecoveryQueue } = await import("@/modules/recovery/data/queries");
 
     const data = await getRecoveryQueue();
 
@@ -137,7 +137,7 @@ describe("getRecoveryQueue", () => {
       v_workbook_installment_balances: [],
       installments: [],
     });
-    const { getRecoveryQueue } = await import("@/lib/recovery/data");
+    const { getRecoveryQueue } = await import("@/modules/recovery/data/queries");
 
     const data = await getRecoveryQueue();
     expect(data.rows).toEqual([]);
@@ -171,7 +171,7 @@ describe("getRecoveryQueue", () => {
         { id: "inst-2", is_carry_forward: false, source_session_label: null, carry_forward_balance_id: null },
       ],
     });
-    const { getRecoveryQueue } = await import("@/lib/recovery/data");
+    const { getRecoveryQueue } = await import("@/modules/recovery/data/queries");
 
     const data = await getRecoveryQueue({ statuses: ["left"] });
     expect(data.rows).toHaveLength(1);
@@ -205,7 +205,7 @@ describe("getStudentRecoveryDues", () => {
         { id: "inst-1", is_carry_forward: false, source_session_label: null, carry_forward_balance_id: null },
       ],
     });
-    const { getStudentRecoveryDues } = await import("@/lib/recovery/data");
+    const { getStudentRecoveryDues } = await import("@/modules/recovery/data/queries");
 
     const row = await getStudentRecoveryDues("stu-left");
     expect(row?.studentId).toBe("stu-left");
@@ -215,7 +215,7 @@ describe("getStudentRecoveryDues", () => {
   });
 
   it("returns null for a blank id", async () => {
-    const { getStudentRecoveryDues } = await import("@/lib/recovery/data");
+    const { getStudentRecoveryDues } = await import("@/modules/recovery/data/queries");
     expect(await getStudentRecoveryDues("   ")).toBeNull();
   });
 });

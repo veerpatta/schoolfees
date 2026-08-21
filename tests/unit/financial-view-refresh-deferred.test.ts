@@ -40,7 +40,7 @@ describe("financial view refresh stays off the posting path", () => {
   });
 
   it("drains after the response, not inside the request", () => {
-    const helper = read("src/lib/system-sync/financial-view-refresh.ts");
+    const helper = read("src/modules/system-sync/data/financial-view-refresh.ts");
     expect(helper).toContain("refresh_workbook_materialized_views_if_requested");
     // Service-role on purpose — the RPC is granted to postgres/service_role
     // only, and granting it to `authenticated` would hand every staff account a
@@ -103,7 +103,7 @@ describe("financial view refresh stays off the posting path", () => {
   it("never blocks a post on a failed refresh", () => {
     // The cron backstop still runs; a drain failure must degrade to "stale for
     // up to two minutes", never to "the payment errored".
-    const helper = read("src/lib/system-sync/financial-view-refresh.ts");
+    const helper = read("src/modules/system-sync/data/financial-view-refresh.ts");
     expect(helper).toContain("try {");
     expect(helper).toContain("catch");
     expect(helper).toMatch(/console\.warn/);

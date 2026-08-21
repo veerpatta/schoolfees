@@ -1,4 +1,4 @@
-# Source scan 202608210918
+# Source scan 202608210939
 
 **PASS** · 52 finding(s) · P0 0 · P1 0 · P2 41 · P3 11
 
@@ -6,13 +6,13 @@
 
 | | |
 |---|---|
-| Run id | `202608210918` |
+| Run id | `202608210939` |
 | Layers | static |
-| Git | `281756ea6dd7` on restructure/feature-first (dirty) |
+| Git | `ff15a92a1794` on restructure/feature-first (dirty) |
 | Node | v24.19.0 |
-| Files read | 1459 |
-| Started | 2026-08-21T09:18:57.676Z |
-| Duration | 9796 ms |
+| Files read | 1446 |
+| Started | 2026-08-21T09:39:38.151Z |
+| Duration | 11160 ms |
 | Strict gate | no |
 
 ## Verdict
@@ -155,38 +155,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-009 src/components/students/student-form.tsx:597 formats a rupee figure without lib/helpers/currency.ts
+### P2-009 src/modules/dashboard/domain/summary.ts:171 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         6963f941e87c
+id:         c88e75488491
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/components/students/student-form.tsx:597
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     ? "Tuition becomes Rs 0"
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-010 src/components/students/student-form.tsx:600 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         e4ddb98fbea2
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/components/students/student-form.tsx:600
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     : `Tuition becomes Rs ${policy.fixedTuitionAmount ?? 0}`}
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-011 src/lib/dashboard/summary.ts:171 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         ffdd22eab655
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/dashboard/summary.ts:171
+surface:    src/modules/dashboard/domain/summary.ts:171
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
 source:     return `Fee reminder for ${row.studentName} (${row.admissionNo}): pending amount is Rs ${row.outstandingAmount}.${duePart} Please contact the school fee office.`;
@@ -194,12 +168,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-012 src/lib/fees/policy.ts:290 formats a rupee figure without lib/helpers/currency.ts
+### P2-010 src/modules/fees/data/policy.ts:290 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         d4b398caec44
+id:         daa3bd7a9df0
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/fees/policy.ts:290
+surface:    src/modules/fees/data/policy.ts:290
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
 source:     lateFeeLabel: `Flat Rs ${toWholeNumber(row.late_fee_flat_amount)}`,
@@ -207,12 +181,25 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-013 src/lib/fees/workbook-setup-change.ts:125 formats a rupee figure without lib/helpers/currency.ts
+### P2-011 src/modules/fees/data/setup-queries.ts:191 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         19d49f4ed087
+id:         309dda17d75a
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/fees/workbook-setup-change.ts:125
+surface:    src/modules/fees/data/setup-queries.ts:191
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     .join(", ")}), late fee Rs ${payload.lateFeeFlatAmount}, and receipt prefix ${payload.receiptPrefix} remain visible for review.`
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-012 src/modules/fees/data/workbook-setup-change.ts:125 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         5a2b495e75c5
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/fees/data/workbook-setup-change.ts:125
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
 source:     return `Rs ${value}`;
@@ -220,12 +207,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-014 src/lib/fees/workbook-setup-change.ts:161 formats a rupee figure without lib/helpers/currency.ts
+### P2-013 src/modules/fees/data/workbook-setup-change.ts:161 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         01634e2aa6c0
+id:         df8320e8ef22
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/fees/workbook-setup-change.ts:161
+surface:    src/modules/fees/data/workbook-setup-change.ts:161
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
 source:     return `${item.label} (${statusLabel}, Rs ${item.amount}, ${item.chargeFrequency}, ${mandatoryLabel}, ${refundableLabel}, ${workbookLabel})`;
@@ -233,12 +220,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-015 src/lib/fees/workbook-setup-change.ts:404 formats a rupee figure without lib/helpers/currency.ts
+### P2-014 src/modules/fees/data/workbook-setup-change.ts:404 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         afcafd1901bd
+id:         f5a600033ff0
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/fees/workbook-setup-change.ts:404
+surface:    src/modules/fees/data/workbook-setup-change.ts:404
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
 source:     lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
@@ -246,12 +233,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-016 src/lib/fees/workbook-setup-change.ts:418 formats a rupee figure without lib/helpers/currency.ts
+### P2-015 src/modules/fees/data/workbook-setup-change.ts:418 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         7bd7fe86711b
+id:         e3f675784bca
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/fees/workbook-setup-change.ts:418
+surface:    src/modules/fees/data/workbook-setup-change.ts:418
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
 source:     lateFeeLabel: `Flat Rs ${payload.lateFeeFlatAmount}`,
@@ -259,12 +246,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-017 src/lib/import/parser.ts:133 formats an en-IN number without lib/helpers/currency.ts
+### P2-016 src/modules/imports/domain/parser.ts:133 formats an en-IN number without lib/helpers/currency.ts
 
 ```
-id:         3903f4b8e78b
+id:         f6e6fd9e6267
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/import/parser.ts:133
+surface:    src/modules/imports/domain/parser.ts:133
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
 source:     `The worksheet has too many rows. Keep it to ${MAX_IMPORT_ROWS.toLocaleString("en-IN")} rows or fewer.`,
@@ -272,12 +259,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-018 src/lib/import/parser.ts:145 formats an en-IN number without lib/helpers/currency.ts
+### P2-017 src/modules/imports/domain/parser.ts:145 formats an en-IN number without lib/helpers/currency.ts
 
 ```
-id:         4beec6ff5b8e
+id:         c60f73d8101e
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/import/parser.ts:145
+surface:    src/modules/imports/domain/parser.ts:145
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
 source:     `The worksheet is too large. Keep it below ${MAX_IMPORT_CELLS.toLocaleString("en-IN")} cells.`,
@@ -285,25 +272,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-019 src/lib/payments/bulk/template.ts:138 formats a rupee figure without lib/helpers/currency.ts
+### P2-018 src/modules/payments/data/queries.ts:239 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         504e7afaee97
+id:         888b89aaa30f
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/payments/bulk/template.ts:138
-expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
-actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
-source:     ["Amount", "Yes", "Whole rupees greater than 0", "₹6,300 or a formula"],
-why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
-fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
-```
-
-### P2-020 src/lib/payments/data.ts:239 formats a rupee figure without lib/helpers/currency.ts
-
-```
-id:         93420eb51664
-rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/payments/data.ts:239
+surface:    src/modules/payments/data/queries.ts:239
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
 source:     ? `A payment of ₹${(options.amount ?? 0).toLocaleString("en-IN")} was already posted for this student on ${options.paymentDate ?? "the same date"}. Continue anyway only if this is genuinely a separate payment.`
@@ -311,12 +285,25 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-021 src/lib/payments/payment-desk-workflow.ts:100 formats a rupee figure without lib/helpers/currency.ts
+### P2-019 src/modules/payments/domain/bulk/template.ts:138 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         1f119735c4b1
+id:         e2ff8558d0ae
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/payments/payment-desk-workflow.ts:100
+surface:    src/modules/payments/domain/bulk/template.ts:138
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
+source:     ["Amount", "Yes", "Whole rupees greater than 0", "₹6,300 or a formula"],
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-020 src/modules/payments/domain/payment-desk-workflow.ts:100 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         76d42cfda804
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/payments/domain/payment-desk-workflow.ts:100
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
 source:     message: `No pending dues. Student has Rs ${draft.creditBalance} credit.`,
@@ -324,12 +311,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-022 src/lib/promotion/data.ts:834 formats a rupee figure without lib/helpers/currency.ts
+### P2-021 src/modules/promotion/data/queries.ts:834 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         67b4f345052f
+id:         d4bec263f674
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/promotion/data.ts:834
+surface:    src/modules/promotion/data/queries.ts:834
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
 source:     const carryNote = `Credit carried forward from ${runDetail.run.sourceSessionLabel}: ₹${entry.openingCreditAmount}.`;
@@ -337,12 +324,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-023 src/lib/promotion/data.ts:975 formats a rupee figure without lib/helpers/currency.ts
+### P2-022 src/modules/promotion/data/queries.ts:975 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         ec9cddb6ff4e
+id:         c97831de28c9
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/promotion/data.ts:975
+surface:    src/modules/promotion/data/queries.ts:975
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written ₹ glyph directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
 source:     const carryNote = `Credit carried forward from ${runDetail.run.sourceSessionLabel}: ₹${entry.openingCreditAmount}.`;
@@ -350,12 +337,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-024 src/lib/repayment-plans/schedule.ts:154 formats a rupee figure without lib/helpers/currency.ts
+### P2-023 src/modules/repayment-plans/domain/schedule.ts:154 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         14b9689d58d0
+id:         2c00e47f6a64
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/repayment-plans/schedule.ts:154
+surface:    src/modules/repayment-plans/domain/schedule.ts:154
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
 source:     message: `At Rs ${payload.monthlyAmount} a month this plan needs ${termMonths} months. The maximum term is ${REPAYMENT_PLAN_MAX_TERM_MONTHS} months — Rs ${minimumMonthlyAmountForMaxTerm(payload.openingBalance)} a month or more clears it in time.`,
@@ -363,15 +350,28 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-025 src/lib/setup/data.ts:191 formats a rupee figure without lib/helpers/currency.ts
+### P2-024 src/modules/students/ui/student-form.tsx:597 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         795cd373b04a
+id:         fa4421e4091f
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/lib/setup/data.ts:191
+surface:    src/modules/students/ui/student-form.tsx:597
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
-source:     .join(", ")}), late fee Rs ${payload.lateFeeFlatAmount}, and receipt prefix ${payload.receiptPrefix} remain visible for review.`
+source:     ? "Tuition becomes Rs 0"
+why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
+fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
+```
+
+### P2-025 src/modules/students/ui/student-form.tsx:600 formats a rupee figure without lib/helpers/currency.ts
+
+```
+id:         2b088d7895ad
+rule:       scan.money-format-raw  [deterministic]  layer: static
+surface:    src/modules/students/ui/student-form.tsx:600
+expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
+actual:     This line uses a hand-written "Rs" literal with no period directly. scripts/audit-money-formatting.mjs matches only "Rs." with the period (/["'`]Rs\.\s*\d|>\s*Rs\.\s/), so this spelling passes CI today.
+source:     : `Tuition becomes Rs ${policy.fixedTuitionAmount ?? 0}`}
 why:        The point of the rule is grep-ability, not aesthetics: null, zero, sign, paise and the symbol are decided once in formatInr. A second formatter is a second set of answers, and nobody finds it when the first one changes.
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
@@ -405,11 +405,11 @@ fix:        Use formatInr() (or <Money /> in JSX). If the divergence is delibera
 ### P2-028 src/app/protected/students/close-due-actions.ts:47 rounds `value` where the domain core truncates it
 
 ```
-id:         232f80add5b1
+id:         3de1d37184fe
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/app/protected/students/close-due-actions.ts:47
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/lib/fees/conventional-discount-rules.ts:16, src/lib/fees/conventional-discounts.ts:167, src/lib/fees/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.
 source:     return Math.round(value);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -418,11 +418,11 @@ fix:        Use Math.trunc here too, or state in a comment why this surface deli
 ### P2-029 src/platform/helpers/amount-in-words-hi.ts:73 rounds `value` where the domain core truncates it
 
 ```
-id:         c8585d1946b4
+id:         7c6a959d6d45
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/platform/helpers/amount-in-words-hi.ts:73
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/lib/fees/conventional-discount-rules.ts:16, src/lib/fees/conventional-discounts.ts:167, src/lib/fees/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.
 source:     const amount = Math.max(Math.round(value || 0), 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -431,11 +431,11 @@ fix:        Use Math.trunc here too, or state in a comment why this surface deli
 ### P2-030 src/platform/helpers/amount-in-words.ts:84 rounds `value` where the domain core truncates it
 
 ```
-id:         9eccba4e4885
+id:         21ef17d95200
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/platform/helpers/amount-in-words.ts:84
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/lib/fees/conventional-discount-rules.ts:16, src/lib/fees/conventional-discounts.ts:167, src/lib/fees/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.
 source:     const amount = Math.max(Math.round(value || 0), 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -444,11 +444,11 @@ fix:        Use Math.trunc here too, or state in a comment why this surface deli
 ### P2-031 src/platform/pdf/document-kit.tsx:51 rounds `value` where the domain core truncates it
 
 ```
-id:         2236e9042f86
+id:         a3bcce6bd63e
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/platform/pdf/document-kit.tsx:51
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/lib/fees/conventional-discount-rules.ts:16, src/lib/fees/conventional-discounts.ts:167, src/lib/fees/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/data/policy.ts:193, src/modules/fees/domain/conventional-discount-rules.ts:16). For 1500.6 one answers 1501 and the other 1500.
 source:     const rounded = Math.round(value || 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.

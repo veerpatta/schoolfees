@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { SuccessReceiptSheet } from "@/components/payments/success-receipt-sheet";
+import { SuccessReceiptSheet } from "@/modules/payments/ui/success-receipt-sheet";
 
 const BASE_PROPS = {
   open: true,

@@ -46,14 +46,14 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/workbook/data", () => ({
+vi.mock("@/modules/fees/data/queries", () => ({
   getWorkbookTransactions,
   getTodayReceiptSnapshot,
 }));
 
-vi.mock("@/lib/transactions/dues", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/transactions/dues")>(
-    "@/lib/transactions/dues",
+vi.mock("@/modules/transactions/data/dues", async () => {
+  const actual = await vi.importActual<typeof import("@/modules/transactions/data/dues")>(
+    "@/modules/transactions/data/dues",
   );
 
   return {
@@ -62,16 +62,16 @@ vi.mock("@/lib/transactions/dues", async () => {
   };
 });
 
-vi.mock("@/lib/setup/data", () => ({
+vi.mock("@/modules/fees/data/setup-queries", () => ({
   getSetupWizardData,
   getSetupWizardDataLight,
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentFormOptions,
 }));
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary,
 }));
 

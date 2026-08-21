@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { FeeSetupClient } from "@/components/fees/fee-setup-client";
+import { FeeSetupClient } from "@/modules/fees/ui/fee-setup-client";
 import { PageHeader } from "@/ui/shell/page-header";
 import { Button } from "@/ui/primitives/button";
-import { getFeeSetupPageData } from "@/lib/fees/data";
-import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/lib/fees/types";
-import { getMasterDataPageData } from "@/lib/master-data/data";
+import { getFeeSetupPageData } from "@/modules/fees/domain/queries";
+import { INITIAL_FEE_SETUP_ACTION_STATE } from "@/modules/fees/domain/types";
+import { getMasterDataPageData } from "@/modules/master-data/data/queries";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { appendSessionParam } from "@/platform/navigation/session-href";

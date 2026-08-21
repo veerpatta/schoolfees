@@ -5,15 +5,15 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/ui/shell/page-header";
 import { OfficeNotice, WorkflowGuard } from "@/ui/office/office-ui";
 import { StatusBadge } from "@/ui/shell/status-badge";
-import { PaymentEntryClient } from "@/components/payments/payment-entry-client";
-import { PaymentDeskSkeleton } from "@/components/payments/payment-desk-skeleton";
+import { PaymentEntryClient } from "@/modules/payments/ui/payment-entry-client";
+import { PaymentDeskSkeleton } from "@/modules/payments/ui/payment-desk-skeleton";
 import {
   getPaymentDeskClassOptions,
   getPaymentDeskReadiness,
   getPaymentEntryPageData,
-} from "@/lib/payments/data";
-import { translateBlockingReason } from "@/lib/payments/blocking-reason-i18n";
-import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/lib/payments/types";
+} from "@/modules/payments/data/queries";
+import { translateBlockingReason } from "@/modules/payments/domain/blocking-reason-i18n";
+import { INITIAL_PAYMENT_ENTRY_ACTION_STATE } from "@/modules/payments/domain/types";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";

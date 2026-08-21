@@ -1,17 +1,17 @@
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/ui/shell/page-header";
-import { ReceiptsQuickLoad } from "@/components/receipts/receipts-quick-load";
+import { ReceiptsQuickLoad } from "@/modules/receipts/ui/receipts-quick-load";
 import { readerFromRecord } from "@/platform/navigation/search-params";
-import { getPaymentDeskClassOptions } from "@/lib/payments/data";
-import { getReceiptsPage } from "@/lib/receipts/data";
+import { getPaymentDeskClassOptions } from "@/modules/payments/data/queries";
+import { getReceiptsPage } from "@/modules/receipts/data/queries";
 // The date presets resolve to real bounds inside getReceiptsPage, against the
 // school's timezone — the client never needs to know what "today" is.
-import { normalizeReceiptFilters } from "@/lib/receipts/filters";
+import { normalizeReceiptFilters } from "@/modules/receipts/domain/filters";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
-import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
+import { listWhatsappTemplates } from "@/modules/whatsapp/data/queries";
 
 type ReceiptsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

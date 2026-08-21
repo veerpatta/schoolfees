@@ -15,7 +15,7 @@ import {
   segmentsInFamily,
   serializeSegments,
   statusesForSegments,
-} from "@/lib/segments/student-segments";
+} from "@/modules/students/domain/student-segments";
 
 /**
  * The anti-drift guard.

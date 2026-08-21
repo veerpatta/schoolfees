@@ -2,22 +2,22 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/ui/shell/page-header";
 import { OfficeNotice, WorkflowGuard } from "@/ui/office/office-ui";
-import { TransactionsClientShell } from "@/components/transactions/transactions-client-shell";
+import { TransactionsClientShell } from "@/modules/transactions/ui/transactions-client-shell";
 import { TrustBadge } from "@/ui/trust/trust-badge";
 import { MoneyGlossaryLink } from "@/ui/primitives/money-glossary";
-import { getOfficeWorkbookData } from "@/lib/transactions/dues";
-import { resolveOfficeWorkbookView } from "@/lib/transactions/workbook";
+import { getOfficeWorkbookData } from "@/modules/transactions/data/dues";
+import { resolveOfficeWorkbookView } from "@/modules/transactions/domain/workbook";
 import { getOfficeWorkflowReadiness } from "@/platform/readiness";
-import { getFeePolicySummary } from "@/lib/fees/data";
-import { getSetupWizardDataLight } from "@/lib/setup/data";
-import { getStudentFormOptions } from "@/lib/students/data";
+import { getFeePolicySummary } from "@/modules/fees/domain/queries";
+import { getSetupWizardDataLight } from "@/modules/fees/data/setup-queries";
+import { getStudentFormOptions } from "@/modules/students/data/queries";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
-import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
-import { getTodayReceiptSnapshot } from "@/lib/workbook/data";
-import { normalizePaymentModeFilter } from "@/lib/transactions/payment-modes";
-import { parseSegments } from "@/lib/segments/student-segments";
+import { listWhatsappTemplates } from "@/modules/whatsapp/data/queries";
+import { getTodayReceiptSnapshot } from "@/modules/fees/data/queries";
+import { normalizePaymentModeFilter } from "@/modules/transactions/domain/payment-modes";
+import { parseSegments } from "@/modules/students/domain/student-segments";
 import {
   searchParamInteger,
   searchParamIsoDate,

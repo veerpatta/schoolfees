@@ -8,7 +8,7 @@ import {
   receiptFiltersToParams,
   resolveDateRange,
   type ReceiptFilters,
-} from "@/lib/receipts/filters";
+} from "@/modules/receipts/domain/filters";
 
 /** 14 August 2026 is a Friday. */
 const TODAY = "2026-08-14";

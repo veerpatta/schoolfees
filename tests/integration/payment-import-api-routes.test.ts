@@ -13,17 +13,17 @@ vi.mock("@/platform/supabase/session", () => ({
   hasStaffPermission,
 }));
 
-vi.mock("@/lib/payments/bulk/data", () => ({
+vi.mock("@/modules/payments/data/bulk/data", () => ({
   createPaymentImportBatch,
   getPaymentImportBatchSummary,
   commitPaymentImportRows,
 }));
 
-vi.mock("@/lib/system-sync/finance-revalidation", () => ({
+vi.mock("@/modules/system-sync/domain/finance-revalidation", () => ({
   revalidateAfterPaymentPosting: vi.fn(),
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   revalidateSessionFinance: vi.fn(),
 }));
 

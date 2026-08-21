@@ -7,8 +7,8 @@ import { describe, expect, it } from "vitest";
  * The Fee Setup preview and the engine that applies it must resolve policy from
  * the same inputs.
  *
- * `src/lib/fees/regeneration.ts` computes what the office is shown; the plan it
- * approves is then applied by `src/lib/fees/generator.ts`. They call the same
+ * `src/modules/fees/data/regeneration.ts` computes what the office is shown; the plan it
+ * approves is then applied by `src/modules/fees/data/generator.ts`. They call the same
  * resolver, but the preview omitted `conventionalDiscountAssignments` — so for
  * every RTE, Staff Child and 3rd Child student the screen showed a tuition the
  * apply step never wrote. A preview that does not predict the apply is worse
@@ -37,7 +37,7 @@ function resolverCall(source: string) {
 
 describe("the Fee Setup preview resolves policy the same way the apply does", () => {
   it("both pass conventionalDiscountAssignments to the resolver", () => {
-    for (const file of ["src/lib/fees/regeneration.ts", "src/lib/fees/generator.ts"]) {
+    for (const file of ["src/modules/fees/data/regeneration.ts", "src/modules/fees/data/generator.ts"]) {
       expect(resolverCall(read(file)), `${file} must pass conventional discounts`).toContain(
         "conventionalDiscountAssignments",
       );
@@ -45,8 +45,8 @@ describe("the Fee Setup preview resolves policy the same way the apply does", ()
   });
 
   it("both read the same four policy inputs", () => {
-    const preview = resolverCall(read("src/lib/fees/regeneration.ts"));
-    const apply = resolverCall(read("src/lib/fees/generator.ts"));
+    const preview = resolverCall(read("src/modules/fees/data/regeneration.ts"));
+    const apply = resolverCall(read("src/modules/fees/data/generator.ts"));
 
     for (const input of [
       "policy:",
@@ -67,10 +67,10 @@ describe("the Fee Setup preview resolves policy the same way the apply does", ()
     // `appliedAmount < amountDue` inside its own safe-move test. If one side
     // relaxes and the other does not, the office is shown "held for review" for
     // a row that then silently changes, or the reverse.
-    const preview = read("src/lib/fees/regeneration.ts");
+    const preview = read("src/modules/fees/data/regeneration.ts");
 
     expect(preview).toContain("appliedAmount < amountDue");
     expect(preview).toContain("charge_rise_on_unsettled");
-    expect(read("src/lib/fees/generator.ts")).toContain('kind: "safe_increase"');
+    expect(read("src/modules/fees/data/generator.ts")).toContain('kind: "safe_increase"');
   });
 });

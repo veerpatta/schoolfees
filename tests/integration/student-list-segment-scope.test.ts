@@ -21,7 +21,7 @@ const getStudentDirectoryIds = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/segments/directory", () => ({
+vi.mock("@/modules/students/data/directory", () => ({
   getStudentDirectoryIds: (...args: unknown[]) => getStudentDirectoryIds(...args),
   getStudentSegmentCounts: vi.fn(),
   getStudentDirectorySummary: vi.fn(),
@@ -94,7 +94,7 @@ function idScope() {
 
 describe("student list segment scope", () => {
   it("the identity pass scopes by the directory", async () => {
-    const { getStudentsIdentityPage } = await import("@/lib/students/data");
+    const { getStudentsIdentityPage } = await import("@/modules/students/data/queries");
     await getStudentsIdentityPage(
       { ...FILTERS, segments: ["neverPaid"] },
       { page: 1, pageSize: 40 },
@@ -107,7 +107,7 @@ describe("student list segment scope", () => {
   it("the financial pass scopes by the directory too", async () => {
     // The regression. This pass answers second and wins, so a segment filter
     // that it ignores is a segment filter the user never sees applied.
-    const { getStudentsPage } = await import("@/lib/students/data");
+    const { getStudentsPage } = await import("@/modules/students/data/queries");
     await getStudentsPage({ ...FILTERS, segments: ["neverPaid"] }, { page: 1, pageSize: 40 });
 
     expect(getStudentDirectoryIds).toHaveBeenCalledTimes(1);
@@ -115,7 +115,7 @@ describe("student list segment scope", () => {
   });
 
   it("both passes ask the directory for the same scope", async () => {
-    const { getStudentsIdentityPage, getStudentsPage } = await import("@/lib/students/data");
+    const { getStudentsIdentityPage, getStudentsPage } = await import("@/modules/students/data/queries");
     const filters = { ...FILTERS, segments: ["overdue" as const, "onTransport" as const] };
 
     await getStudentsIdentityPage(filters, { page: 1, pageSize: 40 });
@@ -132,7 +132,7 @@ describe("student list segment scope", () => {
     // The server used to match full_name only while the placeholder promised
     // "name, SR no, or phone", so an SR number matched in the optimistic
     // client pass and then vanished when the server answered.
-    const { getStudentsIdentityPage, getStudentsPage } = await import("@/lib/students/data");
+    const { getStudentsIdentityPage, getStudentsPage } = await import("@/modules/students/data/queries");
 
     for (const load of [getStudentsIdentityPage, getStudentsPage]) {
       calls.length = 0;
@@ -146,7 +146,7 @@ describe("student list segment scope", () => {
   });
 
   it("stays out of the way when nothing is filtered", async () => {
-    const { getStudentsPage } = await import("@/lib/students/data");
+    const { getStudentsPage } = await import("@/modules/students/data/queries");
     await getStudentsPage(FILTERS, { page: 1, pageSize: 40 });
 
     expect(getStudentDirectoryIds).not.toHaveBeenCalled();

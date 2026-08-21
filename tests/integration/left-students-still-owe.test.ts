@@ -35,12 +35,12 @@ const MIGRATION = readFileSync(
 );
 
 const WORKBOOK = readFileSync(
-  path.join(process.cwd(), "src/lib", "workbook", "data.ts"),
+  path.join(process.cwd(), "src/modules/fees/data/queries.ts"),
   "utf8",
 );
 
 const DEFAULTERS = readFileSync(
-  path.join(process.cwd(), "src/lib", "defaulters", "data.ts"),
+  path.join(process.cwd(), "src/modules/defaulters/data/queries.ts"),
   "utf8",
 );
 

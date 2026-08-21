@@ -6,7 +6,7 @@ import { getSiteUrl } from "@/platform/env";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatMediumDate } from "@/platform/helpers/date";
 import { isUuid } from "@/platform/helpers/uuid";
-import { getReceiptDetail } from "@/lib/receipts/data";
+import { getReceiptDetail } from "@/modules/receipts/data/queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 /**

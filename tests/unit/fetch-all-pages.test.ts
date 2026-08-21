@@ -128,7 +128,7 @@ describe("fetchAllPages", () => {
 });
 
 describe("workbook loaders read every row", () => {
-  const workbook = read("src/lib/workbook/data.ts");
+  const workbook = read("src/modules/fees/data/queries.ts");
 
   it("pages the installment view", () => {
     // 4 rows per student plus carry-forward — the first view to cross the cap.

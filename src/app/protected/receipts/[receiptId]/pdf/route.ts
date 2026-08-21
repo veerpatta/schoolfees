@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { createAbsoluteUrl } from "@/platform/env";
 import { isUuid } from "@/platform/helpers/uuid";
-import { getReceiptDetail } from "@/lib/receipts/data";
+import { getReceiptDetail } from "@/modules/receipts/data/queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 /**
@@ -41,7 +41,7 @@ export async function GET(
 
     // Dynamic import so a module-init failure (fonts, logo) is caught here
     // rather than crashing the function at load time.
-    const { renderReceiptPdf, receiptPdfFilename } = await import("@/lib/receipts/receipt-pdf");
+    const { renderReceiptPdf, receiptPdfFilename } = await import("@/modules/receipts/domain/receipt-pdf");
 
     const buffer = await renderReceiptPdf({
       receipt,

@@ -2,17 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 
-import { revalidateTagAfterWrite } from "@/lib/system-sync/finance-revalidation";
+import { revalidateTagAfterWrite } from "@/modules/system-sync/domain/finance-revalidation";
 import { redirect } from "next/navigation";
 
-import { deleteAcademicSession } from "@/lib/master-data/data";
+import { deleteAcademicSession } from "@/modules/master-data/data/queries";
 import {
   applyPromotionRun,
   createPromotionPreview,
   rollbackPromotionRun,
   updatePromotionEntryDecision,
   type PromotionEntryDecision,
-} from "@/lib/promotion/data";
+} from "@/modules/promotion/data/queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 function asString(value: FormDataEntryValue | null) {

@@ -5,21 +5,21 @@ import Link from "next/link";
 
 import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
-import { StudentForm } from "@/components/students/student-form";
+import { StudentForm } from "@/modules/students/ui/student-form";
 import { Notice } from "@/ui/primitives/notice";
 import {
   StudentRepaymentPlanSection,
   type RepaymentScopeOption,
-} from "@/components/students/student-repayment-plan-section";
+} from "@/modules/students/ui/student-repayment-plan-section";
 import { isRepaymentPlanCreationEnabled } from "@/platform/env";
 import { appendSessionParam } from "@/platform/navigation/session-href";
 import {
   getActiveRepaymentPlan,
   previewRepaymentPlan,
-} from "@/lib/repayment-plans/data";
-import { REPAYMENT_PLAN_SCOPES } from "@/lib/repayment-plans/types";
-import { getStudentDetail, getStudentFormOptions } from "@/lib/students/data";
-import { toStudentInfoFormValues } from "@/lib/students/info-fields";
+} from "@/modules/repayment-plans/data/queries";
+import { REPAYMENT_PLAN_SCOPES } from "@/modules/repayment-plans/domain/types";
+import { getStudentDetail, getStudentFormOptions } from "@/modules/students/data/queries";
+import { toStudentInfoFormValues } from "@/modules/students/domain/info-fields";
 import {
   hasStaffPermission,
   requireAnyStaffPermission,

@@ -32,7 +32,7 @@
       "sides": [
         {
           "name": "buildRepaymentSchedule + addMonthsClamped + calculateRepaymentTermMonths",
-          "file": "src/lib/repayment-plans/schedule.ts",
+          "file": "src/modules/repayment-plans/domain/schedule.ts",
           "startLine": 30,
           "endLine": 94,
           "chars": 1381,
@@ -55,7 +55,7 @@
       "sides": [
         {
           "name": "calculateConventionalPolicyTuition",
-          "file": "src/lib/fees/conventional-discount-rules.ts",
+          "file": "src/modules/fees/domain/conventional-discount-rules.ts",
           "startLine": 49,
           "endLine": 67,
           "chars": 575,
@@ -78,7 +78,7 @@
       "sides": [
         {
           "name": "plannedAmountDue",
-          "file": "src/lib/fees/generator.ts",
+          "file": "src/modules/fees/data/generator.ts",
           "startLine": 362,
           "endLine": 364,
           "chars": 127,
@@ -101,7 +101,7 @@
       "sides": [
         {
           "name": "calculatePendingLateFeeAmount",
-          "file": "src/lib/fees/due-amounts.ts",
+          "file": "src/modules/fees/domain/due-amounts.ts",
           "startLine": 68,
           "endLine": 72,
           "chars": 232,
@@ -124,7 +124,7 @@
       "sides": [
         {
           "name": "isYearCleared",
-          "file": "src/lib/fees/year-clear.ts",
+          "file": "src/modules/fees/domain/year-clear.ts",
           "startLine": 30,
           "endLine": 37,
           "chars": 239,
@@ -147,7 +147,7 @@
       "sides": [
         {
           "name": "hasFeeException",
-          "file": "src/lib/students/data.ts",
+          "file": "src/modules/students/data/queries.ts",
           "startLine": 894,
           "endLine": 901,
           "chars": 307,
@@ -178,7 +178,7 @@
         },
         {
           "name": "workbook activeOnly filter",
-          "file": "src/lib/workbook/data.ts",
+          "file": "src/modules/fees/data/queries.ts",
           "startLine": 692,
           "endLine": 692,
           "chars": 60,

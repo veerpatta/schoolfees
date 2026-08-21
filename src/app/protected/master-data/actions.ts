@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { revalidateTagAfterWrite } from "@/lib/system-sync/finance-revalidation";
+import { revalidateTagAfterWrite } from "@/modules/system-sync/domain/finance-revalidation";
 
 import type { ClassStatus, PaymentMode } from "@/platform/db/types";
-import { createAcademicSession, createClass, createFeeHead, createRoute, deleteAcademicSession, deleteClass, deleteFeeHead, deleteRoute, setPaymentModeActive, updateAcademicSession, updateClass, updateFeeHead, updateRoute } from "@/lib/master-data/data";
+import { createAcademicSession, createClass, createFeeHead, createRoute, deleteAcademicSession, deleteClass, deleteFeeHead, deleteRoute, setPaymentModeActive, updateAcademicSession, updateClass, updateFeeHead, updateRoute } from "@/modules/master-data/data/queries";
 import { getActiveSessionLabel } from "@/platform/session/active";
 import { setActiveSessionLabel } from "@/platform/session/set-active";
 import { requireStaffPermission } from "@/platform/supabase/session";

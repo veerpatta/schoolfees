@@ -3,15 +3,15 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { buildScheduleRows } from "@/lib/repayment-plans/data";
+import { buildScheduleRows } from "@/modules/repayment-plans/data/queries";
 import {
   addMonthsClamped,
   buildRepaymentSchedule,
   calculateRepaymentTermMonths,
   minimumMonthlyAmountForMaxTerm,
   validateRepaymentPlanDraft,
-} from "@/lib/repayment-plans/schedule";
-import { REPAYMENT_PLAN_MAX_TERM_MONTHS } from "@/lib/repayment-plans/types";
+} from "@/modules/repayment-plans/domain/schedule";
+import { REPAYMENT_PLAN_MAX_TERM_MONTHS } from "@/modules/repayment-plans/domain/types";
 
 /**
  * These mirror `private.repayment_plan_schedule` in

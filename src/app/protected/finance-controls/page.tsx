@@ -6,12 +6,12 @@ import { StatusBadge } from "@/ui/shell/status-badge";
 import { DownloadAnchor } from "@/ui/primitives/download-anchor";
 import { Button } from "@/ui/primitives/button";
 import { Input } from "@/ui/primitives/input";
-import { FinanceControlsClient } from "@/components/finance-controls/finance-controls-client";
+import { FinanceControlsClient } from "@/modules/finance-controls/ui/finance-controls-client";
 import {
   getFinanceControlsPageData,
   normalizeFinanceDateFilter,
-} from "@/lib/finance-controls/data";
-import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
+} from "@/modules/finance-controls/data/queries";
+import type { FinanceControlsActionState } from "@/modules/finance-controls/domain/types";
 import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
 import {
   submitCorrectionReviewAction,

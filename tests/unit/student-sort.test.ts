@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compareStudentRowsByName, compareStudentsByName } from "@/lib/students/sort";
+import { compareStudentRowsByName, compareStudentsByName } from "@/modules/students/domain/sort";
 
 function names(rows: Array<{ fullName: string; admissionNo?: string }>) {
   return [...rows].sort(compareStudentsByName).map((row) => row.fullName);

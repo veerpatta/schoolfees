@@ -5,7 +5,7 @@ import {
   buildCarryForwardSummary,
   getDisplayInstallmentLabel,
   isCarryForwardInstallment,
-} from "@/lib/prev-year-dues/display";
+} from "@/modules/prev-year-dues/domain/display";
 
 const row = (overrides: Record<string, unknown>) => ({
   installmentNo: 99,

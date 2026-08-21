@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createVoiceNoteSignedUrl } from "@/lib/defaulters/contacts";
+import { createVoiceNoteSignedUrl } from "@/modules/defaulters/data/contacts";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 /**

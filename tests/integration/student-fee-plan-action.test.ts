@@ -30,25 +30,25 @@ vi.mock("next/server", () => ({
 
 vi.mock("@/platform/supabase/session", () => ({ requireStaffPermission }));
 vi.mock("@/platform/supabase/server", () => ({ createClient }));
-vi.mock("@/lib/fees/data", () => ({ upsertStudentFeeOverride }));
-vi.mock("@/lib/fees/conventional-discounts", async () => {
+vi.mock("@/modules/fees/domain/queries", () => ({ upsertStudentFeeOverride }));
+vi.mock("@/modules/fees/data/conventional-discounts", async () => {
   const actual = await vi.importActual<
-    typeof import("@/lib/fees/conventional-discount-rules")
-  >("@/lib/fees/conventional-discount-rules");
+    typeof import("@/modules/fees/domain/conventional-discount-rules")
+  >("@/modules/fees/domain/conventional-discount-rules");
   return {
     applyConventionalDiscountsToTuition: actual.applyConventionalDiscountsToTuition,
     getStudentConventionalDiscountAssignments,
     saveStudentConventionalDiscountAssignments,
   };
 });
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
 }));
-vi.mock("@/lib/system-sync/financial-view-refresh", () => ({
+vi.mock("@/modules/system-sync/data/financial-view-refresh", () => ({
   drainFinancialViewRefresh,
 }));
-vi.mock("@/lib/system-sync/office-sync-events", () => ({ publishOfficeSyncEvent }));
-vi.mock("@/lib/activity/events", () => ({ recordActivity }));
+vi.mock("@/modules/system-sync/data/office-sync-events", () => ({ publishOfficeSyncEvent }));
+vi.mock("@/modules/activity/data/events", () => ({ recordActivity }));
 
 const STUDENT_ID = "00000000-0000-4000-8000-000000000222";
 const SESSION_LABEL = "TEST-2026-27";

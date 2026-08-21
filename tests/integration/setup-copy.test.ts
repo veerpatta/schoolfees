@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getSetupLockedMessage } from "@/lib/setup/copy";
+import { getSetupLockedMessage } from "@/modules/fees/domain/copy";
 
 describe("setup lock copy", () => {
   it("sends live fee changes to Fee Setup once setup is complete", () => {

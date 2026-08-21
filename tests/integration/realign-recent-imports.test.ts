@@ -32,12 +32,12 @@ vi.mock("@/platform/supabase/server", () => ({
   })),
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
   revalidateFinanceSurfaces,
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   archiveStudent: vi.fn(),
   createStudent: vi.fn(),
   getStudentDeletionSafety: vi.fn(),

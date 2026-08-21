@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { StudentListFilters } from "@/lib/students/types";
+import type { StudentListFilters } from "@/modules/students/domain/types";
 
 vi.mock("server-only", () => ({}));
 
@@ -10,14 +10,14 @@ const getFeePolicySummary = vi.fn();
 
 // Only the fee-policy resolvers and the (unused-on-this-path) passthroughs are
 // needed from lib/fees/data; the rest of getStudents() goes through createClient.
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicyForSession,
   getFeePolicySummary,
   getFeeSetupPageData: vi.fn(),
   upsertStudentFeeOverride: vi.fn(),
 }));
 
-vi.mock("@/lib/fees/conventional-discounts", () => ({
+vi.mock("@/modules/fees/data/conventional-discounts", () => ({
   getConventionalDiscountPolicies: vi.fn(async () => []),
   getStudentConventionalDiscountAssignments: vi.fn(async () => []),
   saveStudentConventionalDiscountAssignments: vi.fn(async () => undefined),
@@ -182,7 +182,7 @@ describe("getStudents — pending late fee on the list", () => {
       }),
     );
 
-    const { getStudents } = await import("@/lib/students/data");
+    const { getStudents } = await import("@/modules/students/data/queries");
     const students = await getStudents(FILTERS);
 
     expect(students).toHaveLength(1);
@@ -241,7 +241,7 @@ describe("getStudents — pending late fee on the list", () => {
       }, filters),
     );
 
-    const { getStudents } = await import("@/lib/students/data");
+    const { getStudents } = await import("@/modules/students/data/queries");
     const students = await getStudents(FILTERS);
 
     expect(students[0].pendingLateFeeAmount).toBe(1000);
@@ -298,7 +298,7 @@ describe("getStudents — pending late fee on the list", () => {
       }),
     );
 
-    const { getStudents } = await import("@/lib/students/data");
+    const { getStudents } = await import("@/modules/students/data/queries");
     const students = await getStudents(FILTERS);
 
     expect(students[0].pendingLateFeeAmount).toBe(0);
@@ -343,7 +343,7 @@ describe("getStudents — pending late fee on the list", () => {
       }),
     );
 
-    const { getStudents } = await import("@/lib/students/data");
+    const { getStudents } = await import("@/modules/students/data/queries");
     const students = await getStudents(FILTERS);
 
     expect(students).toHaveLength(1);
@@ -390,7 +390,7 @@ describe("getStudents — pending late fee on the list", () => {
       }),
     );
 
-    const { getStudents } = await import("@/lib/students/data");
+    const { getStudents } = await import("@/modules/students/data/queries");
     const students = await getStudents(FILTERS);
 
     // A ₹1,000 waiver pool fully absorbs the single ₹1,000 accruing late fee.

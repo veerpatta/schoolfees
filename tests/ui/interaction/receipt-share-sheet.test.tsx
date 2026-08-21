@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import messages from "@/messages/en.json";
-import { ShareReceiptWhatsApp } from "@/components/receipts/share-receipt-whatsapp";
+import { ShareReceiptWhatsApp } from "@/modules/receipts/ui/share-receipt-whatsapp";
 
 /**
  * The one-tap send, as staff meet it.

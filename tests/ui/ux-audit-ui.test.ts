@@ -13,8 +13,8 @@ describe("read-only UX audit implementation", () => {
   it("students filters default to active status from one shared normalizer", () => {
     const page = readRepoFile("src/app/protected/students/page.tsx");
     const indexRoute = readRepoFile("src/app/protected/students/index/route.ts");
-    const normalizer = readRepoFile("src/lib/students/filter-params.ts");
-    const bulkDialog = readRepoFile("src/components/students/student-bulk-import-dialog.tsx");
+    const normalizer = readRepoFile("src/modules/students/domain/filter-params.ts");
+    const bulkDialog = readRepoFile("src/modules/students/ui/student-bulk-import-dialog.tsx");
     // Students chrome copy now lives in the next-intl Students namespace.
     const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
       Students: Record<string, string>;
@@ -56,11 +56,11 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("read-only finance filters no longer need manual apply buttons", () => {
-    const transactions = readRepoFile("src/components/transactions/transactions-client-shell.tsx");
+    const transactions = readRepoFile("src/modules/transactions/ui/transactions-client-shell.tsx");
     const reports = readRepoFile("src/app/protected/reports/page.tsx");
-    const defaulters = readRepoFile("src/components/defaulters/defaulter-filters.tsx");
+    const defaulters = readRepoFile("src/modules/defaulters/ui/defaulter-filters.tsx");
     const defaultersPage = readRepoFile("src/app/protected/defaulters/page.tsx");
-    const defaultersWorkspace = readRepoFile("src/components/defaulters/defaulters-workspace.tsx");
+    const defaultersWorkspace = readRepoFile("src/modules/defaulters/ui/defaulters-workspace.tsx");
     const receipts = readRepoFile("src/app/protected/receipts/page.tsx");
     // Transactions filter labels now live in the Transactions namespace.
     const englishMessages = JSON.parse(readRepoFile("src/messages/en.json")) as {
@@ -81,10 +81,10 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("payment desk and ledger open selected students without extra load buttons", () => {
-    const paymentDesk = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
-    const mobileSheet = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
-    const paymentData = readRepoFile("src/lib/payments/data.ts");
-    const ledger = readRepoFile("src/components/ledger/ledger-client.tsx");
+    const paymentDesk = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
+    const paymentData = readRepoFile("src/modules/payments/data/queries.ts");
+    const ledger = readRepoFile("src/modules/reports/ui/ledger-client.tsx");
 
     expect(paymentDesk).not.toContain("AutoSubmitForm");
     expect(paymentDesk).not.toContain("Continue with this student");
@@ -101,8 +101,8 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("mobile payment layout avoids stacked bottom bars", () => {
-    const paymentDesk = readRepoFile("src/components/payments/payment-desk-mobile.tsx");
-    const mobileSheet = readRepoFile("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const paymentDesk = readRepoFile("src/modules/payments/ui/payment-desk-mobile.tsx");
+    const mobileSheet = readRepoFile("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
     const topbar = readRepoFile("src/ui/shell/app-topbar.tsx");
     const shell = readRepoFile("src/ui/shell/dashboard-shell.tsx");
     const mobileNav = readRepoFile("src/ui/shell/mobile-bottom-nav.tsx");
@@ -115,7 +115,7 @@ describe("read-only UX audit implementation", () => {
     // header, so the shell must NOT reintroduce a sticky one — and the
     // controls it used to carry have to live somewhere reachable.
     expect(shell).not.toContain("<MobileHeader");
-    expect(readRepoFile("src/components/dashboard/mobile-dashboard-screen.tsx")).toContain(
+    expect(readRepoFile("src/modules/dashboard/ui/mobile-dashboard-screen.tsx")).toContain(
       "MobileSessionPill",
     );
     expect(readRepoFile("src/app/protected/settings/page.tsx")).toContain("MobileAccountCard");
@@ -183,11 +183,11 @@ describe("read-only UX audit implementation", () => {
       "src/app/protected/transactions/page.tsx",
       "src/app/protected/defaulters/page.tsx",
       "src/app/protected/receipts/page.tsx",
-      "src/components/payments/payment-desk-mobile.tsx",
-      "src/components/students/student-list-table.tsx",
-      "src/components/students/student-form.tsx",
-      "src/components/ledger/ledger-client.tsx",
-      "src/components/fees/fee-setup-client.tsx",
+      "src/modules/payments/ui/payment-desk-mobile.tsx",
+      "src/modules/students/ui/student-list-table.tsx",
+      "src/modules/students/ui/student-form.tsx",
+      "src/modules/reports/ui/ledger-client.tsx",
+      "src/modules/fees/ui/fee-setup-client.tsx",
     ];
     const combined = dailyFiles.map(readRepoFile).join("\n");
     // Fee Setup / Students wording now lives in their next-intl namespaces.
@@ -212,9 +212,9 @@ describe("read-only UX audit implementation", () => {
   });
 
   it("daily tables expose compact default columns", () => {
-    const studentsTable = readRepoFile("src/components/students/student-list-table.tsx");
-    const transactions = readRepoFile("src/components/transactions/transactions-client-shell.tsx");
-    const transactionLazyTables = readRepoFile("src/components/transactions/transactions-lazy-tables.tsx");
+    const studentsTable = readRepoFile("src/modules/students/ui/student-list-table.tsx");
+    const transactions = readRepoFile("src/modules/transactions/ui/transactions-client-shell.tsx");
+    const transactionLazyTables = readRepoFile("src/modules/transactions/ui/transactions-lazy-tables.tsx");
     const defaulters = readRepoFile("src/app/protected/defaulters/page.tsx");
     const dashboard = readRepoFile("src/app/protected/dashboard/page.tsx");
     // Defaulters labels now live in the next-intl Defaulters namespace;

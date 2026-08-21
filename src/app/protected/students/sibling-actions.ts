@@ -7,9 +7,9 @@ import {
   applyThirdChildPolicyForFamilyGroup,
   deactivateAutomaticThirdChildAssignments,
   type ThirdChildPolicyApplicationResult,
-} from "@/lib/fees/conventional-discounts";
-import { prepareDuesForStudentsAutomatically } from "@/lib/system-sync/finance-sync";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+} from "@/modules/fees/data/conventional-discounts";
+import { prepareDuesForStudentsAutomatically } from "@/modules/system-sync/domain/finance-sync";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 import { createClient } from "@/platform/supabase/server";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import type {

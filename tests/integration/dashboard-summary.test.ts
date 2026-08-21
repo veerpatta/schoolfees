@@ -7,12 +7,12 @@ import {
   buildDashboardSummary,
   calculatePercentage,
   formatPaymentModeLabel,
-} from "@/lib/dashboard/summary";
+} from "@/modules/dashboard/domain/summary";
 import type {
   WorkbookInstallmentBalance,
   WorkbookStudentFinancial,
   WorkbookTransaction,
-} from "@/lib/workbook/data";
+} from "@/modules/fees/data/queries";
 
 const repoRoot = process.cwd();
 
@@ -475,7 +475,7 @@ describe("dashboard summary", () => {
   });
 
   it("above-fold dashboard data reads overdue KPI from the summary RPC", () => {
-    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const dashboardData = readRepoFile("src/modules/dashboard/data/queries.ts");
     // The RPC call now lives in a shared `_getDashboardSummaryCached` helper
     // (React.cache wrapper) that both above-fold and below-fold consume —
     // the dedupe keeps each request to a single round trip. Assert the wire
@@ -498,7 +498,7 @@ describe("dashboard summary", () => {
 
   it("dashboard labels make overdue amount distinct from late fee", () => {
     const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
-    const moneyBand = readRepoFile("src/components/dashboard/money-band.tsx");
+    const moneyBand = readRepoFile("src/modules/dashboard/ui/money-band.tsx");
 
     // The band gives the two their own slots rather than captioning one
     // combined number, and the class table keeps saying which one it means.
@@ -526,7 +526,7 @@ describe("dashboard summary", () => {
   });
 
   it("dashboard wires collection heatmap and class collection progress data", () => {
-    const dashboardData = readRepoFile("src/lib/dashboard/data.ts");
+    const dashboardData = readRepoFile("src/modules/dashboard/data/queries.ts");
     const dashboardPage = readRepoFile("src/app/protected/dashboard/page.tsx");
 
     expect(dashboardData).toContain("collectionHeatmap");

@@ -86,7 +86,7 @@ describe("reverse_receipt_admin migration", () => {
     expect(sql).toContain("'admin_reversal:' || p_receipt_id::text");
     expect(sql).toContain("'reversal'");
 
-    const queue = read("src/lib/finance-controls/data.ts");
+    const queue = read("src/modules/finance-controls/data/queries.ts");
     expect(queue).toContain('(row.notes ?? "").startsWith("refund_request:")');
   });
 
@@ -114,7 +114,7 @@ describe("reverse_receipt_admin migration", () => {
 });
 
 describe("reverseReceiptAdmin data layer", () => {
-  const source = read("src/lib/payments/data.ts");
+  const source = read("src/modules/payments/data/queries.ts");
 
   it("calls the RPC via the user-JWT client, never the service-role admin client", () => {
     const fn = source.slice(source.indexOf("export async function reverseReceiptAdmin"));
@@ -170,7 +170,7 @@ describe("the two correction paths never appear together", () => {
 
 describe("the unguarded per-row reversal backdoor is closed", () => {
   it("drops reversal from the manual ledger adjustment form", () => {
-    const client = read("src/components/ledger/ledger-client.tsx");
+    const client = read("src/modules/reports/ui/ledger-client.tsx");
     const options = client.slice(
       client.indexOf("const adjustmentTypeOptions"),
       client.indexOf("];", client.indexOf("const adjustmentTypeOptions")),

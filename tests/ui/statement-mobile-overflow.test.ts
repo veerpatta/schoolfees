@@ -43,11 +43,11 @@ function readMarkup(path: string) {
     .replace(/^\s*\/\/.*$/gm, "");
 }
 
-const STUDENT_SWITCHER = readMarkup("src/components/students/master-statement-document.tsx");
-const FAMILY_SWITCHER = readMarkup("src/components/students/family-statement-document.tsx");
-const STUDENT_MOBILE = readMarkup("src/components/students/statement/master-statement-mobile.tsx");
-const FAMILY_MOBILE = readMarkup("src/components/students/statement/family-statement-mobile.tsx");
-const LETTERHEAD = readMarkup("src/components/students/statement/statement-letterhead.tsx");
+const STUDENT_SWITCHER = readMarkup("src/modules/students/ui/master-statement-document.tsx");
+const FAMILY_SWITCHER = readMarkup("src/modules/students/ui/family-statement-document.tsx");
+const STUDENT_MOBILE = readMarkup("src/modules/students/ui/statement/master-statement-mobile.tsx");
+const FAMILY_MOBILE = readMarkup("src/modules/students/ui/statement/family-statement-mobile.tsx");
+const LETTERHEAD = readMarkup("src/modules/students/ui/statement/statement-letterhead.tsx");
 
 describe("statement: one door to the phone layout, one to the paper layout", () => {
   it("gives each document exactly one phone branch and one desktop/paper branch", () => {
@@ -136,7 +136,7 @@ describe("statement: the phone document's own layout rules", () => {
 
 describe("touch targets on the actions added this session", () => {
   it("gives the Danger Zone close-balance buttons a full-width 44px target on a phone", () => {
-    const dangerZone = read("src/components/students/student-danger-zone.tsx");
+    const dangerZone = read("src/modules/students/ui/student-danger-zone.tsx");
 
     // Two buttons, both h-11 w-full on a phone and auto-width from sm up.
     const mobileCtas = dangerZone.match(/h-11 w-full justify-center rounded-xl/g) ?? [];
@@ -146,7 +146,7 @@ describe("touch targets on the actions added this session", () => {
   });
 
   it("gives the waive-late-fee installment picker a 44px target on a phone", () => {
-    const sheet = read("src/components/payments/waive-late-fee-sheet.tsx");
+    const sheet = read("src/modules/payments/ui/waive-late-fee-sheet.tsx");
 
     expect(sheet).toContain("h-11 w-full rounded-md border border-border");
     expect(sheet).toContain("sm:h-10");

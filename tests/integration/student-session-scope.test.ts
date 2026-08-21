@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 
 describe("student session scope helpers", () => {
   it("filters class options by academic session", async () => {
-    const { getClassOptionsForSession } = await import("@/lib/students/data");
+    const { getClassOptionsForSession } = await import("@/modules/students/data/queries");
 
     const filtered = getClassOptionsForSession(
       [

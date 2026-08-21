@@ -4,7 +4,7 @@ import {
   buildReceiptAllocationIndex,
   formatAppliedTo,
   type ReceiptAllocationRow,
-} from "@/lib/receipts/allocations";
+} from "@/modules/receipts/domain/allocations";
 
 function row(overrides: Partial<ReceiptAllocationRow> = {}): ReceiptAllocationRow {
   return {

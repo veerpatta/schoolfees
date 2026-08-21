@@ -1,0 +1,535 @@
+import type {
+  WorkbookInstallmentBalance,
+  WorkbookStudentFinancial,
+  WorkbookTransaction,
+} from "@/modules/fees/data/queries";
+import { calculateInstallmentBasePending, calculateOverdueBaseAmount } from "@/modules/fees/domain/due-amounts";
+import {
+  buildCarryForwardSummary,
+  getCarryForwardSourceSession,
+  getDisplayInstallmentLabel,
+  isCarryForwardInstallment,
+} from "@/modules/prev-year-dues/domain/display";
+
+export type DashboardKpis = {
+  totalStudents: number;
+  totalExpectedFees: number;
+  totalCollected: number;
+  totalPending: number;
+  currentYearExpected?: number;
+  currentYearCollected?: number;
+  currentYearPending?: number;
+  previousYearOriginal?: number;
+  previousYearPending?: number;
+  previousYearCollected?: number;
+  lateFeePending?: number;
+  overdueAmount: number;
+  todaysCollection: number;
+  thisMonthCollection: number;
+  receiptsToday: number;
+  collectionRate: number;
+};
+
+export type DashboardRecentPayment = {
+  receiptId: string;
+  receiptNumber: string;
+  paymentDate: string;
+  studentId: string;
+  studentName: string;
+  admissionNo: string;
+  classLabel: string;
+  paymentMode: string;
+  amount: number;
+};
+
+export type DashboardClassSummaryRow = {
+  classId: string;
+  sessionLabel: string;
+  classLabel: string;
+  totalStudents: number;
+  studentsWithGeneratedDues: number;
+  missingDuesStudents: number;
+  expectedAmount: number;
+  collectedAmount: number;
+  pendingAmount: number;
+  overdueAmount: number;
+  overdueStudents: number;
+  studentsWithPending: number;
+  collectionRate: number;
+};
+
+export type DashboardClassInstallmentPendingRow = {
+  classId: string;
+  classLabel: string;
+  installments: Array<{
+    installmentNo: number;
+    installmentLabel: string;
+    isCarryForward?: boolean;
+    sourceSessionLabel?: string | null;
+    pendingAmount: number;
+  }>;
+  totalPendingAmount: number;
+};
+
+export type DashboardInstallmentSummaryRow = {
+  installmentNo: number;
+  installmentLabel: string;
+  isCarryForward?: boolean;
+  sourceSessionLabel?: string | null;
+  dueDate: string | null;
+  studentCount: number;
+  expectedAmount: number;
+  collectedAmount: number;
+  pendingAmount: number;
+  overdueAmount: number;
+  collectionRate: number;
+};
+
+export type DashboardTrendPoint = {
+  date: string;
+  amount: number;
+  receiptCount: number;
+};
+
+export type DashboardPaymentModeBreakdown = {
+  paymentMode: string;
+  amount: number;
+  receiptCount: number;
+};
+
+export type DashboardFollowUpStudent = {
+  studentId: string;
+  studentName: string;
+  admissionNo: string;
+  classId: string;
+  classLabel: string;
+  fatherPhone: string | null;
+  outstandingAmount: number;
+  nextDueDate: string | null;
+  nextDueLabel: string | null;
+  nextDueAmount: number | null;
+  statusLabel: WorkbookStudentFinancial["statusLabel"];
+  reminderText: string;
+};
+
+export type DashboardEmptyState = {
+  hasStudents: boolean;
+  hasReceipts: boolean;
+  hasFinancialData: boolean;
+};
+
+export type DashboardSummaryInput = {
+  financialRows: WorkbookStudentFinancial[];
+  studentRows: Array<{
+    studentId: string;
+    classId: string;
+    sessionLabel: string;
+    classLabel: string;
+  }>;
+  classRows?: Array<{
+    classId: string;
+    sessionLabel: string;
+    classLabel: string;
+    sortOrder: number;
+    activeStudentCount: number;
+  }>;
+  installmentRows: WorkbookInstallmentBalance[];
+  overdueInstallments: WorkbookInstallmentBalance[];
+  transactions: WorkbookTransaction[];
+  todayTransactions: WorkbookTransaction[];
+  rawStudentCount?: number;
+};
+
+export function calculatePercentage(part: number, whole: number) {
+  if (!Number.isFinite(part) || !Number.isFinite(whole) || whole <= 0) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, Math.round((part / whole) * 100)));
+}
+
+export function formatPaymentModeLabel(value: string) {
+  switch (value) {
+    case "upi":
+      return "UPI";
+    case "bank_transfer":
+      return "Bank transfer";
+    case "cheque":
+      return "Cheque";
+    case "cash":
+      return "Cash";
+    default:
+      return value || "Unknown";
+  }
+}
+
+function buildReminderText(row: WorkbookStudentFinancial) {
+  const duePart = row.nextDueDate
+    ? ` Next due: ${row.nextDueLabel ?? "installment"} on ${row.nextDueDate}.`
+    : "";
+
+  return `Fee reminder for ${row.studentName} (${row.admissionNo}): pending amount is Rs ${row.outstandingAmount}.${duePart} Please contact the school fee office.`;
+}
+
+function getCollectedFromInstallment(row: WorkbookInstallmentBalance) {
+  return Math.max(0, row.paidAmount + row.adjustmentAmount);
+}
+
+function getDashboardInstallmentKey(row: Pick<WorkbookInstallmentBalance, "installmentNo" | "installmentLabel" | "isCarryForward" | "feeBucket" | "sourceSessionLabel">) {
+  if (isCarryForwardInstallment(row)) {
+    return `carry-forward:${getCarryForwardSourceSession(row) ?? row.installmentLabel ?? row.installmentNo}`;
+  }
+
+  return `installment:${row.installmentNo}`;
+}
+
+function compareDashboardInstallments(
+  left: Pick<DashboardInstallmentSummaryRow, "installmentNo" | "installmentLabel" | "isCarryForward" | "sourceSessionLabel">,
+  right: Pick<DashboardInstallmentSummaryRow, "installmentNo" | "installmentLabel" | "isCarryForward" | "sourceSessionLabel">,
+) {
+  const leftCarry = isCarryForwardInstallment(left);
+  const rightCarry = isCarryForwardInstallment(right);
+  if (leftCarry !== rightCarry) {
+    return leftCarry ? -1 : 1;
+  }
+
+  if (leftCarry && rightCarry) {
+    return getDisplayInstallmentLabel(left).localeCompare(getDisplayInstallmentLabel(right));
+  }
+
+  return left.installmentNo - right.installmentNo;
+}
+
+export function buildDashboardSummary(input: DashboardSummaryInput) {
+  const totalStudents = input.rawStudentCount ?? input.financialRows.length;
+  const totalExpectedFees = input.financialRows.reduce(
+    (sum, row) => sum + row.baseChargeTotal,
+    0,
+  );
+  const totalCollected = input.financialRows.reduce(
+    (sum, row) => sum + row.totalPaid,
+    0,
+  );
+  const totalPending = input.financialRows.reduce(
+    (sum, row) => sum + row.outstandingAmount,
+    0,
+  );
+  const pendingSplit = buildCarryForwardSummary(input.installmentRows);
+  const overdueAmount = calculateOverdueBaseAmount(input.overdueInstallments);
+  // Reversed receipts are not collection. These rows already carry isReversed
+  // (lib/workbook/data.ts sets it from v_receipt_reversal_totals) — the flag was
+  // being used to strike rows through in lists while the totals beside them
+  // still counted the money.
+  const todayReceipts = input.todayTransactions.filter((row) => !row.isReversed);
+  const todaysCollection = todayReceipts.reduce((sum, row) => sum + row.totalAmount, 0);
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const thisMonthCollection = input.transactions
+    .filter((row) => !row.isReversed && row.paymentDate.startsWith(currentMonthKey))
+    .reduce((sum, row) => sum + row.totalAmount, 0);
+
+  const kpis: DashboardKpis = {
+    totalStudents,
+    totalExpectedFees,
+    totalCollected,
+    totalPending,
+    currentYearExpected: pendingSplit.currentYearExpected,
+    currentYearCollected: pendingSplit.currentYearCollected,
+    currentYearPending: pendingSplit.currentYearPending,
+    previousYearOriginal: pendingSplit.previousYearOriginal,
+    previousYearPending: pendingSplit.previousYearPending,
+    previousYearCollected: pendingSplit.previousYearCollected,
+    lateFeePending: pendingSplit.lateFeePending,
+    overdueAmount,
+    todaysCollection,
+    thisMonthCollection,
+    receiptsToday: todayReceipts.length,
+    collectionRate: calculatePercentage(totalCollected, totalExpectedFees),
+  };
+
+  const overdueByClass = input.overdueInstallments.reduce((acc, row) => {
+    const key = `${row.sessionLabel}::${row.classId}`;
+    acc.set(key, (acc.get(key) ?? 0) + calculateInstallmentBasePending(row));
+    return acc;
+  }, new Map<string, number>());
+
+  const classMap = input.studentRows.reduce(
+    (acc, row) => {
+      const key = `${row.sessionLabel}::${row.classId}`;
+      const existing = acc.get(key) ?? {
+        classId: row.classId,
+        sessionLabel: row.sessionLabel,
+        classLabel: row.classLabel,
+        totalStudents: 0,
+        studentsWithGeneratedDues: 0,
+        missingDuesStudents: 0,
+        expectedAmount: 0,
+        collectedAmount: 0,
+        pendingAmount: 0,
+        overdueAmount: 0,
+        overdueStudents: 0,
+        studentsWithPending: 0,
+      };
+
+      existing.totalStudents += 1;
+      acc.set(key, existing);
+      return acc;
+    },
+    new Map<
+      string,
+      Omit<DashboardClassSummaryRow, "collectionRate">
+    >(),
+  );
+
+  for (const row of input.classRows ?? []) {
+    const key = `${row.sessionLabel}::${row.classId}`;
+    const existing = classMap.get(key) ?? {
+      classId: row.classId,
+      sessionLabel: row.sessionLabel,
+      classLabel: row.classLabel,
+      totalStudents: 0,
+      studentsWithGeneratedDues: 0,
+      missingDuesStudents: 0,
+      expectedAmount: 0,
+      collectedAmount: 0,
+      pendingAmount: 0,
+      overdueAmount: 0,
+      overdueStudents: 0,
+      studentsWithPending: 0,
+    };
+
+    existing.classLabel = row.classLabel;
+    existing.totalStudents = Math.max(existing.totalStudents, row.activeStudentCount);
+    classMap.set(key, existing);
+  }
+
+  for (const row of input.financialRows) {
+    const key = `${row.sessionLabel}::${row.classId}`;
+    const existing = classMap.get(key) ?? {
+      classId: row.classId,
+      sessionLabel: row.sessionLabel,
+      classLabel: row.classLabel,
+      totalStudents: 0,
+      studentsWithGeneratedDues: 0,
+      missingDuesStudents: 0,
+      expectedAmount: 0,
+      collectedAmount: 0,
+      pendingAmount: 0,
+      overdueAmount: 0,
+      overdueStudents: 0,
+      studentsWithPending: 0,
+    };
+
+    existing.classLabel = row.classLabel;
+    existing.studentsWithGeneratedDues += 1;
+    existing.expectedAmount += row.baseChargeTotal;
+    existing.collectedAmount += row.totalPaid;
+    existing.pendingAmount += row.outstandingAmount;
+    existing.overdueStudents += Number(row.statusLabel === "OVERDUE");
+    existing.studentsWithPending += Number(row.outstandingAmount > 0);
+    classMap.set(key, existing);
+  }
+
+  const classSummary = Array.from(classMap.entries())
+    .map(([key, row]) => ({
+      ...row,
+      overdueAmount: overdueByClass.get(key) ?? 0,
+      missingDuesStudents: Math.max(row.totalStudents - row.studentsWithGeneratedDues, 0),
+      collectionRate: calculatePercentage(row.collectedAmount, row.expectedAmount),
+    }))
+    .sort((left, right) => {
+      if (right.pendingAmount !== left.pendingAmount) {
+        return right.pendingAmount - left.pendingAmount;
+      }
+
+      return left.classLabel.localeCompare(right.classLabel);
+    });
+
+  const installmentMap = input.installmentRows.reduce(
+    (acc, row) => {
+      const isCarryForward = isCarryForwardInstallment(row);
+      const key = getDashboardInstallmentKey(row);
+      const existing = acc.get(key) ?? {
+        installmentNo: row.installmentNo,
+        installmentLabel: getDisplayInstallmentLabel(row),
+        isCarryForward,
+        sourceSessionLabel: getCarryForwardSourceSession(row),
+        dueDate: row.dueDate,
+        studentCount: 0,
+        expectedAmount: 0,
+        collectedAmount: 0,
+        pendingAmount: 0,
+        overdueAmount: 0,
+      };
+
+      existing.studentCount += 1;
+      existing.expectedAmount += row.baseCharge;
+      existing.collectedAmount += getCollectedFromInstallment(row);
+      existing.pendingAmount += row.pendingAmount;
+      existing.overdueAmount += row.balanceStatus === "overdue" ? calculateInstallmentBasePending(row) : 0;
+      acc.set(key, existing);
+      return acc;
+    },
+    new Map<
+      string,
+      Omit<DashboardInstallmentSummaryRow, "collectionRate">
+    >(),
+  );
+
+  const installmentSummary = Array.from(installmentMap.values())
+    .map((row) => ({
+      ...row,
+      collectionRate: calculatePercentage(row.collectedAmount, row.expectedAmount),
+    }))
+    .sort(compareDashboardInstallments);
+
+  const trendMap = input.transactions.reduce((acc, row) => {
+    const existing = acc.get(row.paymentDate) ?? {
+      date: row.paymentDate,
+      amount: 0,
+      receiptCount: 0,
+    };
+
+    existing.amount += row.totalAmount;
+    existing.receiptCount += 1;
+    acc.set(row.paymentDate, existing);
+    return acc;
+  }, new Map<string, DashboardTrendPoint>());
+
+  const collectionTrend = Array.from(trendMap.values())
+    .sort((left, right) => left.date.localeCompare(right.date))
+    .slice(-14);
+
+  const modeMap = input.todayTransactions.reduce((acc, row) => {
+    const label = formatPaymentModeLabel(row.paymentMode);
+    const existing = acc.get(label) ?? {
+      paymentMode: label,
+      amount: 0,
+      receiptCount: 0,
+    };
+
+    existing.amount += row.totalAmount;
+    existing.receiptCount += 1;
+    acc.set(label, existing);
+    return acc;
+  }, new Map<string, DashboardPaymentModeBreakdown>());
+
+  const todayPaymentModeBreakdown = Array.from(modeMap.values()).sort(
+    (left, right) => right.amount - left.amount,
+  );
+
+  const recentPayments = input.transactions.slice(0, 8).map((row) => ({
+    receiptId: row.receiptId,
+    receiptNumber: row.receiptNumber,
+    paymentDate: row.paymentDate,
+    studentId: row.studentId,
+    studentName: row.studentName,
+    admissionNo: row.admissionNo,
+    classLabel: row.classLabel,
+    paymentMode: formatPaymentModeLabel(row.paymentMode),
+    amount: row.totalAmount,
+  }));
+
+  const followUpQueue = input.financialRows
+    .filter((row) => row.outstandingAmount > 0)
+    .sort((left, right) => {
+      if (left.statusLabel !== right.statusLabel) {
+        if (left.statusLabel === "OVERDUE") {
+          return -1;
+        }
+
+        if (right.statusLabel === "OVERDUE") {
+          return 1;
+        }
+      }
+
+      return right.outstandingAmount - left.outstandingAmount;
+    })
+    .slice(0, 10)
+    .map((row) => ({
+      studentId: row.studentId,
+      studentName: row.studentName,
+      admissionNo: row.admissionNo,
+      classId: row.classId,
+      classLabel: row.classLabel,
+      fatherPhone: row.fatherPhone,
+      outstandingAmount: row.outstandingAmount,
+      nextDueDate: row.nextDueDate,
+      nextDueLabel: row.nextDueLabel,
+      nextDueAmount: row.nextDueAmount,
+      statusLabel: row.statusLabel,
+      reminderText: buildReminderText(row),
+    }));
+
+  const classMatrixMap = new Map<string, { classId: string; classLabel: string; installmentsMap: Map<string, number> }>();
+  for (const row of input.installmentRows) {
+    const classKey = `${row.sessionLabel}::${row.classId}`;
+    const installmentKey = getDashboardInstallmentKey(row);
+    const existing = classMatrixMap.get(classKey) ?? {
+      classId: row.classId,
+      classLabel: row.classLabel,
+      installmentsMap: new Map<string, number>(),
+    };
+    const currentPending = existing.installmentsMap.get(installmentKey) ?? 0;
+    existing.installmentsMap.set(installmentKey, currentPending + row.pendingAmount);
+    classMatrixMap.set(classKey, existing);
+  }
+
+  const distinctInstallments = Array.from(
+    input.installmentRows.reduce((acc, row) => {
+      const key = getDashboardInstallmentKey(row);
+      if (!acc.has(key)) {
+        acc.set(key, {
+          key,
+          installmentNo: row.installmentNo,
+          installmentLabel: getDisplayInstallmentLabel(row),
+          isCarryForward: isCarryForwardInstallment(row),
+          sourceSessionLabel: getCarryForwardSourceSession(row),
+        });
+      }
+      return acc;
+    }, new Map<string, { key: string; installmentNo: number; installmentLabel: string; isCarryForward: boolean; sourceSessionLabel: string | null }>())
+      .values(),
+  ).sort(compareDashboardInstallments);
+
+  const classInstallmentMatrix: DashboardClassInstallmentPendingRow[] = Array.from(classMatrixMap.values())
+    .map((row) => {
+      const installments = distinctInstallments.map((inst) => ({
+        installmentNo: inst.installmentNo,
+        installmentLabel: inst.installmentLabel,
+        isCarryForward: inst.isCarryForward,
+        sourceSessionLabel: inst.sourceSessionLabel,
+        pendingAmount: row.installmentsMap.get(inst.key) ?? 0,
+      }));
+      const totalPendingAmount = installments.reduce((sum, inst) => sum + inst.pendingAmount, 0);
+      return {
+        classId: row.classId,
+        classLabel: row.classLabel,
+        installments,
+        totalPendingAmount,
+      };
+    })
+    .sort((a, b) => {
+      if (b.totalPendingAmount !== a.totalPendingAmount) {
+        return b.totalPendingAmount - a.totalPendingAmount;
+      }
+      return a.classLabel.localeCompare(b.classLabel);
+    });
+
+  const emptyState: DashboardEmptyState = {
+    hasStudents: totalStudents > 0,
+    hasReceipts: input.transactions.length > 0,
+    hasFinancialData: totalExpectedFees > 0 || totalCollected > 0 || totalPending > 0,
+  };
+
+  return {
+    kpis,
+    classSummary,
+    installmentSummary,
+    classInstallmentMatrix,
+    collectionTrend,
+    todayPaymentModeBreakdown,
+    recentPayments,
+    followUpQueue,
+    emptyState,
+  };
+}

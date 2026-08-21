@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { getDefaultSelectedPaymentRowIds } from "@/components/payments/bulk/bulk-payment-workflow";
-import type { PaymentImportBatchSummary, PaymentImportRowView } from "@/lib/payments/bulk/types";
+import { getDefaultSelectedPaymentRowIds } from "@/modules/payments/ui/bulk/bulk-payment-workflow";
+import type { PaymentImportBatchSummary, PaymentImportRowView } from "@/modules/payments/domain/bulk/types";
 
 function paymentRow(overrides: Partial<PaymentImportRowView>): PaymentImportRowView {
   return {

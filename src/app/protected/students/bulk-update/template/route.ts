@@ -4,13 +4,13 @@ import { getActiveSessionLabel } from "@/platform/session/active";
 import {
   buildBulkUpdateLookups,
   loadBulkUpdateSnapshot,
-} from "@/lib/students/bulk-update/data";
-import { resolveBulkUpdateFields } from "@/lib/students/bulk-update/fields";
+} from "@/modules/students/data/bulk-update/data";
+import { resolveBulkUpdateFields } from "@/modules/students/domain/bulk-update/fields";
 import {
   buildBulkUpdateTemplateWorkbook,
   buildBulkUpdateValidations,
   workbookToBuffer,
-} from "@/lib/students/bulk-update/workbook";
+} from "@/modules/students/domain/bulk-update/workbook";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 
 import { withDownloadToken } from "@/platform/helpers/download-token";

@@ -90,7 +90,7 @@ const getCacheSafeClient = vi.fn(async () => ({
   from: vi.fn((table: string) => (table === "students" ? studentIndexQuery : classQuery)),
 }));
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicyForSession,
   getFeePolicySummary,
 }));
@@ -108,7 +108,7 @@ describe("payment desk cached data scope", () => {
 
   it("loads fee policy outside the cached readiness check", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { getPaymentDeskReadiness } = await import("@/lib/payments/data");
+    const { getPaymentDeskReadiness } = await import("@/modules/payments/data/queries");
 
     const readiness = await getPaymentDeskReadiness({
       sessionLabel: "TEST-2026-27",
@@ -125,7 +125,7 @@ describe("payment desk cached data scope", () => {
 
   it("uses the provided session for cached Payment Desk class and student options", async () => {
     const { getPaymentDeskClassOptions, getPaymentDeskStudentIndex } = await import(
-      "@/lib/payments/data"
+      "@/modules/payments/data/queries"
     );
 
     const [classes, students] = await Promise.all([

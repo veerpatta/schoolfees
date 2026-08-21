@@ -60,7 +60,7 @@ describe("who may attach a receipt PDF", () => {
  * on the click. The fix is that the prop is required; this keeps it that way.
  */
 describe("receipt preview print gating fails closed", () => {
-  const sheet = readRepoFile("src/components/receipts/receipt-preview-sheet.tsx");
+  const sheet = readRepoFile("src/modules/receipts/ui/receipt-preview-sheet.tsx");
 
   it("declares canPrint as required, with no fail-open default", () => {
     expect(sheet).toContain("canPrint: boolean;");
@@ -70,8 +70,8 @@ describe("receipt preview print gating fails closed", () => {
 
   it("is told the answer by both of its call sites", () => {
     for (const path of [
-      "src/components/receipts/receipts-quick-load.tsx",
-      "src/components/transactions/transactions-client-shell.tsx",
+      "src/modules/receipts/ui/receipts-quick-load.tsx",
+      "src/modules/transactions/ui/transactions-client-shell.tsx",
     ]) {
       expect(readRepoFile(path), `${path} must pass canPrint`).toMatch(/canPrint=\{/);
     }
@@ -86,8 +86,8 @@ describe("receipt preview print gating fails closed", () => {
       "listWhatsappTemplates",
     );
     for (const path of [
-      "src/components/receipts/receipts-quick-load.tsx",
-      "src/components/transactions/transactions-client-shell.tsx",
+      "src/modules/receipts/ui/receipts-quick-load.tsx",
+      "src/modules/transactions/ui/transactions-client-shell.tsx",
     ]) {
       expect(readRepoFile(path)).toMatch(/whatsappTemplates=\{/);
     }

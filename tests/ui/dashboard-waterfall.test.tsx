@@ -49,7 +49,7 @@ vi.mock("@/platform/supabase/session", () => ({
 vi.mock("@/platform/session/cookie", () => ({ getViewSessionCookie }));
 vi.mock("@/platform/session/resolver", () => ({ resolveViewSession }));
 
-vi.mock("@/lib/dashboard/data", () => ({
+vi.mock("@/modules/dashboard/data/queries", () => ({
   getDashboardAboveFoldData,
   getDashboardPageData,
   getRouteCollectionSummary,
@@ -57,7 +57,7 @@ vi.mock("@/lib/dashboard/data", () => ({
   scheduleDashboardAutoPrepare,
 }));
 
-vi.mock("@/lib/activity/events", () => ({ getTodayActivityCounts }));
+vi.mock("@/modules/activity/data/events", () => ({ getTodayActivityCounts }));
 
 const KPIS = {
   totalStudents: 560,

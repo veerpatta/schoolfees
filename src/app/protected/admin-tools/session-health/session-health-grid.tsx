@@ -9,11 +9,11 @@ import { Button } from "@/ui/primitives/button";
 import { formatDateTimeIst } from "@/platform/helpers/date";
 import { REQUIRED_OFFICE_SESSION_LABELS } from "@/platform/session/available-sessions";
 import { createClient } from "@/platform/supabase/server";
-import { getSystemSyncHealth, type SystemSyncHealth } from "@/lib/system-sync/finance-sync";
+import { getSystemSyncHealth, type SystemSyncHealth } from "@/modules/system-sync/domain/finance-sync";
 import {
   buildUnavailableSystemSyncHealth,
   getErrorMessage,
-} from "@/lib/system-sync/health-fallback";
+} from "@/modules/system-sync/domain/health-fallback";
 
 import { reconcileSessionAction, refreshSessionFiguresAction } from "./actions";
 

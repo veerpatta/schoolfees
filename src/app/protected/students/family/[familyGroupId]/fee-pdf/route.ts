@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { isUuid } from "@/platform/helpers/uuid";
-import { getFamilyWorkspaceData } from "@/lib/students/workspace";
+import { getFamilyWorkspaceData } from "@/modules/students/data/workspace";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export async function GET(
 
     const { familyGroup, students } = await getFamilyWorkspaceData(familyGroupId, { skipCache: true });
     const { renderFeeStatementPdf, toFeePdfStudent } = await import(
-      "@/lib/students/fee-statement-pdf"
+      "@/modules/students/domain/fee-statement-pdf"
     );
     const pdfStudents = students
       .map((workspace) => toFeePdfStudent(workspace))

@@ -1,9 +1,9 @@
-import type { UpdateTemplateStudent } from "@/lib/import/templates";
-import { getConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
-import { getFeePolicyForSession, getFeePolicySummary } from "@/lib/fees/data";
-import { getMasterDataOptions } from "@/lib/master-data/data";
-import { ACTIVE_STUDENT_STATUS } from "@/lib/students/bulk-update/data";
-import { compareStudentRowsByName } from "@/lib/students/sort";
+import type { UpdateTemplateStudent } from "@/modules/imports/domain/templates";
+import { getConventionalDiscountPolicies } from "@/modules/fees/data/conventional-discounts";
+import { getFeePolicyForSession, getFeePolicySummary } from "@/modules/fees/domain/queries";
+import { getMasterDataOptions } from "@/modules/master-data/data/queries";
+import { ACTIVE_STUDENT_STATUS } from "@/modules/students/data/bulk-update/data";
+import { compareStudentRowsByName } from "@/modules/students/domain/sort";
 import { createClient } from "@/platform/supabase/server";
 import { requireAnyStaffPermission } from "@/platform/supabase/session";
 
@@ -166,7 +166,7 @@ export async function GET(request: Request) {
   // The *File builders write the workbook and then stamp the dropdowns onto the
   // zip — SheetJS cannot emit data validations on its own.
   if (mode === "update") {
-    const { buildUpdateStudentsTemplateFile } = await import("@/lib/import/templates");
+    const { buildUpdateStudentsTemplateFile } = await import("@/modules/imports/domain/templates");
 
     const buffer = await buildUpdateStudentsTemplateFile(
       await buildUpdateRows(normalizedSessionLabel),
@@ -179,7 +179,7 @@ export async function GET(request: Request) {
     return xlsxResponse(request, buffer, "student-update-template.xlsx");
   }
 
-  const { buildAddStudentsTemplateFile } = await import("@/lib/import/templates");
+  const { buildAddStudentsTemplateFile } = await import("@/modules/imports/domain/templates");
   const buffer = await buildAddStudentsTemplateFile(
     classesForTemplate.map((item) => ({ label: item.label })),
     routesForTemplate,

@@ -6,9 +6,9 @@ const getFeeSetupPageData = vi.fn();
 const createClient = vi.fn();
 const buildWorkbookInstallmentCharges = vi.fn();
 
-vi.mock("@/lib/fees/data", () => ({ getFeeSetupPageData }));
+vi.mock("@/modules/fees/domain/queries", () => ({ getFeeSetupPageData }));
 
-vi.mock("@/lib/fees/policy", () => ({
+vi.mock("@/modules/fees/data/policy", () => ({
   resolveStudentPolicyBreakdown: vi.fn(() => ({
     lateFeeFlatAmount: 1000,
     breakdown: {
@@ -26,7 +26,7 @@ vi.mock("@/lib/fees/policy", () => ({
   })),
 }));
 
-vi.mock("@/lib/fees/workbook", () => ({ buildWorkbookInstallmentCharges }));
+vi.mock("@/modules/fees/domain/workbook", () => ({ buildWorkbookInstallmentCharges }));
 vi.mock("@/platform/supabase/server", () => ({ createClient }));
 
 function queryResult<T>(data: T) {
@@ -183,7 +183,7 @@ describe("a discount on a student who has already paid", () => {
       ],
     });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
 
     // The old behaviour: zero updates, everything frozen, silent success.
@@ -223,7 +223,7 @@ describe("a discount on a student who has already paid", () => {
       payments: [{ installment_id: "inst-1", amount: 5000 }],
     });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
 
     // The paid row is untouched — not written, and not flagged either, because
@@ -255,7 +255,7 @@ describe("a discount on a student who has already paid", () => {
       ],
     });
 
-    const { previewLedgerGenerationDetailed } = await import("@/lib/fees/generator");
+    const { previewLedgerGenerationDetailed } = await import("@/modules/fees/data/generator");
     const plan = await previewLedgerGenerationDetailed({ scopedStudentIds: ["student-1"] });
 
     expect(plan.residualCreditStudents).toEqual([
@@ -281,7 +281,7 @@ describe("a discount on a student who has already paid", () => {
     rows[0] = { ...rows[0]!, due_date: "2026-03-01" };
     mockDb({ installments: rows, payments: [{ installment_id: "inst-1", amount: 5000 }] });
 
-    const { previewLedgerGenerationDetailed } = await import("@/lib/fees/generator");
+    const { previewLedgerGenerationDetailed } = await import("@/modules/fees/data/generator");
     const plan = await previewLedgerGenerationDetailed({ scopedStudentIds: ["student-1"] });
 
     expect(plan.blockedInstallmentsForReview.map((row) => row.installmentNo)).toContain(1);
@@ -324,7 +324,7 @@ describe("a stale label must not block a real discount", () => {
       ],
     });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
 
     const written = new Map(updates.map((row) => [row.id, row.values]));
@@ -352,7 +352,7 @@ describe("a stale label must not block a real discount", () => {
     );
     mockDb({ installments: stale, payments: [{ installment_id: "inst-1", amount: 5000 }] });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
 
     expect(result.blockedInstallmentsForReview.map((row) => row.installmentNo)).toContain(1);
@@ -396,7 +396,7 @@ describe("a fee rise on a student who has already paid", () => {
       ],
     });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
 
     const byId = new Map(updates.map((row) => [row.id, row.values]));
@@ -432,7 +432,7 @@ describe("a fee rise on a student who has already paid", () => {
       ],
     });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     const result = await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
 
     expect(result.underBilledStudents).toHaveLength(1);
@@ -457,7 +457,7 @@ describe("a fee rise on a student who has already paid", () => {
     );
     const updates = mockDb({ installments: stale, payments: [] });
 
-    const { generateSessionLedgersAction } = await import("@/lib/fees/generator");
+    const { generateSessionLedgersAction } = await import("@/modules/fees/data/generator");
     await generateSessionLedgersAction({ scopedStudentIds: ["student-1"] });
 
     expect(updates).not.toHaveLength(0);

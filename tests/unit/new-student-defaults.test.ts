@@ -19,7 +19,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 describe("Add Student defaults to a new admission", () => {
   const addPage = read("src/app/protected/students/new/page.tsx");
   const editPage = read("src/app/protected/students/[studentId]/edit/page.tsx");
-  const form = read("src/components/students/student-form.tsx");
+  const form = read("src/modules/students/ui/student-form.tsx");
 
   it("preselects New on the add form", () => {
     expect(addPage).toMatch(/studentTypeOverride:\s*"new"/);

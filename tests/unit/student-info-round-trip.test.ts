@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { ADD_TEMPLATE_HEADERS, UPDATE_TEMPLATE_HEADERS } from "@/lib/import/templates";
-import { buildAutoColumnMapping, studentImportFieldDefinitions } from "@/lib/import/mapping";
-import { BULK_UPDATE_FIELDS, getBulkUpdateField } from "@/lib/students/bulk-update/fields";
-import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+import { ADD_TEMPLATE_HEADERS, UPDATE_TEMPLATE_HEADERS } from "@/modules/imports/domain/templates";
+import { buildAutoColumnMapping, studentImportFieldDefinitions } from "@/modules/imports/domain/mapping";
+import { BULK_UPDATE_FIELDS, getBulkUpdateField } from "@/modules/students/domain/bulk-update/fields";
+import { STUDENT_INFO_FIELDS } from "@/modules/students/domain/info-fields";
 
 /**
  * The information fields now cross three spreadsheet surfaces — the Student

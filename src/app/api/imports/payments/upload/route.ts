@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createPaymentImportBatch } from "@/lib/payments/bulk/data";
+import { createPaymentImportBatch } from "@/modules/payments/data/bulk/data";
 import { parseAcademicSessionLabel } from "@/platform/config/fee-rules";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 

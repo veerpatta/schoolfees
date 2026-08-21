@@ -16,7 +16,7 @@ vi.mock("@/platform/supabase/session", () => ({
 }));
 
 const getReceiptDetail = vi.fn();
-vi.mock("@/lib/receipts/data", () => ({
+vi.mock("@/modules/receipts/data/queries", () => ({
   getReceiptDetail: (...args: unknown[]) => getReceiptDetail(...args),
 }));
 

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import {
   getPaymentDateAwareInstallmentBalances,
   toFriendlyPaymentPreviewError,
-} from "@/lib/payments/data";
+} from "@/modules/payments/data/queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 const UUID_PATTERN =

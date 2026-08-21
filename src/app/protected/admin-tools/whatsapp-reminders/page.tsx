@@ -4,22 +4,22 @@ import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
 import { CollapsibleSection } from "@/ui/primitives/collapsible-section";
 import { OfficeNotice } from "@/ui/office/office-ui";
-import { RemindersWorkspace } from "@/components/whatsapp-reminders/reminders-workspace";
-import { TestSendPanel } from "@/components/whatsapp-reminders/test-send-panel";
+import { RemindersWorkspace } from "@/modules/whatsapp/ui/reminders-workspace";
+import { TestSendPanel } from "@/modules/whatsapp/ui/test-send-panel";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
-import { configuredCampaignName, isAisensyConfigured } from "@/lib/whatsapp/aisensy";
+import { configuredCampaignName, isAisensyConfigured } from "@/modules/whatsapp/data/aisensy";
 import {
   istToday,
   loadReminderAudience,
   parseReminderFilters,
   resolveCurrentSessionLabel,
   type ReminderFilters,
-} from "@/lib/whatsapp/fee-reminders";
+} from "@/modules/whatsapp/domain/fee-reminders";
 import {
   FEE_REMINDER_TEMPLATE_DEADLINE,
   TEMPLATE_INSTALLMENTS,
-} from "@/lib/whatsapp/reminder-template";
+} from "@/modules/whatsapp/domain/reminder-template";
 
 // The list is only ever as good as the ledger it was read from, and staff will
 // send money-bearing messages off it. Never serve it from a cache.

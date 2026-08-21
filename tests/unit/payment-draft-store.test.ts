@@ -6,7 +6,7 @@ import {
   loadDraft,
   saveDraft,
   type PaymentDraftValue,
-} from "@/lib/payments/draft-store";
+} from "@/modules/payments/domain/draft-store";
 
 function installLocalStorageMock() {
   const store = new Map<string, string>();

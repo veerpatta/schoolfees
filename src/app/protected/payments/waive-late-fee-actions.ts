@@ -2,16 +2,16 @@
 
 import { after } from "next/server";
 
-import { recordActivity } from "@/lib/activity/events";
+import { recordActivity } from "@/modules/activity/data/events";
 import {
   revalidateAfterPaymentPosting,
   revalidateSessionFinance,
-} from "@/lib/system-sync/finance-revalidation";
+} from "@/modules/system-sync/domain/finance-revalidation";
 // Imported through the system-sync helper rather than reaching for
 // `@/platform/supabase/admin` directly — the helper owns the service-role rationale,
 // and late-fee-waiver-lock.test.ts asserts this module never imports the admin
 // client itself.
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 import { createClient } from "@/platform/supabase/server";
 import { requireStaffPermission } from "@/platform/supabase/session";
 // A "use server" module may export only async functions. The action-state type

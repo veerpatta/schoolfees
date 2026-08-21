@@ -6,7 +6,7 @@ import { formatMediumDate } from "@/platform/helpers/date";
 import {
   getReceiptReversalTotals,
   isReceiptReversed,
-} from "@/lib/receipts/reversals";
+} from "@/modules/receipts/data/reversals";
 import { createAdminClient } from "@/platform/supabase/admin";
 
 /**

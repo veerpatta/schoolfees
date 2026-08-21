@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import {
   createStudentImportBatch,
   getStudentImportBatchSummary,
-} from "@/lib/import/data";
+} from "@/modules/imports/data/queries";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 
 function getImportMode(value: FormDataEntryValue | null) {

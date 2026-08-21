@@ -2,38 +2,38 @@
 
 import { revalidatePath } from "next/cache";
 
-import { revalidateTagAfterWrite } from "@/lib/system-sync/finance-revalidation";
+import { revalidateTagAfterWrite } from "@/modules/system-sync/domain/finance-revalidation";
 import { after } from "next/server";
 
 import {
   applyWorkbookFeeSetupBatch,
   createWorkbookFeeSetupPreview,
-} from "@/lib/fees/workbook-setup-change";
-import { upsertConventionalDiscountPolicies } from "@/lib/fees/conventional-discounts";
-import type { WorkbookFeeSetupFormPayload } from "@/lib/fees/workbook-setup";
+} from "@/modules/fees/data/workbook-setup-change";
+import { upsertConventionalDiscountPolicies } from "@/modules/fees/data/conventional-discounts";
+import type { WorkbookFeeSetupFormPayload } from "@/modules/fees/domain/workbook-setup";
 import {
   DEFAULT_FEE_HEAD_METADATA,
   normalizeFeeHeadChargeFrequency,
-} from "@/lib/fees/fee-heads";
+} from "@/modules/fees/domain/fee-heads";
 import type {
   ConventionalDiscountCalculationType,
   FeeHeadApplicationType,
   FeeHeadChargeFrequency,
   FeeSetupActionState,
-} from "@/lib/fees/types";
+} from "@/modules/fees/domain/types";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import {
   prepareDuesForStudentsAutomatically,
   repairMissingDues,
   revalidateCoreFinancePaths,
   revalidateSessionFinance,
-} from "@/lib/system-sync/finance-sync";
+} from "@/modules/system-sync/domain/finance-sync";
 import {
   buildSyncedOfficeSyncOutcome,
   type OfficeSyncOutcome,
-} from "@/lib/system-sync/office-sync";
-import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+} from "@/modules/system-sync/domain/office-sync";
+import { publishOfficeSyncEvent } from "@/modules/system-sync/data/office-sync-events";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 
 function parseRequiredString(value: FormDataEntryValue | null, label: string) {
   const normalized = (value ?? "").toString().trim();

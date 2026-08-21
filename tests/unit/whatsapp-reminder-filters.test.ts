@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_REMINDER_FILTERS,
   parseReminderFilters,
-} from "@/lib/whatsapp/fee-reminders";
+} from "@/modules/whatsapp/domain/fee-reminders";
 
 /**
  * The screen parses these off the query string and `sendRemindersAction` parses

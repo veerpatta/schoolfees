@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_REMINDER_FILTERS, loadReminderAudience } from "@/lib/whatsapp/fee-reminders";
-import { addDays } from "@/lib/whatsapp/reminder-cadence";
+import { DEFAULT_REMINDER_FILTERS, loadReminderAudience } from "@/modules/whatsapp/domain/fee-reminders";
+import { addDays } from "@/modules/whatsapp/domain/reminder-cadence";
 
 /**
  * Who actually gets messaged.

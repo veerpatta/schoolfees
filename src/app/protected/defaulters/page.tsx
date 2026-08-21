@@ -6,18 +6,18 @@ import { SectionCard } from "@/ui/shell/section-card";
 import { StatusBadge } from "@/ui/shell/status-badge";
 import { OfficeNotice } from "@/ui/office/office-ui";
 import { Button } from "@/ui/primitives/button";
-import { DefaulterFilters } from "@/components/defaulters/defaulter-filters";
-import { DefaulterFilterRehydrator } from "@/components/defaulters/defaulter-filter-rehydrator";
+import { DefaulterFilters } from "@/modules/defaulters/ui/defaulter-filters";
+import { DefaulterFilterRehydrator } from "@/modules/defaulters/ui/defaulter-filter-rehydrator";
 import { MissingDuesBanner } from "@/ui/shared/missing-dues-banner";
-import { BulkWhatsappProvider } from "@/components/defaulters/bulk-whatsapp-provider";
-import { DefaultersWorkspace } from "@/components/defaulters/defaulters-workspace";
-import { getDefaultersPageData } from "@/lib/defaulters/data";
-import { type DefaulterContactSummary } from "@/lib/defaulters/cadence";
-import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
+import { BulkWhatsappProvider } from "@/modules/defaulters/ui/bulk-whatsapp-provider";
+import { DefaultersWorkspace } from "@/modules/defaulters/ui/defaulters-workspace";
+import { getDefaultersPageData } from "@/modules/defaulters/data/queries";
+import { type DefaulterContactSummary } from "@/modules/defaulters/domain/cadence";
+import { listWhatsappTemplates } from "@/modules/whatsapp/data/queries";
 import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters as DefaulterFiltersType,
-} from "@/lib/defaulters/types";
+} from "@/modules/defaulters/domain/types";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatShortDate } from "@/platform/helpers/date";
 import { appendSessionParam } from "@/platform/navigation/session-href";

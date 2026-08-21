@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import { isUuid } from "@/platform/helpers/uuid";
 
 import { PageHeader } from "@/ui/shell/page-header";
-import { FamilyStatementDocument } from "@/components/students/family-statement-document";
-import { MasterStatementPrintActions } from "@/components/students/master-statement-print-actions";
+import { FamilyStatementDocument } from "@/modules/students/ui/family-statement-document";
+import { MasterStatementPrintActions } from "@/modules/students/ui/master-statement-print-actions";
 import { formatShortDate, partsToIso, todayPartsIst } from "@/platform/helpers/date";
 import { appendSessionParam } from "@/platform/navigation/session-href";
-import { getFamilyWorkspaceData } from "@/lib/students/workspace";
+import { getFamilyWorkspaceData } from "@/modules/students/data/workspace";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 type FamilyStatementPageProps = {

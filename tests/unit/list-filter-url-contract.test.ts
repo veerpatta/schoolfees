@@ -24,22 +24,22 @@ function read(path: string) {
 const SCREENS = [
   {
     name: "Students",
-    path: "src/components/students/student-quick-load.tsx",
+    path: "src/modules/students/ui/student-quick-load.tsx",
     pathname: "/protected/students",
   },
   {
     name: "Receipts",
-    path: "src/components/receipts/receipts-quick-load.tsx",
+    path: "src/modules/receipts/ui/receipts-quick-load.tsx",
     pathname: "/protected/receipts",
   },
   {
     name: "Transactions",
-    path: "src/components/transactions/transactions-client-shell.tsx",
+    path: "src/modules/transactions/ui/transactions-client-shell.tsx",
     pathname: "/protected/transactions",
   },
   {
     name: "Defaulters",
-    path: "src/components/defaulters/defaulter-filter-rehydrator.tsx",
+    path: "src/modules/defaulters/ui/defaulter-filter-rehydrator.tsx",
     pathname: "/protected/defaulters",
   },
 ] as const;
@@ -75,7 +75,7 @@ describe("list filters and the address bar", () => {
     // saved view are places you can go back FROM. A filter change is not, and
     // an entry per keystroke would also compete with the single history entry
     // components/ui/sheet.tsx pushes per open.
-    const shell = read("src/components/transactions/transactions-client-shell.tsx");
+    const shell = read("src/modules/transactions/ui/transactions-client-shell.tsx");
     const pushes = shell.match(/window\.history\.pushState/g)?.length ?? 0;
 
     expect(pushes).toBe(2);
@@ -138,8 +138,8 @@ describe("where Back goes", () => {
   });
 
   it("gives every Transactions student row somewhere to come back to", () => {
-    const tables = read("src/components/transactions/transactions-lazy-tables.tsx");
-    const shell = read("src/components/transactions/transactions-client-shell.tsx");
+    const tables = read("src/modules/transactions/ui/transactions-lazy-tables.tsx");
+    const shell = read("src/modules/transactions/ui/transactions-client-shell.tsx");
 
     expect(tables).toContain("function studentLinkFactory(sessionLabel: string, returnTo?: string)");
     expect(tables).toContain('href.startsWith("/protected/students/")');

@@ -8,14 +8,14 @@ import { OfficeNotice } from "@/ui/office/office-ui";
 import { DownloadAnchor } from "@/ui/primitives/download-anchor";
 import { Button } from "@/ui/primitives/button";
 import { MobileRecordCard } from "@/ui/mobile/mobile-kit";
-import { RecoveryWriteOffButton } from "@/components/students/recovery-write-off-button";
+import { RecoveryWriteOffButton } from "@/modules/students/ui/recovery-write-off-button";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatShortDate } from "@/platform/helpers/date";
-import { getRecoveryQueue } from "@/lib/recovery/data";
+import { getRecoveryQueue } from "@/modules/recovery/data/queries";
 import {
   RECOVERY_STUDENT_STATUSES,
   type RecoveryStudentStatus,
-} from "@/lib/recovery/types";
+} from "@/modules/recovery/domain/types";
 import { hasRolePermission } from "@/platform/auth/roles";
 import { requireAnyStaffPermission } from "@/platform/supabase/session";
 import {

@@ -5,7 +5,7 @@ import {
   DASHBOARD_VIEWS,
   resolveCollectionWindow,
   resolveDashboardView,
-} from "@/lib/dashboard/analytics";
+} from "@/modules/dashboard/data/analytics";
 
 /**
  * `?view=` and `?days=` are the whole state model for the boards — on the desk

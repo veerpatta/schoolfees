@@ -1,5 +1,5 @@
 import type { PaymentMode } from "@/platform/db/types";
-import type { FeeHeadDefinition } from "@/lib/fees/types";
+import type { FeeHeadDefinition } from "@/modules/fees/domain/types";
 
 const MONTH_NAMES = [
   "January",

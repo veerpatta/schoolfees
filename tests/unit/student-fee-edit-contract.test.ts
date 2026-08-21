@@ -37,7 +37,7 @@ const updateStudent = vi.fn(async () => "student-1");
 const hasStaffPermission =
   vi.fn<(staff: unknown, permission: unknown) => boolean>(() => true);
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentDetail: (...a: unknown[]) => getStudentDetail(...(a as [])),
   updateStudent: (...a: unknown[]) => updateStudent(...(a as [])),
   getStudentFormOptions: vi.fn(async () => ({
@@ -62,8 +62,8 @@ vi.mock("@/platform/supabase/session", () => ({
 vi.mock("@/platform/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
 vi.mock("next/server", () => ({ after: (fn: () => unknown) => fn }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
-vi.mock("@/lib/activity/events", () => ({ recordActivity: vi.fn() }));
-vi.mock("@/lib/fees/conventional-discounts", () => ({
+vi.mock("@/modules/activity/data/events", () => ({ recordActivity: vi.fn() }));
+vi.mock("@/modules/fees/data/conventional-discounts", () => ({
   applyThirdChildPolicyForStudentFamilies: vi.fn(async () => []),
 }));
 

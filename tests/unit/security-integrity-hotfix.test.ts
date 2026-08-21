@@ -16,7 +16,7 @@ describe("security and integrity hotfix", () => {
   it("disables every signup entry point and keeps existing staff email login compatible", () => {
     const config = read("supabase/config.toml");
     const loginAction = read("src/app/auth/login/actions.ts");
-    const staffManagement = read("src/lib/staff-management/data.ts");
+    const staffManagement = read("src/modules/staff/data/queries.ts");
     const globalAuthConfig = config.match(
       /^\[auth\]\r?\n([\s\S]*?)(?=^\[)/m,
     )?.[1];
@@ -84,7 +84,7 @@ describe("security and integrity hotfix", () => {
   });
 
   it("bounds uploaded workbooks before materializing worksheet rows", () => {
-    const parser = read("src/lib/import/parser.ts");
+    const parser = read("src/modules/imports/domain/parser.ts");
     expect(parser).toContain("MAX_IMPORT_WORKSHEETS");
     expect(parser).toContain("MAX_IMPORT_ROWS");
     expect(parser).toContain("MAX_IMPORT_COLUMNS");

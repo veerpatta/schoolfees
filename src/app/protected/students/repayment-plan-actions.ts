@@ -2,17 +2,17 @@
 
 import { after } from "next/server";
 
-import { recordActivity } from "@/lib/activity/events";
+import { recordActivity } from "@/modules/activity/data/events";
 import { isRepaymentPlanCreationEnabled } from "@/platform/env";
 import {
   REPAYMENT_PLAN_MIN_REASON_LENGTH,
   isRepaymentPlanScope,
-} from "@/lib/repayment-plans/types";
+} from "@/modules/repayment-plans/domain/types";
 import { createClient } from "@/platform/supabase/server";
 import { requireStaffPermission } from "@/platform/supabase/session";
-import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
-import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
+import { revalidateSessionFinance } from "@/modules/system-sync/domain/finance-revalidation";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
+import { publishOfficeSyncEvent } from "@/modules/system-sync/data/office-sync-events";
 
 import type { RepaymentPlanActionState } from "./repayment-plan-action-state";
 

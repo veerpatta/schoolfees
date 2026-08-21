@@ -79,7 +79,7 @@ describe("ledger selected student scope", () => {
   });
 
   it("loads the requested student ledger even when the student is outside the selector page", async () => {
-    const { getLedgerPageData } = await import("@/lib/ledger/data");
+    const { getLedgerPageData } = await import("@/modules/reports/data/ledger-queries");
 
     const data = await getLedgerPageData({
       searchQuery: "",

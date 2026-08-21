@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { formatInr } from "@/platform/helpers/currency";
 import { isUuid } from "@/platform/helpers/uuid";
 import { formatDateTimeIst, formatShortDate } from "@/platform/helpers/date";
-import { getReportsPageData, normalizeReportFilters } from "@/lib/reports/data";
+import { getReportsPageData, normalizeReportFilters } from "@/modules/reports/data/queries";
 import { formatPaymentModeLabel } from "@/platform/config/fee-rules";
 import { requireStaffPermission } from "@/platform/supabase/session";
 

@@ -7,12 +7,12 @@ const getStudentDetail = vi.fn();
 const createClient = vi.fn();
 const prepareDuesForStudentsAutomatically = vi.fn();
 
-vi.mock("@/lib/fees/data", () => ({
+vi.mock("@/modules/fees/domain/queries", () => ({
   getFeePolicySummary,
   getFeePolicyForSession: getFeePolicySummary,
 }));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentDetail,
 }));
 
@@ -20,7 +20,7 @@ vi.mock("@/platform/supabase/server", () => ({
   createClient,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
 }));
 
@@ -167,7 +167,7 @@ describe("payment submit preflight", () => {
       },
     });
 
-    const { postStudentPayment } = await import("@/lib/payments/data");
+    const { postStudentPayment } = await import("@/modules/payments/data/queries");
     const receipt = await postStudentPayment({
       studentId: "00000000-0000-4000-8000-000000000001",
       paymentDate: "2026-04-25",
@@ -203,7 +203,7 @@ describe("payment submit preflight", () => {
       reasonSummary: "Class 1 does not have a fee amount in Fee Setup for 2026-27.",
     });
 
-    const { postStudentPayment } = await import("@/lib/payments/data");
+    const { postStudentPayment } = await import("@/modules/payments/data/queries");
 
     await expect(
       postStudentPayment({
@@ -223,7 +223,7 @@ describe("payment submit preflight", () => {
     useClient({ counts: [4] });
     getStudentDetail.mockResolvedValue(student({ classSessionLabel: "2025-26" }));
 
-    const { postStudentPayment } = await import("@/lib/payments/data");
+    const { postStudentPayment } = await import("@/modules/payments/data/queries");
 
     await expect(
       postStudentPayment({
@@ -250,7 +250,7 @@ describe("payment submit preflight", () => {
       },
     });
 
-    const { postStudentPayment } = await import("@/lib/payments/data");
+    const { postStudentPayment } = await import("@/modules/payments/data/queries");
 
     await expect(
       postStudentPayment({
@@ -275,7 +275,7 @@ describe("payment submit preflight", () => {
       previewRows: [previewRow({ total_charge: 1000, pending_amount: 1000 })],
     });
 
-    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+    const { preflightPaymentPosting } = await import("@/modules/payments/data/queries");
 
     await expect(
       preflightPaymentPosting({
@@ -302,7 +302,7 @@ describe("payment submit preflight", () => {
       ],
     });
 
-    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+    const { preflightPaymentPosting } = await import("@/modules/payments/data/queries");
 
     await expect(
       preflightPaymentPosting({
@@ -319,7 +319,7 @@ describe("payment submit preflight", () => {
   it("server preflight accepts UPI payment without a reference number", async () => {
     useClient({ counts: [4] });
 
-    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+    const { preflightPaymentPosting } = await import("@/modules/payments/data/queries");
 
     await expect(
       preflightPaymentPosting({
@@ -343,7 +343,7 @@ describe("payment submit preflight", () => {
       },
     });
 
-    const { postStudentPayment } = await import("@/lib/payments/data");
+    const { postStudentPayment } = await import("@/modules/payments/data/queries");
 
     const receipt = await postStudentPayment({
       studentId: "00000000-0000-4000-8000-000000000001",
@@ -380,7 +380,7 @@ describe("payment submit preflight", () => {
       },
     });
 
-    const { postStudentPayment } = await import("@/lib/payments/data");
+    const { postStudentPayment } = await import("@/modules/payments/data/queries");
 
     await expect(
       postStudentPayment({
@@ -416,7 +416,7 @@ describe("payment submit preflight", () => {
       },
     });
 
-    const { postStudentPayment, DuplicatePaymentWarning } = await import("@/lib/payments/data");
+    const { postStudentPayment, DuplicatePaymentWarning } = await import("@/modules/payments/data/queries");
 
     await expect(
       postStudentPayment({
@@ -451,7 +451,7 @@ describe("payment submit preflight", () => {
       },
     });
 
-    const { postStudentPayment, DuplicatePaymentWarning } = await import("@/lib/payments/data");
+    const { postStudentPayment, DuplicatePaymentWarning } = await import("@/modules/payments/data/queries");
 
     await expect(
       postStudentPayment({
@@ -486,7 +486,7 @@ describe("payment submit preflight", () => {
       },
     });
 
-    const { postStudentPayment } = await import("@/lib/payments/data");
+    const { postStudentPayment } = await import("@/modules/payments/data/queries");
 
     const receipt = await postStudentPayment({
       studentId: "00000000-0000-4000-8000-000000000001",
@@ -511,7 +511,7 @@ describe("payment submit preflight", () => {
     getStudentDetail.mockResolvedValue(student({ status: "left" }));
     useClient({ counts: [4] });
 
-    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+    const { preflightPaymentPosting } = await import("@/modules/payments/data/queries");
 
     await expect(
       preflightPaymentPosting({
@@ -530,7 +530,7 @@ describe("payment submit preflight", () => {
     // installmentCount === 0 -> regular would auto-prepare; recovery must error.
     useClient({ counts: [0] });
 
-    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+    const { preflightPaymentPosting } = await import("@/modules/payments/data/queries");
 
     await expect(
       preflightPaymentPosting({
@@ -559,7 +559,7 @@ describe("payment submit preflight", () => {
       ],
     });
 
-    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+    const { preflightPaymentPosting } = await import("@/modules/payments/data/queries");
 
     await expect(
       preflightPaymentPosting({
@@ -587,7 +587,7 @@ describe("payment submit preflight", () => {
       ],
     });
 
-    const { preflightPaymentPosting } = await import("@/lib/payments/data");
+    const { preflightPaymentPosting } = await import("@/modules/payments/data/queries");
 
     await expect(
       preflightPaymentPosting({

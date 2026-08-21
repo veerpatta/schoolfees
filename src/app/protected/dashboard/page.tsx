@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/ui/shell/page-header";
-import { ActivityStrip } from "@/components/dashboard/activity-strip";
+import { ActivityStrip } from "@/modules/dashboard/ui/activity-strip";
 import {
   ClassesBoard,
   CollectionBoard,
@@ -22,29 +22,29 @@ import {
   LateFeeBoard,
   OverviewBoard,
   RecoveryBoard,
-} from "@/components/dashboard/boards";
-import { MoneyBand } from "@/components/dashboard/money-band";
-import { ViewSwitcher } from "@/components/dashboard/view-switcher";
+} from "@/modules/dashboard/ui/boards";
+import { MoneyBand } from "@/modules/dashboard/ui/money-band";
+import { ViewSwitcher } from "@/modules/dashboard/ui/view-switcher";
 import {
   getDashboardAnalytics,
   resolveCollectionWindow,
   resolveDashboardView,
   type CollectionWindow,
   type DashboardView,
-} from "@/lib/dashboard/analytics";
-import { getRepaymentDashboardSummary } from "@/lib/repayment-plans/data";
-import { EmiTrackingCard } from "@/components/dashboard/emi-tracking-card";
-import { DashboardPrefetcher } from "@/components/dashboard/dashboard-prefetcher";
-import { ClassCollectionProgress } from "@/components/dashboard/class-collection-progress";
-import { CollectionHeatmap } from "@/components/dashboard/collection-heatmap";
-import { MobileDashboardBoards } from "@/components/dashboard/mobile-boards";
-import { MobileDashboardScreen } from "@/components/dashboard/mobile-dashboard-screen";
-import { MorningBrief } from "@/components/dashboard/morning-brief";
-import { RouteCollectionHeatmap } from "@/components/dashboard/route-collection-heatmap";
-import { OptimisticBanner } from "@/components/dashboard/optimistic-banner";
+} from "@/modules/dashboard/data/analytics";
+import { getRepaymentDashboardSummary } from "@/modules/repayment-plans/data/queries";
+import { EmiTrackingCard } from "@/modules/dashboard/ui/emi-tracking-card";
+import { DashboardPrefetcher } from "@/modules/dashboard/ui/dashboard-prefetcher";
+import { ClassCollectionProgress } from "@/modules/dashboard/ui/class-collection-progress";
+import { CollectionHeatmap } from "@/modules/dashboard/ui/collection-heatmap";
+import { MobileDashboardBoards } from "@/modules/dashboard/ui/mobile-boards";
+import { MobileDashboardScreen } from "@/modules/dashboard/ui/mobile-dashboard-screen";
+import { MorningBrief } from "@/modules/dashboard/ui/morning-brief";
+import { RouteCollectionHeatmap } from "@/modules/dashboard/ui/route-collection-heatmap";
+import { OptimisticBanner } from "@/modules/dashboard/ui/optimistic-banner";
 import { MissingDuesBanner } from "@/ui/shared/missing-dues-banner";
 import { TrustBadge } from "@/ui/trust/trust-badge";
-import { composeMorningBrief } from "@/lib/dashboard/morning-brief";
+import { composeMorningBrief } from "@/modules/dashboard/domain/morning-brief";
 import { DownloadAnchor } from "@/ui/primitives/download-anchor";
 import { StatusBadge } from "@/ui/shell/status-badge";
 import { Badge } from "@/ui/primitives/badge";
@@ -60,16 +60,16 @@ import {
   scheduleDashboardAutoPrepare,
   type DashboardAlert,
   type DashboardCurrentInstallment,
-} from "@/lib/dashboard/data";
-import { getTodayActivityCounts } from "@/lib/activity/events";
-import { computeTodayCollectionDelta } from "@/lib/dashboard/kpi-delta";
+} from "@/modules/dashboard/data/queries";
+import { getTodayActivityCounts } from "@/modules/activity/data/events";
+import { computeTodayCollectionDelta } from "@/modules/dashboard/domain/kpi-delta";
 import type {
   DashboardClassSummaryRow,
   DashboardInstallmentSummaryRow,
   DashboardKpis,
   DashboardPaymentModeBreakdown,
   DashboardTrendPoint,
-} from "@/lib/dashboard/summary";
+} from "@/modules/dashboard/domain/summary";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatShortDate, formatTimeIst } from "@/platform/helpers/date";
 import { staffDisplayName, staffInitials } from "@/platform/helpers/staff-name";

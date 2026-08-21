@@ -10,9 +10,9 @@ import { Button } from "@/ui/primitives/button";
 import { roleLabels } from "@/platform/auth/roles";
 import { schoolProfile } from "@/platform/config/school";
 import { formatDateTimeIst } from "@/platform/helpers/date";
-import { getRecentConfigChangeLog } from "@/lib/fees/change-log";
-import { getFeePolicyForSession } from "@/lib/fees/data";
-import { getLedgerPolicyHealth, type LedgerPolicyHealth } from "@/lib/fees/ledger-policy-health";
+import { getRecentConfigChangeLog } from "@/modules/fees/data/change-log";
+import { getFeePolicyForSession } from "@/modules/fees/domain/queries";
+import { getLedgerPolicyHealth, type LedgerPolicyHealth } from "@/modules/fees/data/ledger-policy-health";
 import { formatInr } from "@/platform/helpers/currency";
 import {
   getRuntimeEnvironmentLabel,

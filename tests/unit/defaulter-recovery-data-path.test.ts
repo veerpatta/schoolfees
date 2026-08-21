@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 
 describe("defaulter recovery data path", () => {
   const dataSource = readFileSync(
-    join(process.cwd(), "src/lib/defaulters/data.ts"),
+    join(process.cwd(), "src/modules/defaulters/data/queries.ts"),
     "utf8",
   );
   const contactsSource = readFileSync(
-    join(process.cwd(), "src/lib/defaulters/contacts.ts"),
+    join(process.cwd(), "src/modules/defaulters/data/contacts.ts"),
     "utf8",
   );
 

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { readerFromSearchParams } from "@/platform/navigation/search-params";
-import { getReceiptsPage } from "@/lib/receipts/data";
-import { normalizeReceiptFilters } from "@/lib/receipts/filters";
+import { getReceiptsPage } from "@/modules/receipts/data/queries";
+import { normalizeReceiptFilters } from "@/modules/receipts/domain/filters";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { requireStaffPermission } from "@/platform/supabase/session";

@@ -3,8 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
 import { OfficeNotice } from "@/ui/office/office-ui";
-import { TemplatesListClient } from "@/components/whatsapp-templates/templates-list-client";
-import { listWhatsappTemplates } from "@/lib/whatsapp-templates/data";
+import { TemplatesListClient } from "@/modules/whatsapp/ui/templates-list-client";
+import { listWhatsappTemplates } from "@/modules/whatsapp/data/queries";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
 
 export const revalidate = 0;

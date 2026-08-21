@@ -2,12 +2,12 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
-import { GenerateLedgerClient } from "@/components/fees/generate-ledger-client";
+import { GenerateLedgerClient } from "@/modules/fees/ui/generate-ledger-client";
 import { WorkflowGuard } from "@/ui/office/office-ui";
-import { INITIAL_LEDGER_REGENERATION_ACTION_STATE } from "@/lib/fees/types";
-import { getOfficeHomeData } from "@/lib/office/data";
+import { INITIAL_LEDGER_REGENERATION_ACTION_STATE } from "@/modules/fees/domain/types";
+import { getOfficeHomeData } from "@/modules/fees/data/office-home";
 import { getOfficeWorkflowReadiness } from "@/platform/readiness";
-import { getSetupWizardData } from "@/lib/setup/data";
+import { getSetupWizardData } from "@/modules/fees/data/setup-queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import { runLedgerRegenerationAction } from "./actions";
 

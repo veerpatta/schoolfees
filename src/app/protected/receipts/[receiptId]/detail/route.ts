@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getReceiptDetail } from "@/lib/receipts/data";
+import { getReceiptDetail } from "@/modules/receipts/data/queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 const uuidPattern =

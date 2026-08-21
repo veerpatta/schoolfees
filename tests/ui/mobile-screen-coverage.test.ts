@@ -17,7 +17,7 @@ function read(path: string) {
 }
 
 describe("Transactions on a phone", () => {
-  const shell = read("src/components/transactions/transactions-client-shell.tsx");
+  const shell = read("src/modules/transactions/ui/transactions-client-shell.tsx");
   const page = read("src/app/protected/transactions/page.tsx");
 
   it("opens on its own sticky chip header, not the desktop page title", () => {
@@ -69,7 +69,7 @@ describe("Transactions on a phone", () => {
 });
 
 describe("Receipts lookup on a phone", () => {
-  const source = read("src/components/receipts/receipts-quick-load.tsx");
+  const source = read("src/modules/receipts/ui/receipts-quick-load.tsx");
 
   it("is search-first, with the desk cards behind md:", () => {
     expect(source).toContain('h-[52px]');
@@ -98,7 +98,7 @@ describe("Reports on a phone", () => {
 });
 
 describe("Defaulters on a phone", () => {
-  const workspace = read("src/components/defaulters/defaulters-workspace.tsx");
+  const workspace = read("src/modules/defaulters/ui/defaulters-workspace.tsx");
   const page = read("src/app/protected/defaulters/page.tsx");
 
   it("opens on the family being called, not on a metric row", () => {

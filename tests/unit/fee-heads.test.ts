@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeFeeHeadDefinition,
   parseFeeHeadCatalog,
-} from "@/lib/fees/fee-heads";
+} from "@/modules/fees/domain/fee-heads";
 
 describe("fee head metadata", () => {
   it("defaults Phase 1 metadata for old custom fee-head JSON", () => {

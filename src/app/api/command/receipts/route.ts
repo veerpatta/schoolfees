@@ -9,7 +9,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 
-import { getReceiptsList } from "@/lib/receipts/data";
+import { getReceiptsList } from "@/modules/receipts/data/queries";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { requireStaffPermission } from "@/platform/supabase/session";

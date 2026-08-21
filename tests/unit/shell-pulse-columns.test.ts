@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { SHELL_PULSE_FINANCIALS_COLUMNS } from "@/lib/dashboard/shell-metrics";
+import { SHELL_PULSE_FINANCIALS_COLUMNS } from "@/modules/dashboard/data/shell-metrics";
 
 /**
  * Guards the sidebar "Day so far" card against a silent-zero regression.
@@ -54,7 +54,7 @@ describe("shell pulse column contract", () => {
 
   it("does not read balance_status from the student-level view", () => {
     const source = readFileSync(
-      join(process.cwd(), "src/lib/dashboard/shell-metrics.ts"),
+      join(process.cwd(), "src/modules/dashboard/data/shell-metrics.ts"),
       "utf8",
     );
 
@@ -66,7 +66,7 @@ describe("shell pulse column contract", () => {
 
   it("degrades per query so one failure cannot blank the other figure", () => {
     const source = readFileSync(
-      join(process.cwd(), "src/lib/dashboard/shell-metrics.ts"),
+      join(process.cwd(), "src/modules/dashboard/data/shell-metrics.ts"),
       "utf8",
     );
 

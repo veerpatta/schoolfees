@@ -42,7 +42,7 @@ describe("mobile primary actions stay reachable", () => {
   it("publishes the keyboard offset for the whole workspace, not just the payment desk", () => {
     const provider = read("src/ui/system/keyboard-offset-provider.tsx");
     const layout = read("src/app/protected/layout.tsx");
-    const desk = read("src/components/payments/payment-desk-mobile.tsx");
+    const desk = read("src/modules/payments/ui/payment-desk-mobile.tsx");
 
     expect(provider).toContain("visualViewport");
     expect(provider).toContain("--keyboard-offset");
@@ -62,20 +62,20 @@ describe("mobile primary actions stay reachable", () => {
   });
 
   it.each([
-    ["src/components/payments/waive-late-fee-sheet.tsx", "waiveSubmit"],
-    ["src/components/defaulters/contact-popover.tsx", "popoverSubmit"],
-    ["src/components/students/close-due-as-discount-sheet.tsx", "Close balance"],
+    ["src/modules/payments/ui/waive-late-fee-sheet.tsx", "waiveSubmit"],
+    ["src/modules/defaulters/ui/contact-popover.tsx", "popoverSubmit"],
+    ["src/modules/students/ui/close-due-as-discount-sheet.tsx", "Close balance"],
     // The sibling picker autofocuses its search field, so on a phone the
     // keyboard is up the moment the sheet opens and a submit left at the end
     // of the scroll body sits under it.
-    ["src/components/students/link-sibling-sheet.tsx", "linkSiblingConfirm"],
+    ["src/modules/students/ui/link-sibling-sheet.tsx", "linkSiblingConfirm"],
     // The student information quick-edit is a form of text inputs, so on a
     // phone the keyboard is up for most of the time the sheet is open.
-    ["src/components/students/student-info-sheet.tsx", "studentInfoSave"],
+    ["src/modules/students/ui/student-info-sheet.tsx", "studentInfoSave"],
     // The photo sheet's body grows by a preview image once a picture is
     // chosen, which is exactly when Save has to still be reachable.
-    ["src/components/students/student-photo-sheet.tsx", "studentPhotoSave"],
-    ["src/components/whatsapp-templates/template-editor.tsx", "whatsappEditorCreate"],
+    ["src/modules/students/ui/student-photo-sheet.tsx", "studentPhotoSave"],
+    ["src/modules/whatsapp/ui/template-editor.tsx", "whatsappEditorCreate"],
   ])("%s pins its submit action outside the scroll body", (path, submitMarker) => {
     const source = read(path);
 
@@ -86,12 +86,12 @@ describe("mobile primary actions stay reachable", () => {
   });
 
   it.each([
-    "src/components/students/bulk-student-edit-bar.tsx",
-    "src/components/defaulters/bulk-whatsapp-provider.tsx",
-    "src/components/fees/fee-setup-client.tsx",
-    "src/components/students/student-form.tsx",
+    "src/modules/students/ui/bulk-student-edit-bar.tsx",
+    "src/modules/defaulters/ui/bulk-whatsapp-provider.tsx",
+    "src/modules/fees/ui/fee-setup-client.tsx",
+    "src/modules/students/ui/student-form.tsx",
     "src/ui/forms/save-bar.tsx",
-    "src/components/students/student-quick-load.tsx",
+    "src/modules/students/ui/student-quick-load.tsx",
   ])("%s clears the fixed mobile bottom nav", (path) => {
     expect(read(path)).toContain(NAV_CLEARANCE);
   });
@@ -106,17 +106,17 @@ describe("mobile primary actions stay reachable", () => {
     // feel; and it shared z-40 with both the tab bar and the bulk-selection
     // bar inside the same 76px band. The design has no such bar: it advances
     // via "Skip for now" under the family card and self-advancing call mode.
-    const source = read("src/components/defaulters/defaulters-workspace.tsx");
+    const source = read("src/modules/defaulters/ui/defaulters-workspace.tsx");
     expect(source).not.toMatch(/sticky bottom-\[/);
     expect(source).not.toContain(NAV_CLEARANCE);
   });
 
   it("uses dynamic viewport units for full-height overlays", () => {
     const overlays = [
-      "src/components/payments/confirm-receipt-sheet.tsx",
-      "src/components/payments/success-receipt-sheet.tsx",
-      "src/components/payments/duplicate-receipt-sheet.tsx",
-      "src/components/students/student-bulk-import-dialog.tsx",
+      "src/modules/payments/ui/confirm-receipt-sheet.tsx",
+      "src/modules/payments/ui/success-receipt-sheet.tsx",
+      "src/modules/payments/ui/duplicate-receipt-sheet.tsx",
+      "src/modules/students/ui/student-bulk-import-dialog.tsx",
       "src/ui/command/command-palette.tsx",
     ];
 
@@ -129,7 +129,7 @@ describe("mobile primary actions stay reachable", () => {
   });
 
   it("keeps all three payment panels stretched to the keyboard edge", () => {
-    const sheet = read("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const sheet = read("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
     const offsets = sheet.match(/bottom: "var\(--keyboard-offset, 0px\)"/g) ?? [];
 
     // Class picker, student picker AND payment entry. Entry was the one left
@@ -144,7 +144,7 @@ describe("mobile primary actions stay reachable", () => {
     // offset floats the Collect button a full keyboard-height into mid-screen.
     // Two edits that are only correct together; this is the guard that stops
     // one of them being reverted alone.
-    const sheet = readCode("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const sheet = readCode("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
     // Safe area only — the keyboard is already accounted for by the panel.
     expect(sheet).toContain(
@@ -158,7 +158,7 @@ describe("mobile primary actions stay reachable", () => {
 
   it("reacts to the keyboard instead of guessing at it with a timer", () => {
     const provider = readCode("src/ui/system/keyboard-offset-provider.tsx");
-    const sheet = readCode("src/components/payments/mobile-payment-flow-sheet.tsx");
+    const sheet = readCode("src/modules/payments/ui/mobile-payment-flow-sheet.tsx");
 
     // iOS fires visualViewport `scroll` at touch frequency while the keyboard
     // is up; each unthrottled write re-resolves every var() that reads it.

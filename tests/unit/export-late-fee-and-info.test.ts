@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { STUDENT_INFO_FIELDS } from "@/lib/students/info-fields";
+import { STUDENT_INFO_FIELDS } from "@/modules/students/domain/info-fields";
 
 /**
  * Two things the export surface got wrong for a while, both worth pinning.

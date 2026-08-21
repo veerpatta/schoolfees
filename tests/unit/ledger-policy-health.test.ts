@@ -53,7 +53,7 @@ describe("getLedgerPolicyHealth", () => {
   it("reports healthy when every ledger agrees with policy", async () => {
     mockRows([row(), row(), row()]);
 
-    const { getLedgerPolicyHealth } = await import("@/lib/fees/ledger-policy-health");
+    const { getLedgerPolicyHealth } = await import("@/modules/fees/data/ledger-policy-health");
     const health = await getLedgerPolicyHealth("2026-27");
 
     expect(health.activeStudents).toBe(3);
@@ -68,7 +68,7 @@ describe("getLedgerPolicyHealth", () => {
     // cancel the other out and report a clean school.
     mockRows([row({ drift: 13600 }), row({ drift: 10000 }), row({ drift: -2000 })]);
 
-    const { getLedgerPolicyHealth } = await import("@/lib/fees/ledger-policy-health");
+    const { getLedgerPolicyHealth } = await import("@/modules/fees/data/ledger-policy-health");
     const health = await getLedgerPolicyHealth("2026-27");
 
     expect(health.underBilledStudents).toBe(2);
@@ -84,7 +84,7 @@ describe("getLedgerPolicyHealth", () => {
     // error. Different condition, different fix.
     mockRows([row({ drift: 25000, has_ledger: false })]);
 
-    const { getLedgerPolicyHealth } = await import("@/lib/fees/ledger-policy-health");
+    const { getLedgerPolicyHealth } = await import("@/modules/fees/data/ledger-policy-health");
     const health = await getLedgerPolicyHealth("2026-27");
 
     expect(health.studentsWithoutLedger).toBe(1);
@@ -98,7 +98,7 @@ describe("getLedgerPolicyHealth", () => {
     // see in the totals, and every per-class board billing the wrong class.
     mockRows([row({ stale_class_rows: 4 })]);
 
-    const { getLedgerPolicyHealth } = await import("@/lib/fees/ledger-policy-health");
+    const { getLedgerPolicyHealth } = await import("@/modules/fees/data/ledger-policy-health");
     const health = await getLedgerPolicyHealth("2026-27");
 
     expect(health.studentsWithStaleLedgerClass).toBe(1);
@@ -108,7 +108,7 @@ describe("getLedgerPolicyHealth", () => {
   it("counts carry-forward and EMI rows separately — regeneration cannot fix them", async () => {
     mockRows([row({ stale_class_locked_rows: 1 })]);
 
-    const { getLedgerPolicyHealth } = await import("@/lib/fees/ledger-policy-health");
+    const { getLedgerPolicyHealth } = await import("@/modules/fees/data/ledger-policy-health");
     const health = await getLedgerPolicyHealth("2026-27");
 
     expect(health.studentsWithStaleLockedClass).toBe(1);
@@ -121,7 +121,7 @@ describe("getLedgerPolicyHealth", () => {
     // Settings is the page people open when something is already wrong.
     mockRows({ error: 'relation "v_ledger_policy_drift" does not exist' });
 
-    const { getLedgerPolicyHealth } = await import("@/lib/fees/ledger-policy-health");
+    const { getLedgerPolicyHealth } = await import("@/modules/fees/data/ledger-policy-health");
     const health = await getLedgerPolicyHealth("2026-27");
 
     expect(health.unavailableReason).toContain("v_ledger_policy_drift");
@@ -131,7 +131,7 @@ describe("getLedgerPolicyHealth", () => {
   it("refuses an empty session label without touching the database", async () => {
     mockRows([]);
 
-    const { getLedgerPolicyHealth } = await import("@/lib/fees/ledger-policy-health");
+    const { getLedgerPolicyHealth } = await import("@/modules/fees/data/ledger-policy-health");
     const health = await getLedgerPolicyHealth("   ");
 
     expect(health.unavailableReason).toBe("No academic session selected.");

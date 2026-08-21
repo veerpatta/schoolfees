@@ -3,22 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
-import { recordActivity } from "@/lib/activity/events";
+import { recordActivity } from "@/modules/activity/data/events";
 import { getActiveSessionLabel } from "@/platform/session/active";
 import {
   applyBulkUpdate,
   buildBulkUpdateLookups,
   loadBulkUpdateSnapshot,
-} from "@/lib/students/bulk-update/data";
-import { buildBulkUpdatePreview, type BulkUpdatePreview } from "@/lib/students/bulk-update/diff";
-import { resolveBulkUpdateFields } from "@/lib/students/bulk-update/fields";
-import { readBulkUpdateSheet } from "@/lib/students/bulk-update/workbook";
+} from "@/modules/students/data/bulk-update/data";
+import { buildBulkUpdatePreview, type BulkUpdatePreview } from "@/modules/students/domain/bulk-update/diff";
+import { resolveBulkUpdateFields } from "@/modules/students/domain/bulk-update/fields";
+import { readBulkUpdateSheet } from "@/modules/students/domain/bulk-update/workbook";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import {
   prepareDuesForStudentsAutomatically,
   revalidateFinanceSurfaces,
-} from "@/lib/system-sync/finance-sync";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+} from "@/modules/system-sync/domain/finance-sync";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 
 import type {
   BulkUpdateApplyState,

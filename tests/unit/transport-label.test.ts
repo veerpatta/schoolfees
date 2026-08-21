@@ -5,7 +5,7 @@ import {
   buildTransportRouteLabel,
   hasTransport,
   isSentinelNoTransportRoute,
-} from "@/lib/transport/label";
+} from "@/modules/fees/domain/label";
 
 describe("buildTransportRouteLabel", () => {
   it("shows the route name and code for a real route", () => {

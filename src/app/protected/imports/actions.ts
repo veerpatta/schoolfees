@@ -12,22 +12,22 @@ import {
   resumeStudentImportBatch,
   runStudentImportDryRun,
   updateStudentImportRowReview,
-} from "@/lib/import/data";
+} from "@/modules/imports/data/queries";
 import {
   clearDuplicateAuditDecision,
   recordDuplicateAuditDecision,
-} from "@/lib/import/duplicate-audit";
-import type { DuplicateAuditDecision } from "@/lib/import/types";
-import { getStudentImportColumnMapping } from "@/lib/import/mapping";
-import type { ImportAnomalyCategory } from "@/lib/import/types";
-import type { ImportMode } from "@/lib/import/types";
+} from "@/modules/imports/data/duplicate-audit";
+import type { DuplicateAuditDecision } from "@/modules/imports/domain/types";
+import { getStudentImportColumnMapping } from "@/modules/imports/domain/mapping";
+import type { ImportAnomalyCategory } from "@/modules/imports/domain/types";
+import type { ImportMode } from "@/modules/imports/domain/types";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import {
   prepareDuesForStudentsAutomatically,
   revalidateCoreFinancePaths,
-} from "@/lib/system-sync/finance-sync";
-import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+} from "@/modules/system-sync/domain/finance-sync";
+import { publishOfficeSyncEvent } from "@/modules/system-sync/data/office-sync-events";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 
 /**
  * Wall-clock budget for one commit request. Comfortably inside the platform's

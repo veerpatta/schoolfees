@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
-import { DuplicateReceiptSheet } from "@/components/payments/duplicate-receipt-sheet";
+import { DuplicateReceiptSheet } from "@/modules/payments/ui/duplicate-receipt-sheet";
 
 const messages = JSON.parse(
   readFileSync(join(process.cwd(), "src/messages", "en.json"), "utf-8"),

@@ -8,11 +8,11 @@ vi.mock("@/platform/supabase/server", () => ({
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/students/data", () => ({
+vi.mock("@/modules/students/data/queries", () => ({
   getStudentFormOptions: vi.fn(async () => ({ classOptions: [], routeOptions: [] })),
 }));
 
-vi.mock("@/lib/receipts/reversals", () => ({
+vi.mock("@/modules/receipts/data/reversals", () => ({
   getReceiptReversalTotals: vi.fn(async () => new Map<string, number>()),
   isReceiptReversed: () => false,
 }));
@@ -172,7 +172,7 @@ describe("getWorkbookTransactions session receipt-id chunking", () => {
   it("splits the session receipt-id filter into batches of at most 100", async () => {
     createClient.mockResolvedValue(createWorkbookClient(seedReceipts(), captured));
 
-    const { getWorkbookTransactions } = await import("@/lib/workbook/data");
+    const { getWorkbookTransactions } = await import("@/modules/fees/data/queries");
     await getWorkbookTransactions({ sessionLabel: SESSION, limit: null, skipFinancials: true });
 
     expect(captured.inBatches.length).toBe(Math.ceil(RECEIPT_COUNT / 100));
@@ -187,7 +187,7 @@ describe("getWorkbookTransactions session receipt-id chunking", () => {
   it("merges every batch and keeps the newest-first order across batch boundaries", async () => {
     createClient.mockResolvedValue(createWorkbookClient(seedReceipts(), captured));
 
-    const { getWorkbookTransactions } = await import("@/lib/workbook/data");
+    const { getWorkbookTransactions } = await import("@/modules/fees/data/queries");
     const rows = await getWorkbookTransactions({
       sessionLabel: SESSION,
       limit: null,
@@ -203,7 +203,7 @@ describe("getWorkbookTransactions session receipt-id chunking", () => {
   it("applies limit/offset to the merged rows, not to each batch", async () => {
     createClient.mockResolvedValue(createWorkbookClient(seedReceipts(), captured));
 
-    const { getWorkbookTransactions } = await import("@/lib/workbook/data");
+    const { getWorkbookTransactions } = await import("@/modules/fees/data/queries");
     const all = await getWorkbookTransactions({
       sessionLabel: SESSION,
       limit: null,
@@ -227,7 +227,7 @@ describe("getWorkbookTransactions session receipt-id chunking", () => {
   it("throws when a batch fails instead of returning partial rows", async () => {
     createClient.mockResolvedValue(createFailingWorkbookClient(seedReceipts()));
 
-    const { getWorkbookTransactions } = await import("@/lib/workbook/data");
+    const { getWorkbookTransactions } = await import("@/modules/fees/data/queries");
 
     await expect(
       getWorkbookTransactions({ sessionLabel: SESSION, limit: null, skipFinancials: true }),

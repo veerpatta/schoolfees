@@ -10,8 +10,8 @@ import { Label } from "@/ui/primitives/label";
 import { getNextAcademicSessionLabel } from "@/platform/config/fee-rules";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatDateTimeIst } from "@/platform/helpers/date";
-import { listDeletableSessions } from "@/lib/master-data/data";
-import { listPromotionRuns } from "@/lib/promotion/data";
+import { listDeletableSessions } from "@/modules/master-data/data/queries";
+import { listPromotionRuns } from "@/modules/promotion/data/queries";
 import { getActiveSessionLabel } from "@/platform/session/active";
 import { requireStaffPermission } from "@/platform/supabase/session";
 

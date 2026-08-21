@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { commitPaymentImportRows, getPaymentImportBatchSummary } from "@/lib/payments/bulk/data";
-import { PAYMENT_IMPORT_COMMIT_CHUNK_SIZE } from "@/lib/payments/bulk/types";
+import { commitPaymentImportRows, getPaymentImportBatchSummary } from "@/modules/payments/data/bulk/data";
+import { PAYMENT_IMPORT_COMMIT_CHUNK_SIZE } from "@/modules/payments/domain/bulk/types";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
-import { revalidateAfterPaymentPosting } from "@/lib/system-sync/finance-revalidation";
-import { revalidateSessionFinance } from "@/lib/system-sync/finance-sync";
+import { revalidateAfterPaymentPosting } from "@/modules/system-sync/domain/finance-revalidation";
+import { revalidateSessionFinance } from "@/modules/system-sync/domain/finance-sync";
 
 // Sequential posting of up to PAYMENT_IMPORT_COMMIT_CHUNK_SIZE rows per
 // request; the client loops chunks so large batches never hit the timeout.

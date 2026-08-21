@@ -3,11 +3,11 @@
 import { redirect } from "next/navigation";
 
 import { describeError } from "@/platform/observability/log";
-import { generateSessionLedgersAction } from "@/lib/fees/generator";
+import { generateSessionLedgersAction } from "@/modules/fees/data/generator";
 import { createClient } from "@/platform/supabase/server";
 import { requireStaffPermission } from "@/platform/supabase/session";
-import { revalidateSessionFinance } from "@/lib/system-sync/finance-sync";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+import { revalidateSessionFinance } from "@/modules/system-sync/domain/finance-sync";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 
 function sessionHealthUrl(params: Record<string, string | number>) {
   const searchParams = new URLSearchParams();

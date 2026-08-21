@@ -1,15 +1,15 @@
 import type { NextRequest } from "next/server";
 
-import { getOfficeWorkbookData } from "@/lib/transactions/dues";
-import { normalizeOfficeWorkbookView } from "@/lib/transactions/workbook";
-import { serializeCsv } from "@/lib/reports/data";
+import { getOfficeWorkbookData } from "@/modules/transactions/data/dues";
+import { normalizeOfficeWorkbookView } from "@/modules/transactions/domain/workbook";
+import { serializeCsv } from "@/modules/reports/data/queries";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 import { formatExportName } from "@/platform/helpers/export";
-import { buildTransportRouteLabel } from "@/lib/transport/label";
+import { buildTransportRouteLabel } from "@/modules/fees/domain/label";
 
 import { withDownloadToken } from "@/platform/helpers/download-token";
-import { normalizePaymentModeFilter } from "@/lib/transactions/payment-modes";
-import { parseSegments } from "@/lib/segments/student-segments";
+import { normalizePaymentModeFilter } from "@/modules/transactions/domain/payment-modes";
+import { parseSegments } from "@/modules/students/domain/student-segments";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

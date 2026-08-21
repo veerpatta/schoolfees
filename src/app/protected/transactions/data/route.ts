@@ -1,14 +1,14 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { getOfficeWorkbookData } from "@/lib/transactions/dues";
-import { resolveOfficeWorkbookView } from "@/lib/transactions/workbook";
+import { getOfficeWorkbookData } from "@/modules/transactions/data/dues";
+import { resolveOfficeWorkbookView } from "@/modules/transactions/domain/workbook";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { ServerTimer } from "@/platform/observability/timing";
-import { normalizePaymentModeFilter } from "@/lib/transactions/payment-modes";
-import { parseSegments } from "@/lib/segments/student-segments";
+import { normalizePaymentModeFilter } from "@/modules/transactions/domain/payment-modes";
+import { parseSegments } from "@/modules/students/domain/student-segments";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

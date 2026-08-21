@@ -4,11 +4,11 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { MobileDashboardBoards } from "@/components/dashboard/mobile-boards";
-import { DASHBOARD_VIEWS, type DashboardAnalytics } from "@/lib/dashboard/analytics";
-import type { DashboardPageData } from "@/lib/dashboard/data";
-import type { DashboardKpis } from "@/lib/dashboard/summary";
-import type { RepaymentDashboardSummary } from "@/lib/repayment-plans/data";
+import { MobileDashboardBoards } from "@/modules/dashboard/ui/mobile-boards";
+import { DASHBOARD_VIEWS, type DashboardAnalytics } from "@/modules/dashboard/data/analytics";
+import type { DashboardPageData } from "@/modules/dashboard/data/queries";
+import type { DashboardKpis } from "@/modules/dashboard/domain/summary";
+import type { RepaymentDashboardSummary } from "@/modules/repayment-plans/data/queries";
 
 vi.mock("next-intl/server", async () => {
   const actual = await vi.importActual<typeof import("next-intl")>("next-intl");
@@ -350,7 +350,7 @@ describe("phone analytics boards", () => {
     // One fetch per render. unstable_cache does not de-duplicate concurrent
     // callers, so a loader inside a board would fire a second Mumbai round
     // trip alongside the first on every cold cache.
-    const boards = readRepoFile("src/components/dashboard/mobile-boards.tsx");
+    const boards = readRepoFile("src/modules/dashboard/ui/mobile-boards.tsx");
     expect(boards).not.toContain("getDashboardAnalytics");
     expect(boards).not.toContain("getDashboardPageData");
     expect(boards).not.toContain("getRepaymentDashboardSummary");
@@ -361,7 +361,7 @@ describe("phone analytics boards", () => {
   });
 
   it("gives the phone the board switcher the desk has had all along", () => {
-    const home = readRepoFile("src/components/dashboard/mobile-dashboard-screen.tsx");
+    const home = readRepoFile("src/modules/dashboard/ui/mobile-dashboard-screen.tsx");
     expect(home).toContain("<ViewSwitcher");
     // Both switchers read one label map, so the same ?view= cannot read as two
     // different boards depending on the screen it was opened on.

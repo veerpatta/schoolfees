@@ -97,20 +97,20 @@ const ALLOWED: Record<string, string> = {
     "template quick action uses DownloadAnchor; the other quick actions are pages",
   // The dialog body moved out of student-bulk-import-dialog.tsx when the
   // trigger was made lazy; the trigger itself now has no download href at all.
-  "src/components/students/student-bulk-import-dialog-body.tsx":
+  "src/modules/students/ui/student-bulk-import-dialog-body.tsx":
     "template button uses DownloadAnchor; remaining Links are pages",
   // Builds its own href and hands it to DownloadAnchor; the string literal
   // lives here rather than at the anchor.
-  "src/components/students/bulk-update-workspace.tsx": "href built here, rendered by DownloadAnchor",
-  "src/components/imports/batch-upload-card.tsx": "href built here, rendered by DownloadAnchor",
+  "src/modules/students/ui/bulk-update-workspace.tsx": "href built here, rendered by DownloadAnchor",
+  "src/modules/imports/ui/batch-upload-card.tsx": "href built here, rendered by DownloadAnchor",
   "src/app/protected/reports/page.tsx": "href built here, rendered by DownloadAnchor",
   "src/app/protected/finance-controls/page.tsx": "href built here, rendered by DownloadAnchor",
-  "src/components/defaulters/defaulters-workspace.tsx": "href built here, rendered by DownloadAnchor",
+  "src/modules/defaulters/ui/defaulters-workspace.tsx": "href built here, rendered by DownloadAnchor",
   "src/app/protected/students/page.tsx": "href built here, rendered by DownloadAnchor",
   "src/app/protected/exports/page.tsx": "href built here, rendered by DownloadAnchor",
   "src/app/protected/defaulters/page.tsx": "builds exportHref, passed to defaulters-workspace",
   "src/app/protected/admin-tools/recovery/page.tsx": "href built here, rendered by DownloadAnchor",
-  "src/components/payments/bulk/bulk-payment-workflow.tsx":
+  "src/modules/payments/ui/bulk/bulk-payment-workflow.tsx":
     "href built here, rendered by DownloadAnchor",
 };
 

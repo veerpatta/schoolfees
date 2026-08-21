@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { SuccessReceiptSheet } from "@/components/payments/success-receipt-sheet";
+import { SuccessReceiptSheet } from "@/modules/payments/ui/success-receipt-sheet";
 
 /**
  * Finishing a collection must put the clerk back at the START of the flow.
@@ -48,7 +48,7 @@ const BASE_PROPS = {
 describe("payment flow restarts after a successful post", () => {
   it("drops ?studentId= when the desk restarts the flow", () => {
     const source = readFileSync(
-      join(process.cwd(), "src/components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const start = source.indexOf("function handleCollectAnotherPayment(");
@@ -80,7 +80,7 @@ describe("payment flow restarts after a successful post", () => {
     // same way through the same guard and the same portal, and it works —
     // because it is the one branch that does not rewrite the URL.
     const source = readFileSync(
-      join(process.cwd(), "src/components/payments/payment-desk-mobile.tsx"),
+      join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
       "utf8",
     );
     const start = source.indexOf('if (state.status === "success") {');

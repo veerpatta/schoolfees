@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import {
   validateStaffPassword,
   type StaffFormActionState,
-} from "@/lib/staff-management/data";
+} from "@/modules/staff/data/queries";
 import { createClient } from "@/platform/supabase/server";
 import { requireAuthenticatedStaff } from "@/platform/supabase/session";
 

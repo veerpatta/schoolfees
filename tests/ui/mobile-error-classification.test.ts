@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("payment-desk-mobile error classification (audit 1.19)", () => {
   const source = readFileSync(
-    join(process.cwd(), "src/components/payments/payment-desk-mobile.tsx"),
+    join(process.cwd(), "src/modules/payments/ui/payment-desk-mobile.tsx"),
     "utf8",
   );
 

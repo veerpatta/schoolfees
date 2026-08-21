@@ -26,7 +26,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
  */
 
 describe("ledger session scope", () => {
-  const ledger = read("src/lib/ledger/data.ts");
+  const ledger = read("src/modules/reports/data/ledger-queries.ts");
 
   it("scopes the student picker through an inner join, not an id list", () => {
     expect(ledger).toContain("installments!inner");

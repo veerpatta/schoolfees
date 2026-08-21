@@ -13,7 +13,7 @@ import { formatDateTimeIst } from "@/platform/helpers/date";
 import {
   getClassLabelMap,
   getFeeSetupSnapshotAt,
-} from "@/lib/fees/time-travel";
+} from "@/modules/fees/data/time-travel";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";

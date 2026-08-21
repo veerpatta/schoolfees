@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { parseAcademicSessionLabel } from "@/platform/config/fee-rules";
-import { getPaymentDeskStudentSummary } from "@/lib/payments/data";
+import { getPaymentDeskStudentSummary } from "@/modules/payments/data/queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 const UUID_PATTERN =

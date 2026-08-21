@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFeeBreakdownSummary } from "@/lib/fees/fee-breakdown-summary";
+import { buildFeeBreakdownSummary } from "@/modules/fees/domain/fee-breakdown-summary";
 
 /**
  * Guards the school's accounting rule: discounts (conventional + manual) reduce

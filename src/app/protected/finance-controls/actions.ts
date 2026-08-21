@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { getActiveSessionLabel } from "@/platform/session/active";
-import { revalidateSessionFinance } from "@/lib/system-sync/finance-revalidation";
+import { revalidateSessionFinance } from "@/modules/system-sync/domain/finance-revalidation";
 import { after } from "next/server";
 
 import type { PaymentMode, RefundRequestStatus } from "@/platform/db/types";
 import { createClient } from "@/platform/supabase/server";
-import type { FinanceControlsActionState } from "@/lib/finance-controls/types";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+import type { FinanceControlsActionState } from "@/modules/finance-controls/domain/types";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;

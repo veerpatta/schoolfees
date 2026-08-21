@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { resolvePromiseStatus } from "@/lib/defaulters/promise-lifecycle";
-import type { DefaulterContactSummary } from "@/lib/defaulters/cadence";
+import { resolvePromiseStatus } from "@/modules/defaulters/domain/promise-lifecycle";
+import type { DefaulterContactSummary } from "@/modules/defaulters/domain/cadence";
 
 function promisedPay(overrides: Partial<DefaulterContactSummary> = {}) {
   return {

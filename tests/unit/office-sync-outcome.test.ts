@@ -4,7 +4,7 @@ import {
   buildFailedOfficeSyncOutcome,
   buildOfficeSyncOutcomeFromDuesResult,
   buildSyncedOfficeSyncOutcome,
-} from "@/lib/system-sync/office-sync";
+} from "@/modules/system-sync/domain/office-sync";
 
 describe("office sync outcome", () => {
   it("summarizes a clean automatic dues sync for office actions", () => {

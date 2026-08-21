@@ -22,12 +22,12 @@ vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
 }));
 
-vi.mock("@/lib/fees/workbook-setup-change", () => ({
+vi.mock("@/modules/fees/data/workbook-setup-change", () => ({
   applyWorkbookFeeSetupBatch,
   createWorkbookFeeSetupPreview,
 }));
 
-vi.mock("@/lib/fees/conventional-discounts", () => ({
+vi.mock("@/modules/fees/data/conventional-discounts", () => ({
   upsertConventionalDiscountPolicies,
 }));
 
@@ -39,7 +39,7 @@ vi.mock("@/platform/session/set-active", () => ({
   setActiveSessionLabel,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
   repairMissingDues,
   revalidateCoreFinancePaths,

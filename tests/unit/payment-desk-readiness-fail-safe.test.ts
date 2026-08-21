@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 describe("Payment Desk readiness fail-safe (audit 1.11)", () => {
   const source = readFileSync(
-    join(process.cwd(), "src/lib/payments/data.ts"),
+    join(process.cwd(), "src/modules/payments/data/queries.ts"),
     "utf8",
   );
 
@@ -39,7 +39,7 @@ describe("Payment Desk readiness fail-safe (audit 1.11)", () => {
 
 describe("Financial-state catch surfaces errors (audit 1.12)", () => {
   const source = readFileSync(
-    join(process.cwd(), "src/lib/payments/data.ts"),
+    join(process.cwd(), "src/modules/payments/data/queries.ts"),
     "utf8",
   );
 

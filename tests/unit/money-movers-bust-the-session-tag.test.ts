@@ -106,10 +106,10 @@ describe("every money-moving path busts the session cache tag", () => {
     // pg_cron changes money from inside Postgres, where revalidateTag does not
     // exist: sync_repayment_plan_late_fees charges EMI late fees nightly. No
     // amount of care at the call sites covers that, so the caches also expire.
-    const contract = readFileSync(path.join(repoRoot, "src/lib/dashboard/cache-contract.ts"), "utf8");
+    const contract = readFileSync(path.join(repoRoot, "src/modules/dashboard/domain/cache-contract.ts"), "utf8");
     expect(contract).toMatch(/DASHBOARD_STALENESS_CEILING_SECONDS\s*=\s*\d+/);
 
-    for (const file of ["src/lib/dashboard/data.ts", "src/lib/dashboard/analytics.ts"]) {
+    for (const file of ["src/modules/dashboard/data/queries.ts", "src/modules/dashboard/data/analytics.ts"]) {
       const source = readFileSync(path.join(repoRoot, file), "utf8");
       expect(source, `${file} must tag on the session`).toContain("session:${sessionLabel}");
       expect(source, `${file} must also bound staleness`).toContain(

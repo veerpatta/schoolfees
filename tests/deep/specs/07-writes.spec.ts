@@ -137,7 +137,7 @@ test("@write the desk previews every allocation shape without posting", async ({
           actual: body.slice(0, 400),
           target,
           session: TEST_SESSION,
-          suspectedFile: "src/lib/payments/allocation.ts",
+          suspectedFile: "src/modules/payments/domain/allocation.ts",
           evidence: { reproCommand: reproCommand({ target, grep: "previews every allocation" }) },
         });
       }
@@ -189,7 +189,7 @@ test("@write the amount field refuses what is not a whole rupee amount", async (
         actual: `The collect button was enabled with the amount field set to "${paymentCase.amount}".`,
         target,
         session: TEST_SESSION,
-        suspectedFile: "src/lib/payments/workflow.ts",
+        suspectedFile: "src/modules/payments/domain/workflow.ts",
         evidence: {
           screenshot: await screenshot(page, `amount-${paymentCase.id}`),
           reproCommand: reproCommand({ target, grep: "amount field refuses" }),

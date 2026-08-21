@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { reportDefinitions } from "@/lib/reports/types";
+import { reportDefinitions } from "@/modules/reports/domain/types";
 
 describe("report metadata", () => {
   it("keeps simplified office-facing report titles", () => {

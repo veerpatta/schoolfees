@@ -1,17 +1,17 @@
 import {
   normalizeStudentFilters,
   readerFromRecord,
-} from "@/lib/students/filter-params";
+} from "@/modules/students/domain/filter-params";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
 import { StatusBadge } from "@/ui/shell/status-badge";
 import { OfficeActionBar, OfficeNotice } from "@/ui/office/office-ui";
-import { StudentSessionMismatchActions } from "@/components/students/student-session-mismatch-actions";
+import { StudentSessionMismatchActions } from "@/modules/students/ui/student-session-mismatch-actions";
 import { DownloadAnchor } from "@/ui/primitives/download-anchor";
-import { StudentBulkImportDialogTrigger } from "@/components/students/student-bulk-import-dialog";
-import { StudentQuickLoad } from "@/components/students/student-quick-load";
+import { StudentBulkImportDialogTrigger } from "@/modules/students/ui/student-bulk-import-dialog";
+import { StudentQuickLoad } from "@/modules/students/ui/student-quick-load";
 import { Button } from "@/ui/primitives/button";
 import {
   DropdownMenu,
@@ -19,14 +19,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/ui/primitives/dropdown-menu";
-import { getStudentSegmentCounts } from "@/lib/segments/directory";
-import { STUDENT_PAGE_SIZE } from "@/lib/students/constants";
+import { getStudentSegmentCounts } from "@/modules/students/data/directory";
+import { STUDENT_PAGE_SIZE } from "@/modules/students/domain/constants";
 import { appendSessionParam } from "@/platform/navigation/session-href";
 import {
   getClassOptionsForSession,
   getStudentFormOptions,
   getStudentsIdentityPage,
-} from "@/lib/students/data";
+} from "@/modules/students/data/queries";
 import {
   EMPTY_STUDENT_FILTERS,
   type StudentClassOption,
@@ -34,8 +34,8 @@ import {
   type StudentListItem,
   type StudentRouteOption,
   type StudentSessionOption,
-} from "@/lib/students/types";
-import { countRecentImportStudentsOutsideSession } from "@/lib/students/session-reanchor";
+} from "@/modules/students/domain/types";
+import { countRecentImportStudentsOutsideSession } from "@/modules/students/data/session-reanchor";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";

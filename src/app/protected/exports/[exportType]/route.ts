@@ -3,63 +3,63 @@ import type { NextRequest } from "next/server";
 import {
   getReceiptReversalTotals,
   isReceiptReversed,
-} from "@/lib/receipts/reversals";
-import { getOfficeWorkbookData } from "@/lib/transactions/dues";
-import type { OfficeWorkbookView } from "@/lib/transactions/workbook";
-import { getDefaulterExportRows } from "@/lib/defaulters/data";
-import { getPrevYearDuesCollectionRows } from "@/lib/prev-year-dues/data";
-import { getDisplayInstallmentLabel } from "@/lib/prev-year-dues/display";
-import { getRecoveryQueue } from "@/lib/recovery/data";
+} from "@/modules/receipts/data/reversals";
+import { getOfficeWorkbookData } from "@/modules/transactions/data/dues";
+import type { OfficeWorkbookView } from "@/modules/transactions/domain/workbook";
+import { getDefaulterExportRows } from "@/modules/defaulters/data/queries";
+import { getPrevYearDuesCollectionRows } from "@/modules/prev-year-dues/data/queries";
+import { getDisplayInstallmentLabel } from "@/modules/prev-year-dues/domain/display";
+import { getRecoveryQueue } from "@/modules/recovery/data/queries";
 import {
   getRepaymentPlanExportRows,
   getRepaymentScheduleExportRows,
-} from "@/lib/repayment-plans/data";
+} from "@/modules/repayment-plans/data/queries";
 import {
   getContactSummariesForStudents,
   getNoCallFlags,
   getPromiseReliabilityForStudents,
-} from "@/lib/defaulters/contacts";
+} from "@/modules/defaulters/data/contacts";
 import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters,
-} from "@/lib/defaulters/types";
+} from "@/modules/defaulters/domain/types";
 import {
   getAllStudents,
   getStudentFormOptions,
   getStudentMasterFieldsByIds,
-} from "@/lib/students/data";
+} from "@/modules/students/data/queries";
 import {
   STUDENT_INFO_FIELDS,
   STUDENT_INFO_SELECT_COLUMNS,
   mapStudentInfoRow,
-} from "@/lib/students/info-fields";
-import type { StudentInfoFields, StudentInfoRow } from "@/lib/students/info-fields";
+} from "@/modules/students/domain/info-fields";
+import type { StudentInfoFields, StudentInfoRow } from "@/modules/students/domain/info-fields";
 import {
   getConventionalDiscountPolicies,
   getFeePolicySummary,
   getStudentConventionalDiscountAssignments,
-} from "@/lib/fees/data";
-import { getMasterDataOptions } from "@/lib/master-data/data";
+} from "@/modules/fees/domain/queries";
+import { getMasterDataOptions } from "@/modules/master-data/data/queries";
 import {
   buildTransportRouteLabel,
   isSentinelNoTransportRoute,
-} from "@/lib/transport/label";
+} from "@/modules/fees/domain/label";
 import {
   getWorkbookInstallmentRows,
   getWorkbookStudentFinancials,
   getWorkbookTransactions,
-} from "@/lib/workbook/data";
+} from "@/modules/fees/data/queries";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 import { createClient } from "@/platform/supabase/server";
 import { fetchInChunks } from "@/platform/helpers/chunk";
 import { formatExportName } from "@/platform/helpers/export";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatDateTimeIst } from "@/platform/helpers/date";
-import { recordActivity } from "@/lib/activity/events";
+import { recordActivity } from "@/modules/activity/data/events";
 
 import { withDownloadToken } from "@/platform/helpers/download-token";
-import { parseSegments, STUDENT_SEGMENTS } from "@/lib/segments/student-segments";
-import type { StudentListFilters } from "@/lib/students/types";
+import { parseSegments, STUDENT_SEGMENTS } from "@/modules/students/domain/student-segments";
+import type { StudentListFilters } from "@/modules/students/domain/types";
 // Heavy exports (ai-context-bundle builds a 16-sheet workbook from ~14 reads)
 // overrun Vercel's default function timeout on real data volumes.
 export const maxDuration = 60;

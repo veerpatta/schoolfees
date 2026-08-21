@@ -12,7 +12,7 @@ import { Label } from "@/ui/primitives/label";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatDateTimeIst } from "@/platform/helpers/date";
 import { isUuid } from "@/platform/helpers/uuid";
-import { getPromotionRun } from "@/lib/promotion/data";
+import { getPromotionRun } from "@/modules/promotion/data/queries";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";

@@ -1,6 +1,6 @@
 import { createAbsoluteUrl } from "@/platform/env";
 import { isUuid } from "@/platform/helpers/uuid";
-import { getReceiptDetailWith } from "@/lib/receipts/data";
+import { getReceiptDetailWith } from "@/modules/receipts/data/queries";
 import { createAdminClient } from "@/platform/supabase/admin";
 
 /**
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       return jsonError(404, "receipt not found", { id: body.id });
     }
 
-    const { renderReceiptPdf, receiptPdfFilename } = await import("@/lib/receipts/receipt-pdf");
+    const { renderReceiptPdf, receiptPdfFilename } = await import("@/modules/receipts/domain/receipt-pdf");
     const buffer = await renderReceiptPdf({
       receipt,
       verifyUrl: createAbsoluteUrl(`/r/${encodeURIComponent(receipt.receiptNumber)}`),

@@ -3,9 +3,9 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { parseSegments } from "@/lib/segments/student-segments";
-import { normalizePaymentModeFilter } from "@/lib/transactions/payment-modes";
-import { resolveOfficeWorkbookView } from "@/lib/transactions/workbook";
+import { parseSegments } from "@/modules/students/domain/student-segments";
+import { normalizePaymentModeFilter } from "@/modules/transactions/domain/payment-modes";
+import { resolveOfficeWorkbookView } from "@/modules/transactions/domain/workbook";
 
 /**
  * Two failure modes that both render as "the page is blank".
@@ -68,7 +68,7 @@ describe("shared parsers survive a repeated parameter", () => {
 
 describe("id filters that would outgrow a URL are chunked", () => {
   it("the receipt search caps how many student ids it inlines", () => {
-    const source = read("src/lib/workbook/data.ts");
+    const source = read("src/modules/fees/data/queries.ts");
 
     expect(
       source,
@@ -87,7 +87,7 @@ describe("id filters that would outgrow a URL are chunked", () => {
   });
 
   it("a search too broad to narrow falls back rather than truncating", () => {
-    const source = read("src/lib/workbook/data.ts");
+    const source = read("src/modules/fees/data/queries.ts");
     // Truncating the id list would silently hide a family's receipts, which is
     // worse than the page being slow.
     expect(source).toContain("searchIsTooBroadToNarrow");
@@ -95,7 +95,7 @@ describe("id filters that would outgrow a URL are chunked", () => {
   });
 
   it("the promotion run detail chunks its student and class lookups", () => {
-    const source = read("src/lib/promotion/data.ts");
+    const source = read("src/modules/promotion/data/queries.ts");
 
     expect(
       source,
@@ -113,7 +113,7 @@ describe("id filters that would outgrow a URL are chunked", () => {
   });
 
   it("the receipt-id session scope keeps its original guard", () => {
-    const source = read("src/lib/workbook/data.ts");
+    const source = read("src/modules/fees/data/queries.ts");
     expect(source).toContain("RECEIPT_ID_FILTER_CHUNK_SIZE");
     expect(source).toContain("fetchInChunks");
   });

@@ -13,8 +13,8 @@ import { describe, expect, it } from "vitest";
  * always "somebody read the other field", which is exactly what this catches.
  */
 const PAGE = join(process.cwd(), "src/app/protected/students/[studentId]/page.tsx");
-const QUICK_REFERENCE = join(process.cwd(), "src/components/students/student-quick-reference.tsx");
-const MONEY_BAND = join(process.cwd(), "src/components/students/student-money-band.tsx");
+const QUICK_REFERENCE = join(process.cwd(), "src/modules/students/ui/student-quick-reference.tsx");
+const MONEY_BAND = join(process.cwd(), "src/modules/students/ui/student-money-band.tsx");
 
 function read(path: string) {
   return readFileSync(path, "utf8");

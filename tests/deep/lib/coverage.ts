@@ -15,7 +15,7 @@
  *    name, under "What this run did not test", before any finding.
  *
  * Domains are imported from application source wherever one exists
- * (`SEGMENT_IDS` from `src/lib/segments/student-segments.ts`, pages globbed off
+ * (`SEGMENT_IDS` from `src/modules/students/domain/student-segments.ts`, pages globbed off
  * `src/app/protected/**` + "/page.tsx"), never re-typed here.
  */
 

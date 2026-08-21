@@ -26,11 +26,11 @@ function walk(dir: string, out: string[] = []): string[] {
  */
 const DESKTOP_ONLY = new Map<string, string>([
   [
-    "src/components/dashboard/class-collection-progress.tsx",
+    "src/modules/dashboard/ui/class-collection-progress.tsx",
     "renders only inside the dashboard's hidden md:block branch",
   ],
   [
-    "src/components/payments/bulk/bulk-payment-workflow.tsx",
+    "src/modules/payments/ui/bulk/bulk-payment-workflow.tsx",
     "admin bulk-entry desk surface — a keyboard-and-mouse workflow by design",
   ],
   [
@@ -38,7 +38,7 @@ const DESKTOP_ONLY = new Map<string, string>([
     "the whole desktop tree sits inside one `hidden md:block` branch; the phone renders MobileStudentProfile instead",
   ],
   [
-    "src/components/students/student-receipts-panel.tsx",
+    "src/modules/students/ui/student-receipts-panel.tsx",
     "exactly one consumer — the student page's desktop tree, itself `hidden md:block`. It used to carry a md:hidden card twin that could therefore never render; that dead branch was deleted rather than kept to satisfy this rule.",
   ],
 ]);

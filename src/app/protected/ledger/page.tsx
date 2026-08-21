@@ -1,8 +1,8 @@
 import { PageHeader } from "@/ui/shell/page-header";
 import { StatusBadge } from "@/ui/shell/status-badge";
 import { MoneyGlossaryLink } from "@/ui/primitives/money-glossary";
-import { LedgerClient } from "@/components/ledger/ledger-client";
-import { getLedgerPageData } from "@/lib/ledger/data";
+import { LedgerClient } from "@/modules/reports/ui/ledger-client";
+import { getLedgerPageData } from "@/modules/reports/data/ledger-queries";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";

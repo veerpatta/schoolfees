@@ -1,0 +1,188 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Check, Copy, MessageSquare } from "lucide-react";
+
+import { Button } from "@/ui/primitives/button";
+import { Sheet } from "@/ui/primitives/sheet";
+import { toast } from "@/ui/primitives/toast";
+import { UpiQrCode } from "@/modules/payments/ui/upi-qr-code";
+import { schoolProfile } from "@/platform/config/school";
+import { formatInr } from "@/platform/helpers/currency";
+import { composeDefaulterDraft } from "@/modules/defaulters/domain/whatsapp-template";
+import { buildWaMeLink } from "@/modules/whatsapp/domain/render";
+import { buildStudentFeeUpiPayment } from "@/modules/payments/domain/upi";
+import { logWhatsAppSendAttempts } from "@/app/protected/defaulters/actions";
+import type { DefaulterSummaryRow } from "@/modules/defaulters/domain/types";
+
+type RowSubset = Pick<
+  DefaulterSummaryRow,
+  "admissionNo" | "fullName" | "classLabel" | "totalPending" | "oldestDueDate" | "overdueAmount"
+> & {
+  fatherPhone?: string | null;
+};
+
+type Props = {
+  row: RowSubset;
+  open: boolean;
+  onClose: () => void;
+  /** Session used for auto-logging. Pass undefined to disable auto-log. */
+  sessionLabel?: string;
+  /** Student id to auto-log against on send. */
+  autoLogStudentId?: string;
+};
+
+export function WhatsAppDraftModal({
+  row,
+  open,
+  onClose,
+  sessionLabel,
+  autoLogStudentId,
+}: Props) {
+  const t = useTranslations("Defaulters");
+  const router = useRouter();
+  const [copied, setCopied] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [logged, setLogged] = useState(false);
+
+  const dueLabel =
+    row.overdueAmount > 0
+      ? t("whatsappOverdueLabel", { amount: formatInr(row.overdueAmount) })
+      : row.oldestDueDate
+        ? t("whatsappDueLabel", { date: row.oldestDueDate })
+        : t("whatsappTotalDues");
+  const upiPayment = buildStudentFeeUpiPayment({
+    admissionNo: row.admissionNo,
+    amount: row.totalPending,
+  });
+
+  const draft = composeDefaulterDraft({
+    studentName: row.fullName,
+    className: row.classLabel,
+    outstandingAmount: row.totalPending,
+    dueLabel,
+    schoolName: schoolProfile.shortName,
+    paymentLink: upiPayment.uri,
+    paymentReference: upiPayment.displayReference,
+  });
+
+  function handleCopy() {
+    navigator.clipboard.writeText(draft).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function maybeAutoLog() {
+    if (!autoLogStudentId || !sessionLabel) return;
+    startTransition(async () => {
+      const result = await logWhatsAppSendAttempts({
+        sessionLabel,
+        studentIds: [autoLogStudentId],
+      });
+      if (result.ok) {
+        setLogged(true);
+        router.refresh();
+        return;
+      }
+
+      // No else branch before: a failed log left the row looking unlogged with
+      // no reason given, so staff could not tell it from one never attempted.
+      toast({
+        title: "Follow-up not logged",
+        description: result.message ?? "The message was sent, but the log could not be saved.",
+        tone: "danger",
+      });
+    });
+  }
+
+  function handleOpenInWhatsApp() {
+    if (row.fatherPhone) {
+      window.open(buildWaMeLink(row.fatherPhone, draft), "_blank", "noopener");
+      maybeAutoLog();
+    } else {
+      handleCopy();
+      maybeAutoLog();
+    }
+  }
+
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={t("whatsappTitle")}
+      description={t("whatsappDescription", { name: row.fullName })}
+      size="md"
+    >
+      <div className="space-y-4">
+        <pre className="whitespace-pre-wrap rounded-lg border border-border bg-surface-2 p-4 font-sans text-sm leading-relaxed text-foreground">
+          {draft}
+        </pre>
+
+        <div className="grid gap-3 rounded-lg border border-border bg-surface-2 p-3 sm:grid-cols-[auto,1fr] sm:items-center">
+          <UpiQrCode
+            value={upiPayment.uri}
+            alt={t("upiQrAlt", { name: row.fullName })}
+            className="mx-auto size-36 rounded-md border border-border bg-white p-2"
+          />
+          <div className="space-y-1 text-sm">
+            <p className="font-semibold text-foreground">{t("upiQrTitle")}</p>
+            <p className="text-muted-foreground">
+              {t("upiQrDescription", {
+                amount: formatInr(upiPayment.amount),
+                reference: upiPayment.displayReference,
+              })}
+            </p>
+            <p className="break-all text-xs text-muted-foreground">{upiPayment.uri}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            onClick={handleCopy}
+          >
+            {copied ? (
+              <>
+                <Check className="size-4 text-success" aria-hidden="true" />
+                {t("whatsappCopied")}
+              </>
+            ) : (
+              <>
+                <Copy className="size-4" aria-hidden="true" />
+                {t("whatsappCopy")}
+              </>
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            variant="accent"
+            className="gap-2"
+            onClick={handleOpenInWhatsApp}
+            disabled={pending}
+          >
+            <MessageSquare className="size-4" aria-hidden="true" />
+            {row.fatherPhone ? t("whatsappOpen") : t("whatsappCopyAndLog")}
+          </Button>
+        </div>
+
+        {logged ? (
+          <p className="rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-center text-xs text-success-soft-foreground">
+            {t("whatsappAutoLogged")}
+          </p>
+        ) : (
+          <p className="text-center text-xs text-muted-foreground">
+            {autoLogStudentId && sessionLabel
+              ? t("whatsappWillAutoLog")
+              : t("whatsappDisclaimer")}
+          </p>
+        )}
+      </div>
+    </Sheet>
+  );
+}

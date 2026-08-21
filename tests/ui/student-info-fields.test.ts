@@ -9,7 +9,7 @@ import {
   toStudentInfoColumns,
   validateStudentInfoInput,
   EMPTY_STUDENT_INFO_FORM_INPUT,
-} from "@/lib/students/info-fields";
+} from "@/modules/students/domain/info-fields";
 
 /**
  * The student information fields are rendered from a descriptor table, so
@@ -153,7 +153,7 @@ describe("student information field descriptors", () => {
  */
 describe("student form phone group switcher", () => {
   const source = readFileSync(
-    join(process.cwd(), "src/components/students/student-form.tsx"),
+    join(process.cwd(), "src/modules/students/ui/student-form.tsx"),
     "utf-8",
   );
 

@@ -48,7 +48,7 @@ describe("session switcher preload", () => {
     const dashboard = readRepoFile("src/app/protected/dashboard/page.tsx");
     expect(dashboard).toContain("getSessionSwitcherData()");
     expect(dashboard).toContain("sessionOptions={sessionSwitcher.availableSessions}");
-    expect(readRepoFile("src/components/dashboard/mobile-dashboard-screen.tsx")).toContain(
+    expect(readRepoFile("src/modules/dashboard/ui/mobile-dashboard-screen.tsx")).toContain(
       "initialSessions={sessionOptions}",
     );
     expect(desktopPill).toContain("if (initialSessions.length > 0)");

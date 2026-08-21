@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { PageHeader } from "@/ui/shell/page-header";
 import { OfficeNotice } from "@/ui/office/office-ui";
-import { BulkPaymentWorkflow } from "@/components/payments/bulk/bulk-payment-workflow";
+import { BulkPaymentWorkflow } from "@/modules/payments/ui/bulk/bulk-payment-workflow";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { requireStaffPermission } from "@/platform/supabase/session";

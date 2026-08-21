@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
  * the dues read fails closed.
  */
 
-const data = readFileSync(join(process.cwd(), "src/lib/promotion/data.ts"), "utf8");
+const data = readFileSync(join(process.cwd(), "src/modules/promotion/data/queries.ts"), "utf8");
 
 describe("promotion dues guard", () => {
   it("the preview marks a debtor leaving the roll as skip, with the amount in the reason", () => {
@@ -67,7 +67,7 @@ describe("promotion dues guard", () => {
     expect(page.match(/<RecoveryWriteOffButton/g) ?? []).toHaveLength(2);
 
     const button = readFileSync(
-      join(process.cwd(), "src/components/students/recovery-write-off-button.tsx"),
+      join(process.cwd(), "src/modules/students/ui/recovery-write-off-button.tsx"),
       "utf8",
     );
     // Reuses the existing money path; does not post anything itself.

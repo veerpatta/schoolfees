@@ -33,7 +33,7 @@
  *
  * The known-hard case is the indirect guard: the four promotion actions in
  * `src/app/protected/admin-tools/promotion/actions.ts` hold no check themselves
- * and delegate to `src/lib/promotion/data.ts`, which calls
+ * and delegate to `src/modules/promotion/data/queries.ts`, which calls
  * `requireStaffPermission("students:write")`. A file-local rule reports four
  * false positives there, and four false positives is how a P0 rule gets muted.
  * So the check follows one hop into locally-imported modules before it accuses

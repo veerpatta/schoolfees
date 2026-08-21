@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 
 import type { PaymentMode } from "@/platform/db/types";
-import { recordActivity } from "@/lib/activity/events";
-import { getFeePolicyForSession } from "@/lib/fees/data";
+import { recordActivity } from "@/modules/activity/data/events";
+import { getFeePolicyForSession } from "@/modules/fees/domain/queries";
 import { parseAcademicSessionLabel } from "@/platform/config/fee-rules";
 import { formatInr } from "@/platform/helpers/currency";
 import {
@@ -15,20 +15,20 @@ import {
   toFriendlyPaymentPostingError,
   reverseReceiptAdmin,
   undoRecentPayment,
-} from "@/lib/payments/data";
-import type { PaymentCollectionContext, PaymentEntryActionState } from "@/lib/payments/types";
+} from "@/modules/payments/data/queries";
+import type { PaymentCollectionContext, PaymentEntryActionState } from "@/modules/payments/domain/types";
 import { perfEnabled } from "@/platform/observability/timing";
 import { createClient } from "@/platform/supabase/server";
 import { requireStaffPermission } from "@/platform/supabase/session";
-import { revalidateAfterPaymentPosting } from "@/lib/system-sync/finance-revalidation";
-import { drainFinancialViewRefresh } from "@/lib/system-sync/financial-view-refresh";
+import { revalidateAfterPaymentPosting } from "@/modules/system-sync/domain/finance-revalidation";
+import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 import {
   prepareDuesForStudentsAutomatically,
   revalidateSessionFinance,
-} from "@/lib/system-sync/finance-sync";
-import { buildSyncedOfficeSyncOutcome } from "@/lib/system-sync/office-sync";
-import { publishOfficeSyncEvent } from "@/lib/system-sync/office-sync-events";
-import { getStudentDetail } from "@/lib/students/data";
+} from "@/modules/system-sync/domain/finance-sync";
+import { buildSyncedOfficeSyncOutcome } from "@/modules/system-sync/domain/office-sync";
+import { publishOfficeSyncEvent } from "@/modules/system-sync/data/office-sync-events";
+import { getStudentDetail } from "@/modules/students/data/queries";
 
 function parseRequiredString(value: FormDataEntryValue | null, fieldLabel: string) {
   const normalized = (value ?? "").toString().trim();

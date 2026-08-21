@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/ui/shell/page-header";
-import { PaymentDeskSkeleton } from "@/components/payments/payment-desk-skeleton";
+import { PaymentDeskSkeleton } from "@/modules/payments/ui/payment-desk-skeleton";
 
 export default async function Loading() {
   const t = await getTranslations("Payments");

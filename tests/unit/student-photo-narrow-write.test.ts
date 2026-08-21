@@ -24,7 +24,7 @@ const actions = readFileSync(
   "utf8",
 );
 
-const data = readFileSync(join(process.cwd(), "src/lib/students/data.ts"), "utf8");
+const data = readFileSync(join(process.cwd(), "src/modules/students/data/queries.ts"), "utf8");
 
 function photoActionBody() {
   const start = actions.indexOf("export async function updateStudentPhotoAction");

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getStudentContactLog } from "@/lib/defaulters/contacts";
+import { getStudentContactLog } from "@/modules/defaulters/data/contacts";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 /**

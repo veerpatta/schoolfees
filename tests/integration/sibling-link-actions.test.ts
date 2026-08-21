@@ -30,12 +30,12 @@ vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/lib/fees/conventional-discounts", () => ({
+vi.mock("@/modules/fees/data/conventional-discounts", () => ({
   applyThirdChildPolicyForFamilyGroup,
   deactivateAutomaticThirdChildAssignments,
 }));
 
-vi.mock("@/lib/system-sync/finance-sync", () => ({
+vi.mock("@/modules/system-sync/domain/finance-sync", () => ({
   prepareDuesForStudentsAutomatically,
 }));
 

@@ -31,7 +31,7 @@ describe("print output survives dark mode", () => {
 });
 
 describe("receipt v3 ink header", () => {
-  const receipt = read("src/components/receipts/receipt-document-v3.tsx");
+  const receipt = read("src/modules/receipts/ui/receipt-document-v3.tsx");
 
   it("inverts to paper with a saffron rule when printed", () => {
     expect(receipt).toContain("receipt-ink-band");
@@ -55,7 +55,7 @@ describe("ink surfaces stay legible", () => {
     // The ink surface is <MoneyBand> now, so the recipe lives there. Its delta
     // line and captions read nav-muted rather than a light chip: in dark mode
     // bg-surface-2 is the same lightness as --nav and disappears against it.
-    const moneyBand = read("src/components/dashboard/money-band.tsx");
+    const moneyBand = read("src/modules/dashboard/ui/money-band.tsx");
     expect(dashboard).toContain("<MoneyBand");
     expect(moneyBand).toContain("text-nav-muted");
     // And the ink hero must not try to print.

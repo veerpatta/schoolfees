@@ -2,15 +2,15 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 
-import { recordActivity } from "@/lib/activity/events";
-import { snoozeIso } from "@/lib/defaulters/cadence";
+import { recordActivity } from "@/modules/activity/data/events";
+import { snoozeIso } from "@/modules/defaulters/domain/cadence";
 import {
   insertDefaulterContact,
   refreshDefaulterRecoveryState,
   setNoCallFlag,
   type ContactChannel,
   type ContactOutcome,
-} from "@/lib/defaulters/contacts";
+} from "@/modules/defaulters/data/contacts";
 import { requireStaffPermission } from "@/platform/supabase/session";
 
 export type LogContactState = {
