@@ -1,7 +1,7 @@
 import { buildFeeBreakupDisplayRows } from "@/modules/fees/domain/display-breakdown";
 import type { ResolvedFeeBreakdown, StudentFinancialSnapshot } from "@/modules/fees/domain/types";
 import { isYearCleared } from "@/modules/fees/domain/year-clear";
-import type { WorkbookInstallmentBalance } from "@/modules/fees/data/queries";
+import type { WorkbookInstallmentBalance } from "@/modules/fees/domain/workbook-types";
 
 /**
  * Every figure the printed fee statement shows, and the rules behind them.

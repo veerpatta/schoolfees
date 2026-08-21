@@ -12,10 +12,9 @@
     "fee engine resolves a student's policy, which is a change to money code and",
     "wants its own diff and its own verification against TEST-2026-27."
   ],
-  "generatedAt": "2026-08-21T09:44:51.478Z",
+  "generatedAt": "2026-08-21T09:56:58.256Z",
   "violations": {
     "domain-is-not-pure": 6,
-    "domain-reaches-another-module": 34,
     "module-reaches-app": 43,
     "reaches-another-modules-ui": 19,
     "platform-reaches-up": 2,

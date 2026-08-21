@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { STUDENT_INFO_FIELDS } from "@/modules/students/domain/info-fields";
+import { readExportSurface } from "../helpers/export-surface";
 
 /**
  * Two things the export surface got wrong for a while, both worth pinning.
@@ -22,10 +23,7 @@ import { STUDENT_INFO_FIELDS } from "@/modules/students/domain/info-fields";
  * Source-text assertions, matching the other export tests: the route builds its
  * workbook inline and there is no seam to render it through.
  */
-const route = readFileSync(
-  resolve(process.cwd(), "src/app/protected/exports/[exportType]/route.ts"),
-  "utf8",
-);
+const route = readExportSurface();
 
 describe("exports keep fees and late fees apart", () => {
   it("never leaves a bare Outstanding column on a dues sheet", () => {

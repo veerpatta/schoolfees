@@ -1,5 +1,20 @@
 import "server-only";
 
+// Re-exported so existing call sites keep working; the declarations now live
+// in domain/, where pure code can reach them without importing IO.
+export type {
+  WorkbookClassOption,
+  WorkbookStudentFinancial,
+  WorkbookInstallmentBalance,
+  WorkbookTransaction,
+} from "@/modules/fees/domain/workbook-types";
+import type {
+  WorkbookClassOption,
+  WorkbookStudentFinancial,
+  WorkbookInstallmentBalance,
+  WorkbookTransaction,
+} from "@/modules/fees/domain/workbook-types";
+
 import { WORKBOOK_CLASS_ORDER, normalizeWorkbookClassLabel } from "@/modules/fees/domain/workbook";
 import type { PaymentMode } from "@/platform/db/types";
 import { fetchAllPages, fetchInChunks } from "@/platform/helpers/chunk";
@@ -144,167 +159,9 @@ type ReceiptRow = {
   student_ref: ReceiptStudentRow | ReceiptStudentRow[] | null;
 };
 
-export type WorkbookClassOption = {
-  id: string;
-  label: string;
-  sessionLabel: string;
-};
 
-export type WorkbookStudentFinancial = {
-  studentId: string;
-  admissionNo: string;
-  studentName: string;
-  dateOfBirth: string | null;
-  fatherName: string | null;
-  motherName: string | null;
-  fatherPhone: string | null;
-  motherPhone: string | null;
-  recordStatus: string;
-  classId: string;
-  sessionLabel: string;
-  className: string;
-  classLabel: string;
-  sortOrder: number;
-  transportRouteId: string | null;
-  transportRouteName: string | null;
-  transportRouteCode: string | null;
-  studentStatusCode: "new" | "existing";
-  studentStatusLabel: "New" | "Old";
-  tuitionFee: number;
-  transportFee: number;
-  academicFee: number;
-  otherAdjustmentHead: string | null;
-  otherAdjustmentAmount: number;
-  grossBaseBeforeDiscount: number;
-  /**
-   * Total of both discount lines. Split across the two fields below: the
-   * conventional part comes from an RTE / Staff Child / 3rd Child policy, the
-   * student part is the owner-entered extra on top of it.
-   */
-  discountAmount: number;
-  conventionalDiscountAmount: number;
-  studentDiscountAmount: number;
-  conventionalDiscountLabels: string | null;
-  lateFeeWaiverAmount: number;
-  baseChargeTotal: number;
-  lateFeeTotal: number;
-  /** Balance cleared by a `payment_mode = 'discount'` write-off. Not cash. */
-  discountClosedAmount: number;
-  totalDue: number;
-  totalPaid: number;
-  /**
-   * Fees still owed. Never contains a late fee -- see the late-fee split in
-   * 20260812120000. This is the number that decides overdue and defaulter
-   * status, so a family whose only debt is a late fee is not a defaulter.
-   */
-  outstandingAmount: number;
-  /** Identical to outstandingAmount since the split. Kept for readability. */
-  baseOutstandingAmount: number;
-  lateFeeOutstandingAmount: number;
-  /** Fees + late fee. What a cashier can actually collect from this student. */
-  totalOwedAmount: number;
-  nextDueDate: string | null;
-  nextDueAmount: number | null;
-  nextDueLabel: string | null;
-  lastPaymentDate: string | null;
-  inst1Pending: number;
-  inst2Pending: number;
-  inst3Pending: number;
-  inst4Pending: number;
-  statusLabel: "" | "PAID" | "NOT STARTED" | "OVERDUE" | "PARTLY PAID";
-  overrideReason: string | null;
-  paidInstallmentCount: number;
-  partlyPaidInstallmentCount: number;
-  overdueInstallmentCount: number;
-};
 
-export type WorkbookInstallmentBalance = {
-  installmentId: string;
-  studentId: string;
-  admissionNo: string;
-  studentName: string;
-  fatherName: string | null;
-  fatherPhone: string | null;
-  sessionLabel: string;
-  classId: string;
-  className: string;
-  classLabel: string;
-  section: string;
-  streamName: string;
-  installmentNo: number;
-  installmentLabel: string;
-  isCarryForward?: boolean;
-  sourceSessionLabel?: string | null;
-  targetSessionLabel?: string | null;
-  feeBucket?: string | null;
-  dueDate: string;
-  transportRouteId: string | null;
-  transportRouteName: string | null;
-  transportRouteCode: string | null;
-  lastPaymentDate: string | null;
-  baseCharge: number;
-  /**
-   * Raw cash receipted against this installment, BEFORE adjustments.
-   *
-   * Almost never the figure to show a user: it still counts a reversed
-   * receipt. Use `appliedAmount` for "how much has this student actually
-   * paid".
-   */
-  paidAmount: number;
-  /**
-   * Cash that actually stuck: `paidAmount` net of cash adjustments, floored at
-   * zero. This is what the ledger treats as collected, and what
-   * `base + late fee − applied − discountCloseout = pending` balances against.
-   */
-  appliedAmount: number;
-  /** Balance cleared by a discount-mode write-off. Not cash. */
-  discountCloseoutAmount: number;
-  /** Every adjustment on the row — cash reversals AND discount write-offs. */
-  adjustmentAmount: number;
-  rawLateFee: number;
-  waiverApplied: number;
-  finalLateFee: number;
-  totalCharge: number;
-  /**
-   * Fees still owed on this installment. Never contains a late fee, and
-   * `balanceStatus` reads 'paid' as soon as it hits zero even while
-   * `lateFeePending` is still positive.
-   */
-  pendingAmount: number;
-  /** Late fee still owed here, after waivers and after any payment on it. */
-  lateFeePending: number;
-  /** `pendingAmount + lateFeePending`. What the counter can collect. */
-  totalPending: number;
-  balanceStatus: "paid" | "partial" | "overdue" | "pending" | "waived";
-  lateFeeStatus: "none" | "pending" | "waived" | "paid";
-};
 
-export type WorkbookTransaction = {
-  receiptId: string;
-  receiptNumber: string;
-  paymentDate: string;
-  createdAt?: string | null;
-  paymentMode: string;
-  referenceNumber: string | null;
-  receivedBy?: string | null;
-  totalAmount: number;
-  studentId: string;
-  studentName: string;
-  admissionNo: string;
-  fatherName: string | null;
-  fatherPhone: string | null;
-  classId: string | null;
-  classLabel: string;
-  transportRouteId: string | null;
-  transportRouteLabel: string;
-  sessionLabel: string | null;
-  currentOutstanding: number;
-  currentTotalPaid: number;
-  discountApplied: number;
-  lateFeeWaived: number;
-  /** True when reversal adjustments cancel this receipt in full (undo/refund). */
-  isReversed?: boolean;
-};
 
 function toSingleRecord<T>(value: T | T[] | null) {
   if (Array.isArray(value)) {

@@ -2,7 +2,7 @@ import type {
   WorkbookInstallmentBalance,
   WorkbookStudentFinancial,
   WorkbookTransaction,
-} from "@/modules/fees/data/queries";
+} from "@/modules/fees/domain/workbook-types";
 import { calculateInstallmentBasePending, calculateOverdueBaseAmount } from "@/modules/fees/domain/due-amounts";
 import {
   buildCarryForwardSummary,

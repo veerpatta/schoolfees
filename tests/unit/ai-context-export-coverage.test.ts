@@ -2,13 +2,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { readExportSurface } from "../helpers/export-surface";
 
 describe("AI context export coverage", () => {
   it("keeps recovery and carry-forward context wired into the AI workbook bundle", () => {
-    const routeSource = readFileSync(
-      resolve(process.cwd(), "src/app/protected/exports/[exportType]/route.ts"),
-      "utf8",
-    );
+    const routeSource = readExportSurface();
 
     expect(routeSource).toContain('"Recovery Follow-Up"');
     expect(routeSource).toContain('"Previous Year Dues"');
@@ -22,10 +20,7 @@ describe("AI context export coverage", () => {
   // none of the rest of the student master. It is meant to be the complete
   // stored record so the bundle can answer questions without a second export.
   it("exports the whole student master, not just the fee projection", () => {
-    const routeSource = readFileSync(
-      resolve(process.cwd(), "src/app/protected/exports/[exportType]/route.ts"),
-      "utf8",
-    );
+    const routeSource = readExportSurface();
 
     for (const column of [
       '"Student ID"',

@@ -24,7 +24,7 @@ import {
   getDisplayInstallmentLabel,
   isCarryForwardInstallment,
 } from "@/modules/prev-year-dues/domain/display";
-import type { FeeBreakdown, FeeBreakdownInstallment } from "@/modules/defaulters/domain/fee-breakdown";
+import type { FeeBreakdown, FeeBreakdownInstallment } from "@/modules/defaulters/data/fee-breakdown";
 
 type Props = {
   studentId: string;

@@ -32,7 +32,7 @@
  * rather than by a file: a module's `domain/` and `data/` are its API, and its
  * `ui/` belongs to it alone.
  */
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = process.cwd();
@@ -134,7 +134,12 @@ function judge(from, to) {
     }
     // Across modules: domain/ and data/ are the public surface, ui/ is private.
     if (b.bucket === "ui") return "reaches-another-modules-ui";
-    if (a.bucket === "domain") return "domain-reaches-another-module";
+    // Pure code may share another module's pure code — a defaulter IS a
+    // student, and its types saying so is not a layering fault. What pure code
+    // may not do is reach IO. The earlier, stricter rule fired on 34 edges of
+    // which 32 were type sharing, and a rule that fires on the normal case is
+    // a rule somebody switches off.
+    if (a.bucket === "domain" && b.bucket === "data") return "domain-reaches-another-modules-data";
     return null;
   }
   return null;

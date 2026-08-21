@@ -35,7 +35,7 @@ describe("reversed receipts are excluded from money totals", () => {
     ["finance day summary", "src/modules/finance-controls/data/queries.ts"],
     ["receipts page stat strip", "src/modules/receipts/data/queries.ts"],
     ["reports receipt register", "src/modules/reports/data/queries.ts"],
-    ["AI bundle export sheets", "src/app/protected/exports/[exportType]/route.ts"],
+    ["AI bundle export sheets", "src/modules/exports/data/ai-context-bundle.ts"],
   ];
 
   it.each(surfaces)("%s consults reversal state before summing", (_label, path) => {

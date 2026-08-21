@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { readExportSurface } from "../helpers/export-surface";
 
 describe("fee-breakdown route error payload (audit 1.28)", () => {
   const source = readFileSync(
@@ -22,10 +23,7 @@ describe("fee-breakdown route error payload (audit 1.28)", () => {
    * sorted below everyone who owed nothing at all.
    */
   it("defaulter export workflow sorts by what the family owes (audit 1.26 cross-check)", () => {
-    const exportRoute = readFileSync(
-      join(process.cwd(), "src/app/protected/exports/[exportType]/route.ts"),
-      "utf8",
-    );
+    const exportRoute = readExportSurface();
     expect(exportRoute).toMatch(/sort\(\([^)]+\)\s*=>/);
     expect(exportRoute).toContain("right.totalOwedAmount - left.totalOwedAmount");
   });
