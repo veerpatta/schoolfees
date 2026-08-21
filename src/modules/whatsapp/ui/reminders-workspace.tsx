@@ -22,11 +22,15 @@ import { SelectNative } from "@/ui/primitives/select-native";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 import { formatInr } from "@/platform/helpers/currency";
 import { cadenceLabel } from "@/modules/whatsapp/domain/reminder-cadence";
-import { renderReminderPreview } from "@/modules/whatsapp/domain/reminder-template";
+import {
+  campaignFor,
+  installmentPhrase,
+  NOTICE_SITUATIONS,
+} from "@/modules/whatsapp/domain/campaigns";
+import { NoticePicker } from "@/modules/whatsapp/ui/notice-picker";
 import type { ReminderAudience, ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
 
 type Props = {
-  sessionLabel: string;
   filters: ReminderFilters;
   audience: ReminderAudience;
   canSend: boolean;
@@ -117,6 +121,15 @@ function ReminderFilterFields({
         </SelectNative>
       </div>
 
+      {/* Which notice, which language and which date all live on the picker card,
+          which is a different <form>. Without these, pressing Apply here would
+          submit a query string missing all three — throwing the office back to the
+          fee-due notice in Hindi with the default deadline, silently, in the middle
+          of choosing who to send to. */}
+      <input type="hidden" name="situation" value={filters.situation} />
+      <input type="hidden" name="language" value={filters.language} />
+      <input type="hidden" name="lastDate" value={filters.lastDate} />
+
       <div className="flex items-end gap-3 max-md:pt-1">
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -136,7 +149,6 @@ function ReminderFilterFields({
 }
 
 export function RemindersWorkspace({
-  sessionLabel,
   filters,
   audience,
   canSend,
@@ -196,15 +208,53 @@ export function RemindersWorkspace({
   // A live summary rather than an "N applied" count: a count would need
   // DEFAULT_REMINDER_FILTERS to know what "applied" means, and that constant
   // lives in the server-only module this client component may not import.
-  const filterSummary = `Inst ${filters.installments.join(" & ")} · ${
+  const campaign = campaignFor(filters.situation, filters.language);
+  const situationLabel =
+    NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
+
+  /** What one family's message will actually say, for the preview. */
+  const noticeValues = (candidate: ReminderAudience["candidates"][number]) => ({
+    parentName: candidate.parentName,
+    studentName: candidate.studentName,
+    studentClass: candidate.studentClass,
+    installmentPhrase: installmentPhrase(filters.installments),
+    amountDue: candidate.dueAmount,
+    receivedSoFar: candidate.totalPaid,
+    balanceDue: candidate.balanceDue,
+    lastDate: filters.lastDate,
+    prevSessionLabel: candidate.prevSessionLabel ?? "",
+    prevYearBalance: candidate.prevYearBalance,
+  });
+
+  const filterSummary = `${situationLabel} · Inst ${filters.installments.join(" & ")} · ${
     audience.classOptions.find((option) => option.classId === filters.classId)?.label ??
     "All classes"
   }`;
 
   return (
     <div className="flex flex-col gap-6">
+      {/* ------------------------------------------------------------ the notice */}
+      {/* Above the filters on purpose: which notice is going out decides the whole
+          list, and the filters only trim it. On a phone this is the first thing
+          under the header. */}
+      <form
+        method="get"
+        className="rounded-xl border border-border bg-card p-3.5 shadow-sm max-md:order-1 md:rounded-lg md:p-4"
+      >
+        <NoticePicker filters={filters} counts={audience.counts} dateFieldId="lastDate" />
+        {/* The picker's links carry the other filters; these keep them on the
+            date form too, so submitting a date does not reset the notice. */}
+        <input type="hidden" name="situation" value={filters.situation} />
+        <input type="hidden" name="language" value={filters.language} />
+        <input type="hidden" name="maxTotalPaid" value={filters.maxTotalPaid} />
+        <input type="hidden" name="minDueAmount" value={filters.minDueAmount} />
+        <input type="hidden" name="installments" value={filters.installments.join(",")} />
+        <input type="hidden" name="classId" value={filters.classId ?? ""} />
+        {filters.includeRte ? <input type="hidden" name="includeRte" value="on" /> : null}
+      </form>
+
       {/* ---------------------------------------------------------------- filters */}
-      <details className="rounded-xl border border-border bg-card shadow-sm max-md:order-1 md:hidden">
+      <details className="rounded-xl border border-border bg-card shadow-sm max-md:order-2 md:hidden">
         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground">
           <span>Filters</span>
           <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
@@ -230,7 +280,7 @@ export function RemindersWorkspace({
       </form>
 
       {/* --------------------------------------------------------------- who is out */}
-      <p className="text-sm text-muted-foreground max-md:order-4">
+      <p className="text-sm text-muted-foreground max-md:order-5">
         Excluded by these filters:{" "}
         {SKIP_LABELS.filter((entry) => audience.skipped[entry.key] > 0)
           .map((entry) => `${audience.skipped[entry.key]} ${entry.label}`)
@@ -240,7 +290,7 @@ export function RemindersWorkspace({
 
       {/* ------------------------------------------------------------ paused */}
       {audience.paused.length > 0 ? (
-        <details className="rounded-lg border border-border bg-surface-2 p-4 text-sm max-md:order-5">
+        <details className="rounded-lg border border-border bg-surface-2 p-4 text-sm max-md:order-6">
           <summary className="cursor-pointer font-medium">
             {audience.paused.length} famil{audience.paused.length === 1 ? "y is" : "ies are"} being
             held back by your settings — tap to review or undo
@@ -278,7 +328,7 @@ export function RemindersWorkspace({
       ) : null}
 
       {audience.unreachable.length > 0 ? (
-        <details className="rounded-lg border border-border bg-surface-2 p-4 text-sm max-md:order-5">
+        <details className="rounded-lg border border-border bg-surface-2 p-4 text-sm max-md:order-6">
           <summary className="cursor-pointer font-medium">
             {audience.unreachable.length} families have no phone number at all — they need a call
           </summary>
@@ -297,7 +347,7 @@ export function RemindersWorkspace({
         <Notice
           tone={sendState.status === "partial" ? "warning" : "success"}
           title="Send finished"
-          className="max-md:order-2"
+          className="max-md:order-3"
         >
           <p>{sendState.message}</p>
           {sendState.failures && sendState.failures.length > 0 ? (
@@ -317,18 +367,24 @@ export function RemindersWorkspace({
       ) : null}
 
       {sendState.status === "error" ? (
-        <Notice tone="danger" title="Nothing was sent" className="max-md:order-2">
+        <Notice tone="danger" title="Nothing was sent" className="max-md:order-3">
           {sendState.message}
         </Notice>
       ) : null}
 
       {/* -------------------------------------------------------------------- list */}
-      <form action={sendFormAction} className="max-md:order-3">
+      <form action={sendFormAction} className="max-md:order-4">
         <input type="hidden" name="maxTotalPaid" value={filters.maxTotalPaid} />
         <input type="hidden" name="minDueAmount" value={filters.minDueAmount} />
         <input type="hidden" name="installments" value={filters.installments.join(",")} />
         <input type="hidden" name="classId" value={filters.classId ?? ""} />
         {filters.includeRte ? <input type="hidden" name="includeRte" value="on" /> : null}
+        {/* The notice decides the audience the action rebuilds. Without these the
+            send would re-derive the DEFAULT notice and message a different set of
+            families than the office ticked. */}
+        <input type="hidden" name="situation" value={filters.situation} />
+        <input type="hidden" name="language" value={filters.language} />
+        <input type="hidden" name="lastDate" value={filters.lastDate} />
         {[...selected].map((studentId) => (
           <input key={studentId} type="hidden" name="studentId" value={studentId} />
         ))}
@@ -363,8 +419,11 @@ export function RemindersWorkspace({
             no header to lean on, so the rule is stated once here instead of on
             every card. */}
         <MobileNote className="mb-2.5 md:hidden">
-          The amount on each card is the figure the message will quote — installments 1 and 2 of
-          this session only, never last year&rsquo;s carry-forward.
+          {filters.situation === "prevyear"
+            ? "The amount on each card is last session's balance still outstanding. It carries no late fee."
+            : filters.situation === "balance"
+              ? "The amount on each card is what is still owed on this session's installments, after everything received."
+              : `The amount on each card is the figure the message will quote — ${installmentPhrase(filters.installments).toLowerCase()} of this session only, never last year's carry-forward.`}
         </MobileNote>
 
         <ul
@@ -460,7 +519,7 @@ export function RemindersWorkspace({
                 <th className="px-3 py-2">Parent</th>
                 <th className="px-3 py-2">Number</th>
                 <th className="px-3 py-2 text-right">Paid</th>
-                <th className="px-3 py-2 text-right">Message says due</th>
+                <th className="px-3 py-2 text-right">Message says</th>
                 <th className="px-3 py-2">Today</th>
                 <th className="px-3 py-2">Remind</th>
               </tr>
@@ -627,13 +686,13 @@ export function RemindersWorkspace({
 
       {/* ----------------------------------------------------------------- preview */}
       {sample ? (
-        <div className="rounded-lg border border-border bg-surface-2 p-4 max-md:order-6">
+        <div className="rounded-lg border border-border bg-surface-2 p-4 max-md:order-7">
           <div className="mb-2 flex items-center gap-2 text-sm font-medium">
             <MessageCircle className="size-4" aria-hidden="true" />
             What {sample.parentName} will receive
           </div>
           <pre className="whitespace-pre-wrap break-words font-sans text-sm text-muted-foreground">
-            {renderReminderPreview({ ...sample, sessionLabel })}
+            {campaign.renderPreview(noticeValues(sample))}
           </pre>
           <p className="mt-2 text-xs text-muted-foreground">
             A copy of the approved template for preview only — WhatsApp sends whatever Meta

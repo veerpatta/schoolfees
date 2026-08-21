@@ -442,6 +442,15 @@ express the school's rule and never fired once:
   a cadence must set `no_call => false` explicitly or it silently stops the
   collectors calling that family.
 
+- `20260821170000_whatsapp_reminder_sends_per_campaign` — widens the one-a-day
+  unique index from `(student, session, day)` to include `campaign_name`. There
+  are now six approved notices rather than one, and 47 of the 48 families
+  carrying a previous-session balance also owe this year: under the old index the
+  current-year reminder claimed the day and the previous-session notice could
+  never be sent to them at all. The same notice twice in one day is still
+  refused, which is what `sendOne`'s `23505` branch reads to settle a race
+  between two staff working the same list.
+
 ## When you add a new migration
 
 1. Create the file via `supabase migration new <name>` so the timestamp is

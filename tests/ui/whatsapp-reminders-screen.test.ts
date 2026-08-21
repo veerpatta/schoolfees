@@ -28,7 +28,8 @@ const WORKSPACE = "src/modules/whatsapp/ui/reminders-workspace.tsx";
 const PANEL = "src/modules/whatsapp/ui/test-send-panel.tsx";
 const PAGE = "src/app/protected/admin-tools/whatsapp-reminders/page.tsx";
 const ACTIONS = "src/app/protected/admin-tools/whatsapp-reminders/actions.ts";
-const TEMPLATE = "src/modules/whatsapp/domain/reminder-template.ts";
+const CAMPAIGNS = "src/modules/whatsapp/domain/campaigns.ts";
+const PICKER = "src/modules/whatsapp/ui/notice-picker.tsx";
 
 describe("WhatsApp reminders on a phone", () => {
   it("clears only the safe area, because /protected/admin-tools is a takeover route", () => {
@@ -66,6 +67,26 @@ describe("WhatsApp reminders on a phone", () => {
     }
   });
 
+  it("carries the chosen notice, language and date through every GET form", () => {
+    // Three forms submit to the same URL: the notice picker (which owns all three
+    // of these) and the phone and desk copies of the filters. A filter form
+    // missing them drops them from the query string, so narrowing to one class
+    // would silently reset the notice to fee-due, the language to Hindi and the
+    // deadline to the default — none of which the office chose, all of which a
+    // parent then reads.
+    const source = read(WORKSPACE);
+
+    const fields = source.slice(
+      source.indexOf("function ReminderFilterFields"),
+      source.indexOf("export function RemindersWorkspace"),
+    );
+    for (const field of ["situation", "language", "lastDate"]) {
+      expect(fields).toContain(`name="${field}"`);
+    }
+    // Both filter forms render the same component, so one hidden input covers both.
+    expect(source.match(/<ReminderFilterFields/g) ?? []).toHaveLength(2);
+  });
+
   it("renders the desk table only above md", () => {
     expect(read(WORKSPACE)).toContain('<div className="hidden overflow-x-auto rounded-lg border border-border md:block">');
   });
@@ -81,27 +102,51 @@ describe("WhatsApp reminders template", () => {
   it("keeps one renderer for the message body", () => {
     // Two copies of the template would drift, and the preview would start
     // promising something the parent never receives.
-    expect(read(TEMPLATE)).toContain("फीस सूचना");
+    expect(read(CAMPAIGNS)).toContain("फीस सूचना");
     expect(read(WORKSPACE)).not.toContain("फीस सूचना");
     expect(read(PANEL)).not.toContain("फीस सूचना");
+    expect(read(PICKER)).not.toContain("फीस सूचना");
   });
 
-  it("derives the printed deadline from the same constant as the guard", () => {
-    const source = read(TEMPLATE);
+  it("takes its date from a variable, so no template can expire again", () => {
+    // The old campaign hardcoded 25 अगस्त 2026 in its body, which is why the
+    // screen refused to send from the 26th. All six take the date as a slot.
+    const source = read(CAMPAIGNS);
 
-    expect(source).toContain('FEE_REMINDER_TEMPLATE_DEADLINE = "2026-08-25"');
-    expect(source).toContain("FEE_REMINDER_DEADLINE_LABEL");
-    expect(source).toContain("अंतिम तिथि: ${FEE_REMINDER_DEADLINE_LABEL}");
+    expect(source).not.toContain("FEE_REMINDER_TEMPLATE_DEADLINE");
+    expect(source).toContain("lastDate");
+    // Every campaign that prints a date reads it from the slot, never a literal.
+    expect(source).not.toMatch(/अंतिम तिथि: 25 अगस्त/);
+  });
+
+  it("keeps the slot counts the approved campaigns enforce", () => {
+    // A count that does not match is refused with "Template params does not
+    // match the campaign" — cheap to catch here, expensive mid-run.
+    const source = read(CAMPAIGNS);
+
+    expect(source).toContain("vpps_app_fee_due_hi");
+    expect(source).toContain("vpps_app_balance_en");
+    expect(source).toContain("vpps_app_prevyear_hi");
   });
 });
 
 describe("WhatsApp reminders client boundary", () => {
-  it.each([WORKSPACE, PANEL])("%s value-imports no server-only module", (path) => {
+  it.each([WORKSPACE, PANEL, PICKER])("%s value-imports no server-only module", (path) => {
     // lib/whatsapp/fee-reminders.ts and lib/whatsapp/aisensy.ts both carry
     // `import "server-only"`. A value import from either would fail the build.
     const source = read(path);
 
-    for (const match of source.matchAll(/import\s+([\s\S]*?)\s+from\s+"@\/lib\/whatsapp\/(\w[\w-]*)"/g)) {
+    // Repointed at the post-restructure paths. The old pattern still matched
+    // `@/lib/whatsapp/`, which nothing imports any more, so it silently
+    // enforced nothing.
+    for (const match of source.matchAll(
+      // `[^;]*?` rather than `[\s\S]*?`: the latter happily spans from an
+      // EARLIER import statement, so the captured clause was whatever preceded
+      // the match and never started with "type". The old pattern had the same
+      // flaw but pointed at `@/lib/whatsapp/`, which nothing imports any more,
+      // so it matched nothing and hid the bug.
+      /import\s+([^;]*?)\s+from\s+"@\/modules\/whatsapp\/(?:domain|data)\/([\w-]+)"/g,
+    )) {
       const [, clause, module] = match;
       if (module !== "fee-reminders" && module !== "aisensy") continue;
       expect(clause.trimStart().startsWith("type ")).toBe(true);

@@ -19,6 +19,7 @@ type Tables = {
   financials?: unknown[];
   flags?: unknown[];
   sends?: unknown[];
+  carryForward?: unknown[];
 };
 
 /**
@@ -35,6 +36,7 @@ function stubClient(tables: Tables) {
       const builder: Record<string, unknown> = {
         select: () => builder,
         lte: () => builder,
+        neq: () => builder,
         eq: (column: string, value: unknown) => {
           state.eqs.push([column, value]);
           return builder;
@@ -51,6 +53,8 @@ function stubClient(tables: Tables) {
             data = wantsNoCall ? [] : (tables.flags ?? []);
           } else if (state.table === "whatsapp_reminder_sends") {
             data = state.ordered ? (tables.sends ?? []) : [];
+          } else if (state.table === "v_student_carry_forward_balances") {
+            data = tables.carryForward ?? [];
           }
           return resolve({ data, error: null });
         },
@@ -80,11 +84,21 @@ function student(id: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
-const filters = { ...DEFAULT_REMINDER_FILTERS, sessionLabel: SESSION };
+const filters = { ...DEFAULT_REMINDER_FILTERS, sessionLabel: SESSION, lastDate: "25-08-2026" };
 
-const load = (tables: Tables) =>
+const load = (tables: Tables, overrides: Partial<typeof filters> = {}) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  loadReminderAudience(stubClient(tables) as any, filters);
+  loadReminderAudience(stubClient(tables) as any, { ...filters, ...overrides });
+
+/** A carry-forward row as v_student_carry_forward_balances returns it. */
+function carried(studentId: string, remaining: number, source = "2025-26") {
+  return {
+    student_id: studentId,
+    remaining_amount: remaining,
+    source_session_label: source,
+    status: "active",
+  };
+}
 
 describe("reminder audience — the office's own settings", () => {
   it("puts everyone on every_run when no flag exists", async () => {
@@ -192,5 +206,94 @@ describe("reminder audience — the office's own settings", () => {
     expect(audience.paused).toHaveLength(0);
     expect(audience.skipped.installmentsClear).toBe(1);
     expect(audience.skipped.whatsappNever).toBe(0);
+  });
+});
+
+describe("reminder audience — which notice, which families", () => {
+  // Nothing received: only the academic fee landed, so both installments stand.
+  const owesEverything = student("owes", { total_paid: 500 });
+  // Part paid: past the academic-fee threshold, still carrying installment 2.
+  const partPaid = student("part", { total_paid: 9000, inst1_pending: 0, inst2_pending: 4000 });
+  // Fully paid this year, but last year is still open.
+  const prevOnly = student("prev", {
+    total_paid: 20000,
+    inst1_pending: 0,
+    inst2_pending: 0,
+  });
+
+  const everyone = { financials: [owesEverything, partPaid, prevOnly] };
+  const withCarryForward = { ...everyone, carryForward: [carried("prev", 20000)] };
+
+  it("fee_due takes only the families who have paid nothing", async () => {
+    const audience = await load(everyone, { situation: "fee_due" });
+
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["owes"]);
+    // 5000 + 4000 across the two selected installments.
+    expect(audience.candidates[0]!.dueAmount).toBe(9000);
+  });
+
+  it("balance takes the families fee_due excludes, and never both", async () => {
+    const audience = await load(everyone, { situation: "balance" });
+
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["part"]);
+    // What is still owed this session, and what has been received so far.
+    expect(audience.candidates[0]!.dueAmount).toBe(4000);
+    expect(audience.candidates[0]!.totalPaid).toBe(9000);
+
+    // The two current-year notices partition the list — measured at zero
+    // overlap on the live session, and it must stay that way.
+    const feeDue = await load(everyone, { situation: "fee_due" });
+    const overlap = feeDue.candidates
+      .map((c) => c.studentId)
+      .filter((id) => audience.candidates.some((c) => c.studentId === id));
+    expect(overlap).toEqual([]);
+  });
+
+  it("prevyear quotes what is LEFT of last session, not the original", async () => {
+    const audience = await load(withCarryForward, { situation: "prevyear" });
+
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["prev"]);
+    expect(audience.candidates[0]!.dueAmount).toBe(20000);
+    expect(audience.candidates[0]!.prevSessionLabel).toBe("2025-26");
+  });
+
+  it("drops a family whose carry-forward has been cleared", async () => {
+    const audience = await load(
+      { ...everyone, carryForward: [carried("prev", 0)] },
+      { situation: "prevyear" },
+    );
+
+    expect(audience.candidates).toHaveLength(0);
+  });
+
+  it("counts all three notices in one pass, whichever is selected", async () => {
+    const audience = await load(withCarryForward, { situation: "fee_due" });
+
+    expect(audience.counts).toEqual({ fee_due: 1, balance: 1, prevyear: 1 });
+    // Only the selected one produces candidates.
+    expect(audience.candidates).toHaveLength(1);
+  });
+
+  it("lets one family qualify for a current-year notice AND prev-year", async () => {
+    // The 47-family case the send-log index was widened for.
+    const both = {
+      financials: [owesEverything],
+      carryForward: [carried("owes", 12000)],
+    };
+
+    expect((await load(both, { situation: "fee_due" })).candidates).toHaveLength(1);
+    expect((await load(both, { situation: "prevyear" })).candidates).toHaveLength(1);
+  });
+
+  it("never lets last year's balance into a current-year figure", async () => {
+    // The ₹20,000 trap: outstanding_amount folds the carry-forward in, so a
+    // fee_due notice built from it would bill last year twice.
+    const audience = await load(
+      { financials: [owesEverything], carryForward: [carried("owes", 20000)] },
+      { situation: "fee_due" },
+    );
+
+    expect(audience.candidates[0]!.dueAmount).toBe(9000);
+    expect(audience.candidates[0]!.prevYearBalance).toBe(20000);
   });
 });

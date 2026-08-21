@@ -4,14 +4,11 @@ import { recordActivity } from "@/modules/activity/data/events";
 import { insertDefaulterContacts } from "@/modules/defaulters/data/contacts";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { requireStaffPermission } from "@/platform/supabase/session";
-import {
-  configuredCampaignName,
-  isAisensyConfigured,
-  sendAisensyCampaignMessage,
-} from "@/modules/whatsapp/data/aisensy";
+import { isAisensyConfigured, sendAisensyCampaignMessage } from "@/modules/whatsapp/data/aisensy";
 import {
   drainPendingFinancialRefresh,
   istToday,
+  noticeValuesFor,
   loadReminderAudience,
   parseReminderFilters,
   resolveCurrentSessionLabel,
@@ -21,9 +18,16 @@ import {
 import { addDays, CADENCE_VALUES } from "@/modules/whatsapp/domain/reminder-cadence";
 import { toWhatsappDestination } from "@/modules/whatsapp/domain/phone";
 import {
-  buildReminderParams,
-  FEE_REMINDER_TEMPLATE_DEADLINE,
-} from "@/modules/whatsapp/domain/reminder-template";
+  campaignFor,
+  DEFAULT_LANGUAGE,
+  DEFAULT_SITUATION,
+  installmentPhrase,
+  isNoticeLanguage,
+  isNoticeSituation,
+  type CampaignDescriptor,
+  type NoticeValues,
+} from "@/modules/whatsapp/domain/campaigns";
+import { isoFromDdMmYyyy } from "@/platform/helpers/date";
 
 export type SendRemindersState = {
   status: "idle" | "success" | "partial" | "error";
@@ -59,20 +63,7 @@ export async function sendRemindersAction(
   if (!isAisensyConfigured()) {
     return { status: "error", message: "AISENSY_API_KEY is not configured on the server." };
   }
-  const campaignName = configuredCampaignName();
-  if (!campaignName) {
-    return { status: "error", message: "AISENSY_CAMPAIGN is not configured on the server." };
-  }
-
   const today = istToday();
-  if (today > FEE_REMINDER_TEMPLATE_DEADLINE) {
-    return {
-      status: "error",
-      message:
-        `The approved template hardcodes ${FEE_REMINDER_TEMPLATE_DEADLINE} as the deadline and today is ${today}. ` +
-        "Sending it now would tell parents to beat a date that has passed. Get a replacement template approved first.",
-    };
-  }
 
   const selected = new Set(formData.getAll("studentId").map(String).filter(Boolean));
   if (selected.size === 0) {
@@ -82,13 +73,15 @@ export async function sendRemindersAction(
   const supabase = createAdminClient();
 
   let sessionLabel: string;
+  let filters: ReminderFilters;
   let candidates: ReminderCandidate[];
   try {
     sessionLabel = await resolveCurrentSessionLabel(supabase);
     // A discount applied a minute ago may still be sitting in the refresh queue.
     // Drain it first, so the amount quoted below is the one the ledger holds now.
     await drainPendingFinancialRefresh(supabase);
-    const audience = await loadReminderAudience(supabase, filtersFromForm(formData, sessionLabel));
+    filters = filtersFromForm(formData, sessionLabel);
+    const audience = await loadReminderAudience(supabase, filters);
     // Re-derived server-side rather than read off the form. The amount a parent
     // is quoted must come from the ledger at send time, not from a number that
     // was rendered into a checkbox some minutes ago — and a student who has
@@ -100,6 +93,31 @@ export async function sendRemindersAction(
       message: caught instanceof Error ? caught.message : "Could not rebuild the recipient list.",
     };
   }
+
+  // The six approved templates take their date as a variable, so nothing expires
+  // — but a date already in the past would tell a parent to beat a deadline that
+  // has gone. This is the live replacement for the old fixed-deadline guard.
+  const lastDateIso = isoFromDdMmYyyy(filters.lastDate);
+  const needsDate = filters.situation !== "prevyear";
+  if (needsDate && (!lastDateIso || lastDateIso < today)) {
+    return {
+      status: "error",
+      message: !lastDateIso
+        ? "Pick a last date for this notice before sending."
+        : `The last date on this notice is ${filters.lastDate}, which has already passed. Pick a date parents can still meet.`,
+    };
+  }
+
+  let campaign: CampaignDescriptor;
+  try {
+    campaign = campaignFor(filters.situation, filters.language);
+  } catch (caught) {
+    return {
+      status: "error",
+      message: caught instanceof Error ? caught.message : "No campaign for that notice.",
+    };
+  }
+  const campaignName = campaign.campaignName;
 
   if (candidates.length === 0) {
     return {
@@ -119,7 +137,7 @@ export async function sendRemindersAction(
     const batch = candidates.slice(index, index + SEND_CONCURRENCY);
     const outcomes = await Promise.all(
       batch.map((candidate) =>
-        sendOne({ supabase, candidate, campaignName, sessionLabel, today, staffId }),
+        sendOne({ supabase, candidate, campaign, filters, sessionLabel, today, staffId }),
       ),
     );
     for (let position = 0; position < outcomes.length; position += 1) {
@@ -218,13 +236,18 @@ async function sendOne(args: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any;
   candidate: ReminderCandidate;
-  campaignName: string;
+  campaign: CampaignDescriptor;
+  filters: ReminderFilters;
   sessionLabel: string;
   today: string;
   staffId: string | null;
 }): Promise<SendOutcome> {
-  const { supabase, candidate, campaignName, sessionLabel, today, staffId } = args;
-  const templateParams = buildReminderParams(candidate);
+  const { supabase, candidate, campaign, filters, sessionLabel, today, staffId } = args;
+  const campaignName = campaign.campaignName;
+  // Per-situation: 6 slots for fee_due and balance, 5 for prevyear. A count that
+  // does not match is refused by AiSensy with "Template params does not match
+  // the campaign", which is why the registry owns both the count and the order.
+  const templateParams = campaign.buildParams(noticeValuesFor(candidate, filters));
 
   // Claim the day BEFORE calling the provider. Two staff members working the
   // same list at the same time collide on the unique index here, and the loser
@@ -472,10 +495,21 @@ export async function sendTestReminderAction(
   if (!isAisensyConfigured()) {
     return { status: "error", message: "AISENSY_API_KEY is not configured on the server." };
   }
-  const campaignName = configuredCampaignName();
-  if (!campaignName) {
-    return { status: "error", message: "AISENSY_CAMPAIGN is not configured on the server." };
+  const situation = String(formData.get("situation") ?? "");
+  const language = String(formData.get("language") ?? "");
+  let campaign: CampaignDescriptor;
+  try {
+    campaign = campaignFor(
+      isNoticeSituation(situation) ? situation : DEFAULT_SITUATION,
+      isNoticeLanguage(language) ? language : DEFAULT_LANGUAGE,
+    );
+  } catch (caught) {
+    return {
+      status: "error",
+      message: caught instanceof Error ? caught.message : "No campaign for that notice.",
+    };
   }
+  const campaignName = campaign.campaignName;
 
   const destination = toWhatsappDestination(formData.get("testPhone") as string | null);
   if (!destination) {
@@ -486,11 +520,27 @@ export async function sendTestReminderAction(
     };
   }
 
-  const templateParams = buildReminderParams({
-    parentName: (formData.get("parentName") as string | null) || "अभिभावक",
-    studentName: (formData.get("studentName") as string | null) || "Test Student",
-    studentClass: (formData.get("studentClass") as string | null) || "Class 5",
-    dueAmount: Number(formData.get("dueAmount")) || 9100,
+  // Fallbacks are the campaign's own Meta-submitted samples, so "leave it blank"
+  // still produces a message with the right shape for that template.
+  const text = (key: string, fallback: string) =>
+    (formData.get(key) as string | null)?.trim() || fallback;
+  const amount = (key: string, fallback: number | undefined) => {
+    const raw = Number(formData.get(key));
+    return Number.isFinite(raw) && raw > 0 ? raw : (fallback ?? 0);
+  };
+  const sample = campaign.sample;
+
+  const templateParams = campaign.buildParams({
+    parentName: text("parentName", sample.parentName),
+    studentName: text("studentName", sample.studentName),
+    studentClass: text("studentClass", sample.studentClass),
+    installmentPhrase: text("installmentPhrase", sample.installmentPhrase ?? ""),
+    amountDue: amount("amountDue", sample.amountDue),
+    receivedSoFar: amount("receivedSoFar", sample.receivedSoFar),
+    balanceDue: amount("balanceDue", sample.balanceDue),
+    lastDate: text("lastDate", sample.lastDate ?? ""),
+    prevSessionLabel: text("prevSessionLabel", sample.prevSessionLabel ?? ""),
+    prevYearBalance: amount("prevYearBalance", sample.prevYearBalance),
   });
 
   const result = await sendAisensyCampaignMessage({

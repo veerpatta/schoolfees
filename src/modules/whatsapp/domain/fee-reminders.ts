@@ -7,7 +7,18 @@ import {
   DEFAULT_CADENCE,
   type ReminderCadence,
 } from "@/modules/whatsapp/domain/reminder-cadence";
-import { TEMPLATE_INSTALLMENTS } from "@/modules/whatsapp/domain/reminder-template";
+import {
+  campaignFor,
+  installmentPhrase,
+  DEFAULT_LANGUAGE,
+  DEFAULT_SITUATION,
+  isNoticeLanguage,
+  isNoticeSituation,
+  TEMPLATE_INSTALLMENTS,
+  type NoticeLanguage,
+  type NoticeSituation,
+  type NoticeValues,
+} from "@/modules/whatsapp/domain/campaigns";
 
 /**
  * Who is eligible for a WhatsApp fee reminder, and what the message says.
@@ -21,9 +32,9 @@ import { TEMPLATE_INSTALLMENTS } from "@/modules/whatsapp/domain/reminder-templa
  */
 
 /**
- * The template's own constants — the deadline it hardcodes, the installments it
- * names, the slot order — live in `./reminder-template`, which carries no
- * `server-only` because the screen previews the message live as staff type.
+ * Campaign names, slot orders and preview bodies live in `./campaigns`, which
+ * carries no `server-only` because the screen previews the message live as staff
+ * type. This file only decides WHO is on the list.
  */
 
 export const DEFAULT_MAX_TOTAL_PAID = 1100;
@@ -38,14 +49,28 @@ export type ReminderFilters = {
   minDueAmount: number;
   classId: string | null;
   includeRte: boolean;
+  /**
+   * Which notice is being sent. This CHANGES THE AUDIENCE, which is why it lives
+   * with the filters and travels in the query string rather than in client
+   * state: the action re-derives the list from these same values, and a
+   * situation it could not see would message a different set of families than
+   * the office ticked.
+   */
+  situation: NoticeSituation;
+  /** Picks the campaign name only. Same families either way. */
+  language: NoticeLanguage;
+  /** Fills the date slot, DD-MM-YYYY. Chosen by the office, not derived. */
+  lastDate: string;
 };
 
-export const DEFAULT_REMINDER_FILTERS: Omit<ReminderFilters, "sessionLabel"> = {
+export const DEFAULT_REMINDER_FILTERS: Omit<ReminderFilters, "sessionLabel" | "lastDate"> = {
   maxTotalPaid: DEFAULT_MAX_TOTAL_PAID,
   installments: [...TEMPLATE_INSTALLMENTS],
   minDueAmount: 1,
   classId: null,
   includeRte: false,
+  situation: DEFAULT_SITUATION,
+  language: DEFAULT_LANGUAGE,
 };
 
 /**
@@ -65,6 +90,8 @@ export const DEFAULT_REMINDER_FILTERS: Omit<ReminderFilters, "sessionLabel"> = {
 export function parseReminderFilters(
   read: (key: string) => string | null,
   sessionLabel: string,
+  /** Used when the office has not picked one yet. Already DD-MM-YYYY. */
+  defaultLastDate = "",
 ): ReminderFilters {
   const number = (key: string, fallback: number) => {
     const raw = read(key);
@@ -86,6 +113,11 @@ export function parseReminderFilters(
     minDueAmount: number("minDueAmount", DEFAULT_REMINDER_FILTERS.minDueAmount),
     classId: read("classId")?.trim() || null,
     includeRte: read("includeRte") === "on",
+    // An unrecognised value falls back rather than throwing: a hand-edited URL
+    // must not be able to take the screen down.
+    situation: isNoticeSituation(read("situation")) ? (read("situation") as NoticeSituation) : DEFAULT_SITUATION,
+    language: isNoticeLanguage(read("language")) ? (read("language") as NoticeLanguage) : DEFAULT_LANGUAGE,
+    lastDate: read("lastDate")?.trim() || defaultLastDate,
   };
 }
 
@@ -99,9 +131,18 @@ export type ReminderCandidate = {
   destination: string;
   /** True when the father's number was missing and the mother's was used. */
   usedMotherPhone: boolean;
-  /** Sum of the selected installments' pending fees, whole rupees. */
+  /**
+   * The figure the chosen notice will quote, whole rupees. Which number that is
+   * depends on the situation — see `loadReminderAudience`.
+   */
   dueAmount: number;
   totalPaid: number;
+  /** balance {{5}} — everything still owed on installments 1-4. */
+  balanceDue: number;
+  /** prevyear {{5}} — what is left of the carried-forward balance. */
+  prevYearBalance: number;
+  /** prevyear {{4}} — the session that balance came from, e.g. "2025-26". */
+  prevSessionLabel: string | null;
   /** Set when this student already has a send logged for today. */
   sentToday: { status: string; at: string } | null;
   /** How often this family may be messaged, and any temporary skip. */
@@ -160,6 +201,12 @@ export type ReminderAudience = {
   /** Held back by a cadence or a snooze — reversible, so shown and undoable. */
   paused: PausedFamily[];
   classOptions: ClassOption[];
+  /**
+   * How many families each notice would reach, counted in the same pass as the
+   * selected one. The picker shows live numbers without three round trips, and
+   * the office can see that "Balance" is 252 before choosing it.
+   */
+  counts: Record<NoticeSituation, number>;
 };
 
 const SELECT_COLUMNS = [
@@ -266,16 +313,19 @@ export async function loadReminderAudience(
   supabase: any,
   filters: ReminderFilters,
 ): Promise<ReminderAudience> {
-  const [{ data: rows, error }, noCallIds, sentToday, reminderFlags, lastSent] = await Promise.all([
+  const campaignName = campaignFor(filters.situation, filters.language).campaignName;
+
+  const [{ data: rows, error }, noCallIds, sentToday, reminderFlags, lastSent, carryForward] =
+    await Promise.all([
     supabase
       .from("v_workbook_student_financials")
       .select(SELECT_COLUMNS)
-      .eq("session_label", filters.sessionLabel)
-      .lte("total_paid", filters.maxTotalPaid),
+      .eq("session_label", filters.sessionLabel),
     loadNoCallStudentIds(supabase, filters.sessionLabel),
-    loadSentToday(supabase, filters.sessionLabel),
+    loadSentToday(supabase, filters.sessionLabel, campaignName),
     loadReminderFlags(supabase, filters.sessionLabel),
     loadLastSentOn(supabase, filters.sessionLabel),
+    loadCarryForward(supabase, filters.sessionLabel),
   ]);
 
   if (error) throw new Error(`Could not read student financials: ${error.message}`);
@@ -296,6 +346,7 @@ export async function loadReminderAudience(
   const paused: PausedFamily[] = [];
   const candidates: ReminderCandidate[] = [];
   const classCounts = new Map<string, ClassOption>();
+  const counts: Record<NoticeSituation, number> = { fee_due: 0, balance: 0, prevyear: 0 };
   const today = istToday();
 
   const wanted = filters.installments.length > 0 ? filters.installments : [...TEMPLATE_INSTALLMENTS];
@@ -307,11 +358,37 @@ export async function loadReminderAudience(
     // are pending" means both, not either. `pending_amount` is fees only, so a
     // family whose only debt is a late fee is correctly absent.
     const perInstallment = wanted.map((installment) => pendingFor(row, installment));
-    if (perInstallment.some((amount) => amount <= 0)) {
-      skipped.installmentsClear += 1;
-      continue;
-    }
-    const dueAmount = perInstallment.reduce((sum, amount) => sum + amount, 0);
+    const feeDueAmount = perInstallment.reduce((sum, amount) => sum + amount, 0);
+
+    // Everything still owed on THIS session's four installments. Deliberately
+    // not `outstanding_amount`, which silently folds in the carry-forward line
+    // and would bill last year's balance inside a current-year notice.
+    const balanceDue =
+      Number(row.inst1_pending ?? 0) +
+      Number(row.inst2_pending ?? 0) +
+      Number(row.inst3_pending ?? 0) +
+      Number(row.inst4_pending ?? 0);
+
+    const carried = carryForward.get(row.student_id);
+    const prevYearBalance = carried?.remaining ?? 0;
+
+    // The two current-year notices are mutually exclusive by construction:
+    // `maxTotalPaid` (1100) is the academic fee, so at or below it nothing real
+    // has been received. Measured live, the overlap between them is zero.
+    const nothingReceived = totalPaid <= filters.maxTotalPaid;
+    const qualifies: Record<NoticeSituation, boolean> = {
+      fee_due: nothingReceived && perInstallment.every((amount) => amount > 0),
+      balance: !nothingReceived && balanceDue > 0,
+      prevyear: prevYearBalance > 0,
+    };
+
+    // What this notice will actually quote.
+    const dueAmount =
+      filters.situation === "fee_due"
+        ? feeDueAmount
+        : filters.situation === "balance"
+          ? balanceDue
+          : prevYearBalance;
 
     // 'collectable': on the roll, or gone but still owing against what they paid.
     if (!(row.record_status === "active" || totalPaid > 0)) {
@@ -330,11 +407,6 @@ export async function loadReminderAudience(
       continue;
     }
 
-    if (dueAmount < filters.minDueAmount) {
-      skipped.belowMinimum += 1;
-      continue;
-    }
-
     const studentClass = row.class_label ?? "";
     const fatherDestination = toWhatsappDestination(row.father_phone);
     const destination = fatherDestination ?? toWhatsappDestination(row.mother_phone);
@@ -349,6 +421,25 @@ export async function loadReminderAudience(
       } else {
         skipped.phoneUnusable += 1;
       }
+      continue;
+    }
+
+    // Counted here — after the guards that decide whether we could contact this
+    // family at all, and BEFORE the notice filter — so every chip in the picker
+    // shows who that notice could reach, not just the one already selected.
+    for (const situation of SITUATION_KEYS) {
+      if (qualifies[situation]) counts[situation] += 1;
+    }
+
+    // Now the selected notice. A family who owes nothing on THIS notice is not
+    // "skipped by a filter", they are simply not who it is about.
+    if (!qualifies[filters.situation]) {
+      skipped.installmentsClear += 1;
+      continue;
+    }
+
+    if (dueAmount < filters.minDueAmount) {
+      skipped.belowMinimum += 1;
       continue;
     }
 
@@ -415,6 +506,9 @@ export async function loadReminderAudience(
       usedMotherPhone: !fatherDestination,
       dueAmount,
       totalPaid,
+      balanceDue,
+      prevYearBalance,
+      prevSessionLabel: carried?.sourceSession ?? null,
       sentToday: sentToday.get(row.student_id) ?? null,
       cadence,
       snoozedUntil,
@@ -431,7 +525,52 @@ export async function loadReminderAudience(
     unreachable,
     paused,
     classOptions: [...classCounts.values()].sort((a, b) => a.label.localeCompare(b.label)),
+    counts,
   };
+}
+
+const SITUATION_KEYS: readonly NoticeSituation[] = ["fee_due", "balance", "prevyear"];
+
+/**
+ * What is left of each family's carried-forward balance, and where it came from.
+ *
+ * A second read, because `v_workbook_student_financials` carries no
+ * carry-forward column at all — and its `outstanding_amount` silently INCLUDES
+ * the carry-forward line, so the figure cannot be netted out of the matview.
+ *
+ * `remaining_amount`, never `original_amount`: the latter ignores every payment
+ * made against the balance since, and would tell a family who has cleared most
+ * of last year that they still owe all of it.
+ */
+async function loadCarryForward(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  sessionLabel: string,
+): Promise<Map<string, { remaining: number; sourceSession: string | null }>> {
+  const { data, error } = await supabase
+    .from("v_student_carry_forward_balances")
+    .select("student_id, remaining_amount, source_session_label, status")
+    .eq("target_session_label", sessionLabel)
+    .neq("status", "cancelled");
+
+  // Failing open would send a previous-session notice quoting zero.
+  if (error) throw new Error(`Could not read carry-forward balances: ${error.message}`);
+
+  const byStudent = new Map<string, { remaining: number; sourceSession: string | null }>();
+  for (const row of (data ?? []) as Array<{
+    student_id: string;
+    remaining_amount: number | null;
+    source_session_label: string | null;
+  }>) {
+    const existing = byStudent.get(row.student_id);
+    const remaining = Number(row.remaining_amount ?? 0);
+    byStudent.set(row.student_id, {
+      // A student can carry more than one head forward; the notice quotes the total.
+      remaining: (existing?.remaining ?? 0) + remaining,
+      sourceSession: existing?.sourceSession ?? row.source_session_label,
+    });
+  }
+  return byStudent;
 }
 
 /**
@@ -480,6 +619,10 @@ async function loadReminderFlags(
  * gap is measured against what was really sent and cannot drift. Only `sent`
  * rows count — a failed attempt did not reach anybody, so it must not push the
  * next reminder out.
+ *
+ * Deliberately NOT scoped to one campaign, unlike `loadSentToday`. Cadence asks
+ * how often a family hears from us at all; per-campaign gaps would let a family
+ * set to "weekly" receive three messages a week, one per notice.
  */
 async function loadLastSentOn(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -534,12 +677,17 @@ async function loadSentToday(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   sessionLabel: string,
+  campaignName: string,
 ): Promise<Map<string, { status: string; at: string }>> {
+  // Scoped to THIS campaign since 20260821170000 widened the unique index. A
+  // family who got the fee-due notice this morning is still eligible for the
+  // previous-session one this afternoon, and the checkbox has to say so.
   const { data, error } = await supabase
     .from("whatsapp_reminder_sends")
     .select("student_id, status, created_at")
     .eq("session_label", sessionLabel)
-    .eq("sent_on", istToday());
+    .eq("sent_on", istToday())
+    .eq("campaign_name", campaignName);
 
   // A missing send history is not a reason to refuse to show the list — but it
   // does mean the screen cannot promise nobody was messaged today, so say so
@@ -551,4 +699,30 @@ async function loadSentToday(
       (row) => [row.student_id, { status: row.status, at: row.created_at }],
     ),
   );
+}
+
+/**
+ * The slot values one family's notice will carry.
+ *
+ * Lives here rather than in the registry because it needs a `ReminderCandidate`,
+ * and `campaigns.ts` must stay importable from the browser for the live
+ * preview. Not in `actions.ts` either: everything a `"use server"` file exports
+ * has to be an async function, and this is a pure projection.
+ */
+export function noticeValuesFor(
+  candidate: ReminderCandidate,
+  filters: ReminderFilters,
+): NoticeValues {
+  return {
+    parentName: candidate.parentName,
+    studentName: candidate.studentName,
+    studentClass: candidate.studentClass,
+    installmentPhrase: installmentPhrase(filters.installments),
+    amountDue: candidate.dueAmount,
+    receivedSoFar: candidate.totalPaid,
+    balanceDue: candidate.balanceDue,
+    lastDate: filters.lastDate,
+    prevSessionLabel: candidate.prevSessionLabel ?? "",
+    prevYearBalance: candidate.prevYearBalance,
+  };
 }

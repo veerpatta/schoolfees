@@ -8,7 +8,7 @@ import { RemindersWorkspace } from "@/modules/whatsapp/ui/reminders-workspace";
 import { TestSendPanel } from "@/modules/whatsapp/ui/test-send-panel";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
-import { configuredCampaignName, isAisensyConfigured } from "@/modules/whatsapp/data/aisensy";
+import { isAisensyConfigured } from "@/modules/whatsapp/data/aisensy";
 import {
   drainPendingFinancialRefresh,
   istToday,
@@ -18,9 +18,13 @@ import {
   type ReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
 import {
-  FEE_REMINDER_TEMPLATE_DEADLINE,
+  campaignFor,
+  installmentPhrase,
+  NOTICE_SITUATIONS,
   TEMPLATE_INSTALLMENTS,
-} from "@/modules/whatsapp/domain/reminder-template";
+} from "@/modules/whatsapp/domain/campaigns";
+import { getFeePolicySummary } from "@/modules/fees/data/policy";
+import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
 
 // The list is only ever as good as the ledger it was read from, and staff will
 // send money-bearing messages off it. Never serve it from a cache.
@@ -66,7 +70,20 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     await drainPendingFinancialRefresh(supabase);
     // The same parser sendRemindersAction uses, so the audience this screen
     // shows and the one the send rebuilds cannot disagree.
-    filters = parseReminderFilters(reader(params), sessionLabel);
+    // The date slot is picked by the office, not derived — but it opens on
+    // something sensible. NOT `next_due_date`: carry-forward rows are dated
+    // 2026-04-01, before Installment 1, so that column reports the carry-forward
+    // line for every family still carrying one.
+    const policy = await getFeePolicySummary({ useAdmin: true }).catch(() => null);
+    const upcoming = (policy?.installmentSchedule ?? [])
+      .map((entry) => entry.dueDate)
+      .filter((due): due is string => Boolean(due) && due >= istToday())
+      .sort()[0];
+    filters = parseReminderFilters(
+      reader(params),
+      sessionLabel,
+      formatDdMmYyyy(upcoming ?? null),
+    );
     audience = await loadReminderAudience(supabase, filters);
   } catch (caught) {
     loadError = caught instanceof Error ? caught.message : "Could not build the recipient list.";
@@ -85,12 +102,21 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   }
 
   const today = istToday();
-  const templateExpired = today > FEE_REMINDER_TEMPLATE_DEADLINE;
-  const campaignName = configuredCampaignName();
-  const providerReady = isAisensyConfigured() && Boolean(campaignName);
+  const campaign = campaignFor(filters.situation, filters.language);
+  const campaignName = campaign.campaignName;
+  const providerReady = isAisensyConfigured();
+  // Only the fee_due template names its installments in fixed-ish wording; the
+  // warning is meaningless for the other two.
   const wordingMismatch =
-    filters.installments.length !== TEMPLATE_INSTALLMENTS.length ||
-    !TEMPLATE_INSTALLMENTS.every((installment) => filters.installments.includes(installment));
+    filters.situation === "fee_due" &&
+    (filters.installments.length !== TEMPLATE_INSTALLMENTS.length ||
+      !TEMPLATE_INSTALLMENTS.every((installment: number) =>
+        filters.installments.includes(installment),
+      ));
+  const pickedIso = isoFromDdMmYyyy(filters.lastDate);
+  const dateHasPassed = filters.situation !== "prevyear" && (!pickedIso || pickedIso < today);
+  const situationLabel =
+    NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
 
   const familyCount = audience.candidates.length;
   const familyLabel = `${familyCount} famil${familyCount === 1 ? "y" : "ies"}`;
@@ -114,17 +140,15 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           `md:` and up no order class applies, so the desk keeps source order. */}
       {!providerReady ? (
         <OfficeNotice title="Sending is not configured" tone="warning" className="max-md:order-1">
-          {isAisensyConfigured()
-            ? "AISENSY_CAMPAIGN is not set on the server, so there is no campaign to send through."
-            : "AISENSY_API_KEY is not set on the server. The list below is live, but Send will refuse."}
+          AISENSY_API_KEY is not set on the server. The list below is live, but Send will refuse.
         </OfficeNotice>
       ) : null}
 
-      {templateExpired ? (
-        <OfficeNotice title="This template has expired" tone="danger" className="max-md:order-1">
-          The approved message hardcodes <strong>25 August 2026</strong> as the deadline and warns
-          of a ₹1,000 late fee after it. Today is {today}, so every word of it is now wrong.
-          Sending is blocked until a replacement template is approved.
+      {dateHasPassed ? (
+        <OfficeNotice title="That date has already passed" tone="danger" className="max-md:order-1">
+          This notice would tell parents to pay by <strong>{filters.lastDate}</strong>, and today is{" "}
+          {today}. Pick a date they can still meet — the field sits with the notice picker. Sending
+          is blocked until then.
         </OfficeNotice>
       ) : null}
 
@@ -134,10 +158,9 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
         className="max-md:order-4"
       >
         <RemindersWorkspace
-          sessionLabel={sessionLabel}
           filters={filters}
           audience={audience}
-          canSend={canSend && providerReady && !templateExpired}
+          canSend={canSend && providerReady && !dateHasPassed}
           campaignName={campaignName}
         />
       </SectionCard>
@@ -152,12 +175,14 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
         className="max-md:order-3"
       >
         <TestSendPanel
-          sessionLabel={sessionLabel}
-          // No `!templateExpired`: testing an expired template on a staff phone
-          // is exactly what you need while a replacement is in approval.
+          // No date guard here: testing a template whose date has slipped, on a
+          // staff phone, is exactly when you need to.
           canTest={canSend && providerReady}
-          campaignName={campaignName}
+          situation={filters.situation}
+          language={filters.language}
+          lastDate={filters.lastDate}
           sample={audience.candidates[0] ?? null}
+          installmentPhrase={installmentPhrase(filters.installments)}
         />
       </CollapsibleSection>
 
@@ -167,9 +192,9 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           tone="warning"
           className="max-md:order-2"
         >
-          The approved template says <strong>&ldquo;किश्त 1 एवं किश्त 2&rdquo;</strong> in fixed
-          text. You have filtered on installment {filters.installments.join(", ")}, so the amount
-          will be right but the wording will still name installments 1 and 2.
+          The {situationLabel.toLowerCase()} notice names the installments it is about. You have
+          filtered on installment {filters.installments.join(", ")}, so the message will say
+          &ldquo;{installmentPhrase(filters.installments)}&rdquo; — check that is what you mean.
         </OfficeNotice>
       ) : null}
 

@@ -3,7 +3,13 @@
 `/protected/admin-tools/whatsapp-reminders` — an Admin Tools screen that lists
 families with pending fees, lets an admin tick the ones they mean, and sends them
 a Meta-approved WhatsApp template through AiSensy's Campaign API. Live in
-production since 20 Aug 2026, rendering 150 eligible families.
+production since 20 Aug 2026.
+
+There are **three notices in two languages** — six approved templates, six Live
+campaigns. Which one goes out is picked on screen, and it changes who is on the
+list: fee due (nothing received), balance (part paid, still owing) and previous
+session (a carry-forward balance). Measured on the live session, those reach 146,
+258 and 51 families respectively.
 
 Nothing on this screen sends on its own. Every send is a press, and every press
 costs money and reaches a real parent with a child's name and fee balance on it.
@@ -17,13 +23,16 @@ costs money and reaches a real parent with a child's name and fee balance on it.
 | `src/app/protected/admin-tools/whatsapp-reminders/loading.tsx` | Route skeleton |
 | `src/modules/whatsapp/ui/reminders-workspace.tsx` | Filters, list (cards + table), selection, send |
 | `src/modules/whatsapp/ui/test-send-panel.tsx` | The test panel: editable slots, live preview, raw provider result |
-| `src/modules/whatsapp/domain/reminder-template.ts` | The template body, its constants, `buildReminderParams`, `renderReminderPreview`. **No `server-only`** — the live preview runs in the browser |
+| `src/modules/whatsapp/ui/notice-picker.tsx` | The notice chips, the language toggle and the date field |
+| `src/modules/whatsapp/domain/campaigns.ts` | **The registry.** Campaign name, slot order, param builder and preview body for each of the six. **No `server-only`** — the live preview runs in the browser |
 | `src/modules/whatsapp/domain/phone.ts` | `toWhatsappDestination`. Pure, client-safe |
 | `src/modules/whatsapp/data/aisensy.ts` | Campaign API client. `server-only` |
 | `src/modules/whatsapp/domain/fee-reminders.ts` | Audience query and filters. `server-only` — a client component may only `import type` from it |
 | `supabase/migrations/20260820140000_whatsapp_reminder_sends.sql` | The send log |
-| `tests/unit/whatsapp-reminder-template.test.ts` | Slot count/order, amount formatting, phone normalisation |
-| `tests/ui/whatsapp-reminders-screen.test.ts` | Takeover clearance, one form, the name-less checkbox, client boundary |
+| `supabase/migrations/20260821170000_whatsapp_reminder_sends_per_campaign.sql` | One send per campaign per day, not one per day |
+| `docs/modules/whatsapp-campaign-registry.md` | **Ground truth** for the six campaign names, slot orders and bodies |
+| `tests/unit/whatsapp-campaigns.test.ts` | Slot counts and order per campaign, no rupee glyph in a slot |
+| `tests/ui/whatsapp-reminders-screen.test.ts` | Takeover clearance, one form, the name-less checkbox, client boundary, notice/language/date round-trip |
 
 ## Design decisions — preserve these unless asked
 
@@ -35,8 +44,19 @@ costs money and reaches a real parent with a child's name and fee balance on it.
   submitted student ids. Never trust an amount posted from the client — a family
   who paid since page load must drop out at send time.
 - **`whatsapp_reminder_sends` claims the row before the provider call**, so the
-  unique `(student_id, session_label, sent_on)` index decides races. Already-sent
-  families render greyed and unselectable.
+  unique `(student_id, session_label, sent_on, campaign_name)` index decides
+  races. Already-sent families render greyed and unselectable — for *that notice*
+  only, which is the point of `campaign_name` being in the index.
+- **The notice, the language and the date live in the query string**, never in
+  client state. The notice changes the audience, and `sendRemindersAction`
+  re-derives that audience from the very same parser — a choice the action could
+  not see would message a different set of families than the office ticked. It
+  also makes each notice linkable and the back button work, the same rule the
+  Dashboard boards follow.
+- **Every GET form on the screen carries all three.** The picker owns the date
+  field but the filters are a separate `<form>`; without hidden copies, pressing
+  Apply would drop the notice, the language and the deadline out of the URL and
+  silently reset them mid-task.
 - Exclusions reuse `student_collection_flags.no_call` — do not invent a second
   do-not-contact list.
 - Sends are logged to `defaulter_contacts` as a `whatsapp` contact, best-effort.
@@ -124,67 +144,89 @@ join (select student_id,
 where f.session_label = '2026-27';
 ```
 
-## The template — read this before changing anything about the message
+## The six notices — read this before changing anything about the message
 
-The approved body has **exactly four variables**, confirmed empirically by sending
-`P1..P4` markers and reading what arrived. Five params are rejected.
+`src/modules/whatsapp/domain/campaigns.ts` is the registry: campaign name, slot
+order, param builder and preview body for each of the six, in one place so they
+cannot drift apart. `docs/modules/whatsapp-campaign-registry.md` is the ground
+truth it was copied from — the approved bodies and the slot orders as submitted
+to Meta.
 
-```
-*फीस सूचना - किश्त 1 एवं 2*
-प्रिय {{1}},                                    <- parent name
+| Situation | Who it is about | Slots | Campaigns |
+|---|---|---|---|
+| `fee_due` | Nothing received (`total_paid <= 1100`) and every selected installment pending | 6 | `vpps_app_fee_due_hi` · `vpps_app_fee_due_en` |
+| `balance` | Part paid, still owing on installments 1–4 | 6 | `vpps_app_balance_hi` · `vpps_app_balance_en` |
+| `prevyear` | A carry-forward balance with something left on it | 5 | `vpps_app_prevyear_hi` · `vpps_app_prevyear_en` |
 
-श्री वीर पत्ता सीनियर सेकेंडरी स्कूल की ओर से सूचित किया जाता है कि
-{{2}} ({{3}}) की सत्र 2026-27 की किश्त 1 एवं किश्त 2 की फीस अभी बकाया है।
-                                                <- student name, class
-देय राशि: रु. {{4}}                              <- amount, plain grouped
-अंतिम तिथि: 25 अगस्त 2026                        digits, no rupee glyph
+**The two current-year notices are mutually exclusive by construction, not by a
+filter someone has to get right.** `maxTotalPaid` is 1100, the academic fee, so at
+or below it nothing real has been received. Measured live, the overlap is zero.
 
-कृपया 25 अगस्त 2026 तक यह राशि जमा करें। इसके बाद प्रत्येक किश्त पर
-रु. 1,000 विलंब शुल्क लागू किया जाएगा।
+`prevyear` is the opposite: 47 of the 51 families carrying a balance forward also
+owe this year. That is why the send log is keyed per campaign — under the old
+one-a-day index the current-year notice claimed the day and the previous-session
+notice could never reach them at all.
 
-... UPI link upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
-... office number 9352205884
-```
+### Four things that are easy to break
 
-Two hard consequences, both coded and both easy to break:
+1. **The slot COUNT is what costs money.** A wrong count is refused by AiSensy
+   with `Template params does not match the campaign` — visible, annoying, free.
+   A wrong *order* sends cleanly and a parent reads their child's class where the
+   amount should be. `tests/unit/whatsapp-campaigns.test.ts` pins both, and the
+   counts were confirmed against the live campaigns by posting one param short to
+   each and reading the 400 back.
+2. **No rupee glyph in a slot.** Every body prints `रु.` / `Rs.` itself, so a
+   glyph in the param arrives doubled. Amounts go through `formatRupeesPlain`.
+3. **The class label is stripped.** The bodies already print `कक्षा:` / `Class:`,
+   so `shortClassLabel` sends `2`, not `Class 2`. It is a `^Class\s+` strip,
+   verified against all 19 live labels: `Nursery`, `JKG`, `SKG`, `11 Science`
+   and the rest pass through untouched.
+4. **The date is a variable now, and it is the office's choice.** It defaults to
+   the next installment due date after today, from the fee policy — deliberately
+   **not** `next_due_date`, which lands on the carry-forward row (dated
+   `2026-04-01`, before Installment 1's `2026-04-20`) for every CF family and
+   would tell them "Previous year tuition balance (2025-26)" inside a
+   current-year notice. `prevyear` carries no date at all: that balance has no
+   due date and no late fee.
 
-1. **The deadline is hardcoded.** There is no date variable.
-   `FEE_REMINDER_TEMPLATE_DEADLINE` (`src/modules/whatsapp/domain/reminder-template.ts`) is
-   `2026-08-25` and `sendRemindersAction` refuses to send after it. Do not weaken
-   that guard. `FEE_REMINDER_DEADLINE_LABEL` is the same date as the body prints
-   it, kept beside the ISO one so the preview cannot quote a date the guard does
-   not enforce. If a replacement template is approved with a `{{5}}` date, update
-   the constants, the param order and the preview together.
-2. **The wording names installments 1 and 2 in fixed text.** The installment
-   filter can be changed on screen, so the page warns when the selection stops
-   matching. Keep that warning.
+The old `Fees Collection August` campaign hardcoded `25 अगस्त 2026` in its body,
+which is why `FEE_REMINDER_TEMPLATE_DEADLINE` existed and why the screen refused
+to send from the 26th. Both constants are gone. The guard that replaced them
+refuses to send when the **office-picked date is in the past** — same protection,
+no expiry date of its own.
 
-The amount quoted is **installments 1 + 2 of the current session only** — not the
-ledger's `overdue_base_amount`, which also folds in last year's carry-forward. For
+The amount `fee_due` quotes is **installments 1 + 2 of the current session only** —
+not `overdue_base_amount`, which also folds in last year's carry-forward. For
 admission 2241 those read ₹14,750 and ₹34,750. The office has only ever quoted the
-smaller figure. Do not "fix" this.
+smaller figure. Do not "fix" this. `balance` quotes everything still owed on
+installments 1–4, and what has been received so far; `prevyear` quotes
+`remaining_amount` from `v_student_carry_forward_balances`, never
+`original_amount`, which ignores every payment made against it since.
 
-`renderReminderPreview` is built **from** `buildReminderParams`, so the preview and
-the message cannot quote different values. Keep it that way.
+`renderPreview` and `buildParams` sit on the same descriptor and are tested
+together, so the preview and the message cannot quote different values. Keep it
+that way.
 
 ## The test panel
 
-Its own name and number fields, plus the other three slots, each pre-filled from
-the top row of the current list and editable. The preview re-renders on every
-keystroke, and the number field resolves live to the exact `+91…` string that will
-be posted.
+Its own name and number fields, plus **one field per slot the selected campaign
+declares, in its order** — so the same panel tests a 6-slot notice and a 5-slot
+one without knowing anything about either. Fields are pre-filled from the top row
+of the current list, falling back to that campaign's own Meta-submitted sample
+when the list is empty. The preview re-renders on every keystroke, and the number
+field resolves live to the exact `+91…` string that will be posted.
 
 The result is shown raw — HTTP status, the campaign echoed back, the destination,
-`submitted_message_id`, the four params as sent, and on failure AiSensy's own error
+`submitted_message_id`, the params as sent, and on failure AiSensy's own error
 string verbatim. That is what lets staff tell a rejected campaign name from a bad
 number without opening the AiSensy dashboard:
 
 - wrong campaign → `HTTP 400` · `Campaign does not exist.`
+- wrong slot count → `HTTP 400` · `Template params does not match the campaign`
 - bad number → `HTTP status: never sent` (refused before the provider was called)
 
-The panel is **not** gated on the template deadline, deliberately: a test to a
-staff phone after the 25th is exactly what you need while a replacement template is
-in approval, and it reaches no parent.
+The panel is **not** gated on the date guard, deliberately: testing a template
+whose date has slipped, on a staff phone, is exactly when you need to.
 
 ## Mobile
 
@@ -224,17 +266,17 @@ receipt, not proof the parent's phone lit up.
 
 ```
 Endpoint  POST https://backend.aisensy.com/campaign/t1/api/v2
-Campaign  Fees Collection August
+Campaign  one of the six, chosen by the registry from (notice, language)
 ```
 
 ```json
 {
   "apiKey": "<key>",
-  "campaignName": "Fees Collection August",
+  "campaignName": "vpps_app_fee_due_hi",
   "destination": "+919352205884",
   "userName": "<parent name>",
   "source": "veerpatta-fees-app",
-  "templateParams": ["<parentName>", "<studentName>", "<class>", "<amount>"]
+  "templateParams": ["<parentName>", "<studentName>", "<class>", "<installment>", "<amount>", "<lastDate>"]
 }
 ```
 
@@ -242,10 +284,13 @@ Success is `200` with `{"success":"true","submitted_message_id":"<uuid>"}`.
 A wrong parameter count returns `400 {"message":"Template params does not match the campaign"}`
 and costs nothing.
 
-`AISENSY_API_KEY` (sensitive) and `AISENSY_CAMPAIGN` are set in Vercel Production
-and documented as placeholders in `.env.example`. For local work put both in
-`.env.local` — `npx vercel env pull` fetches them. **Never commit the key; this
-repo is public.**
+`AISENSY_API_KEY` (sensitive) is set in Vercel Production and documented as a
+placeholder in `.env.example`. For local work put it in `.env.local` —
+`npx vercel env pull` fetches it. **Never commit the key; this repo is public.**
+
+There is deliberately **no `AISENSY_CAMPAIGN`** any more. One env var cannot name
+six campaigns, and an env fallback would turn a registry miss into a silently
+wrong template arriving at a parent. `campaignFor()` throws instead.
 
 Other coordinates: Supabase project `vgqyilgstjvgohrsiwkb` (ap-south-1),
 production `https://schoolfees-two.vercel.app`, Vercel plan **Hobby** (60s function
@@ -257,12 +302,16 @@ Owner's own WhatsApp number, safe for testing: **7976199548**.
 
 - Test only against **7976199548**. Never send to a row off the live list to
   "check it works".
-- To exercise the send path without messaging anyone, point `AISENSY_CAMPAIGN` at
-  a wrong name: AiSensy returns a clean `400` and bills nothing.
+- To exercise the send path without messaging anyone, post a deliberately wrong
+  param count — AiSensy answers `400 Template params does not match the campaign`,
+  sends nothing and bills nothing. A wrong campaign name does the same. Both are
+  how the six live campaigns were confirmed to expect 6/6/5 slots.
 - A push to `main` deploys to production immediately — there is no staging.
 - The screen is English-only with hardcoded strings. It references no message keys,
   which is why it passes `tests/scan/checks/i18n.mjs`. Translating it means doing
-  `messages/{en,hi,hi-en}.json` together.
+  `messages/{en,hi,hi-en}.json` together. The *message* language is a separate
+  thing entirely — that is the picker, and it changes only which campaign is
+  posted, never who is on the list.
 
 ```bash
 npm run typecheck && npx eslint src/app/protected/admin-tools/whatsapp-reminders src/modules/whatsapp/ui src/modules/whatsapp && node scripts/audit-money-formatting.mjs && npm run build
@@ -270,3 +319,11 @@ npm run typecheck && npx eslint src/app/protected/admin-tools/whatsapp-reminders
 
 `npm run scan` additionally catches this feature's signature failure — a value
 import of a `server-only` module from something the client bundle reaches.
+
+## Open risk: Meta re-categorises silently
+
+`vpps_waiver_offer_hinglish` went UTILITY → MARKETING fourteen minutes after
+submission — a 7.5× cost move, with no notification. Nothing in the app can
+detect it. The cheap mitigation is that `whatsapp_reminder_sends` already stores
+`campaign_name` per row, so a monthly count by campaign checked against the
+AiSensy bill is a two-line query rather than a feature.

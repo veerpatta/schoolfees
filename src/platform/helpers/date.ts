@@ -105,6 +105,42 @@ export function formatIsoDateIst(value: string | Date | null | undefined) {
   return ISO_DATE_FORMATTER.format(date);
 }
 
+/**
+ * `2026-10-20` → `20-10-2026`.
+ *
+ * The form the school writes on every notice and challan, and the form the
+ * approved WhatsApp templates expect in their date slot. Deliberately a string
+ * transform rather than an `Intl` format: the input is already an IST calendar
+ * date, and running it back through a formatter is how a date slides a day when
+ * the server sits west of the school.
+ *
+ * Returns "" for anything that is not a `YYYY-MM-DD` date, so a missing due date
+ * renders as an empty slot rather than the word "Invalid Date" reaching a parent.
+ */
+export function formatDdMmYyyy(isoDate: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate ?? "").trim());
+  if (!match) return "";
+  const [, year, month, day] = match;
+  return `${day}-${month}-${year}`;
+}
+
+/**
+ * `20-10-2026` → `2026-10-20`, the inverse of {@link formatDdMmYyyy}.
+ *
+ * Returns null for anything else, which is what lets a caller tell "no date" from
+ * "a date in the past" — the reminders screen refuses to send on the second and
+ * asks for a date on the first.
+ */
+export function isoFromDdMmYyyy(value: string | null | undefined): string | null {
+  const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(String(value ?? "").trim());
+  if (!match) return null;
+  const [, day, month, year] = match;
+  const iso = `${year}-${month}-${day}`;
+  // Reject 31-02: round-tripping through Date catches a well-formed impossible date.
+  const parsed = new Date(`${iso}T00:00:00Z`);
+  return ISO_DATE_FORMATTER.format(parsed) === iso ? iso : null;
+}
+
 /* ------------------------------------------------------------ calendar grid */
 
 /**

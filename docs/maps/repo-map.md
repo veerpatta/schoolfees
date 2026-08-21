@@ -62,7 +62,7 @@ Import direction, enforced by `npm run quality:architecture`:
 | [`students`](../../src/modules/students/README.md) | /protected/students | 19 | 5 | 60 |
 | [`system-sync`](../../src/modules/system-sync/README.md) | — | 5 | 3 | 0 |
 | [`transactions`](../../src/modules/transactions/README.md) | /protected/transactions | 2 | 1 | 3 |
-| [`whatsapp`](../../src/modules/whatsapp/README.md) | /protected/admin-tools/whatsapp-templates · .../whatsapp-reminders | 6 | 2 | 5 |
+| [`whatsapp`](../../src/modules/whatsapp/README.md) | /protected/admin-tools/whatsapp-templates · .../whatsapp-reminders | 6 | 2 | 6 |
 
 Each module's README says what it owns, its invariants, and what must never
 happen there. `src/modules/README.md` indexes them and records why there is no
@@ -78,11 +78,11 @@ happen there. `src/modules/README.md` indexes them and records why there is no
 
 | Folder | Test files | All files |
 |---|---:|---:|
-| `tests/deep` | 0 | 43 |
+| `tests/deep` | 0 | 53 |
 | `tests/helpers` | 0 | 2 |
 | `tests/integration` | 93 | 93 |
 | `tests/scan` | 0 | 25 |
-| `tests/smoke-2026-05` | 0 | 6 |
+| `tests/smoke-2026-05` | 0 | 14 |
 | `tests/smoke-readiness` | 0 | 3 |
 | `tests/ui` | 93 | 94 |
 | `tests/unit` | 157 | 157 |

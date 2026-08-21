@@ -4,6 +4,7 @@ import {
   DEFAULT_REMINDER_FILTERS,
   parseReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
+import { DEFAULT_LANGUAGE, DEFAULT_SITUATION } from "@/modules/whatsapp/domain/campaigns";
 
 /**
  * The screen parses these off the query string and `sendRemindersAction` parses
@@ -43,6 +44,9 @@ describe("parseReminderFilters", () => {
       minDueAmount: DEFAULT_REMINDER_FILTERS.minDueAmount,
       classId: null,
       includeRte: false,
+      situation: DEFAULT_SITUATION,
+      language: DEFAULT_LANGUAGE,
+      lastDate: "",
     });
   });
 
@@ -89,6 +93,9 @@ describe("parseReminderFilters", () => {
       minDueAmount: 5000,
       classId: "class-7",
       includeRte: true,
+      situation: DEFAULT_SITUATION,
+      language: DEFAULT_LANGUAGE,
+      lastDate: "",
     });
   });
 
@@ -106,6 +113,46 @@ describe("parseReminderFilters", () => {
 
     expect(filters.maxTotalPaid).toBe(DEFAULT_REMINDER_FILTERS.maxTotalPaid);
     expect(filters.minDueAmount).toBe(DEFAULT_REMINDER_FILTERS.minDueAmount);
+  });
+
+  it("carries the notice and the language through", () => {
+    const filters = parseReminderFilters(
+      fromQuery({ situation: "prevyear", language: "en", lastDate: "20-10-2026" }),
+      "2026-27",
+    );
+
+    expect(filters.situation).toBe("prevyear");
+    expect(filters.language).toBe("en");
+    expect(filters.lastDate).toBe("20-10-2026");
+  });
+
+  it("falls back rather than throwing on a hand-edited notice", () => {
+    // A URL someone typed must not be able to take the screen down, and must
+    // never resolve to a campaign nobody chose.
+    const filters = parseReminderFilters(
+      fromQuery({ situation: "waiver", language: "fr" }),
+      "2026-27",
+    );
+
+    expect(filters.situation).toBe(DEFAULT_SITUATION);
+    expect(filters.language).toBe(DEFAULT_LANGUAGE);
+  });
+
+  it("takes the supplied default date only when none is in the URL", () => {
+    expect(parseReminderFilters(fromQuery({}), "2026-27", "20-10-2026").lastDate).toBe(
+      "20-10-2026",
+    );
+    expect(
+      parseReminderFilters(fromQuery({ lastDate: "01-01-2027" }), "2026-27", "20-10-2026")
+        .lastDate,
+    ).toBe("01-01-2027");
+  });
+
+  it("gives the query string and the form the same answer for the notice", () => {
+    const entries = { situation: "balance", language: "en", lastDate: "20-10-2026" };
+    expect(parseReminderFilters(fromQuery(entries), "2026-27")).toEqual(
+      parseReminderFilters(fromForm(entries), "2026-27"),
+    );
   });
 
   it("only counts the exact 'on' checkbox value as include-RTE", () => {

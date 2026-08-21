@@ -37,10 +37,6 @@ export function isAisensyConfigured(): boolean {
   return Boolean(getOptionalEnvVar("AISENSY_API_KEY")?.trim());
 }
 
-export function configuredCampaignName(): string | null {
-  return getOptionalEnvVar("AISENSY_CAMPAIGN")?.trim() || null;
-}
-
 export async function sendAisensyCampaignMessage(
   args: AisensySendArgs,
 ): Promise<AisensySendResult> {
