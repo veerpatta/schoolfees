@@ -14,6 +14,11 @@ const files = [
     path: "src/modules/students/ui/student-form.tsx",
     maxLines: budgets.performance.sourceBudgets.studentFormMaxLines,
   },
+  {
+    label: "Fee Setup client",
+    path: "src/modules/fees/ui/fee-setup-client.tsx",
+    maxLines: budgets.performance.sourceBudgets.feeSetupClientMaxLines,
+  },
 ];
 
 const failures = [];
