@@ -104,6 +104,16 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     i18nKey: "defaulters",
   },
   {
+    href: "/protected/reminders",
+    label: "Reminders",
+    description: "WhatsApp fee reminders and campaigns.",
+    icon: Send,
+    requiredPermission: "settings:view",
+    visibleTo: ["admin", "accountant"],
+    aliases: ["/protected/admin-tools/whatsapp-reminders"],
+    i18nKey: "reminders",
+  },
+  {
     href: "/protected/exports",
     label: "Exports",
     description: "Excel files for office work.",
@@ -186,10 +196,17 @@ const routeMetaItems: Array<
     description: "Review every academic session and reconcile missing dues.",
   },
   {
-    match: "/protected/admin-tools/whatsapp-reminders",
-    href: "/protected/admin-tools",
-    label: "WhatsApp fee reminders",
+    match: "/protected/reminders",
+    href: "/protected/reminders",
+    label: "Reminders",
     description: "Send the approved WhatsApp reminder to selected families with pending dues.",
+  },
+  {
+    // The legacy path still redirects, so it still needs to resolve to a tab.
+    match: "/protected/admin-tools/whatsapp-reminders",
+    href: "/protected/reminders",
+    label: "Reminders",
+    description: "Moved out of Admin Tools on 22 Aug 2026. Redirects, keeping the query.",
   },
   {
     match: "/protected/admin-tools/whatsapp-templates",
@@ -329,6 +346,7 @@ export function getVisibleProtectedNavigation(staffRole: StaffRole) {
     "/protected/dashboard",
     "/protected/transactions",
     "/protected/defaulters",
+    "/protected/reminders",
     "/protected/exports",
     "/protected/fee-setup",
     "/protected/students",
@@ -352,6 +370,7 @@ const dailyNavHrefs: readonly string[] = [
   "/protected/dashboard",
   "/protected/payments",
   "/protected/defaulters",
+  "/protected/reminders",
   "/protected/students",
 ];
 
@@ -496,6 +515,17 @@ const mobileMoreGroups: readonly MobileMoreGroup[] = [
         icon: ClipboardList,
         requiredPermission: "defaulters:view",
         i18nKey: "moreDefaulters",
+      },
+      {
+        // Reminders is a top-level section but the bottom bar has only five
+        // slots, all spoken for. Without a row here it would be a tab nobody on
+        // a phone could reach.
+        href: "/protected/reminders",
+        label: "Fee reminders",
+        description: "WhatsApp the families who owe",
+        icon: Send,
+        requiredPermission: "settings:view",
+        i18nKey: "moreReminders",
       },
       {
         href: "/protected/transactions",
@@ -660,6 +690,7 @@ const mobileTakeoverRoutes: readonly string[] = [
   "/protected/master-data",
   "/protected/finance-controls",
   "/protected/admin-tools",
+  "/protected/reminders/",
   "/protected/password",
   "/protected/payments/bulk",
 ] as const;
@@ -831,14 +862,6 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         description: "Review spreadsheet uploads, row results, and saved batches.",
         icon: FileSpreadsheet,
         requiredPermission: "imports:view",
-      },
-      {
-        href: "/protected/admin-tools/whatsapp-reminders",
-        label: "WhatsApp fee reminders",
-        description:
-          "Pick families off the live dues list and send the approved reminder. Manual, one message each.",
-        icon: Send,
-        requiredPermission: "settings:view",
       },
       {
         href: "/protected/admin-tools/whatsapp-templates",

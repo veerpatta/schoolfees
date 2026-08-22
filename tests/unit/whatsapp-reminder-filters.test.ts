@@ -47,7 +47,49 @@ describe("parseReminderFilters", () => {
       situation: DEFAULT_SITUATION,
       language: DEFAULT_LANGUAGE,
       lastDate: "",
+      lateFeeAmount: 0,
+      lateFeeBasis: DEFAULT_REMINDER_FILTERS.lateFeeBasis,
     });
+  });
+
+  it("opens the late fee on the real policy, so the message agrees with the receipt", () => {
+    // The caller passes what the ledger charges. Quoting something else has to
+    // be a deliberate act, not what happens when nobody touches the control.
+    const filters = parseReminderFilters(fromQuery({}), "2026-27", "20-10-2026", 1000);
+
+    expect(filters.lateFeeAmount).toBe(1000);
+    expect(filters.lateFeeBasis).toBe("per_installment");
+  });
+
+  it("opens the previous-session notice on 'not charged'", () => {
+    // Carry-forward rows carry a late-fee rate of 0 in the ledger, so that
+    // notice must not default to threatening one.
+    const filters = parseReminderFilters(
+      fromQuery({ situation: "prevyear" }),
+      "2026-27",
+      "30-09-2026",
+      1000,
+    );
+
+    expect(filters.lateFeeBasis).toBe("none");
+  });
+
+  it("keeps an explicit basis over the per-notice fallback", () => {
+    const filters = parseReminderFilters(
+      fromQuery({ situation: "prevyear", lateFeeBasis: "per_day", lateFeeAmount: "50" }),
+      "2026-27",
+      "30-09-2026",
+      1000,
+    );
+
+    expect(filters.lateFeeBasis).toBe("per_day");
+    expect(filters.lateFeeAmount).toBe(50);
+  });
+
+  it("falls back on a basis that is not one of the four", () => {
+    const filters = parseReminderFilters(fromQuery({ lateFeeBasis: "per_fortnight" }), "2026-27");
+
+    expect(filters.lateFeeBasis).toBe(DEFAULT_REMINDER_FILTERS.lateFeeBasis);
   });
 
   it("reads a missing number as its default, not as zero", () => {
@@ -96,6 +138,8 @@ describe("parseReminderFilters", () => {
       situation: DEFAULT_SITUATION,
       language: DEFAULT_LANGUAGE,
       lastDate: "",
+      lateFeeAmount: 0,
+      lateFeeBasis: DEFAULT_REMINDER_FILTERS.lateFeeBasis,
     });
   });
 

@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-07-18",
   "currentGeneratedAt": "2026-08-21T00:00:00.000Z",
-  "generatedFrom": "2026-08-21, WhatsApp reminder cadence. One ceiling raised and eight lowered. The raise needs saying out loud, because the rule here is that ceilings ratchet down. /protected/receipts was ALREADY over its ceiling at 4028da4 — 144858 against 144700 — before any of this work; the hand-off's own verification list omitted quality:bundles:check, so CI had been red on it since. Its heavy dialogs are already behind next/dynamic, so the remaining bytes would mean refactoring receipts-quick-load on a live money screen to chase a threshold. It is raised to 145200: current plus 300, deliberately the tightest headroom in the file, so it cannot absorb anything further without being noticed. Everything else is lowered to what each route actually costs plus 1000 bytes, which is stricter than the ~1.5% the previous pass left. The reminders feature itself contributes almost nothing to any route: its collapsible section lives in components/ui/collapsible-section.tsx rather than on the shared Section, because adding it there cost /protected/receipts 188 gzip bytes for a disclosure that route never renders.",
+  "generatedFrom": "2026-08-21, WhatsApp reminder cadence. One ceiling raised and eight lowered. The raise needs saying out loud, because the rule here is that ceilings ratchet down. /protected/receipts was ALREADY over its ceiling at 4028da4 \u2014 144858 against 144700 \u2014 before any of this work; the hand-off's own verification list omitted quality:bundles:check, so CI had been red on it since. Its heavy dialogs are already behind next/dynamic, so the remaining bytes would mean refactoring receipts-quick-load on a live money screen to chase a threshold. It is raised to 145200: current plus 300, deliberately the tightest headroom in the file, so it cannot absorb anything further without being noticed. Everything else is lowered to what each route actually costs plus 1000 bytes, which is stricter than the ~1.5% the previous pass left. The reminders feature itself contributes almost nothing to any route: its collapsible section lives in components/ui/collapsible-section.tsx rather than on the shared Section, because adding it there cost /protected/receipts 188 gzip bytes for a disclosure that route never renders.",
   "metric": "initial entry JS, unique chunks",
   "shared": {
     "route": "(shared) rootMainFiles",
@@ -53,6 +53,13 @@
       "rawBytes": 435850,
       "gzipBytes": 145300,
       "currentGzipBytes": 144203
+    },
+    {
+      "route": "/protected/reminders",
+      "chunks": 18,
+      "rawBytes": 396770,
+      "gzipBytes": 131710,
+      "currentGzipBytes": 131710
     },
     {
       "route": "/protected/exports",

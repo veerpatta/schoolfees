@@ -8,8 +8,15 @@ import {
   type ReminderCadence,
 } from "@/modules/whatsapp/domain/reminder-cadence";
 import {
+  DEFAULT_LATE_FEE_BASIS,
+  isLateFeeBasis,
+  lateFeePhrase,
+  type LateFeeBasis,
+} from "@/modules/whatsapp/domain/late-fee";
+import {
   campaignFor,
   installmentPhrase,
+  noticeValuesFrom,
   DEFAULT_LANGUAGE,
   DEFAULT_SITUATION,
   isNoticeLanguage,
@@ -59,11 +66,27 @@ export type ReminderFilters = {
   situation: NoticeSituation;
   /** Picks the campaign name only. Same families either way. */
   language: NoticeLanguage;
-  /** Fills the date slot, DD-MM-YYYY. Chosen by the office, not derived. */
+  /**
+   * Fills the date slot, DD-MM-YYYY. Chosen by the office, not derived. On
+   * `prevyear` this is the settle-by date, which v2 gave that notice.
+   */
   lastDate: string;
+  /**
+   * Slot {{7}}: what the message says a late payment will cost.
+   *
+   * Deliberately per-run and deliberately NOT the ledger's late fee. This is a
+   * lever for getting fees in on time; the app does not charge what it says
+   * here, and `describeLateFeeDrift` warns when the two disagree rather than
+   * refusing to send.
+   */
+  lateFeeAmount: number;
+  lateFeeBasis: LateFeeBasis;
 };
 
-export const DEFAULT_REMINDER_FILTERS: Omit<ReminderFilters, "sessionLabel" | "lastDate"> = {
+export const DEFAULT_REMINDER_FILTERS: Omit<
+  ReminderFilters,
+  "sessionLabel" | "lastDate" | "lateFeeAmount"
+> = {
   maxTotalPaid: DEFAULT_MAX_TOTAL_PAID,
   installments: [...TEMPLATE_INSTALLMENTS],
   minDueAmount: 1,
@@ -71,6 +94,7 @@ export const DEFAULT_REMINDER_FILTERS: Omit<ReminderFilters, "sessionLabel" | "l
   includeRte: false,
   situation: DEFAULT_SITUATION,
   language: DEFAULT_LANGUAGE,
+  lateFeeBasis: DEFAULT_LATE_FEE_BASIS,
 };
 
 /**
@@ -92,6 +116,12 @@ export function parseReminderFilters(
   sessionLabel: string,
   /** Used when the office has not picked one yet. Already DD-MM-YYYY. */
   defaultLastDate = "",
+  /**
+   * What the LEDGER charges per installment, from the live fee policy. The
+   * opening value for slot 7, so the message agrees with the receipt until
+   * somebody deliberately changes it.
+   */
+  defaultLateFeeAmount = 0,
 ): ReminderFilters {
   const number = (key: string, fallback: number) => {
     const raw = read(key);
@@ -118,7 +148,18 @@ export function parseReminderFilters(
     situation: isNoticeSituation(read("situation")) ? (read("situation") as NoticeSituation) : DEFAULT_SITUATION,
     language: isNoticeLanguage(read("language")) ? (read("language") as NoticeLanguage) : DEFAULT_LANGUAGE,
     lastDate: read("lastDate")?.trim() || defaultLastDate,
+    lateFeeAmount: number("lateFeeAmount", defaultLateFeeAmount),
+    lateFeeBasis: isLateFeeBasis(read("lateFeeBasis"))
+      ? (read("lateFeeBasis") as LateFeeBasis)
+      // Carry-forward never accrues a late fee in the ledger, so that notice
+      // opens on "not charged" and quoting one is a deliberate act.
+      : situationFallbackBasis(read("situation")),
   };
+}
+
+/** `prevyear` opens on "not charged"; the current-year notices on the real policy. */
+function situationFallbackBasis(rawSituation: string | null): LateFeeBasis {
+  return rawSituation === "prevyear" ? "none" : DEFAULT_LATE_FEE_BASIS;
 }
 
 export type ReminderCandidate = {
@@ -728,16 +769,7 @@ export function noticeValuesFor(
   candidate: ReminderCandidate,
   filters: ReminderFilters,
 ): NoticeValues {
-  return {
-    parentName: candidate.parentName,
-    studentName: candidate.studentName,
-    studentClass: candidate.studentClass,
-    installmentPhrase: installmentPhrase(filters.installments),
-    amountDue: candidate.dueAmount,
-    receivedSoFar: candidate.totalPaid,
-    balanceDue: candidate.balanceDue,
-    lastDate: filters.lastDate,
-    prevSessionLabel: candidate.prevSessionLabel ?? "",
-    prevYearBalance: candidate.prevYearBalance,
-  };
+  // Delegates rather than repeating: the preview on the screen calls the very
+  // same function, so the two cannot show different messages.
+  return noticeValuesFrom(candidate, filters);
 }

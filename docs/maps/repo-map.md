@@ -44,7 +44,7 @@ Import direction, enforced by `npm run quality:architecture`:
 | Module | Route | domain | data | ui |
 |---|---|---:|---:|---:|
 | [`activity`](../../src/modules/activity/README.md) | /protected/admin-tools/activity | 0 | 1 | 0 |
-| [`dashboard`](../../src/modules/dashboard/README.md) | `/protected/dashboard?view=overview\|collection\|recovery\|classes\|latefee` | 7 | 3 | 15 |
+| [`dashboard`](../../src/modules/dashboard/README.md) | `/protected/dashboard?view=overview\|collection\|recovery\|classes\|latefee` | 7 | 3 | 14 |
 | [`defaulters`](../../src/modules/defaulters/README.md) | /protected/defaulters | 9 | 3 | 17 |
 | [`exports`](../../src/modules/exports/README.md) | `/protected/exports` · `/protected/exports/[exportType]` | 1 | 2 | 0 |
 | [`fees`](../../src/modules/fees/README.md) | /protected/fee-setup · /protected/fee-structure | 20 | 11 | 7 |

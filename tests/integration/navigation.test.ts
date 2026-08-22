@@ -229,6 +229,8 @@ describe("office navigation", () => {
       "/protected/transactions": ["receipts:view", "defaulters:view", "reports:view", "finance:view"],
       "/protected/receipts": ["receipts:view"],
       "/protected/defaulters": ["defaulters:view"],
+      // Matches requireAnyStaffPermission in src/app/protected/reminders/page.tsx.
+      "/protected/reminders": ["settings:view", "settings:write"],
       "/protected/fee-setup": ["fees:view"],
       "/protected/exports": ["reports:view"],
       "/protected/imports": ["imports:view"],

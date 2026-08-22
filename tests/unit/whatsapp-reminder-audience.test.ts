@@ -84,7 +84,12 @@ function student(id: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
-const filters = { ...DEFAULT_REMINDER_FILTERS, sessionLabel: SESSION, lastDate: "25-08-2026" };
+const filters = {
+  ...DEFAULT_REMINDER_FILTERS,
+  sessionLabel: SESSION,
+  lastDate: "25-08-2026",
+  lateFeeAmount: 1000,
+};
 
 const load = (tables: Tables, overrides: Partial<typeof filters> = {}) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

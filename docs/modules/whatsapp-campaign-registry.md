@@ -1,87 +1,79 @@
 # WhatsApp campaign registry
 
-Six Meta-approved templates and six Live AiSensy API campaigns, created
-21 Aug 2026, covering three fee situations in Hindi and English. They replaced
-the single hardcoded `Fees Collection August` campaign on 21 Aug 2026.
+Six Meta-approved templates and six Live AiSensy API campaigns covering three
+fee situations in Hindi and English. Every one of them carries a **settable late
+fee**, because the late fee is what actually moves a family from "next week" to
+today.
 
-**This document is ground truth for the slot orders and the bodies.**
-`src/modules/whatsapp/domain/campaigns.ts` is the code copy, and
-`tests/unit/whatsapp-campaigns.test.ts` reads this file to assert the six names
-still agree. When a template changes in Meta, change it here first.
+Nothing in `src/` reads this yet. This document is the contract the merge has to
+honour: campaign name, slot order, and what each slot must contain.
 
-## Why these exist
-
-The campaign the screen sends today, `Fees Collection August`, has two faults
-that no code change can fix:
-
-- **The deadline is fixed text.** Its body reads `अंतिम तिथि: 25 अगस्त 2026`
-  with no date variable, which is why `FEE_REMINDER_TEMPLATE_DEADLINE` existed
-  and why the screen refused to send from the 26th. Every template below takes
-  the date as a variable instead, so none of them expires.
-- **It only says one thing.** A family who has paid something and a family
-  carrying a previous-session balance both get a message about installments
-  1 and 2 being unpaid, which is wrong for both.
-
-The account also holds ~20 older fee templates from earlier experiments. Ignore
-them. The `vpps_app_` prefix marks the set the app is allowed to use.
-
-## The six campaigns
-
-Campaign name equals template name in every case, so one string drives both.
+## The current set is `_v2`
 
 | Campaign | Language | Situation | Slots |
 |---|---|---|---|
-| `vpps_app_fee_due_hi` | Hindi | Nothing received for installments 1–2 | 6 |
-| `vpps_app_fee_due_en` | English | same | 6 |
-| `vpps_app_balance_hi` | Hindi | Part paid, balance outstanding | 6 |
-| `vpps_app_balance_en` | English | same | 6 |
-| `vpps_app_prevyear_hi` | Hindi | Carry-forward from the previous session | 5 |
-| `vpps_app_prevyear_en` | English | same | 5 |
+| `vpps_app_fee_due_hi_v2` | Hindi | Nothing received for installments 1–2 | 7 |
+| `vpps_app_fee_due_en_v2` | English | same | 7 |
+| `vpps_app_balance_hi_v2` | Hindi | Part paid, balance outstanding | 7 |
+| `vpps_app_balance_en_v2` | English | same | 7 |
+| `vpps_app_prevyear_hi_v2` | Hindi | Carry-forward from the previous session | 7 |
+| `vpps_app_prevyear_en_v2` | English | same | 7 |
 
-All six are category **UTILITY** and were still UTILITY after Meta's review —
-worth re-checking before each billing cycle, because Meta re-categorises
-silently. `vpps_waiver_offer_hinglish` was submitted as UTILITY on 10 June and
-flipped to MARKETING fourteen minutes later, taking its cost from ₹0.145 to
-₹1.09 per message. The trigger was promotional wording ("Good news",
-"is mauke ka labh zaroor uthayein"). None of the six below sells anything.
+Campaign name equals template name in every case, so one string drives both.
+All six are category **UTILITY**.
 
-## Slot order
+The six un-suffixed `vpps_app_*` templates from 21 Aug are **superseded** — same
+three situations, but no late-fee slot and no settlement date on the prev-year
+notice. They and their campaigns are left in place rather than deleted (Meta
+blocks reusing a template name for 30 days after deletion, and their campaigns
+carry the test-send history). The app must never point at them.
 
-### `vpps_app_fee_due_*` — 6 slots
+There is no edit path: AiSensy offers star, duplicate and delete on an approved
+template, and nothing else. Changing a body means a new name.
 
-| Slot | Contents | Sample |
+## The uniform 7-slot contract
+
+The whole point of the v2 shape is that **every notice has the same slot
+skeleton**, so the registry is one table rather than three special cases.
+
+| Slot | Always | fee_due | balance | prevyear |
+|---|---|---|---|---|
+| `{{1}}` | Parent name | | | |
+| `{{2}}` | Student name | | | |
+| `{{3}}` | Class, `Class ` prefix stripped | | | |
+| `{{4}}` | The context line | installment phrase | received so far | session label |
+| `{{5}}` | The money owed | amount due | balance due | balance |
+| `{{6}}` | The date it turns on | last date | next date | settle by |
+| `{{7}}` | **The late-fee phrase** | | | |
+
+`{{6}}` and `{{7}}` are a pair. A late fee with no date is meaningless, which is
+why the prev-year notice gained a settlement date it did not have in v1.
+
+## The late-fee slot
+
+`{{7}}` is **one free-text phrase**, not an amount and a unit. That is what lets
+one approved template express every charging model the office might want:
+
+| Intent | What to put in `{{7}}` (en) | Hindi |
 |---|---|---|
-| `{{1}}` | Parent name | `Ramesh Lal Gurjar` |
-| `{{2}}` | Student name | `Aaradhya Gurjar` |
-| `{{3}}` | Class label, **`Class ` prefix stripped** | `2` |
-| `{{4}}` | Installment phrase | `Installment 1 and 2` |
-| `{{5}}` | Amount due, grouped digits, no `₹` | `18,250` |
-| `{{6}}` | Last date, `DD-MM-YYYY` | `25-08-2026` |
+| Flat, per installment — **what the ledger actually does** | `Rs. 1,000 per installment` | `रु. 1,000 प्रति किश्त` |
+| Per day after the date | `Rs. 50 per day` | `रु. 50 प्रति दिन` |
+| One flat charge | `Rs. 1,000` | `रु. 1,000` |
+| Not charged on this amount | `Not applicable on this amount` | `इस राशि पर लागू नहीं` |
 
-### `vpps_app_balance_*` — 6 slots
+The app should collect this as an **amount plus a basis** (flat / per day / per
+installment) and compose the phrase, rather than handing staff a free-text box —
+a typo here is a number a parent will hold the school to.
 
-| Slot | Contents | Sample |
-|---|---|---|
-| `{{1}}` | Parent name | `Ramesh Lal Gurjar` |
-| `{{2}}` | Student name | `Aaradhya Gurjar` |
-| `{{3}}` | Class label, prefix stripped | `2` |
-| `{{4}}` | Received so far | `6,500` |
-| `{{5}}` | Balance due | `11,750` |
-| `{{6}}` | Next date, `DD-MM-YYYY` | `20-10-2026` |
+**The phrase must match what the ledger will charge.** `src/platform/config/fee-rules.ts`
+sets ₹1,000 flat per installment from the day an installment passes its due
+date, and carry-forward rows carry a rate of **0** deliberately. A message that
+promises ₹50/day and a receipt that shows ₹1,000 is a conversation at the fee
+counter the office will lose. Default `{{7}}` from the real policy and make an
+override a deliberate act.
 
-### `vpps_app_prevyear_*` — 5 slots
-
-| Slot | Contents | Sample |
-|---|---|---|
-| `{{1}}` | Parent name | `Pintu Singh Chundawat` |
-| `{{2}}` | Student name | `Bhavydeep Singh Chundawat` |
-| `{{3}}` | Class label, prefix stripped | `Nursery` |
-| `{{4}}` | Session label | `2025-26` |
-| `{{5}}` | Balance | `20,000` |
-
-Sending the wrong number of params is rejected with
-`Template params does not match the campaign` — the same error that established
-the four-slot count of the old campaign.
+WhatsApp rejects an empty parameter, so `{{7}}` always needs content — hence the
+"not applicable" wording rather than a blank.
 
 ## Class labels
 
@@ -92,21 +84,31 @@ unchanged and must not be rewritten.
 
 ## Amounts
 
-`{{5}}` on the due template is installment 1 pending + installment 2 pending —
-**not** `overdue_base_amount`, which folds in previous-session carry-forward.
-On admission 2241 the two differ by ₹20,000 (₹14,750 vs ₹34,750). The
-carry-forward is what `vpps_app_prevyear_*` is for, and saying it twice would
-overstate what the family owes this year.
+`{{5}}` on the due notice is installment 1 pending + installment 2 pending —
+**not** `overdue_base_amount`, which folds in previous-session carry-forward. On
+admission 2241 the two differ by ₹20,000. The carry-forward is what
+`vpps_app_prevyear_*_v2` is for, and saying it twice would overstate what the
+family owes this year.
 
 Format with `formatRupeesPlain` — grouped digits, no symbol. The template
-supplies `रु.` / `Rs.` itself.
+supplies `रु.` / `Rs.` itself. The same goes for the amount inside `{{7}}`.
+
+## Category drift
+
+All six were UTILITY at creation and after review. Meta re-categorises silently:
+`vpps_waiver_offer_hinglish` was submitted UTILITY at 10:02 pm on 10 June and
+was MARKETING by 10:16 — ₹0.145 to ₹1.09 a message, a 7.5× jump. The trigger was
+promotional wording ("Good news", "is mauke ka labh zaroor uthayein").
+
+A late-fee warning is transactional, not promotional, so it should hold. Check
+the category before each billing cycle anyway.
 
 ## Bodies as approved
 
 Reproduced so a body change is visible in a diff. WhatsApp sends what Meta
 approved, not this text.
 
-### `vpps_app_fee_due_en`
+### `vpps_app_fee_due_en_v2`
 
 ```
 *Fee Notice — Shri Veer Patta Sr. Sec. School*
@@ -118,16 +120,22 @@ Class: {{3}}
 Installment: {{4}}
 Amount due: Rs. {{5}}
 Last date: {{6}}
+Late fee after the last date: {{7}}
 
-The above fees have not yet been received. You may pay at the school fee counter, or directly using this UPI link:
+Paying on or before the last date avoids the late fee. After that date the late fee above is added to the amount.
+
+Pay at the school fee counter or using this UPI link:
 upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
 
-Please write the student's name with the payment and collect a receipt from the office. If you have already paid, kindly ignore this message.
+Please write the student's name with the payment and collect a receipt. If you have already paid, kindly ignore this message.
 
 For any query, call the office on 9352205884.
 ```
 
-### `vpps_app_fee_due_hi`
+Samples: `Ramesh Lal Gurjar` · `Aaradhya Gurjar` · `2` · `Installment 1 and 2` ·
+`18,250` · `25-08-2026` · `Rs. 1,000 per installment`
+
+### `vpps_app_fee_due_hi_v2`
 
 ```
 *फीस सूचना — श्री वीर पत्ता सी. सै. स्कूल*
@@ -139,16 +147,22 @@ For any query, call the office on 9352205884.
 किश्त: {{4}}
 देय राशि: रु. {{5}}
 अंतिम तिथि: {{6}}
+अंतिम तिथि के बाद विलंब शुल्क: {{7}}
 
-उपरोक्त फीस अभी जमा नहीं हुई है। आप विद्यालय के फीस काउंटर पर जमा कर सकते हैं, अथवा इस UPI लिंक से सीधे भुगतान कर सकते हैं:
+अंतिम तिथि तक फीस जमा करने पर कोई विलंब शुल्क नहीं लगेगा। उसके बाद उपरोक्त दर से विलंब शुल्क जोड़ा जाएगा।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
 upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
 
-भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा कार्यालय से रसीद प्राप्त करें। यदि आपने भुगतान कर दिया है तो इस संदेश को अनदेखा करें।
+भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।
 
 जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
 ```
 
-### `vpps_app_balance_en`
+Samples: `रमेश लाल गुर्जर` · `आराध्या गुर्जर` · `2` · `किश्त 1 एवं 2` · `18,250` ·
+`25-08-2026` · `रु. 1,000 प्रति किश्त`
+
+### `vpps_app_balance_en_v2`
 
 ```
 *Fee Balance — Shri Veer Patta Sr. Sec. School*
@@ -160,14 +174,20 @@ Class: {{3}}
 Received so far: Rs. {{4}}
 Balance due: Rs. {{5}}
 Next date: {{6}}
+Late fee after the next date: {{7}}
 
-Thank you for the payment received. The balance may be paid at the fee counter or using this UPI link:
+Thank you for the payment received. Clearing the balance by the next date avoids the late fee.
+
+Pay at the fee counter or using this UPI link:
 upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
 
 If this differs from your own record, please call the office on 9352205884.
 ```
 
-### `vpps_app_balance_hi`
+Samples: `Ramesh Lal Gurjar` · `Aaradhya Gurjar` · `2` · `6,500` · `11,750` ·
+`20-10-2026` · `Rs. 1,000 per installment`
+
+### `vpps_app_balance_hi_v2`
 
 ```
 *फीस शेष विवरण — श्री वीर पत्ता सी. सै. स्कूल*
@@ -179,14 +199,20 @@ If this differs from your own record, please call the office on 9352205884.
 अब तक प्राप्त: रु. {{4}}
 शेष बकाया: रु. {{5}}
 अगली तिथि: {{6}}
+अगली तिथि के बाद विलंब शुल्क: {{7}}
 
-प्राप्त भुगतान के लिए धन्यवाद। शेष राशि फीस काउंटर पर अथवा इस UPI लिंक से जमा की जा सकती है:
+प्राप्त भुगतान के लिए धन्यवाद। शेष राशि अगली तिथि तक जमा करने पर कोई विलंब शुल्क नहीं लगेगा।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
 upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
 
 यदि यह विवरण आपके रिकॉर्ड से भिन्न है तो कृपया कार्यालय 9352205884 पर संपर्क करें।
 ```
 
-### `vpps_app_prevyear_en`
+Samples: `रमेश लाल गुर्जर` · `आराध्या गुर्जर` · `2` · `6,500` · `11,750` ·
+`20-10-2026` · `रु. 1,000 प्रति किश्त`
+
+### `vpps_app_prevyear_en_v2`
 
 ```
 *Previous Session Balance — Shri Veer Patta Sr. Sec. School*
@@ -197,16 +223,21 @@ Student: {{2}}
 Class: {{3}}
 Session: {{4}}
 Balance: Rs. {{5}}
+Settle by: {{6}}
+Late fee: {{7}}
 
-This amount is from the previous session and is separate from this year's installments. No late fee is charged on it.
+This amount is from the previous session and is separate from this year's installments. Please settle it by the date above.
 
-To settle it, visit the fee counter or use this UPI link:
+Visit the fee counter or use this UPI link:
 upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
 
 For a full statement, call the office on 9352205884.
 ```
 
-### `vpps_app_prevyear_hi`
+Samples: `Pintu Singh Chundawat` · `Bhavydeep Singh Chundawat` · `Nursery` ·
+`2025-26` · `20,000` · `30-09-2026` · `Not applicable on this amount`
+
+### `vpps_app_prevyear_hi_v2`
 
 ```
 *पिछले सत्र का शेष — श्री वीर पत्ता सी. सै. स्कूल*
@@ -217,45 +248,50 @@ For a full statement, call the office on 9352205884.
 कक्षा: {{3}}
 सत्र: {{4}}
 शेष राशि: रु. {{5}}
+निपटान की अंतिम तिथि: {{6}}
+विलंब शुल्क: {{7}}
 
-यह राशि पिछले सत्र की है और इस वर्ष की किश्तों से अलग है। इस पर कोई विलंब शुल्क नहीं लगता।
+यह राशि पिछले सत्र की है और इस वर्ष की किश्तों से अलग है। कृपया उपरोक्त तिथि तक निपटान कर दें।
 
-निपटान हेतु फीस काउंटर पर आएं अथवा इस UPI लिंक का उपयोग करें:
+फीस काउंटर पर आएं अथवा इस UPI लिंक का उपयोग करें:
 upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
 
 पूरा विवरण देखने हेतु कार्यालय 9352205884 पर संपर्क करें।
 ```
 
-## Authoring notes, for whoever adds the seventh
+Samples: `पिंटू सिंह चुंडावत` · `भव्यदीप सिंह चुंडावत` · `नर्सरी` · `2025-26` ·
+`20,000` · `30-09-2026` · `इस राशि पर लागू नहीं`
+
+Note the prev-year label is a bare `विलंब शुल्क:` / `Late fee:` rather than
+"after this date", so the same line reads correctly whether the value is an
+amount or "not applicable".
+
+## Authoring notes, for whoever adds the eighth
 
 - **The AiSensy body editor auto-pairs braces.** Typing `({{3}})` produces
   `{{{3}}}`, and unmatched brackets are an automatic Meta rejection. Every
   template above is written as a labelled block — `विद्यार्थी: {{2}}` on its own
   line — with no bracket adjacent to a brace. Keep that shape.
 - Variables are numbered by order of appearance, and the count must match the
-  campaign exactly.
+  campaign exactly. Sending the wrong number is rejected with
+  `Template params does not match the campaign`.
+- Never end the body on a variable — put text after it.
 - Meta rejects bodies that near-duplicate an existing approved one, which is why
   the three situations are worded differently rather than parameterised.
 - Template Type is TEXT with the header left empty; the title is the first line
   of the body, bolded with asterisks. Interactive Actions: None.
+- **Changing the category resets the language and name fields** in the AiSensy
+  form. Pick category first.
 
-## What shipped, 21 Aug 2026
+## What the merge still needs
 
-- `src/modules/whatsapp/domain/campaigns.ts` maps situation × language onto
-  campaign name, slot order, param builder and preview body.
-  `configuredCampaignName()` and `AISENSY_CAMPAIGN` are **gone**, not demoted to
-  a fallback: one env var cannot name six campaigns, and a fallback would turn a
-  registry miss into a silently wrong template arriving at a parent.
-- A notice picker and a language picker on the reminders screen, both driven by
-  the query string so the audience stays linkable and the action re-derives it
-  from the same values.
-- Audience rules per situation, sized against the live session on 21 Aug:
-  fee due 146 families, balance 258, previous session 51. Two planned templates
-  were cut for having no audience at all (EMI: 0 students; left-owing: 2).
-- `whatsapp_reminder_sends` keyed per campaign per day
-  (`20260821170000`), because 47 of the 51 carry-forward families also owe this
-  year and the old index let the current-year notice claim their day.
-
-All six were confirmed against the live campaigns by posting one param short to
-each and reading back `400 Template params does not match the campaign` — which
-sends nothing and bills nothing.
+- A registry in `src/modules/whatsapp/domain/` mapping situation × language to
+  campaign name and slot builder — replacing `configuredCampaignName()` and the
+  single `AISENSY_CAMPAIGN` env var, which can then become the fallback rather
+  than the only option.
+- A notice picker, a language picker, and a **late-fee control** (amount +
+  flat / per day / per installment) on the reminders screen, defaulting to the
+  real policy and shown in the live preview before anything is sent.
+- Audience rules per situation. Sized against live data on 20 Aug: due ≈150
+  families, balance and prev-year both smaller. Two planned templates were cut
+  for having no audience at all (EMI: 0 students; left-owing: 2 families).

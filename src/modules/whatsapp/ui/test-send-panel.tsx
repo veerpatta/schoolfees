@@ -6,7 +6,7 @@ import { MessageCircle } from "lucide-react";
 import {
   sendTestReminderAction,
   type TestSendState,
-} from "@/app/protected/admin-tools/whatsapp-reminders/actions";
+} from "@/app/protected/reminders/actions";
 import {
   campaignFor,
   NOTICE_SITUATIONS,
@@ -51,6 +51,8 @@ type Props = {
   language: NoticeLanguage;
   lastDate: string;
   installmentPhrase: string;
+  /** Already composed by `domain/late-fee.ts` from the screen's amount + basis. */
+  lateFeePhrase: string;
   /** Top row of the current list, for pre-fill. Null when the list is empty. */
   sample: SampleCandidate | null;
 };
@@ -58,20 +60,33 @@ type Props = {
 const IDLE_TEST: TestSendState = { status: "idle" };
 
 /** Human labels for the slot names the registry declares. */
+/**
+ * All six campaigns share one 7-slot skeleton, so the labels are per-slot-name
+ * and the SITUATION decides what slots 4-6 are called.
+ */
 const SLOT_LABELS: Record<string, string> = {
   parentName: "Name on the message",
   studentName: "Student name",
   studentClass: "Class",
-  installmentPhrase: "Installment",
-  amountDue: "Amount due",
-  receivedSoFar: "Received so far",
-  balanceDue: "Balance due",
-  lastDate: "Last date (DD-MM-YYYY)",
-  prevSessionLabel: "Session",
-  prevYearBalance: "Balance",
+  contextLine: "Context",
+  amount: "Amount",
+  date: "Date (DD-MM-YYYY)",
+  lateFeePhrase: "Late fee phrase",
 };
 
-const MONEY_SLOTS = new Set(["amountDue", "receivedSoFar", "balanceDue", "prevYearBalance"]);
+/** What slots 4, 5 and 6 actually mean, per notice. */
+const SITUATION_SLOT_LABELS: Record<NoticeSituation, Record<string, string>> = {
+  fee_due: { contextLine: "Installment", amount: "Amount due", date: "Last date (DD-MM-YYYY)" },
+  balance: { contextLine: "Received so far", amount: "Balance due", date: "Next date (DD-MM-YYYY)" },
+  prevyear: { contextLine: "Session", amount: "Balance", date: "Settle by (DD-MM-YYYY)" },
+};
+
+/** Slot 4 is money on `balance` only; on the other two it is text. */
+const MONEY_SLOT_BY_SITUATION: Record<NoticeSituation, ReadonlySet<string>> = {
+  fee_due: new Set(["amount"]),
+  balance: new Set(["contextLine", "amount"]),
+  prevyear: new Set(["amount"]),
+};
 
 /**
  * Opening values: the real top row where we have one, the campaign's own
@@ -83,22 +98,36 @@ function valuesFrom(
   sample: SampleCandidate | null,
   lastDate: string,
   installmentPhrase: string,
+  lateFeePhrase: string,
 ): Record<string, string> {
   const fallback = campaignFor(situation, language).sample;
   const pick = (real: string | number | null | undefined, spare: string | number | undefined) =>
     String(real ?? "").trim() !== "" && real !== 0 ? String(real) : String(spare ?? "");
 
+  // Slots 4 and 5 mean different things per notice, so they are filled per
+  // notice; 1-3, 6 and 7 are the same everywhere.
+  const contextLine =
+    situation === "fee_due"
+      ? installmentPhrase || (fallback.installmentPhrase ?? "")
+      : situation === "balance"
+        ? pick(sample?.totalPaid, fallback.receivedSoFar)
+        : pick(sample?.prevSessionLabel, fallback.prevSessionLabel);
+
+  const amount =
+    situation === "fee_due"
+      ? pick(sample?.dueAmount, fallback.amountDue)
+      : situation === "balance"
+        ? pick(sample?.balanceDue, fallback.balanceDue)
+        : pick(sample?.prevYearBalance, fallback.prevYearBalance);
+
   return {
     parentName: pick(sample?.parentName, fallback.parentName),
     studentName: pick(sample?.studentName, fallback.studentName),
     studentClass: pick(sample?.studentClass, fallback.studentClass),
-    installmentPhrase: installmentPhrase || (fallback.installmentPhrase ?? ""),
-    amountDue: pick(sample?.dueAmount, fallback.amountDue),
-    receivedSoFar: pick(sample?.totalPaid, fallback.receivedSoFar),
-    balanceDue: pick(sample?.balanceDue, fallback.balanceDue),
-    lastDate: lastDate || (fallback.lastDate ?? ""),
-    prevSessionLabel: pick(sample?.prevSessionLabel, fallback.prevSessionLabel),
-    prevYearBalance: pick(sample?.prevYearBalance, fallback.prevYearBalance),
+    contextLine,
+    amount,
+    date: lastDate || (fallback.lastDate ?? ""),
+    lateFeePhrase: lateFeePhrase || (fallback.lateFeePhrase ?? ""),
   };
 }
 
@@ -108,12 +137,13 @@ export function TestSendPanel({
   language,
   lastDate,
   installmentPhrase,
+  lateFeePhrase,
   sample,
 }: Props) {
   const campaign = campaignFor(situation, language);
   const [testPhone, setTestPhone] = useState("");
   const [form, setForm] = useState<Record<string, string>>(() =>
-    valuesFrom(situation, language, sample, lastDate, installmentPhrase),
+    valuesFrom(situation, language, sample, lastDate, installmentPhrase, lateFeePhrase),
   );
   const [testState, testFormAction] = useActionState(sendTestReminderAction, IDLE_TEST);
 
@@ -129,18 +159,28 @@ export function TestSendPanel({
   const set = (slot: string) => (event: ChangeEvent<HTMLInputElement>) =>
     setForm((previous) => ({ ...previous, [slot]: event.target.value }));
 
-  const asValues = (): NoticeValues => ({
-    parentName: form.parentName,
-    studentName: form.studentName,
-    studentClass: form.studentClass,
-    installmentPhrase: form.installmentPhrase,
-    amountDue: Number(form.amountDue) || 0,
-    receivedSoFar: Number(form.receivedSoFar) || 0,
-    balanceDue: Number(form.balanceDue) || 0,
-    lastDate: form.lastDate,
-    prevSessionLabel: form.prevSessionLabel,
-    prevYearBalance: Number(form.prevYearBalance) || 0,
-  });
+  /**
+   * The skeleton is positional; `NoticeValues` is named. This is the one place
+   * the two meet, and it must agree with the per-situation builders in
+   * `campaigns.ts` or the preview and the send would disagree.
+   */
+  const asValues = (): NoticeValues => {
+    const shared = {
+      parentName: form.parentName,
+      studentName: form.studentName,
+      studentClass: form.studentClass,
+      lastDate: form.date,
+      lateFeePhrase: form.lateFeePhrase,
+    };
+    const amount = Number(form.amount) || 0;
+    if (situation === "fee_due") {
+      return { ...shared, installmentPhrase: form.contextLine, amountDue: amount };
+    }
+    if (situation === "balance") {
+      return { ...shared, receivedSoFar: Number(form.contextLine) || 0, balanceDue: amount };
+    }
+    return { ...shared, prevSessionLabel: form.contextLine, prevYearBalance: amount };
+  };
 
   const preview = campaign.renderPreview(asValues());
   const destination = toWhatsappDestination(testPhone);
@@ -190,13 +230,13 @@ export function TestSendPanel({
           <div key={slot} className="space-y-1.5">
             <Label htmlFor={`slot-${slot}`}>
               {`{{${index + 1}}} `}
-              {SLOT_LABELS[slot] ?? slot}
+              {SITUATION_SLOT_LABELS[situation][slot] ?? SLOT_LABELS[slot] ?? slot}
             </Label>
             <Input
               id={`slot-${slot}`}
               name={slot}
-              type={MONEY_SLOTS.has(slot) ? "number" : "text"}
-              min={MONEY_SLOTS.has(slot) ? 0 : undefined}
+              type={MONEY_SLOT_BY_SITUATION[situation].has(slot) ? "number" : "text"}
+              min={MONEY_SLOT_BY_SITUATION[situation].has(slot) ? 0 : undefined}
               value={form[slot] ?? ""}
               onChange={set(slot)}
             />
@@ -233,7 +273,9 @@ export function TestSendPanel({
           variant="ghost"
           size="sm"
           onClick={() =>
-            setForm(valuesFrom(situation, language, sample, lastDate, installmentPhrase))
+            setForm(
+              valuesFrom(situation, language, sample, lastDate, installmentPhrase, lateFeePhrase),
+            )
           }
         >
           Fill from top row

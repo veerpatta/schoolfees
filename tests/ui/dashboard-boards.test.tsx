@@ -13,7 +13,7 @@ import {
   RecoveryBoard,
 } from "@/modules/dashboard/ui/boards";
 import { MoneyBand } from "@/modules/dashboard/ui/money-band";
-import { StatTile } from "@/modules/dashboard/ui/tiles";
+import { StatTile } from "@/ui/charts";
 import type { DashboardAnalytics } from "@/modules/dashboard/data/analytics";
 
 /**

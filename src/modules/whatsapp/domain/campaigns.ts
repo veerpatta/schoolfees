@@ -1,4 +1,5 @@
 import { formatRupeesPlain } from "@/platform/helpers/currency";
+import { lateFeePhrase, type LateFeeBasis } from "@/modules/whatsapp/domain/late-fee";
 
 /**
  * The six approved WhatsApp campaigns: three fee situations × two languages.
@@ -39,7 +40,7 @@ export const NOTICE_SITUATIONS = [
   {
     value: "prevyear",
     label: "Previous session",
-    hint: "Carried forward from last session, no late fee",
+    hint: "Carried forward from last session, settled by its own date",
   },
 ] as const satisfies ReadonlyArray<{
   value: NoticeSituation;
@@ -112,7 +113,10 @@ export const SITUATION_FILTERS = {
 export const SITUATION_RULE: Record<NoticeSituation, string> = {
   fee_due: "Nothing received beyond the academic fee, and every selected installment still pending.",
   balance: "Something received, and still owing on at least one of the selected installments. The message quotes the whole balance.",
-  prevyear: "A balance carried forward from last session with something left on it. No installments, no due date, no late fee.",
+  // v2 gave this notice a settle-by date and a late-fee line. What stays true is
+  // that the LEDGER never charges a late fee on carry-forward — the notice can
+  // still quote one, which is what the drift warning is for.
+  prevyear: "A balance carried forward from last session with something left on it. No installments; it carries its own settle-by date.",
 };
 
 export const SITUATION_VALUES: readonly string[] = NOTICE_SITUATIONS.map((s) => s.value);
@@ -135,7 +139,7 @@ export type NoticeValues = {
   studentName: string;
   /** Raw class label. The builders strip the `Class ` prefix themselves. */
   studentClass: string;
-  /** fee_due {{4}} — e.g. "Installment 1 and 2". */
+  /** fee_due {{4}} — e.g. "Installment 1 and 2" / "किश्त 1 एवं 2". */
   installmentPhrase?: string;
   /** fee_due {{5}} */
   amountDue?: number;
@@ -143,12 +147,18 @@ export type NoticeValues = {
   receivedSoFar?: number;
   /** balance {{5}} */
   balanceDue?: number;
-  /** fee_due {{6}} / balance {{6}}, already DD-MM-YYYY. */
+  /** {{6}} on every notice, already DD-MM-YYYY. Settle-by date on prevyear. */
   lastDate?: string;
   /** prevyear {{4}} — the session the debt came from, e.g. "2025-26". */
   prevSessionLabel?: string;
   /** prevyear {{5}} */
   prevYearBalance?: number;
+  /**
+   * {{7}} on every notice. Composed by `domain/late-fee.ts` from an amount and a
+   * basis — never typed free-hand, and never empty: WhatsApp rejects an empty
+   * parameter.
+   */
+  lateFeePhrase?: string;
 };
 
 export type CampaignDescriptor = {
@@ -171,45 +181,57 @@ export type CampaignDescriptor = {
  * Only a leading `Class ` is stripped. `Nursery`, `JKG`, `SKG` and the
  * `11 Science` family carry no prefix and must survive untouched; checked
  * against all 19 labels live in 2026-27.
+ *
+ * English either way, including in a Hindi message. The Meta sample transliterates
+ * (`नर्सरी`), but a class label is a data value the office reads on every other
+ * screen, and a hand-kept Hindi mapping goes stale the first time a class is
+ * renamed.
  */
 export function shortClassLabel(label: string): string {
   return String(label ?? "").replace(/^Class\s+/i, "").trim();
 }
 
-/** Slot money is grouped digits with no symbol — the body supplies `रु.` / `Rs.`. */
+/* ------------------------------------------------------------- slot builders */
+
+/**
+ * ONE slot skeleton for all six campaigns.
+ *
+ * v1 had three shapes, of 6, 6 and 5. v2 collapses them: slots 1-3 and 7 mean
+ * the same thing in every notice, and only 4, 5 and 6 carry situation-specific
+ * content under a shared positional meaning — context line, money, date.
+ *
+ * The names below are the fee_due reading. `balance` puts "received so far" in
+ * slot 4 and "balance due" in 5; `prevyear` puts the session label in 4 and the
+ * carried balance in 5, and its slot 6 is a settle-by date rather than a due
+ * date. The ORDER is what AiSensy enforces, not these names.
+ */
+const SLOT_SKELETON = [
+  "parentName",
+  "studentName",
+  "studentClass",
+  "contextLine",
+  "amount",
+  "date",
+  "lateFeePhrase",
+] as const;
+
+/** Slot money is grouped digits with no symbol — the body supplies the currency word. */
 function money(value: number | undefined): string {
   return formatRupeesPlain(value ?? 0);
 }
 
-/* ------------------------------------------------------------- slot builders */
+/**
+ * Slot 7 must never be empty — WhatsApp rejects an empty parameter, and an
+ * un-composed phrase would take a whole run down at the provider. The fallback
+ * is the approved "not applicable" wording, not a blank.
+ */
+function lateFee(v: NoticeValues, language: NoticeLanguage): string {
+  const phrase = (v.lateFeePhrase ?? "").trim();
+  if (phrase) return phrase;
+  return language === "hi" ? "इस राशि पर लागू नहीं" : "Not applicable on this amount";
+}
 
-const FEE_DUE_SLOTS = [
-  "parentName",
-  "studentName",
-  "studentClass",
-  "installmentPhrase",
-  "amountDue",
-  "lastDate",
-] as const;
-
-const BALANCE_SLOTS = [
-  "parentName",
-  "studentName",
-  "studentClass",
-  "receivedSoFar",
-  "balanceDue",
-  "lastDate",
-] as const;
-
-const PREVYEAR_SLOTS = [
-  "parentName",
-  "studentName",
-  "studentClass",
-  "prevSessionLabel",
-  "prevYearBalance",
-] as const;
-
-function feeDueParams(v: NoticeValues): string[] {
+function feeDueParams(v: NoticeValues, language: NoticeLanguage): string[] {
   return [
     v.parentName,
     v.studentName,
@@ -217,10 +239,11 @@ function feeDueParams(v: NoticeValues): string[] {
     v.installmentPhrase ?? "",
     money(v.amountDue),
     v.lastDate ?? "",
+    lateFee(v, language),
   ];
 }
 
-function balanceParams(v: NoticeValues): string[] {
+function balanceParams(v: NoticeValues, language: NoticeLanguage): string[] {
   return [
     v.parentName,
     v.studentName,
@@ -228,16 +251,21 @@ function balanceParams(v: NoticeValues): string[] {
     money(v.receivedSoFar),
     money(v.balanceDue),
     v.lastDate ?? "",
+    lateFee(v, language),
   ];
 }
 
-function prevYearParams(v: NoticeValues): string[] {
+function prevYearParams(v: NoticeValues, language: NoticeLanguage): string[] {
   return [
     v.parentName,
     v.studentName,
     shortClassLabel(v.studentClass),
     v.prevSessionLabel ?? "",
     money(v.prevYearBalance),
+    // v2 gave the previous-session notice a date it did not have. A late fee
+    // with no date says nothing, which is why the two arrived together.
+    v.lastDate ?? "",
+    lateFee(v, language),
   ];
 }
 
@@ -249,7 +277,7 @@ function prevYearParams(v: NoticeValues): string[] {
 const UPI = "upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank";
 
 function feeDueBodyEn(v: NoticeValues): string {
-  const [p, s, c, phrase, amount, date] = feeDueParams(v);
+  const [p, s, c, phrase, amount, date, fee] = feeDueParams(v, "en");
   return [
     "*Fee Notice — Shri Veer Patta Sr. Sec. School*",
     "",
@@ -260,18 +288,21 @@ function feeDueBodyEn(v: NoticeValues): string {
     `Installment: ${phrase}`,
     `Amount due: Rs. ${amount}`, // @allow-raw-money-format: verbatim from the Meta-approved English body
     `Last date: ${date}`,
+    `Late fee after the last date: ${fee}`,
     "",
-    "The above fees have not yet been received. You may pay at the school fee counter, or directly using this UPI link:",
+    "Paying on or before the last date avoids the late fee. After that date the late fee above is added to the amount.",
+    "",
+    "Pay at the school fee counter or using this UPI link:",
     UPI,
     "",
-    "Please write the student's name with the payment and collect a receipt from the office. If you have already paid, kindly ignore this message.",
+    "Please write the student's name with the payment and collect a receipt. If you have already paid, kindly ignore this message.",
     "",
     "For any query, call the office on 9352205884.",
   ].join("\n");
 }
 
 function feeDueBodyHi(v: NoticeValues): string {
-  const [p, s, c, phrase, amount, date] = feeDueParams(v);
+  const [p, s, c, phrase, amount, date, fee] = feeDueParams(v, "hi");
   return [
     "*फीस सूचना — श्री वीर पत्ता सी. सै. स्कूल*",
     "",
@@ -282,18 +313,21 @@ function feeDueBodyHi(v: NoticeValues): string {
     `किश्त: ${phrase}`,
     `देय राशि: रु. ${amount}`,
     `अंतिम तिथि: ${date}`,
+    `अंतिम तिथि के बाद विलंब शुल्क: ${fee}`,
     "",
-    "उपरोक्त फीस अभी जमा नहीं हुई है। आप विद्यालय के फीस काउंटर पर जमा कर सकते हैं, अथवा इस UPI लिंक से सीधे भुगतान कर सकते हैं:",
+    "अंतिम तिथि तक फीस जमा करने पर कोई विलंब शुल्क नहीं लगेगा। उसके बाद उपरोक्त दर से विलंब शुल्क जोड़ा जाएगा।",
+    "",
+    "फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:",
     UPI,
     "",
-    "भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा कार्यालय से रसीद प्राप्त करें। यदि आपने भुगतान कर दिया है तो इस संदेश को अनदेखा करें।",
+    "भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।",
     "",
     "जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।",
   ].join("\n");
 }
 
 function balanceBodyEn(v: NoticeValues): string {
-  const [p, s, c, received, balance, date] = balanceParams(v);
+  const [p, s, c, received, balance, date, fee] = balanceParams(v, "en");
   return [
     "*Fee Balance — Shri Veer Patta Sr. Sec. School*",
     "",
@@ -304,8 +338,11 @@ function balanceBodyEn(v: NoticeValues): string {
     `Received so far: Rs. ${received}`, // @allow-raw-money-format: verbatim from the Meta-approved English body
     `Balance due: Rs. ${balance}`, // @allow-raw-money-format: verbatim from the Meta-approved English body
     `Next date: ${date}`,
+    `Late fee after the next date: ${fee}`,
     "",
-    "Thank you for the payment received. The balance may be paid at the fee counter or using this UPI link:",
+    "Thank you for the payment received. Clearing the balance by the next date avoids the late fee.",
+    "",
+    "Pay at the fee counter or using this UPI link:",
     UPI,
     "",
     "If this differs from your own record, please call the office on 9352205884.",
@@ -313,7 +350,7 @@ function balanceBodyEn(v: NoticeValues): string {
 }
 
 function balanceBodyHi(v: NoticeValues): string {
-  const [p, s, c, received, balance, date] = balanceParams(v);
+  const [p, s, c, received, balance, date, fee] = balanceParams(v, "hi");
   return [
     "*फीस शेष विवरण — श्री वीर पत्ता सी. सै. स्कूल*",
     "",
@@ -324,8 +361,11 @@ function balanceBodyHi(v: NoticeValues): string {
     `अब तक प्राप्त: रु. ${received}`,
     `शेष बकाया: रु. ${balance}`,
     `अगली तिथि: ${date}`,
+    `अगली तिथि के बाद विलंब शुल्क: ${fee}`,
     "",
-    "प्राप्त भुगतान के लिए धन्यवाद। शेष राशि फीस काउंटर पर अथवा इस UPI लिंक से जमा की जा सकती है:",
+    "प्राप्त भुगतान के लिए धन्यवाद। शेष राशि अगली तिथि तक जमा करने पर कोई विलंब शुल्क नहीं लगेगा।",
+    "",
+    "फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:",
     UPI,
     "",
     "यदि यह विवरण आपके रिकॉर्ड से भिन्न है तो कृपया कार्यालय 9352205884 पर संपर्क करें।",
@@ -333,7 +373,7 @@ function balanceBodyHi(v: NoticeValues): string {
 }
 
 function prevYearBodyEn(v: NoticeValues): string {
-  const [p, s, c, session, balance] = prevYearParams(v);
+  const [p, s, c, session, balance, date, fee] = prevYearParams(v, "en");
   return [
     "*Previous Session Balance — Shri Veer Patta Sr. Sec. School*",
     "",
@@ -343,10 +383,14 @@ function prevYearBodyEn(v: NoticeValues): string {
     `Class: ${c}`,
     `Session: ${session}`,
     `Balance: Rs. ${balance}`, // @allow-raw-money-format: verbatim from the Meta-approved English body
+    `Settle by: ${date}`,
+    // A bare "Late fee:" on purpose, so the line reads correctly whether the
+    // value is an amount or "not applicable".
+    `Late fee: ${fee}`,
     "",
-    "This amount is from the previous session and is separate from this year's installments. No late fee is charged on it.",
+    "This amount is from the previous session and is separate from this year's installments. Please settle it by the date above.",
     "",
-    "To settle it, visit the fee counter or use this UPI link:",
+    "Visit the fee counter or use this UPI link:",
     UPI,
     "",
     "For a full statement, call the office on 9352205884.",
@@ -354,7 +398,7 @@ function prevYearBodyEn(v: NoticeValues): string {
 }
 
 function prevYearBodyHi(v: NoticeValues): string {
-  const [p, s, c, session, balance] = prevYearParams(v);
+  const [p, s, c, session, balance, date, fee] = prevYearParams(v, "hi");
   return [
     "*पिछले सत्र का शेष — श्री वीर पत्ता सी. सै. स्कूल*",
     "",
@@ -364,10 +408,12 @@ function prevYearBodyHi(v: NoticeValues): string {
     `कक्षा: ${c}`,
     `सत्र: ${session}`,
     `शेष राशि: रु. ${balance}`,
+    `निपटान की अंतिम तिथि: ${date}`,
+    `विलंब शुल्क: ${fee}`,
     "",
-    "यह राशि पिछले सत्र की है और इस वर्ष की किश्तों से अलग है। इस पर कोई विलंब शुल्क नहीं लगता।",
+    "यह राशि पिछले सत्र की है और इस वर्ष की किश्तों से अलग है। कृपया उपरोक्त तिथि तक निपटान कर दें।",
     "",
-    "निपटान हेतु फीस काउंटर पर आएं अथवा इस UPI लिंक का उपयोग करें:",
+    "फीस काउंटर पर आएं अथवा इस UPI लिंक का उपयोग करें:",
     UPI,
     "",
     "पूरा विवरण देखने हेतु कार्यालय 9352205884 पर संपर्क करें।",
@@ -376,99 +422,152 @@ function prevYearBodyHi(v: NoticeValues): string {
 
 /* ----------------------------------------------------------------- registry */
 
-/** Samples as submitted to Meta, so the test panel opens on something real. */
-const FEE_DUE_SAMPLE: NoticeValues = {
-  parentName: "Ramesh Lal Gurjar",
-  studentName: "Aaradhya Gurjar",
-  studentClass: "Class 2",
-  installmentPhrase: "Installment 1 and 2",
-  amountDue: 18250,
-  lastDate: "25-08-2026",
+/**
+ * Samples exactly as submitted to Meta, so the test panel opens on something
+ * real and every slot — including the new one — is exercised.
+ *
+ * Per LANGUAGE, not per situation. v1 shared one sample object between hi and
+ * en, so the Hindi panel opened on English text and the Hindi slot values were
+ * never seen before a real send.
+ *
+ * `studentClass` stays `"Class 2"` / `"Nursery"` rather than the doc's
+ * transliteration: the sample must be what this app would really send, and
+ * `shortClassLabel` does not transliterate. See its comment.
+ */
+const SAMPLES: Record<NoticeSituation, Record<NoticeLanguage, NoticeValues>> = {
+  fee_due: {
+    en: {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      installmentPhrase: "Installment 1 and 2",
+      amountDue: 18250,
+      lastDate: "25-08-2026",
+      lateFeePhrase: "Rs. 1,000 per installment", // @allow-raw-money-format: the literal sample submitted to Meta
+    },
+    hi: {
+      parentName: "रमेश लाल गुर्जर",
+      studentName: "आराध्या गुर्जर",
+      studentClass: "Class 2",
+      installmentPhrase: "किश्त 1 एवं 2",
+      amountDue: 18250,
+      lastDate: "25-08-2026",
+      lateFeePhrase: "रु. 1,000 प्रति किश्त",
+    },
+  },
+  balance: {
+    en: {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      receivedSoFar: 6500,
+      balanceDue: 11750,
+      lastDate: "20-10-2026",
+      lateFeePhrase: "Rs. 1,000 per installment", // @allow-raw-money-format: the literal sample submitted to Meta
+    },
+    hi: {
+      parentName: "रमेश लाल गुर्जर",
+      studentName: "आराध्या गुर्जर",
+      studentClass: "Class 2",
+      receivedSoFar: 6500,
+      balanceDue: 11750,
+      lastDate: "20-10-2026",
+      lateFeePhrase: "रु. 1,000 प्रति किश्त",
+    },
+  },
+  prevyear: {
+    en: {
+      parentName: "Pintu Singh Chundawat",
+      studentName: "Bhavydeep Singh Chundawat",
+      studentClass: "Nursery",
+      prevSessionLabel: "2025-26",
+      prevYearBalance: 20000,
+      lastDate: "30-09-2026",
+      lateFeePhrase: "Not applicable on this amount",
+    },
+    hi: {
+      parentName: "पिंटू सिंह चुंडावत",
+      studentName: "भव्यदीप सिंह चुंडावत",
+      studentClass: "Nursery",
+      prevSessionLabel: "2025-26",
+      prevYearBalance: 20000,
+      lastDate: "30-09-2026",
+      lateFeePhrase: "इस राशि पर लागू नहीं",
+    },
+  },
 };
 
-const BALANCE_SAMPLE: NoticeValues = {
-  parentName: "Ramesh Lal Gurjar",
-  studentName: "Aaradhya Gurjar",
-  studentClass: "Class 2",
-  receivedSoFar: 6500,
-  balanceDue: 11750,
-  lastDate: "20-10-2026",
-};
-
-const PREVYEAR_SAMPLE: NoticeValues = {
-  parentName: "Pintu Singh Chundawat",
-  studentName: "Bhavydeep Singh Chundawat",
-  studentClass: "Nursery",
-  prevSessionLabel: "2025-26",
-  prevYearBalance: 20000,
-};
-
+/**
+ * The six Live campaigns. `_v2` throughout: the un-suffixed six from 21 August
+ * are superseded — no late-fee slot, and no settlement date on the prev-year
+ * notice — and are left in AiSensy only because Meta blocks reusing a template
+ * name for 30 days. The app must never point at them again.
+ */
 const CAMPAIGNS: CampaignDescriptor[] = [
   {
     situation: "fee_due",
     language: "hi",
-    campaignName: "vpps_app_fee_due_hi",
-    slotOrder: FEE_DUE_SLOTS,
-    buildParams: feeDueParams,
+    campaignName: "vpps_app_fee_due_hi_v2",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => feeDueParams(v, "hi"),
     renderPreview: feeDueBodyHi,
-    sample: FEE_DUE_SAMPLE,
+    sample: SAMPLES.fee_due.hi,
   },
   {
     situation: "fee_due",
     language: "en",
-    campaignName: "vpps_app_fee_due_en",
-    slotOrder: FEE_DUE_SLOTS,
-    buildParams: feeDueParams,
+    campaignName: "vpps_app_fee_due_en_v2",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => feeDueParams(v, "en"),
     renderPreview: feeDueBodyEn,
-    sample: FEE_DUE_SAMPLE,
+    sample: SAMPLES.fee_due.en,
   },
   {
     situation: "balance",
     language: "hi",
-    campaignName: "vpps_app_balance_hi",
-    slotOrder: BALANCE_SLOTS,
-    buildParams: balanceParams,
+    campaignName: "vpps_app_balance_hi_v2",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => balanceParams(v, "hi"),
     renderPreview: balanceBodyHi,
-    sample: BALANCE_SAMPLE,
+    sample: SAMPLES.balance.hi,
   },
   {
     situation: "balance",
     language: "en",
-    campaignName: "vpps_app_balance_en",
-    slotOrder: BALANCE_SLOTS,
-    buildParams: balanceParams,
+    campaignName: "vpps_app_balance_en_v2",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => balanceParams(v, "en"),
     renderPreview: balanceBodyEn,
-    sample: BALANCE_SAMPLE,
+    sample: SAMPLES.balance.en,
   },
   {
     situation: "prevyear",
     language: "hi",
-    campaignName: "vpps_app_prevyear_hi",
-    slotOrder: PREVYEAR_SLOTS,
-    buildParams: prevYearParams,
+    campaignName: "vpps_app_prevyear_hi_v2",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => prevYearParams(v, "hi"),
     renderPreview: prevYearBodyHi,
-    sample: PREVYEAR_SAMPLE,
+    sample: SAMPLES.prevyear.hi,
   },
   {
     situation: "prevyear",
     language: "en",
-    campaignName: "vpps_app_prevyear_en",
-    slotOrder: PREVYEAR_SLOTS,
-    buildParams: prevYearParams,
+    campaignName: "vpps_app_prevyear_en_v2",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => prevYearParams(v, "en"),
     renderPreview: prevYearBodyEn,
-    sample: PREVYEAR_SAMPLE,
+    sample: SAMPLES.prevyear.en,
   },
 ];
 
 export const ALL_CAMPAIGNS: readonly CampaignDescriptor[] = CAMPAIGNS;
 
 /**
- * The campaign for one situation and language.
+ * The one way to get from a notice + a language to a campaign.
  *
- * Throws rather than falling back. A fallback here would mean silently sending
- * a different message than the office picked, at a real parent, and the four
- * slot counts are not interchangeable — a mismatch is refused by AiSensy with
- * "Template params does not match the campaign".
+ * Throws rather than falling back. A fallback here would mean a lookup miss
+ * quietly sending through the wrong template — a parent reading a balance notice
+ * for a fee they have not been billed — which is worse than an error at the desk.
  */
 export function campaignFor(
   situation: NoticeSituation,
@@ -478,19 +577,84 @@ export function campaignFor(
     (entry) => entry.situation === situation && entry.language === language,
   );
   if (!found) {
-    throw new Error(`No approved WhatsApp campaign for ${situation}/${language}.`);
+    throw new Error(`No approved WhatsApp campaign for ${situation} in ${language}.`);
   }
   return found;
 }
 
 /**
- * "Installment 1 and 2" / "Installment 3" — what the fee_due template's {{4}}
- * says, built from the installments actually selected rather than hardcoded.
+ * One family plus one set of screen settings, projected onto slot values.
+ *
+ * THE one place this mapping exists. It used to live twice — once in
+ * `fee-reminders.ts` for the send and once inline in `reminders-workspace.tsx`
+ * for the preview — and the copies drifted the moment slot 7 arrived: the
+ * preview quoted "not applicable" while the send carried the real late fee, so
+ * the screen showed staff a message that was not the one going out.
+ *
+ * The parameters are structural rather than `ReminderCandidate` / `ReminderFilters`
+ * so this stays importable from the browser; those types live in a `server-only`
+ * module and this file must not reach it.
  */
-export function installmentPhrase(installments: number[]): string {
+export type NoticeSubject = {
+  parentName: string;
+  studentName: string;
+  studentClass: string;
+  dueAmount: number;
+  totalPaid: number;
+  balanceDue: number;
+  prevYearBalance: number;
+  prevSessionLabel: string | null;
+};
+
+export type NoticeSettings = {
+  situation: NoticeSituation;
+  language: NoticeLanguage;
+  installments: number[];
+  lastDate: string;
+  lateFeeAmount: number;
+  lateFeeBasis: LateFeeBasis;
+};
+
+export function noticeValuesFrom(
+  subject: NoticeSubject,
+  settings: NoticeSettings,
+): NoticeValues {
+  return {
+    parentName: subject.parentName,
+    studentName: subject.studentName,
+    studentClass: subject.studentClass,
+    installmentPhrase: installmentPhrase(settings.installments, settings.language),
+    amountDue: subject.dueAmount,
+    receivedSoFar: subject.totalPaid,
+    balanceDue: subject.balanceDue,
+    lastDate: settings.lastDate,
+    prevSessionLabel: subject.prevSessionLabel ?? "",
+    prevYearBalance: subject.prevYearBalance,
+    lateFeePhrase: lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, settings.language),
+  };
+}
+
+/**
+ * "Installment 1 and 2" / "किश्त 1 एवं 2" — what the fee_due template's {{4}}
+ * says, built from the installments actually selected rather than hardcoded.
+ *
+ * Language-aware, because the Hindi template's approved sample is
+ * `किश्त 1 एवं 2`. Without this a Hindi message reads `किश्त: Installment 1 and 2`,
+ * which is what v1 sent. Unlike the class label this is a phrase the app
+ * composes, not a data value the office reads elsewhere, so there is nothing to
+ * keep in step.
+ */
+export function installmentPhrase(
+  installments: number[],
+  language: NoticeLanguage = "en",
+): string {
+  const hindi = language === "hi";
+  const word = hindi ? "किश्त" : "Installment";
+  const and = hindi ? "एवं" : "and";
+
   const sorted = [...new Set(installments)].sort((a, b) => a - b);
-  if (sorted.length === 0) return "Installment 1 and 2";
-  if (sorted.length === 1) return `Installment ${sorted[0]}`;
+  if (sorted.length === 0) return `${word} 1 ${and} 2`;
+  if (sorted.length === 1) return `${word} ${sorted[0]}`;
   const last = sorted[sorted.length - 1];
-  return `Installment ${sorted.slice(0, -1).join(", ")} and ${last}`;
+  return `${word} ${sorted.slice(0, -1).join(", ")} ${and} ${last}`;
 }

@@ -92,6 +92,9 @@ describe("mobile primary actions stay reachable", () => {
     "src/modules/students/ui/student-form.tsx",
     "src/ui/forms/save-bar.tsx",
     "src/modules/students/ui/student-quick-load.tsx",
+    // Joined the list on 22 Aug 2026: /protected/reminders became a top-level
+    // tab, so it is no longer a takeover and its send bar has a nav to clear.
+    "src/modules/whatsapp/ui/reminders-workspace.tsx",
   ])("%s clears the fixed mobile bottom nav", (path) => {
     expect(read(path)).toContain(NAV_CLEARANCE);
   });

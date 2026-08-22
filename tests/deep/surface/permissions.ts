@@ -56,6 +56,7 @@ export type RouteGuard = { path: string; anyOf: readonly string[] };
 
 export const GUARDED_ROUTES: readonly RouteGuard[] = [
   { path: "/protected/dashboard", anyOf: ["dashboard:view"] },
+  { path: "/protected/reminders", anyOf: ["settings:view", "settings:write"] },
   { path: "/protected/students", anyOf: ["students:view"] },
   { path: "/protected/students/new", anyOf: ["students:write"] },
   { path: "/protected/students/bulk-update", anyOf: ["students:write"] },

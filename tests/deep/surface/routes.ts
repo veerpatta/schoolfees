@@ -106,6 +106,10 @@ export const LEGACY_ALIASES: readonly LegacyAlias[] = [
   { from: "/protected/dues", expect: /\/protected\/transactions/, kind: "redirect", keepsQuery: true },
   { from: "/protected/advanced", expect: /\/protected\/admin-tools/, kind: "redirect", keepsQuery: false },
   { from: "/protected/setup", expect: /\/protected\/admin-tools/, kind: "redirect", keepsQuery: false },
+  // Reminders left Admin Tools on 22 Aug 2026. keepsQuery because the notice,
+  // language, date, late fee and filters all travel in the query string, and a
+  // link that drops them lands on a different audience than it described.
+  { from: "/protected/admin-tools/whatsapp-reminders", expect: /\/protected\/reminders/, kind: "redirect", keepsQuery: true },
   // A file re-export, not a redirect: the URL stays put and Fee Setup renders.
   { from: "/protected/fee-structure", expect: /\/protected\/fee-structure/, kind: "shim", keepsQuery: true },
 ];

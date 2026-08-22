@@ -10,6 +10,7 @@ const routes = [
   "payments",
   "transactions",
   "defaulters",
+  "reminders",
   "exports",
   "admin-tools",
   // Added when Receipts grew a real filter sheet — until then it was a search

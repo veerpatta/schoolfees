@@ -24,6 +24,8 @@ const protectedRoot = join(root, "src/app", "protected");
 const NO_LOADING_NEEDED: Record<string, string> = {
   "src/app/protected/advanced": "redirect-only shim to admin-tools",
   "src/app/protected/setup": "redirect-only shim to admin-tools",
+  "src/app/protected/admin-tools/whatsapp-reminders":
+    "redirect-only shim to /protected/reminders, which it moved to on 22 Aug 2026",
   "src/app/protected/access-denied": "static message, nothing to fetch",
   "src/app/protected/reports/ledger/[studentId]/print":
     "print surface opened in a new tab; a skeleton would land in the printout",

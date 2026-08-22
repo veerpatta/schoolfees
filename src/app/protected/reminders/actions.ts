@@ -21,7 +21,6 @@ import {
   campaignFor,
   DEFAULT_LANGUAGE,
   DEFAULT_SITUATION,
-  installmentPhrase,
   isNoticeLanguage,
   isNoticeSituation,
   type CampaignDescriptor,
@@ -97,9 +96,10 @@ export async function sendRemindersAction(
   // The six approved templates take their date as a variable, so nothing expires
   // — but a date already in the past would tell a parent to beat a deadline that
   // has gone. This is the live replacement for the old fixed-deadline guard.
+  // Every v2 notice carries a date, including prevyear — it gained a settle-by
+  // date precisely because a late-fee line with no date says nothing.
   const lastDateIso = isoFromDdMmYyyy(filters.lastDate);
-  const needsDate = filters.situation !== "prevyear";
-  if (needsDate && (!lastDateIso || lastDateIso < today)) {
+  if (!lastDateIso || lastDateIso < today) {
     return {
       status: "error",
       message: !lastDateIso
@@ -530,18 +530,42 @@ export async function sendTestReminderAction(
   };
   const sample = campaign.sample;
 
-  const templateParams = campaign.buildParams({
+  // The panel posts the SKELETON slot names — one 7-slot shape for all six
+  // campaigns — and slots 4 and 5 mean something different per notice. This
+  // mapping must agree with `asValues()` in the panel and with the per-situation
+  // builders in `campaigns.ts`, or a test would prove the wrong message.
+  const shared = {
     parentName: text("parentName", sample.parentName),
     studentName: text("studentName", sample.studentName),
     studentClass: text("studentClass", sample.studentClass),
-    installmentPhrase: text("installmentPhrase", sample.installmentPhrase ?? ""),
-    amountDue: amount("amountDue", sample.amountDue),
-    receivedSoFar: amount("receivedSoFar", sample.receivedSoFar),
-    balanceDue: amount("balanceDue", sample.balanceDue),
-    lastDate: text("lastDate", sample.lastDate ?? ""),
-    prevSessionLabel: text("prevSessionLabel", sample.prevSessionLabel ?? ""),
-    prevYearBalance: amount("prevYearBalance", sample.prevYearBalance),
-  });
+    lastDate: text("date", sample.lastDate ?? ""),
+    // Never empty: WhatsApp rejects an empty parameter, and the registry's
+    // fallback wording is applied downstream if this somehow arrives blank.
+    lateFeePhrase: text("lateFeePhrase", sample.lateFeePhrase ?? ""),
+  };
+  const slotAmount = amount("amount", undefined);
+  const contextLine = formData.get("contextLine") as string | null;
+
+  const values: NoticeValues =
+    campaign.situation === "fee_due"
+      ? {
+          ...shared,
+          installmentPhrase: contextLine?.trim() || (sample.installmentPhrase ?? ""),
+          amountDue: slotAmount || (sample.amountDue ?? 0),
+        }
+      : campaign.situation === "balance"
+        ? {
+            ...shared,
+            receivedSoFar: Number(contextLine) || (sample.receivedSoFar ?? 0),
+            balanceDue: slotAmount || (sample.balanceDue ?? 0),
+          }
+        : {
+            ...shared,
+            prevSessionLabel: contextLine?.trim() || (sample.prevSessionLabel ?? ""),
+            prevYearBalance: slotAmount || (sample.prevYearBalance ?? 0),
+          };
+
+  const templateParams = campaign.buildParams(values);
 
   const result = await sendAisensyCampaignMessage({
     campaignName,

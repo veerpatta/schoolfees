@@ -6,7 +6,7 @@ import { AlertTriangle, MessageCircle, Send } from "lucide-react";
 import {
   sendRemindersAction,
   type SendRemindersState,
-} from "@/app/protected/admin-tools/whatsapp-reminders/actions";
+} from "@/app/protected/reminders/actions";
 import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
 import { MobileEmptyRows, MobileNote, MobileRecordCard } from "@/ui/mobile/mobile-kit";
 import {
@@ -29,6 +29,7 @@ import {
 } from "@/modules/whatsapp/domain/campaigns";
 import { NoticePicker } from "@/modules/whatsapp/ui/notice-picker";
 import {
+  noticeValuesFrom,
   SITUATION_FILTERS,
   SITUATION_RULE,
   type NoticeSituation,
@@ -40,6 +41,8 @@ type Props = {
   audience: ReminderAudience;
   canSend: boolean;
   campaignName: string | null;
+  /** Composed server-side against the live fee policy. Null when they agree. */
+  lateFeeWarning: string | null;
 };
 
 const IDLE_SEND: SendRemindersState = { status: "idle" };
@@ -161,6 +164,8 @@ function ReminderFilterFields({
       <input type="hidden" name="situation" value={filters.situation} />
       <input type="hidden" name="language" value={filters.language} />
       <input type="hidden" name="lastDate" value={filters.lastDate} />
+      <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
+      <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
 
       <div className="flex items-end gap-3 max-md:pt-1">
         <label className="flex items-center gap-2 text-sm">
@@ -185,6 +190,7 @@ export function RemindersWorkspace({
   audience,
   canSend,
   campaignName,
+  lateFeeWarning,
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
@@ -244,19 +250,15 @@ export function RemindersWorkspace({
   const situationLabel =
     NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
 
-  /** What one family's message will actually say, for the preview. */
-  const noticeValues = (candidate: ReminderAudience["candidates"][number]) => ({
-    parentName: candidate.parentName,
-    studentName: candidate.studentName,
-    studentClass: candidate.studentClass,
-    installmentPhrase: installmentPhrase(filters.installments),
-    amountDue: candidate.dueAmount,
-    receivedSoFar: candidate.totalPaid,
-    balanceDue: candidate.balanceDue,
-    lastDate: filters.lastDate,
-    prevSessionLabel: candidate.prevSessionLabel ?? "",
-    prevYearBalance: candidate.prevYearBalance,
-  });
+  /**
+   * What one family's message will actually say.
+   *
+   * The SAME function the send path uses. This was a second, hand-kept copy
+   * until slot 7 arrived and the copies disagreed — the preview said "no late
+   * fee applies" while the send carried the real one.
+   */
+  const noticeValues = (candidate: ReminderAudience["candidates"][number]) =>
+    noticeValuesFrom(candidate, filters);
 
   // The chip on the phone disclosure summarises what is applied. It must not
   // claim an installment filter on `prevyear`, which ignores one.
@@ -281,7 +283,12 @@ export function RemindersWorkspace({
         method="get"
         className="rounded-xl border border-border bg-card p-3.5 shadow-sm max-md:order-1 md:rounded-lg md:p-4"
       >
-        <NoticePicker filters={filters} counts={audience.counts} dateFieldId="lastDate" />
+        <NoticePicker
+          filters={filters}
+          counts={audience.counts}
+          dateFieldId="lastDate"
+          lateFeeWarning={lateFeeWarning}
+        />
         {/* The picker's links carry the other filters; these keep them on the
             date form too, so submitting a date does not reset the notice. */}
         <input type="hidden" name="situation" value={filters.situation} />
@@ -442,6 +449,8 @@ export function RemindersWorkspace({
         <input type="hidden" name="situation" value={filters.situation} />
         <input type="hidden" name="language" value={filters.language} />
         <input type="hidden" name="lastDate" value={filters.lastDate} />
+        <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
+        <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
         {[...selected].map((studentId) => (
           <input key={studentId} type="hidden" name="studentId" value={studentId} />
         ))}
@@ -480,17 +489,22 @@ export function RemindersWorkspace({
             ? "The amount on each card is last session's balance still outstanding. It carries no late fee."
             : filters.situation === "balance"
               ? "The amount on each card is what is still owed on this session's installments, after everything received."
-              : `The amount on each card is the figure the message will quote — ${installmentPhrase(filters.installments).toLowerCase()} of this session only, never last year's carry-forward.`}
+              : `The amount on each card is the figure the message will quote — ${installmentPhrase(filters.installments, "en").toLowerCase()} of this session only, never last year's carry-forward.`}
         </MobileNote>
 
         <ul
           className="flex flex-col gap-2.5 md:hidden"
           // Constant, even with the bar absent, so the list does not jump when
           // the first family is ticked. 7.5rem because the bar grows to two rows
-          // in the confirm state. This route is a mobile takeover
-          // (`mobileTakeoverRoutes`), so there is no tab bar to clear — using
-          // --mobile-bottom-nav-offset here would reserve 68px for nothing.
-          style={{ paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 7.5rem)" }}
+          // in the confirm state.
+          //
+          // `/protected/reminders` became a top-level tab on 22 Aug 2026, so it
+          // is NO LONGER a mobile takeover: the tab bar renders, the send bar
+          // sits above it, and the last card has to clear both.
+          style={{
+            paddingBottom:
+              "calc(var(--mobile-bottom-nav-offset, 0px) + var(--mobile-safe-area-bottom, 0px) + 7.5rem)",
+          }}
         >
           {audience.candidates.map((candidate) => {
             const already = Boolean(candidate.sentToday);
@@ -680,10 +694,10 @@ export function RemindersWorkspace({
         {/* ------------------------------------------------------------ send (phone) */}
         {selected.size > 0 ? (
           <div
-            // Takeover route: no tab bar to sit above, so clear the safe area
-            // only. bottom-[--mobile-bottom-nav-offset] would float this 68px
-            // above the home indicator.
-            className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 pt-2.5 backdrop-blur md:hidden print:hidden"
+            // A tab screen, not a takeover: the bottom nav is there, so this bar
+            // sits ON TOP of it rather than over the home indicator. `md:bottom-0`
+            // undoes the offset on the desk, where there is no tab bar.
+            className="fixed inset-x-0 bottom-[var(--mobile-bottom-nav-offset,0px)] z-30 border-t border-border bg-background/95 px-4 pt-2.5 backdrop-blur md:bottom-0 md:hidden print:hidden"
             style={{ paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)" }}
           >
             {!confirming ? (

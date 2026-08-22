@@ -4,21 +4,24 @@ import { Money } from "@/ui/primitives/money";
 import { cn } from "@/platform/utils";
 
 /**
- * The dashboard's tile vocabulary.
+ * The chart vocabulary: tiles, bars, trends and a donut, as hand-rolled SVG.
  *
- * Every tile is one label, one number, one visual and at most one short
- * footnote. No `description` prop, deliberately: the old dashboard gave every
- * section a title AND a paragraph, which is what buried the charts. If a panel
- * needs a sentence to be understood, the panel is wrong.
+ * **No charting library, on purpose.** `/protected/dashboard` sits under a gzip
+ * ceiling in `quality/route-bundle-baseline.json` that ratchets down and never
+ * up; recharts alone is ~100 KB. Everything here is server-renderable markup
+ * with zero client JS, coloured from the `--chart-1..5` tokens.
  *
- * All of it is server-rendered SVG and CSS. There is no charting library in
- * this project and there cannot be one -- `/protected/dashboard` sits inside a
- * gzip ceiling in quality/route-bundle-baseline.json with about 2.7 KB of head
- * room, and recharts is ~100 KB. Hand-rolled also keeps print, dark mode and
- * the zero-console-error a11y gate working for free.
+ * Lives in the design system rather than in `modules/dashboard` because a second
+ * feature needed it. The layering gate makes that not merely tidier but
+ * required: `reaches-another-modules-ui` in `quality/architecture-baseline.json`
+ * only ever falls, so one module may not import another's `ui/`. The alternative
+ * was a second copy of these charts, which is the duplication this repo has
+ * already fought once.
  *
- * Colours come from --chart-1..5 and the semantic quads. Never a raw Tailwind
- * hue: docs/design/design-system.md §6.
+ * Being in `src/ui` it may import only `ui` and `platform` — never a module.
+ * That is enforced (`scripts/check-architecture.mjs`), and it is why the
+ * feature-shaped charts (`CollectionHeatmap`, `ClassCollectionProgress`) stayed
+ * where they were.
  */
 
 /* ── Shell ─────────────────────────────────────────────────────────────── */

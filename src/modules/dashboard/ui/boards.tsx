@@ -9,7 +9,7 @@ import {
   Tile,
   TONE_COLORS,
   TrendBars,
-} from "@/modules/dashboard/ui/tiles";
+} from "@/ui/charts";
 import { Money } from "@/ui/primitives/money";
 import { StatusBadge } from "@/ui/shell/status-badge";
 import type { DashboardAnalytics } from "@/modules/dashboard/data/analytics";

@@ -26,21 +26,25 @@ function readCode(path: string) {
 
 const WORKSPACE = "src/modules/whatsapp/ui/reminders-workspace.tsx";
 const PANEL = "src/modules/whatsapp/ui/test-send-panel.tsx";
-const PAGE = "src/app/protected/admin-tools/whatsapp-reminders/page.tsx";
-const ACTIONS = "src/app/protected/admin-tools/whatsapp-reminders/actions.ts";
+const PAGE = "src/app/protected/reminders/page.tsx";
+const ACTIONS = "src/app/protected/reminders/actions.ts";
 const CAMPAIGNS = "src/modules/whatsapp/domain/campaigns.ts";
 const PICKER = "src/modules/whatsapp/ui/notice-picker.tsx";
 
 describe("WhatsApp reminders on a phone", () => {
-  it("clears only the safe area, because /protected/admin-tools is a takeover route", () => {
-    // MobileBottomNav renders nothing on a takeover, so reserving
-    // --mobile-bottom-nav-offset would float the send bar 68px above the home
-    // indicator. This asserts the opposite of the NAV_CLEARANCE list in
-    // tests/ui/mobile-action-reachability.test.ts — deliberately.
+  it("clears the tab bar, because /protected/reminders is NOT a takeover", () => {
+    // Inverted on 22 Aug 2026. While this screen lived under /protected/admin-tools
+    // it was a takeover — MobileBottomNav rendered nothing, so reserving space for
+    // it would have floated the send bar 68px above the home indicator. As a
+    // top-level tab the bar is really there and must be cleared, which is why this
+    // file now also appears in the NAV_CLEARANCE list in
+    // tests/ui/mobile-action-reachability.test.ts.
     const source = read(WORKSPACE);
 
-    expect(source).toContain("calc(var(--mobile-safe-area-bottom, 0px) + ");
-    expect(readCode(WORKSPACE)).not.toContain("--mobile-bottom-nav-offset");
+    expect(source).toContain("var(--mobile-bottom-nav-offset");
+    expect(source).toContain("md:bottom-0");
+    // The safe area is still cleared on top of the nav offset, not instead of it.
+    expect(source).toContain("var(--mobile-safe-area-bottom, 0px)");
   });
 
   it("keeps both branches inside the one send form", () => {
@@ -156,9 +160,22 @@ describe("WhatsApp reminders template", () => {
     // match the campaign" — cheap to catch here, expensive mid-run.
     const source = read(CAMPAIGNS);
 
-    expect(source).toContain("vpps_app_fee_due_hi");
-    expect(source).toContain("vpps_app_balance_en");
-    expect(source).toContain("vpps_app_prevyear_hi");
+    // Tokenised, never `toContain`: `vpps_app_fee_due_hi` is a PREFIX of
+    // `vpps_app_fee_due_hi_v2`, so a substring check keeps passing through a
+    // version bump and quietly stops guarding the slot counts — the one thing
+    // here that costs money.
+    const named = new Set(source.match(/vpps_app_[a-z0-9_]+/g) ?? []);
+    for (const name of [
+      "vpps_app_fee_due_hi_v2",
+      "vpps_app_balance_en_v2",
+      "vpps_app_prevyear_hi_v2",
+    ]) {
+      expect([...named]).toContain(name);
+    }
+    // And the superseded six are gone for good.
+    for (const stale of [...named]) {
+      expect(stale.endsWith("_v2")).toBe(true);
+    }
   });
 });
 

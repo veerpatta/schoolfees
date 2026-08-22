@@ -7,7 +7,7 @@ import {
   resumeReminderAction,
   setReminderCadenceAction,
   snoozeReminderAction,
-} from "@/app/protected/admin-tools/whatsapp-reminders/actions";
+} from "@/app/protected/reminders/actions";
 import { Button } from "@/ui/primitives/button";
 import { toast } from "@/ui/primitives/toast";
 import { cn } from "@/platform/utils";
