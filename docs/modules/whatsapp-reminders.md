@@ -154,8 +154,8 @@ to Meta.
 
 | Situation | Who it is about | Slots | Campaigns |
 |---|---|---|---|
-| `fee_due` | Nothing received (`total_paid <= 1100`) and every selected installment pending | 6 | `vpps_app_fee_due_hi` · `vpps_app_fee_due_en` |
-| `balance` | Part paid, still owing on installments 1–4 | 6 | `vpps_app_balance_hi` · `vpps_app_balance_en` |
+| `fee_due` | Nothing received (`total_paid <= 1100`) and **every** selected installment pending | 6 | `vpps_app_fee_due_hi` · `vpps_app_fee_due_en` |
+| `balance` | Part paid, still owing on **any** selected installment | 6 | `vpps_app_balance_hi` · `vpps_app_balance_en` |
 | `prevyear` | A carry-forward balance with something left on it | 5 | `vpps_app_prevyear_hi` · `vpps_app_prevyear_en` |
 
 **The two current-year notices are mutually exclusive by construction, not by a
@@ -166,6 +166,41 @@ or below it nothing real has been received. Measured live, the overlap is zero.
 owe this year. That is why the send log is keyed per campaign — under the old
 one-a-day index the current-year notice claimed the day and the previous-session
 notice could never reach them at all.
+
+### The eligibility filters are per notice
+
+Ticking, unticking, Select all, Clear, the per-family cadence and the snooze all
+work exactly as they did on the single template — they are notice-agnostic and
+always were. The **filters** are not: `SITUATION_FILTERS` in
+`domain/campaigns.ts` declares which ones each notice honours, and what they are
+called there.
+
+| Control | `fee_due` | `balance` | `prevyear` |
+|---|---|---|---|
+| Paid so far | "at most" — the threshold | "over" — the same threshold, other side | hidden |
+| Installments | "Installments pending" — **all** selected | "Still owing on" — **any** selected | hidden |
+| Minimum | "Due at least" | "Balance at least" | "Carry-forward at least" |
+| Class · Include RTE | yes | yes | yes |
+
+Two rules, both learned the hard way:
+
+- **A control a notice ignores is hidden, not disabled.** The installment
+  dropdown used to sit on all three while only `fee_due` honoured it. Measured
+  live: 87 of the 258 families on the balance list were fully paid up on
+  installments 1 and 2 and owed only 3 and 4 — ₹7,77,075 not due until October
+  and January. The office read "Installments pending: 1 and 2" and was chasing
+  money nobody owed yet. With the filter applied the list is 171.
+- **Hiding a control must never drop its value.** Each hidden one is replaced by
+  a hidden input carrying the same name, so an installment choice made on
+  `fee_due` survives a trip through `prevyear` and is still there coming back.
+
+`some` on `balance` and `every` on `fee_due` is deliberate: on `fee_due` nothing
+has been received, so "1 and 2" means both; on `balance` a family who cleared
+installment 1 and still owes 2 is exactly who the notice is for.
+
+The screen says the rule out loud under the filter grid — "Who is on this
+list: …" — because a list of exclusion counts only answers "why is this family
+missing" if you already know what the notice is looking for.
 
 ### Four things that are easy to break
 

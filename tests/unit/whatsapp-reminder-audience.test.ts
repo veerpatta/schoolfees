@@ -285,6 +285,64 @@ describe("reminder audience — which notice, which families", () => {
     expect((await load(both, { situation: "prevyear" })).candidates).toHaveLength(1);
   });
 
+  it("keeps the installment filter honest on the balance notice", async () => {
+    // Measured live: 87 of the 258 families on the balance notice were fully
+    // paid up on installments 1 and 2 and owed only 3 and 4 — money not due
+    // until October and January. The filter said "installments pending: 1 and 2"
+    // and did nothing, so the office was chasing families who owed nothing yet.
+    const owesOnTwo = student("owes-2", { total_paid: 9000, inst1_pending: 0, inst2_pending: 4000 });
+    const notDueYet = student("later", {
+      total_paid: 9000,
+      inst1_pending: 0,
+      inst2_pending: 0,
+      inst3_pending: 6000,
+      inst4_pending: 6000,
+    });
+    const tables = { financials: [owesOnTwo, notDueYet] };
+
+    const overdue = await load(tables, { situation: "balance", installments: [1, 2] });
+    expect(overdue.candidates.map((c) => c.studentId)).toEqual(["owes-2"]);
+
+    // Widen the filter and the second family comes back — the control works in
+    // both directions, it is not a hardcoded "1 and 2".
+    const everything = await load(tables, { situation: "balance", installments: [1, 2, 3] });
+    expect(everything.candidates.map((c) => c.studentId).sort()).toEqual(["later", "owes-2"]);
+
+    // The AMOUNT is still the whole balance. The filter chooses who to chase;
+    // the approved body says "Balance due", which means all of it.
+    expect(everything.candidates.find((c) => c.studentId === "later")!.dueAmount).toBe(12000);
+  });
+
+  it("asks for ANY selected installment on balance, and ALL of them on fee_due", async () => {
+    // Different questions, deliberately. On fee_due nothing has been received,
+    // so "installments 1 and 2 are pending" means both. On balance the family
+    // HAS paid something, and someone who cleared 1 but still owes 2 is exactly
+    // who the notice is for — `every` would drop them.
+    const clearedOne = student("half", { total_paid: 9000, inst1_pending: 0, inst2_pending: 4000 });
+    const paidNothingOnOne = student("none-1", { total_paid: 0, inst1_pending: 0, inst2_pending: 4000 });
+
+    const balance = await load({ financials: [clearedOne] }, { situation: "balance" });
+    expect(balance.candidates.map((c) => c.studentId)).toEqual(["half"]);
+
+    const feeDue = await load({ financials: [paidNothingOnOne] }, { situation: "fee_due" });
+    expect(feeDue.candidates).toHaveLength(0);
+  });
+
+  it("leaves the previous-session notice alone — installments are not its business", async () => {
+    // That balance is last year's. It has no installments, no due date and no
+    // late fee, so the control is hidden on screen and ignored here.
+    const tables = {
+      financials: [student("prev-only", { total_paid: 20000, inst1_pending: 0, inst2_pending: 0 })],
+      carryForward: [carried("prev-only", 8000)],
+    };
+
+    for (const installments of [[1, 2], [3], [1, 2, 3]]) {
+      const audience = await load(tables, { situation: "prevyear", installments });
+      expect(audience.candidates.map((c) => c.studentId)).toEqual(["prev-only"]);
+      expect(audience.candidates[0]!.dueAmount).toBe(8000);
+    }
+  });
+
   it("never lets last year's balance into a current-year figure", async () => {
     // The ₹20,000 trap: outstanding_amount folds the carry-forward in, so a
     // fee_due notice built from it would bill last year twice.

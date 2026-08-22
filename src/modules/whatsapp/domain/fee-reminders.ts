@@ -376,9 +376,24 @@ export async function loadReminderAudience(
     // `maxTotalPaid` (1100) is the academic fee, so at or below it nothing real
     // has been received. Measured live, the overlap between them is zero.
     const nothingReceived = totalPaid <= filters.maxTotalPaid;
+
+    // The installment filter asks a DIFFERENT question of each current-year
+    // notice, on purpose.
+    //
+    // On `fee_due` nothing has been received, so "installments 1 and 2 are
+    // pending" means both — `every`.
+    //
+    // On `balance` the family has paid something, and one who cleared
+    // installment 1 but still owes installment 2 is exactly who the notice is
+    // for, so `some`. It has to apply at all: it used to be ignored here, and
+    // 87 of the 258 families on the live balance list were fully paid up on
+    // installments 1 and 2, owing only 3 and 4 — ₹7,77,075 not due until
+    // October and January. The office was chasing money nobody owed yet.
+    //
+    // `prevyear` ignores it entirely. Last year's balance has no installments.
     const qualifies: Record<NoticeSituation, boolean> = {
       fee_due: nothingReceived && perInstallment.every((amount) => amount > 0),
-      balance: !nothingReceived && balanceDue > 0,
+      balance: !nothingReceived && balanceDue > 0 && perInstallment.some((amount) => amount > 0),
       prevyear: prevYearBalance > 0,
     };
 

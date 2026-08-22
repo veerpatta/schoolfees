@@ -28,6 +28,11 @@ import {
   NOTICE_SITUATIONS,
 } from "@/modules/whatsapp/domain/campaigns";
 import { NoticePicker } from "@/modules/whatsapp/ui/notice-picker";
+import {
+  SITUATION_FILTERS,
+  SITUATION_RULE,
+  type NoticeSituation,
+} from "@/modules/whatsapp/domain/campaigns";
 import type { ReminderAudience, ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
 
 type Props = {
@@ -39,8 +44,18 @@ type Props = {
 
 const IDLE_SEND: SendRemindersState = { status: "idle" };
 
+/**
+ * `installmentsClear` counts everyone the SELECTED notice is not about, so its
+ * wording has to follow the notice. On `prevyear` "nothing pending on those
+ * installments" would be flatly wrong — that notice never looks at them.
+ */
+const NOT_THIS_NOTICE: Record<NoticeSituation, string> = {
+  fee_due: "already paid something, or nothing pending on those installments",
+  balance: "nothing owing on those installments",
+  prevyear: "no balance carried forward from last session",
+};
+
 const SKIP_LABELS: Array<{ key: keyof ReminderAudience["skipped"]; label: string }> = [
-  { key: "installmentsClear", label: "nothing pending on those installments" },
   { key: "leftAndNeverPaid", label: "left and never paid" },
   { key: "noCallFlagged", label: "flagged no-call by the office" },
   { key: "rteStudent", label: "RTE students" },
@@ -54,12 +69,19 @@ const SKIP_LABELS: Array<{ key: keyof ReminderAudience["skipped"]; label: string
 
 /**
  * The filter controls, rendered once and mounted twice — collapsed behind a
- * disclosure on a phone, as the five-column desk grid above `md`.
+ * disclosure on a phone, as the desk grid above `md`.
  *
  * `idPrefix` is load-bearing, not decoration: both branches sit in the DOM at
  * every viewport, so without it every `<Label htmlFor>` on the page would point
  * at a duplicated id. The two copies live in two separate `<form>` elements, so
  * only the one actually submitted contributes to the query string.
+ *
+ * WHICH controls appear depends on the notice, from `SITUATION_FILTERS`. A
+ * control the notice ignores is hidden rather than disabled, and its value goes
+ * along as a hidden input — a filter the office set on one notice must survive a
+ * trip through a notice that had no use for it, and a dropdown that reads as
+ * applied while doing nothing is how 87 families got chased for installments
+ * that were not due yet.
  */
 function ReminderFilterFields({
   idPrefix,
@@ -70,21 +92,27 @@ function ReminderFilterFields({
   filters: ReminderFilters;
   classOptions: ReminderAudience["classOptions"];
 }) {
+  const applies = SITUATION_FILTERS[filters.situation];
+
   return (
     <>
-      <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}maxTotalPaid`}>Paid so far, at most</Label>
-        <Input
-          id={`${idPrefix}maxTotalPaid`}
-          name="maxTotalPaid"
-          type="number"
-          min={0}
-          defaultValue={filters.maxTotalPaid}
-        />
-      </div>
+      {applies.paidSoFar ? (
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}maxTotalPaid`}>{applies.paidSoFar}</Label>
+          <Input
+            id={`${idPrefix}maxTotalPaid`}
+            name="maxTotalPaid"
+            type="number"
+            min={0}
+            defaultValue={filters.maxTotalPaid}
+          />
+        </div>
+      ) : (
+        <input type="hidden" name="maxTotalPaid" value={filters.maxTotalPaid} />
+      )}
 
       <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}minDueAmount`}>Due at least</Label>
+        <Label htmlFor={`${idPrefix}minDueAmount`}>{applies.minDue}</Label>
         <Input
           id={`${idPrefix}minDueAmount`}
           name="minDueAmount"
@@ -94,20 +122,24 @@ function ReminderFilterFields({
         />
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}installments`}>Installments pending</Label>
-        <SelectNative
-          id={`${idPrefix}installments`}
-          name="installments"
-          defaultValue={filters.installments.join(",")}
-        >
-          <option value="1,2">1 and 2</option>
-          <option value="1">1 only</option>
-          <option value="2">2 only</option>
-          <option value="1,2,3">1, 2 and 3</option>
-          <option value="3">3 only</option>
-        </SelectNative>
-      </div>
+      {applies.installments ? (
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}installments`}>{applies.installments}</Label>
+          <SelectNative
+            id={`${idPrefix}installments`}
+            name="installments"
+            defaultValue={filters.installments.join(",")}
+          >
+            <option value="1,2">1 and 2</option>
+            <option value="1">1 only</option>
+            <option value="2">2 only</option>
+            <option value="1,2,3">1, 2 and 3</option>
+            <option value="3">3 only</option>
+          </SelectNative>
+        </div>
+      ) : (
+        <input type="hidden" name="installments" value={filters.installments.join(",")} />
+      )}
 
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}classId`}>Class</Label>
@@ -226,10 +258,18 @@ export function RemindersWorkspace({
     prevYearBalance: candidate.prevYearBalance,
   });
 
-  const filterSummary = `${situationLabel} · Inst ${filters.installments.join(" & ")} · ${
+  // The chip on the phone disclosure summarises what is applied. It must not
+  // claim an installment filter on `prevyear`, which ignores one.
+  const filterSummary = [
+    situationLabel,
+    SITUATION_FILTERS[filters.situation].installments
+      ? `Inst ${filters.installments.join(" & ")}`
+      : null,
     audience.classOptions.find((option) => option.classId === filters.classId)?.label ??
-    "All classes"
-  }`;
+      "All classes",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="flex flex-col gap-6">
@@ -274,16 +314,33 @@ export function RemindersWorkspace({
 
       <form
         method="get"
-        className="hidden gap-4 rounded-lg border border-border bg-surface-2 p-4 md:grid md:grid-cols-5"
+        // Auto-fit rather than a fixed five: `prevyear` hides two of the
+        // controls, and a fixed count would leave holes in the row.
+        className="hidden flex-wrap items-end gap-4 rounded-lg border border-border bg-surface-2 p-4 md:flex [&>div]:min-w-[9rem] [&>div]:max-w-[15rem] [&>div]:flex-1"
       >
         <ReminderFilterFields idPrefix="" filters={filters} classOptions={audience.classOptions} />
       </form>
 
       {/* --------------------------------------------------------------- who is out */}
-      <p className="text-sm text-muted-foreground max-md:order-5">
+      {/* The rule first, then the count. "Why is this family not here" is the
+          question the office actually asks, and a list of exclusion counts
+          answers it only if you already know what the notice is looking for. */}
+      <p className="-mt-3 text-sm text-muted-foreground max-md:order-5 max-md:-mt-1">
+        <strong className="font-semibold text-foreground">Who is on this list:</strong>{" "}
+        {SITUATION_RULE[filters.situation]}
+      </p>
+
+      <p className="-mt-3 text-sm text-muted-foreground max-md:order-5">
         Excluded by these filters:{" "}
-        {SKIP_LABELS.filter((entry) => audience.skipped[entry.key] > 0)
-          .map((entry) => `${audience.skipped[entry.key]} ${entry.label}`)
+        {[
+          { count: audience.skipped.installmentsClear, label: NOT_THIS_NOTICE[filters.situation] },
+          ...SKIP_LABELS.map((entry) => ({
+            count: audience.skipped[entry.key],
+            label: entry.label,
+          })),
+        ]
+          .filter((entry) => entry.count > 0)
+          .map((entry) => `${entry.count} ${entry.label}`)
           .join(" · ") || "nobody"}
         .
       </p>

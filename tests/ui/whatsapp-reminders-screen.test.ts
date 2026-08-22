@@ -87,6 +87,38 @@ describe("WhatsApp reminders on a phone", () => {
     expect(source.match(/<ReminderFilterFields/g) ?? []).toHaveLength(2);
   });
 
+  it("hides a filter the notice ignores, but never drops its value", () => {
+    // A control that does nothing reads as applied — that is how 87 families
+    // ended up chased for installments that were not due. So a notice that
+    // ignores a filter hides the control. Hiding it must not DELETE it, though:
+    // the office's installment choice has to survive a trip through the
+    // previous-session notice and still be there on the way back.
+    const source = read(WORKSPACE);
+
+    const fields = source.slice(
+      source.indexOf("function ReminderFilterFields"),
+      source.indexOf("export function RemindersWorkspace"),
+    );
+
+    // Every optional control is a ternary whose else-branch is a hidden input
+    // carrying the same name.
+    for (const name of ["maxTotalPaid", "installments"]) {
+      expect(fields).toContain(`<input type="hidden" name="${name}"`);
+      expect(fields).toContain(`applies.${name === "maxTotalPaid" ? "paidSoFar" : name} ?`);
+    }
+  });
+
+  it("keeps the situation table covering every notice", () => {
+    // `SITUATION_FILTERS` and `SITUATION_RULE` are keyed by NoticeSituation, so
+    // a seventh campaign cannot be added without deciding what its filters mean.
+    const source = read(CAMPAIGNS);
+
+    for (const situation of ["fee_due", "balance", "prevyear"]) {
+      expect(source.slice(source.indexOf("SITUATION_FILTERS"))).toContain(`${situation}:`);
+      expect(source.slice(source.indexOf("SITUATION_RULE"))).toContain(`${situation}:`);
+    }
+  });
+
   it("renders the desk table only above md", () => {
     expect(read(WORKSPACE)).toContain('<div className="hidden overflow-x-auto rounded-lg border border-border md:block">');
   });

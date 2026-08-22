@@ -64,6 +64,57 @@ export const TEMPLATE_INSTALLMENTS = [1, 2] as const;
 export const DEFAULT_SITUATION: NoticeSituation = "fee_due";
 export const DEFAULT_LANGUAGE: NoticeLanguage = "hi";
 
+/**
+ * Which eligibility filters actually change each notice's list, and what they
+ * are called there.
+ *
+ * A control that does nothing is worse than no control: it reads as applied.
+ * The installment dropdown sat on all three notices while only `fee_due`
+ * honoured it, and 87 of the 258 families on the live balance list were fully
+ * paid up on installments 1 and 2 — chased for installments 3 and 4, which were
+ * not due for another two months.
+ *
+ * `null` means the notice ignores that filter, so the screen hides the control
+ * and carries the value forward as a hidden input instead of dropping it — the
+ * office's setting must survive a round trip through a notice that had no use
+ * for it.
+ */
+export const SITUATION_FILTERS = {
+  fee_due: {
+    // The threshold splits the two current-year notices; below it, only the
+    // academic fee has landed and nothing real has been received.
+    paidSoFar: "Paid so far, at most",
+    // Every selected installment must be pending — nothing has been received,
+    // so "1 and 2" means both.
+    installments: "Installments pending",
+    minDue: "Due at least",
+  },
+  balance: {
+    paidSoFar: "Paid so far, over",
+    // ANY of the selected — a family who cleared 1 and still owes 2 is exactly
+    // who this notice is for.
+    installments: "Still owing on",
+    minDue: "Balance at least",
+  },
+  prevyear: {
+    // Neither applies: this balance is last session's and has no installments,
+    // and what was paid THIS year says nothing about it.
+    paidSoFar: null,
+    installments: null,
+    minDue: "Carry-forward at least",
+  },
+} as const satisfies Record<
+  NoticeSituation,
+  { paidSoFar: string | null; installments: string | null; minDue: string }
+>;
+
+/** One line saying who this notice is about, shown under the filter grid. */
+export const SITUATION_RULE: Record<NoticeSituation, string> = {
+  fee_due: "Nothing received beyond the academic fee, and every selected installment still pending.",
+  balance: "Something received, and still owing on at least one of the selected installments. The message quotes the whole balance.",
+  prevyear: "A balance carried forward from last session with something left on it. No installments, no due date, no late fee.",
+};
+
 export const SITUATION_VALUES: readonly string[] = NOTICE_SITUATIONS.map((s) => s.value);
 export const LANGUAGE_VALUES: readonly string[] = NOTICE_LANGUAGES.map((l) => l.value);
 
