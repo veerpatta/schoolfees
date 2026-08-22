@@ -58,8 +58,9 @@
       "route": "/protected/reminders",
       "chunks": 18,
       "rawBytes": 398092,
-      "gzipBytes": 132826,
-      "currentGzipBytes": 132826
+      "gzipBytes": 133300,
+      "currentGzipBytes": 132842,
+      "note": "Ceiling is a round number ~450 bytes above the measurement, matching every other route here. The first attempt set it to the exact local figure and CI failed by 16 bytes: the same commit gzips slightly differently on the runner, so a zero-headroom ceiling is a coin flip. 132842 is CI's number, not this machine's."
     },
     {
       "route": "/protected/exports",
