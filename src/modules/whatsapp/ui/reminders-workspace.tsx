@@ -21,6 +21,7 @@ import { Notice } from "@/ui/primitives/notice";
 import { SelectNative } from "@/ui/primitives/select-native";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 import { formatInr } from "@/platform/helpers/currency";
+import { cn } from "@/platform/utils";
 import { cadenceLabel } from "@/modules/whatsapp/domain/reminder-cadence";
 import {
   campaignFor,
@@ -282,6 +283,24 @@ export function RemindersWorkspace({
       {/* Above the filters on purpose: which notice is going out decides the whole
           list, and the filters only trim it. On a phone this is the first thing
           under the header. */}
+      {audience.candidates.length > 0 && selectable.length === 0 ? (
+        // First thing on the screen, not buried under the filters: it explains
+        // why every row below is greyed and why "Select all" reads 0.
+        <div className="max-md:order-0">
+          <Notice tone="success" title="Everyone on this list has been messaged today">
+            <p>
+              All {audience.candidates.length} of them, through{" "}
+              <span className="font-mono">{campaignName}</span>. The same notice cannot go to a
+              family twice in one day, which is why nothing below can be ticked.
+            </p>
+            <p className="mt-1.5">
+              A <strong>different</strong> notice still can — the chips below show how many each
+              would reach — and the list rebuilds tomorrow without whoever pays tonight.
+            </p>
+          </Notice>
+        </div>
+      ) : null}
+
       <form
         method="get"
         className="rounded-xl border border-border bg-card p-3.5 shadow-sm max-md:order-1 md:rounded-lg md:p-4"
@@ -675,7 +694,23 @@ export function RemindersWorkspace({
         </div>
 
         {/* ------------------------------------------------------------- send (desk) */}
-        <div className="mt-4 hidden flex-wrap items-center gap-3 md:flex">
+        {/* Sticky, not in flow. On a 135-family list the button sat 8,210px down:
+            you tick at the top and then scroll seven screens to reach it. It
+            appears only once something is selected, so an empty list is not
+            covered by a bar that can do nothing. */}
+        <div
+          className={cn(
+            "mt-4 hidden flex-wrap items-center gap-3 md:flex",
+            selected.size > 0 &&
+              "sticky bottom-4 z-30 rounded-xl border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur print:static print:border-0 print:bg-transparent print:shadow-none",
+          )}
+        >
+          {selected.size > 0 && !confirming ? (
+            <span className="text-sm text-muted-foreground">
+              <strong className="font-semibold text-foreground">{selected.size} selected</strong> ·{" "}
+              {formatInr(selectedTotal)} of dues behind them
+            </span>
+          ) : null}
           {!confirming ? (
             <Button
               type="button"

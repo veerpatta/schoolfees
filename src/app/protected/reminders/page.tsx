@@ -1,5 +1,3 @@
-import { getTranslations } from "next-intl/server";
-
 import Link from "next/link";
 
 import { PageHeader } from "@/ui/shell/page-header";
@@ -54,7 +52,6 @@ function reader(params: Record<string, string | string[] | undefined>) {
 }
 
 export default async function WhatsappRemindersPage({ searchParams }: PageProps) {
-  const t = await getTranslations("AdminTools");
   const staff = await requireAnyStaffPermission(["settings:view", "settings:write"], {
     onDenied: "redirect",
   });
@@ -102,7 +99,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow={t("eyebrow")}
+          eyebrow="Reminders"
           title="WhatsApp fee reminders"
           description="Pick families off the live dues list and send them the approved reminder."
         />
@@ -156,7 +153,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     // desktop-only notice used to be.
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow={t("eyebrow")}
+        eyebrow="Reminders"
         title="WhatsApp fee reminders"
         description="Pick families off the live dues list and send them the approved reminder. Nothing sends on its own."
         // The section description below is `hidden md:block`, so without this the

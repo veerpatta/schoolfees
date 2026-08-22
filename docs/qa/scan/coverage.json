@@ -75,9 +75,9 @@
       "skipped": [],
       "check": "i18n",
       "dimension": "locale catalogue keys (union x locale) and t() call sites in product source",
-      "domainSize": 7708,
-      "examined": 7708,
-      "note": "Locales come from supportedLocales in src/platform/i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2077 keys in all 3 catalogues. The reference half is not: it read 694 product .ts/.tsx files, resolved a namespace in 92 of them, and inspected 1477 calls on those translators — of which 64 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 7 file(s) call t(\"…\") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.",
+      "domainSize": 7706,
+      "examined": 7706,
+      "note": "Locales come from supportedLocales in src/platform/i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2077 keys in all 3 catalogues. The reference half is not: it read 694 product .ts/.tsx files, resolved a namespace in 91 of them, and inspected 1475 calls on those translators — of which 64 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 7 file(s) call t(\"…\") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.",
       "gap": 0
     },
     {
@@ -101,5 +101,5 @@
       "gap": 0
     }
   ],
-  "statement": "10 check(s) swept 14504 of 14504 enumerated members."
+  "statement": "10 check(s) swept 14502 of 14502 enumerated members."
 }
