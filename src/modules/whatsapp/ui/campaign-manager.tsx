@@ -190,25 +190,32 @@ export function CampaignManager({
                 </div>
 
                 {/* What it has actually collected, not what it was set up to ask for. */}
-                <div className="mt-3 border-t border-border pt-2.5 text-xs text-muted-foreground">
+                {/* The sentence and the action are separate rows, not one
+                    paragraph with a link in the middle: inline links render
+                    ~15px tall, which is under any thumb. */}
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-border pt-2.5 text-xs text-muted-foreground">
                   {last ? (
                     <>
-                      Last run {formatDdMmYyyy(last.startedAt.slice(0, 10))} ·{" "}
-                      <strong className="font-semibold text-foreground">{last.messaged}</strong>{" "}
-                      messaged ·{" "}
-                      <strong className="font-semibold text-foreground">{last.familiesPaid}</strong>{" "}
-                      paid after it ({formatInr(last.moneyCollected)} of{" "}
-                      {formatInr(last.moneyQuoted)} asked) ·{" "}
+                      <span>
+                        Last run {formatDdMmYyyy(last.startedAt.slice(0, 10))} ·{" "}
+                        <strong className="font-semibold text-foreground">{last.messaged}</strong>{" "}
+                        messaged ·{" "}
+                        <strong className="font-semibold text-foreground">
+                          {last.familiesPaid}
+                        </strong>{" "}
+                        paid after it ({formatInr(last.moneyCollected)} of{" "}
+                        {formatInr(last.moneyQuoted)} asked)
+                        {runs.length > 1 ? ` · ${runs.length} runs in all` : null}
+                      </span>
                       <Link
                         href={`/protected/reminders/runs/${last.runId}`}
-                        className="focus-ring font-semibold text-accent underline underline-offset-2"
+                        className="focus-ring inline-flex min-h-11 items-center font-semibold text-accent underline underline-offset-2 md:min-h-0"
                       >
-                        see the run
+                        See the run
                       </Link>
-                      {runs.length > 1 ? ` · ${runs.length} runs in all` : null}
                     </>
                   ) : (
-                    "Never run."
+                    <span>Never run.</span>
                   )}
                 </div>
               </li>

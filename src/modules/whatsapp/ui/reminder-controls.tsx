@@ -70,7 +70,7 @@ export function ReminderCadenceControl({ studentId, cadence, disabled, className
         onChange={(event) =>
           run(setReminderCadenceAction, { studentId, cadence: event.target.value })
         }
-        className="h-8 rounded-md border border-border bg-card px-2 text-xs font-medium text-foreground disabled:opacity-50"
+        className="h-11 rounded-md border border-border bg-card px-2 text-xs font-medium text-foreground disabled:opacity-50 md:h-8"
       >
         {REMINDER_CADENCES.map((option) => (
           <option key={option.value} value={option.value}>
@@ -82,7 +82,7 @@ export function ReminderCadenceControl({ studentId, cadence, disabled, className
         type="button"
         disabled={disabled || pending}
         onClick={() => run(snoozeReminderAction, { studentId, days: "7" })}
-        className="focus-ring shrink-0 rounded-md border border-border px-2 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-surface-2 disabled:opacity-50"
+        className="focus-ring h-11 shrink-0 rounded-md border border-border px-2.5 text-xs font-semibold text-muted-foreground hover:bg-surface-2 disabled:opacity-50 md:h-auto md:py-1.5"
         title="Hold this family back for a week"
       >
         Skip 7d

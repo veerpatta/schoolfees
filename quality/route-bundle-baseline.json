@@ -57,9 +57,9 @@
     {
       "route": "/protected/reminders",
       "chunks": 18,
-      "rawBytes": 396976,
-      "gzipBytes": 132523,
-      "currentGzipBytes": 132523
+      "rawBytes": 397004,
+      "gzipBytes": 132542,
+      "currentGzipBytes": 132542
     },
     {
       "route": "/protected/exports",

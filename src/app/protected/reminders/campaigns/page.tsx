@@ -85,7 +85,9 @@ export default async function ReminderCampaignsPage() {
         title="Campaigns"
         description="Named settings you can apply again. Saving one sends nothing."
         actions={
-          <Button asChild variant="outline" size="sm">
+          // Desk only: this route is a mobile takeover, so MobileTakeoverBar
+          // already puts a Back arrow at the top of the phone screen.
+          <Button asChild variant="outline" size="sm" className="max-md:hidden">
             <Link href="/protected/reminders">Back to sending</Link>
           </Button>
         }
