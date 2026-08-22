@@ -451,6 +451,21 @@ express the school's rule and never fired once:
   refused, which is what `sendOne`'s `23505` branch reads to settle a race
   between two staff working the same list.
 
+- `20260822090000_whatsapp_campaigns_and_runs` — saved reminder campaigns, the
+  runs they produce, and `v_whatsapp_run_outcomes`. The send log was already the
+  cohort record, so this adds only a grouping key: a **nullable** `run_id` on
+  `whatsapp_reminder_sends`, deliberately NOT part of the unique index —
+  `(student_id, session_label, sent_on, campaign_name)` is what stops a family
+  being sent the same notice twice in one day, and including `run_id` would let
+  a second run that day repeat all of them. The 142 rows that predate runs keep
+  `run_id = null` rather than being backfilled into a run nobody pressed.
+  `campaign_id` is `on delete set null`: a run is evidence parents were
+  messaged, and deleting the campaign must not erase it.
+
+- `20260822093000_run_outcomes_security_invoker` — adds `security_invoker` to
+  `v_whatsapp_run_outcomes`, which 20260822090000 should have had. Without it the
+  view reads `receipts` as its owner and RLS is never consulted.
+
 ## When you add a new migration
 
 1. Create the file via `supabase migration new <name>` so the timestamp is

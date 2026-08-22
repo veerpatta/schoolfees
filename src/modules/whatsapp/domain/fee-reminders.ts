@@ -10,12 +10,10 @@ import {
 import {
   DEFAULT_LATE_FEE_BASIS,
   isLateFeeBasis,
-  lateFeePhrase,
   type LateFeeBasis,
 } from "@/modules/whatsapp/domain/late-fee";
 import {
   campaignFor,
-  installmentPhrase,
   noticeValuesFrom,
   DEFAULT_LANGUAGE,
   DEFAULT_SITUATION,

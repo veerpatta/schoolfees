@@ -1,6 +1,9 @@
 import { getTranslations } from "next-intl/server";
 
+import Link from "next/link";
+
 import { PageHeader } from "@/ui/shell/page-header";
+import { Button } from "@/ui/primitives/button";
 import { SectionCard } from "@/ui/shell/section-card";
 import { CollapsibleSection } from "@/ui/primitives/collapsible-section";
 import { OfficeNotice } from "@/ui/office/office-ui";
@@ -24,6 +27,7 @@ import {
   TEMPLATE_INSTALLMENTS,
 } from "@/modules/whatsapp/domain/campaigns";
 import { getFeePolicySummary } from "@/modules/fees/data/policy";
+import { listCampaigns, type SavedCampaign } from "@/modules/whatsapp/data/campaign-store";
 import { describeLateFeeDrift, lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
 import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
 
@@ -61,6 +65,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
 
   let sessionLabel: string;
   let ledgerLateFee = 0;
+  let savedCampaigns: SavedCampaign[] = [];
   let audience: Awaited<ReturnType<typeof loadReminderAudience>>;
   let filters: ReminderFilters;
   let loadError: string | null = null;
@@ -90,6 +95,8 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       ledgerLateFee,
     );
     audience = await loadReminderAudience(supabase, filters);
+    // Cheap, and it lets the header say how many are saved without a second page.
+    savedCampaigns = await listCampaigns(supabase, sessionLabel).catch(() => []);
   } catch (caught) {
     loadError = caught instanceof Error ? caught.message : "Could not build the recipient list.";
     return (
@@ -107,6 +114,13 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   }
 
   const today = istToday();
+  // Not a filter — it changes nobody's eligibility — so it rides alongside
+  // rather than going through parseReminderFilters. It exists only so the run
+  // record can say which saved campaign produced it.
+  const campaignId = reader(params)("campaignId");
+  const activeCampaign = campaignId
+    ? savedCampaigns.find((entry) => entry.id === campaignId) ?? null
+    : null;
   const campaign = campaignFor(filters.situation, filters.language);
   const campaignName = campaign.campaignName;
   const providerReady = isAisensyConfigured();
@@ -132,6 +146,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   const situationLabel =
     NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
 
+  const savedCampaignCount = savedCampaigns.length;
   const familyCount = audience.candidates.length;
   const familyLabel = `${familyCount} famil${familyCount === 1 ? "y" : "ies"}`;
 
@@ -147,6 +162,13 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
         // The section description below is `hidden md:block`, so without this the
         // phone never learns which session or how many families it is looking at.
         mobileEyebrow={`Session ${sessionLabel} · ${familyLabel}`}
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/protected/reminders/campaigns">
+              Campaigns{savedCampaignCount > 0 ? ` (${savedCampaignCount})` : ""}
+            </Link>
+          </Button>
+        }
       />
 
       {/* Phone order: the two blocking warnings, then the list, then the test
@@ -177,6 +199,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           canSend={canSend && providerReady && !dateHasPassed}
           campaignName={campaignName}
           lateFeeWarning={lateFeeWarning}
+          savedCampaign={activeCampaign ? { id: activeCampaign.id, name: activeCampaign.name } : null}
         />
       </SectionCard>
 

@@ -13,17 +13,6 @@ function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-/**
- * Comments here necessarily NAME the thing being banned — the takeover-route
- * comment has to say `--mobile-bottom-nav-offset` to explain why it is wrong.
- * Strip them before asserting absence.
- */
-function readCode(path: string) {
-  return read(path)
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/.*$/gm, "");
-}
-
 const WORKSPACE = "src/modules/whatsapp/ui/reminders-workspace.tsx";
 const PANEL = "src/modules/whatsapp/ui/test-send-panel.tsx";
 const PAGE = "src/app/protected/reminders/page.tsx";

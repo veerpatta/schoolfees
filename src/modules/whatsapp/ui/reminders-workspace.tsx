@@ -43,6 +43,8 @@ type Props = {
   campaignName: string | null;
   /** Composed server-side against the live fee policy. Null when they agree. */
   lateFeeWarning: string | null;
+  /** Set when the office arrived via a saved campaign's Load button. */
+  savedCampaign: { id: string; name: string } | null;
 };
 
 const IDLE_SEND: SendRemindersState = { status: "idle" };
@@ -191,6 +193,7 @@ export function RemindersWorkspace({
   canSend,
   campaignName,
   lateFeeWarning,
+  savedCampaign,
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
@@ -283,6 +286,14 @@ export function RemindersWorkspace({
         method="get"
         className="rounded-xl border border-border bg-card p-3.5 shadow-sm max-md:order-1 md:rounded-lg md:p-4"
       >
+        {savedCampaign ? (
+          <p className="-mt-0.5 mb-2.5 text-xs text-muted-foreground">
+            Running the saved campaign{" "}
+            <strong className="font-semibold text-foreground">{savedCampaign.name}</strong>. The
+            list below is rebuilt from today&rsquo;s ledger, so anyone who has paid since the last run is
+            already gone from it.
+          </p>
+        ) : null}
         <NoticePicker
           filters={filters}
           counts={audience.counts}
@@ -451,6 +462,11 @@ export function RemindersWorkspace({
         <input type="hidden" name="lastDate" value={filters.lastDate} />
         <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
         <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
+        {/* Ties the run to the saved campaign it came from. Absent for an ad-hoc
+            send, which is still a run — just an unnamed one. */}
+        {savedCampaign ? (
+          <input type="hidden" name="campaignId" value={savedCampaign.id} />
+        ) : null}
         {[...selected].map((studentId) => (
           <input key={studentId} type="hidden" name="studentId" value={studentId} />
         ))}

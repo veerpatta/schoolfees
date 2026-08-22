@@ -1,15 +1,26 @@
 # WhatsApp fee reminders
 
-`/protected/admin-tools/whatsapp-reminders` — an Admin Tools screen that lists
-families with pending fees, lets an admin tick the ones they mean, and sends them
-a Meta-approved WhatsApp template through AiSensy's Campaign API. Live in
-production since 20 Aug 2026.
+`/protected/reminders` — a top-level section that lists families with pending
+fees, lets an admin tick the ones they mean, and sends them a Meta-approved
+WhatsApp template through AiSensy's Campaign API. Live since 20 Aug 2026; moved
+out of Admin Tools on 22 Aug, where the old path still redirects.
+
+Three screens:
+
+| Route | What it is |
+|---|---|
+| `/protected/reminders` | Send. The audience, the notice, the late fee, the list. |
+| `/protected/reminders/campaigns` | Saved settings you can apply again, and what each has collected. |
+| `/protected/reminders/runs/[runId]` | One press of Send: who it reached, and what came in after. |
 
 There are **three notices in two languages** — six approved templates, six Live
-campaigns. Which one goes out is picked on screen, and it changes who is on the
-list: fee due (nothing received), balance (part paid, still owing) and previous
-session (a carry-forward balance). Measured on the live session, those reach 146,
-258 and 51 families respectively.
+campaigns, all `_v2`. Which one goes out is picked on screen, and it changes who
+is on the list: fee due (nothing received), balance (part paid, still owing) and
+previous session (a carry-forward balance). Measured live on 22 Aug: 146, 171
+and 51 families.
+
+**Every send is a press.** There is no cron, no scheduler and no auto-send, and
+that is a decision rather than an omission.
 
 Nothing on this screen sends on its own. Every send is a press, and every press
 costs money and reaches a real parent with a child's name and fee balance on it.
@@ -18,9 +29,14 @@ costs money and reaches a real parent with a child's name and fee balance on it.
 
 | Path | What it is |
 |---|---|
-| `src/app/protected/admin-tools/whatsapp-reminders/page.tsx` | Server page: resolves the session, builds the audience, renders warnings |
-| `src/app/protected/admin-tools/whatsapp-reminders/actions.ts` | `sendRemindersAction`, `sendTestReminderAction` |
-| `src/app/protected/admin-tools/whatsapp-reminders/loading.tsx` | Route skeleton |
+| `src/app/protected/reminders/page.tsx` | Server page: resolves the session, builds the audience, renders warnings |
+| `src/app/protected/reminders/actions.ts` | `sendRemindersAction`, `sendTestReminderAction` |
+| `src/app/protected/reminders/campaigns/{page,actions}.tsx` | Saved campaigns: list, save, archive |
+| `src/app/protected/reminders/runs/[runId]/page.tsx` | One run and its outcome |
+| `src/app/protected/admin-tools/whatsapp-reminders/page.tsx` | Query-preserving redirect to the new path |
+| `src/modules/whatsapp/domain/late-fee.ts` | The slot-7 phrase composer and the ledger-drift warning. **No `server-only`** |
+| `src/modules/whatsapp/data/campaign-store.ts` | Campaign + run reads and writes. `server-only` |
+| `src/modules/whatsapp/ui/campaign-manager.tsx` | The campaigns list and its form |
 | `src/modules/whatsapp/ui/reminders-workspace.tsx` | Filters, list (cards + table), selection, send |
 | `src/modules/whatsapp/ui/test-send-panel.tsx` | The test panel: editable slots, live preview, raw provider result |
 | `src/modules/whatsapp/ui/notice-picker.tsx` | The notice chips, the language toggle and the date field |
@@ -263,12 +279,57 @@ number without opening the AiSensy dashboard:
 The panel is **not** gated on the date guard, deliberately: testing a template
 whose date has slipped, on a staff phone, is exactly when you need to.
 
+## Campaigns and runs
+
+**A campaign saves the RULE, never the audience.** It is a name plus a settings
+set — notice, language, filters, date, late fee. Loading one hands you the send
+screen with those applied; the families are worked out from the ledger at that
+moment. That is why "automatically drop the ones who have paid" needed nothing
+built: they are simply not in the next run.
+
+Every press of Send opens a row in `whatsapp_campaign_runs` and stamps `run_id`
+on each send as it is claimed — before the provider call, so a crash halfway
+still leaves a record of what was attempted. An ad-hoc send is a run too; it just
+has no campaign attached.
+
+`v_whatsapp_run_outcomes` then answers "did it work": messaged, asked for, and
+how many of those families paid between the send and the date the message named.
+It applies the same two exclusions the dashboard does — `payment_mode <> 'discount'`
+and no fully reversed receipts.
+
+**It says "paid after this reminder", never "because of it", and the screen says
+so too.** Payments here are spiky: 17 August posted 107 families in one day
+against 2-9 on a normal day, which is counter cash entered in a batch. No join
+can tell that apart from a response. A real causal answer needs a random
+holdout, which means deliberately not chasing some families for money — worth
+offering one day, not worth pretending to have now.
+
+Three things in the schema that are load-bearing:
+
+- **`run_id` is not in the unique index.**
+  `(student_id, session_label, sent_on, campaign_name)` is what stops a family
+  being sent the same notice twice in one day. Adding `run_id` would let a second
+  run that same day message every one of them again.
+- **`campaign_id` is `on delete set null`.** A run is evidence that parents were
+  messaged; deleting the campaign must not erase it. The UI archives rather than
+  deletes for the same reason.
+- **The 142 sends that predate runs keep `run_id = null`** and show as such,
+  rather than being backfilled into a run nobody pressed.
+
 ## Mobile
 
 The screen has a real phone layout; there is no `MobileDesktopOnlyNotice`.
 
-`/protected/admin-tools` is in `mobileTakeoverRoutes`, so `MobileBottomNav` renders
-**nothing** here. The sticky send bar therefore clears **only the safe area**:
+**This changed on 22 Aug 2026.** While the screen lived under
+`/protected/admin-tools` it was a takeover: `MobileBottomNav` rendered nothing, so
+the sticky send bar cleared only the safe area. As a top-level tab the bar is
+really there, so the send bar clears it —
+`bottom-[var(--mobile-bottom-nav-offset,0px)] md:bottom-0` — and the card list
+clears both. `/protected/reminders/` (with the trailing slash) IS in
+`mobileTakeoverRoutes`, which makes the sub-pages takeovers while the index stays
+a tab screen, exactly as `/protected/students/` does.
+
+The old rule, kept because it explains the shape of the tests:
 
 ```tsx
 style={{ paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)" }}

@@ -283,15 +283,26 @@ amount or "not applicable".
 - **Changing the category resets the language and name fields** in the AiSensy
   form. Pick category first.
 
-## What the merge still needs
+## What shipped, 22 Aug 2026
 
-- A registry in `src/modules/whatsapp/domain/` mapping situation × language to
-  campaign name and slot builder — replacing `configuredCampaignName()` and the
-  single `AISENSY_CAMPAIGN` env var, which can then become the fallback rather
-  than the only option.
-- A notice picker, a language picker, and a **late-fee control** (amount +
-  flat / per day / per installment) on the reminders screen, defaulting to the
-  real policy and shown in the live preview before anything is sent.
-- Audience rules per situation. Sized against live data on 20 Aug: due ≈150
-  families, balance and prev-year both smaller. Two planned templates were cut
-  for having no audience at all (EMI: 0 students; left-owing: 2 families).
+- `src/modules/whatsapp/domain/campaigns.ts` maps situation x language onto
+  campaign name, one 7-slot skeleton, param builder and preview body.
+  `configuredCampaignName()` and `AISENSY_CAMPAIGN` are **gone**, not demoted to
+  a fallback: one env var cannot name six campaigns, and a fallback would turn a
+  registry miss into a silently wrong template arriving at a parent.
+- A notice picker, a language picker and a **late-fee control** (amount + flat /
+  per day / per installment), defaulting to the live fee policy and rendered
+  into the preview before anything is sent. It WARNS when the phrase contradicts
+  what the ledger will charge and sends anyway — the message's late fee is a
+  lever for timely payment, not a claim about the ledger, and whether to use it
+  is the owner's call.
+- Audience rules per situation, sized live on 22 Aug: fee due 146 families,
+  balance 171, previous session 51. Two planned templates were cut for having no
+  audience at all (EMI: 0 students; left-owing: 2 families).
+- The screen moved out of Admin Tools to a top-level **Reminders** section, with
+  saved campaigns and per-run outcomes.
+
+All six were confirmed against the live campaigns by posting one param short to
+each and reading back `400 Template params does not match the campaign` — which
+sends nothing and bills nothing — then one real message per notice to the office
+handset.

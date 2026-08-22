@@ -27,6 +27,8 @@ import {
   type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
 import { isoFromDdMmYyyy } from "@/platform/helpers/date";
+import { closeRun, openRun } from "@/modules/whatsapp/data/campaign-store";
+import { lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
 
 export type SendRemindersState = {
   status: "idle" | "success" | "partial" | "error";
@@ -127,9 +129,39 @@ export async function sendRemindersAction(
     };
   }
 
+  // Opened BEFORE the first message. A crash halfway through then leaves a run
+  // that says what was attempted, rather than no record at all — and `run_id` is
+  // stamped on each send as it is claimed, so the rows are grouped even if this
+  // action never reaches its own end.
+  //
+  // `campaignId` is whichever saved campaign the office loaded, or null for an
+  // ad-hoc send. Both are real runs; only one has a name attached.
+  const campaignId = (formData.get("campaignId") as string | null)?.trim() || null;
+  const runId = await openRun(supabase, {
+    campaignId,
+    sessionLabel,
+    campaignName,
+    situation: filters.situation,
+    language: filters.language,
+    filters: {
+      maxTotalPaid: filters.maxTotalPaid,
+      minDueAmount: filters.minDueAmount,
+      installments: filters.installments,
+      classId: filters.classId,
+      includeRte: filters.includeRte,
+    },
+    lastDate: lastDateIso,
+    // The phrase as it went out, not the amount and basis it came from: the
+    // campaign is editable and what a parent read is not.
+    lateFeePhrase: lateFeePhrase(filters.lateFeeAmount, filters.lateFeeBasis, filters.language),
+    selectedCount: candidates.length,
+    startedBy: staffId,
+  });
+
   let sent = 0;
   let failed = 0;
   let alreadySentToday = 0;
+  let moneyQuoted = 0;
   const failures: NonNullable<SendRemindersState["failures"]> = [];
   const sentStudentIds: string[] = [];
 
@@ -137,13 +169,14 @@ export async function sendRemindersAction(
     const batch = candidates.slice(index, index + SEND_CONCURRENCY);
     const outcomes = await Promise.all(
       batch.map((candidate) =>
-        sendOne({ supabase, candidate, campaign, filters, sessionLabel, today, staffId }),
+        sendOne({ supabase, candidate, campaign, filters, sessionLabel, today, staffId, runId }),
       ),
     );
     for (let position = 0; position < outcomes.length; position += 1) {
       const outcome = outcomes[position];
       if (outcome.kind === "sent") {
         sent += 1;
+        moneyQuoted += batch[position].dueAmount;
         sentStudentIds.push(batch[position].studentId);
       } else if (outcome.kind === "already") {
         alreadySentToday += 1;
@@ -157,6 +190,8 @@ export async function sendRemindersAction(
       }
     }
   }
+
+  await closeRun(supabase, runId, { sent, failed, already: alreadySentToday, moneyQuoted });
 
   // The office's contact history, so a reminder shows on the student's profile
   // and the defaulters cadence knows the family was reached today. Best-effort:
@@ -241,8 +276,10 @@ async function sendOne(args: {
   sessionLabel: string;
   today: string;
   staffId: string | null;
+  /** Null when the run record could not be opened; the send still happens. */
+  runId: string | null;
 }): Promise<SendOutcome> {
-  const { supabase, candidate, campaign, filters, sessionLabel, today, staffId } = args;
+  const { supabase, candidate, campaign, filters, sessionLabel, today, staffId, runId } = args;
   const campaignName = campaign.campaignName;
   // Per-situation: 6 slots for fee_due and balance, 5 for prevyear. A count that
   // does not match is refused by AiSensy with "Template params does not match
@@ -264,6 +301,11 @@ async function sendOne(args: {
       template_params: templateParams,
       status: "pending",
       sent_by: staffId,
+      // Stamped on the claim, so the grouping survives even if this action dies
+      // before it can close the run. NOT part of the unique index — that index
+      // is what stops a family being messaged the same notice twice in one day,
+      // and including run_id would let a second run that day repeat all of them.
+      run_id: runId,
     })
     .select("id")
     .single();

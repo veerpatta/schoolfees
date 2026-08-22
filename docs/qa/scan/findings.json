@@ -1,5 +1,5 @@
 {
-  "runId": "202608220436",
+  "runId": "202608220504",
   "verdict": {
     "pass": true,
     "reasons": [],
@@ -10,7 +10,7 @@
   "counts": {
     "P0": 0,
     "P1": 0,
-    "P2": 40,
+    "P2": 41,
     "P3": 11
   },
   "findings": [
@@ -40,7 +40,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.785Z"
+      "firstSeenAt": "2026-08-22T05:04:48.502Z"
     },
     {
       "id": "375a7e603237",
@@ -68,7 +68,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.730Z"
+      "firstSeenAt": "2026-08-22T05:04:43.553Z"
     },
     {
       "id": "5b53e048e64c",
@@ -96,7 +96,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.731Z"
+      "firstSeenAt": "2026-08-22T05:04:43.553Z"
     },
     {
       "id": "0cfcbaed2c10",
@@ -124,7 +124,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.731Z"
+      "firstSeenAt": "2026-08-22T05:04:43.553Z"
     },
     {
       "id": "91eed7adfb0b",
@@ -152,7 +152,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.745Z"
+      "firstSeenAt": "2026-08-22T05:04:43.564Z"
     },
     {
       "id": "fefef37143f6",
@@ -180,7 +180,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.746Z"
+      "firstSeenAt": "2026-08-22T05:04:43.565Z"
     },
     {
       "id": "9f24c0980791",
@@ -208,7 +208,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.750Z"
+      "firstSeenAt": "2026-08-22T05:04:43.568Z"
     },
     {
       "id": "c88e75488491",
@@ -236,7 +236,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.753Z"
+      "firstSeenAt": "2026-08-22T05:04:43.570Z"
     },
     {
       "id": "309dda17d75a",
@@ -264,7 +264,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.764Z"
+      "firstSeenAt": "2026-08-22T05:04:43.580Z"
     },
     {
       "id": "5a2b495e75c5",
@@ -292,7 +292,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.765Z"
+      "firstSeenAt": "2026-08-22T05:04:43.581Z"
     },
     {
       "id": "df8320e8ef22",
@@ -320,7 +320,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.765Z"
+      "firstSeenAt": "2026-08-22T05:04:43.581Z"
     },
     {
       "id": "f5a600033ff0",
@@ -348,7 +348,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.766Z"
+      "firstSeenAt": "2026-08-22T05:04:43.582Z"
     },
     {
       "id": "e3f675784bca",
@@ -376,7 +376,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.766Z"
+      "firstSeenAt": "2026-08-22T05:04:43.582Z"
     },
     {
       "id": "0efdc8dc1fc5",
@@ -404,7 +404,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.767Z"
+      "firstSeenAt": "2026-08-22T05:04:43.583Z"
     },
     {
       "id": "f6e6fd9e6267",
@@ -432,7 +432,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.775Z"
+      "firstSeenAt": "2026-08-22T05:04:43.591Z"
     },
     {
       "id": "c60f73d8101e",
@@ -460,7 +460,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.776Z"
+      "firstSeenAt": "2026-08-22T05:04:43.591Z"
     },
     {
       "id": "888b89aaa30f",
@@ -488,7 +488,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.780Z"
+      "firstSeenAt": "2026-08-22T05:04:43.595Z"
     },
     {
       "id": "e2ff8558d0ae",
@@ -516,7 +516,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.782Z"
+      "firstSeenAt": "2026-08-22T05:04:43.596Z"
     },
     {
       "id": "76d42cfda804",
@@ -544,7 +544,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.783Z"
+      "firstSeenAt": "2026-08-22T05:04:43.597Z"
     },
     {
       "id": "d4bec263f674",
@@ -572,7 +572,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.788Z"
+      "firstSeenAt": "2026-08-22T05:04:43.604Z"
     },
     {
       "id": "c97831de28c9",
@@ -600,7 +600,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.789Z"
+      "firstSeenAt": "2026-08-22T05:04:43.604Z"
     },
     {
       "id": "2c00e47f6a64",
@@ -628,7 +628,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.792Z"
+      "firstSeenAt": "2026-08-22T05:04:43.609Z"
     },
     {
       "id": "fa4421e4091f",
@@ -656,7 +656,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.800Z"
+      "firstSeenAt": "2026-08-22T05:04:43.622Z"
     },
     {
       "id": "2b088d7895ad",
@@ -684,7 +684,35 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.801Z"
+      "firstSeenAt": "2026-08-22T05:04:43.622Z"
+    },
+    {
+      "id": "60f66d16cc4a",
+      "rule": "scan.dead-export",
+      "severity": "P2",
+      "confidence": "deterministic",
+      "target": "static",
+      "surface": "src/modules/whatsapp/data/campaign-store.ts:120",
+      "role": null,
+      "device": null,
+      "session": "n/a",
+      "title": "src/modules/whatsapp/data/campaign-store.ts:120 exports getCampaign, which nothing uses",
+      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
+      "actual": "`getCampaign` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/modules/whatsapp/data/campaign-store.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
+      "fingerprint": "`getCampaign` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/modules/whatsapp/data/campaign-store.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
+      "evidence": {
+        "consoleTail": [
+          "export async function getCampaign(supabase: any, id: string): Promise<SavedCampaign | null> {"
+        ],
+        "reproCommand": "npm run scan -- --only scan.dead-export --file src/modules/whatsapp/data/campaign-store.ts"
+      },
+      "suspectedFile": "src/modules/whatsapp/data/campaign-store.ts",
+      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
+      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
+      "variants": [],
+      "variantsTruncated": false,
+      "seenCount": 1,
+      "firstSeenAt": "2026-08-22T05:04:48.485Z"
     },
     {
       "id": "8fbc39394e1b",
@@ -712,7 +740,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.809Z"
+      "firstSeenAt": "2026-08-22T05:04:43.630Z"
     },
     {
       "id": "f36caaafe374",
@@ -740,7 +768,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.812Z"
+      "firstSeenAt": "2026-08-22T05:04:43.632Z"
     },
     {
       "id": "dba4a7b5967c",
@@ -768,7 +796,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.821Z"
+      "firstSeenAt": "2026-08-22T05:04:43.640Z"
     },
     {
       "id": "1507266ec39f",
@@ -796,7 +824,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.821Z"
+      "firstSeenAt": "2026-08-22T05:04:43.641Z"
     },
     {
       "id": "a4d229dbf12d",
@@ -824,7 +852,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.822Z"
+      "firstSeenAt": "2026-08-22T05:04:43.641Z"
     },
     {
       "id": "518230cb1c38",
@@ -852,7 +880,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.822Z"
+      "firstSeenAt": "2026-08-22T05:04:43.641Z"
     },
     {
       "id": "e1f9dd8286ee",
@@ -880,7 +908,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.464Z"
+      "firstSeenAt": "2026-08-22T05:04:48.194Z"
     },
     {
       "id": "d0ed42f13c3a",
@@ -908,7 +936,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.465Z"
+      "firstSeenAt": "2026-08-22T05:04:48.195Z"
     },
     {
       "id": "03d2d34f1092",
@@ -936,7 +964,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.464Z"
+      "firstSeenAt": "2026-08-22T05:04:48.195Z"
     },
     {
       "id": "5fad48a7287b",
@@ -964,7 +992,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.465Z"
+      "firstSeenAt": "2026-08-22T05:04:48.195Z"
     },
     {
       "id": "ef43cda43d2b",
@@ -992,7 +1020,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.464Z"
+      "firstSeenAt": "2026-08-22T05:04:48.194Z"
     },
     {
       "id": "1d4c0f440e4f",
@@ -1020,7 +1048,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.465Z"
+      "firstSeenAt": "2026-08-22T05:04:48.195Z"
     },
     {
       "id": "d89b1bb2ecf4",
@@ -1048,7 +1076,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.465Z"
+      "firstSeenAt": "2026-08-22T05:04:48.195Z"
     },
     {
       "id": "fe4b790a9ade",
@@ -1076,7 +1104,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.466Z"
+      "firstSeenAt": "2026-08-22T05:04:48.196Z"
     },
     {
       "id": "553a7439553c",
@@ -1104,7 +1132,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.465Z"
+      "firstSeenAt": "2026-08-22T05:04:48.195Z"
     },
     {
       "id": "66b34a387be6",
@@ -1132,7 +1160,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.466Z"
+      "firstSeenAt": "2026-08-22T05:04:48.196Z"
     },
     {
       "id": "29e73ec10600",
@@ -1160,7 +1188,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.590Z"
+      "firstSeenAt": "2026-08-22T05:04:43.417Z"
     },
     {
       "id": "274e90575771",
@@ -1188,7 +1216,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.784Z"
+      "firstSeenAt": "2026-08-22T05:04:48.501Z"
     },
     {
       "id": "83bf35a40105",
@@ -1216,7 +1244,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:36.785Z"
+      "firstSeenAt": "2026-08-22T05:04:48.501Z"
     },
     {
       "id": "47c54957c6e2",
@@ -1244,7 +1272,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.603Z"
+      "firstSeenAt": "2026-08-22T05:04:43.432Z"
     },
     {
       "id": "64c2f2cbce10",
@@ -1272,7 +1300,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.603Z"
+      "firstSeenAt": "2026-08-22T05:04:43.432Z"
     },
     {
       "id": "84e55bc7a515",
@@ -1300,7 +1328,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.685Z"
+      "firstSeenAt": "2026-08-22T05:04:43.509Z"
     },
     {
       "id": "f338f189ce40",
@@ -1328,7 +1356,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.685Z"
+      "firstSeenAt": "2026-08-22T05:04:43.510Z"
     },
     {
       "id": "6a4ef1318b79",
@@ -1356,7 +1384,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.694Z"
+      "firstSeenAt": "2026-08-22T05:04:43.518Z"
     },
     {
       "id": "2548978eeea8",
@@ -1384,7 +1412,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.697Z"
+      "firstSeenAt": "2026-08-22T05:04:43.520Z"
     },
     {
       "id": "71c5eebdf8dc",
@@ -1412,7 +1440,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.699Z"
+      "firstSeenAt": "2026-08-22T05:04:43.522Z"
     },
     {
       "id": "474b40f71cd8",
@@ -1440,7 +1468,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T04:36:31.701Z"
+      "firstSeenAt": "2026-08-22T05:04:43.524Z"
     }
   ]
 }
