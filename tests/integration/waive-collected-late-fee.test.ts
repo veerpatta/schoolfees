@@ -207,6 +207,40 @@ describe("installment surplus spills forward", () => {
     expect(sql).toMatch(/comment on %s public\.%I is %L/);
   });
 
+  it("never hands anon back what 20260819120000 took away", () => {
+    // The first time this happened, an unauthenticated caller holding the
+    // publishable key — which ships in the browser bundle by design — could read
+    // 583 rows carrying student names, both parents' names, phone numbers and
+    // dates of birth. It happened because a CASCADE rebuild was followed by the
+    // PRE-hardening grant list. Supabase also grants anon `all` on anything new
+    // in `public` by default, so the revoke is required, not belt-and-braces.
+    expect(sql).not.toMatch(/grant all on public\.\w+\s+to anon/);
+    expect(sql).toMatch(/revoke all on[\s\S]{0,600}from anon;/);
+    for (const view of [
+      "v_workbook_student_financials",
+      "v_workbook_installment_balances",
+      "v_student_financial_state",
+      "v_notion_student_fee_summary",
+      "v_ledger_policy_drift",
+    ]) {
+      const revoke = sql.slice(sql.indexOf("revoke all on"), sql.indexOf("from anon;"));
+      expect(revoke).toContain(view);
+    }
+  });
+
+  it("keeps the Notion mirrors off authenticated", () => {
+    expect(sql).toMatch(/revoke all on[\s\S]{0,300}from authenticated;/);
+    expect(sql).toMatch(/to notion_fee_sync_role, service_role;/);
+  });
+
+  it("carries each view's reloptions through the replay", () => {
+    // `create view ... as <viewdef>` drops security_invoker. v_ledger_policy_drift
+    // is defined with it precisely because, as 20260814091000 puts it, "a default
+    // (definer) view here would hand every reader the whole school".
+    expect(sql).toContain("c.reloptions");
+    expect(sql).toMatch(/alter view public\.%I set \(%s\)/);
+  });
+
   it("runs as one transaction", () => {
     expect(sql).toMatch(/^begin;/m);
     expect(sql.trimEnd().endsWith("commit;")).toBe(true);

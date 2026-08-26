@@ -475,6 +475,14 @@ express the school's rule and never fired once:
   asserts that by snapshotting every row before the rebuild and aborting if a
   single figure moved. Apply it BEFORE 20260826120000: on its own it is a no-op,
   but without it the waiver below loses money into the `greatest(..., 0)` clips.
+  Two things it does that any future CASCADE rebuild here must also do: it asks
+  `pg_depend` what the cascade actually catches and refuses to run if the replay
+  list is short (the list inherited from 20260812120000 was already missing
+  `v_ledger_policy_drift`), and it carries each view's `reloptions` and comment
+  through the replay, because `create view ... as <viewdef>` drops both — that is
+  how `security_invoker` was lost twice before, most recently in a way that let
+  an unauthenticated caller read student and parent detail. Its grant block is
+  20260819120000's access list, never 20260812120000's.
 
 - `20260826120000_an_admin_may_waive_a_collected_late_fee` — reverses
   `20260808190000` for admins (`fees:write`), for late fees only, at the

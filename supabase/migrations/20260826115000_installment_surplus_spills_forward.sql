@@ -97,14 +97,23 @@ from public.v_workbook_installment_balances;
 -- needs rewriting. The guard below checks the list against the catalog rather
 -- than trusting it.
 
-create temporary table _spill_dependents (ord int, name text, kind text, ddl text, note text)
+create temporary table _spill_dependents
+  (ord int, name text, kind text, ddl text, note text, opts text[])
   on commit drop;
 
-insert into _spill_dependents (ord, name, kind, ddl, note)
+insert into _spill_dependents (ord, name, kind, ddl, note, opts)
 select
   ord, name, kind,
   pg_get_viewdef(format('public.%I', name)::regclass, true),
-  obj_description(format('public.%I', name)::regclass, 'pg_class')
+  obj_description(format('public.%I', name)::regclass, 'pg_class'),
+  -- `create view ... as <viewdef>` carries NO reloptions, so a replay silently
+  -- drops security_invoker. That has already cost this database twice:
+  -- 20260807120000 stripped it from three v_notion_* views, and 20260819120000
+  -- had to put it back after finding an unauthenticated caller could read 583
+  -- rows of student and parent detail. Capture it and re-apply it below.
+  (select c.reloptions from pg_class c
+     join pg_namespace ns on ns.oid = c.relnamespace
+    where ns.nspname = 'public' and c.relname = t.name)
 from (values
   (1, 'v_workbook_student_financials',      'm'),
   (2, 'v_student_carry_forward_balances',   'v'),
@@ -404,8 +413,8 @@ create index idx_v_workbook_installments_student
 create index idx_v_workbook_installments_student_carry
   on public.v_workbook_installment_balances using btree (student_id) where is_carry_forward;
 
-grant all on public.v_workbook_installment_balances to anon, authenticated, service_role;
-grant select on public.v_workbook_installment_balances to notion_fee_sync_role;
+-- Granted with the rest of the stack below, after the replay, so the whole
+-- access list reads in one place -- and so anon is revoked after every create.
 
 comment on materialized view public.v_workbook_installment_balances is
   'Per-installment financial position. pending_amount is FEES ONLY and never contains a late fee; late_fee_pending carries that separately; total_pending is the two added. Money applied beyond an installment''s own base_charge + final_late_fee spills forward to the next installments, oldest first; anything left after the last one surfaces as credit_balance. balance_status reads paid once fees are clear, whatever the late fee is doing -- late_fee_status carries that. The late-fee CASE and the surplus-spill block are both duplicated verbatim in private.workbook_installment_snapshot and must be edited together.';
@@ -435,6 +444,12 @@ begin
                      case when v_row.kind = 'm' then 'materialized view' else 'view' end,
                      v_row.name, v_row.note);
     end if;
+
+    -- Restore security_invoker and friends. A matview cannot carry them.
+    if v_row.kind = 'v' and v_row.opts is not null then
+      execute format('alter view public.%I set (%s)',
+                     v_row.name, array_to_string(v_row.opts, ', '));
+    end if;
   end loop;
 end $$;
 
@@ -449,21 +464,53 @@ create index idx_v_workbook_financials_session_status
 create unique index v_student_financial_state_idx
   on public.v_student_financial_state using btree (student_id);
 
-grant all on public.v_workbook_student_financials    to anon, authenticated, service_role;
-grant all on public.v_student_carry_forward_balances to anon, authenticated, service_role;
-grant all on public.v_student_installment_facets     to authenticated, service_role;
-grant all on public.v_student_repayment_plan_status  to anon, authenticated, service_role;
-grant all on public.v_student_financial_state        to anon, authenticated, service_role;
-grant all on public.v_student_directory              to authenticated, service_role;
-grant all on public.v_notion_student_fee_summary     to anon, authenticated, service_role;
-grant all on public.v_notion_family_fee_summary      to anon, authenticated, service_role;
-grant all on public.v_notion_daily_collection_summary to anon, authenticated, service_role;
-grant all on public.v_ledger_policy_drift            to anon, authenticated, service_role;
+-- The 20260819120000 access list, NOT 20260812120000's. Restoring the older one
+-- after a cascade is exactly how anon got back `all` on views carrying student
+-- names, parents' names, phone numbers and dates of birth the first time. anon
+-- reads nothing in this product: the app talks to Postgres as `authenticated`
+-- or as the service role, /r/[code] uses the admin client, and the MCP Worker
+-- uses the service-role key.
+grant all    on public.v_workbook_student_financials    to authenticated, service_role;
+grant all    on public.v_workbook_installment_balances  to authenticated, service_role;
+grant all    on public.v_student_carry_forward_balances to authenticated, service_role;
+grant all    on public.v_student_installment_facets     to authenticated, service_role;
+grant all    on public.v_student_repayment_plan_status  to authenticated, service_role;
+grant all    on public.v_student_financial_state        to authenticated, service_role;
+grant all    on public.v_student_directory              to authenticated, service_role;
+grant select on public.v_ledger_policy_drift            to authenticated, service_role;
 
-grant select on public.v_workbook_student_financials     to notion_fee_sync_role;
-grant select on public.v_notion_student_fee_summary      to notion_fee_sync_role;
-grant select on public.v_notion_family_fee_summary       to notion_fee_sync_role;
-grant select on public.v_notion_daily_collection_summary to notion_fee_sync_role;
+-- The three Notion mirrors exist for one consumer, the notion-fee-sync Edge
+-- Function, which connects as notion_fee_sync_role. Staff never read them.
+grant select on
+  public.v_notion_student_fee_summary,
+  public.v_notion_family_fee_summary,
+  public.v_notion_daily_collection_summary
+to notion_fee_sync_role, service_role;
+
+grant select on public.v_workbook_student_financials    to notion_fee_sync_role;
+grant select on public.v_workbook_installment_balances  to notion_fee_sync_role;
+
+-- Supabase grants anon `all` on anything new in `public` by default, so the
+-- creates above hand it back what 20260819120000 took away unless this runs.
+revoke all on
+  public.v_workbook_student_financials,
+  public.v_workbook_installment_balances,
+  public.v_student_financial_state,
+  public.v_student_carry_forward_balances,
+  public.v_student_directory,
+  public.v_student_installment_facets,
+  public.v_student_repayment_plan_status,
+  public.v_notion_student_fee_summary,
+  public.v_notion_family_fee_summary,
+  public.v_notion_daily_collection_summary,
+  public.v_ledger_policy_drift
+from anon;
+
+revoke all on
+  public.v_notion_student_fee_summary,
+  public.v_notion_family_fee_summary,
+  public.v_notion_daily_collection_summary
+from authenticated;
 
 -- Comments are restored inside the replay loop above, from what the catalog
 -- actually held, so this migration cannot drop one by forgetting to re-type it.
