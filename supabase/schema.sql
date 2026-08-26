@@ -13,8 +13,8 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260814110000
--- Objects: 84 tables/views, 57 functions
+-- Schema version: 20260826120000
+-- Objects: 88 tables/views, 60 functions
 
 
 -- ══ Extensions ══════════════════════════════════════════════════════════
@@ -825,7 +825,9 @@ create table if not exists public.student_collection_flags (
   created_by uuid,
   updated_by uuid,
   created_at timestamp with time zone default now() not null,
-  updated_at timestamp with time zone default now() not null
+  updated_at timestamp with time zone default now() not null,
+  whatsapp_cadence text default 'every_run'::text not null,
+  whatsapp_snoozed_until date
 );
 
 -- public.student_conventional_discount_assignments
@@ -1122,6 +1124,65 @@ create table if not exists public.users (
   preferred_locale text
 );
 
+-- public.whatsapp_campaign_runs
+create table if not exists public.whatsapp_campaign_runs (
+  id uuid default gen_random_uuid() not null,
+  campaign_id uuid,
+  session_label text not null,
+  campaign_name text not null,
+  situation text not null,
+  language text not null,
+  filters jsonb default '{}'::jsonb not null,
+  last_date date,
+  late_fee_phrase text,
+  started_at timestamp with time zone default now() not null,
+  finished_at timestamp with time zone,
+  started_by uuid,
+  selected_count integer default 0 not null,
+  sent_count integer default 0 not null,
+  failed_count integer default 0 not null,
+  already_count integer default 0 not null,
+  money_quoted bigint default 0 not null,
+  created_at timestamp with time zone default now() not null
+);
+
+-- public.whatsapp_campaigns
+create table if not exists public.whatsapp_campaigns (
+  id uuid default gen_random_uuid() not null,
+  session_label text not null,
+  name text not null,
+  situation text not null,
+  language text not null,
+  filters jsonb default '{}'::jsonb not null,
+  last_date date,
+  late_fee_amount integer default 0 not null,
+  late_fee_basis text default 'per_installment'::text not null,
+  archived_at timestamp with time zone,
+  created_by uuid,
+  updated_by uuid,
+  created_at timestamp with time zone default now() not null,
+  updated_at timestamp with time zone default now() not null
+);
+
+-- public.whatsapp_reminder_sends
+create table if not exists public.whatsapp_reminder_sends (
+  id uuid default gen_random_uuid() not null,
+  student_id uuid not null,
+  session_label text not null,
+  sent_on date default ((now() AT TIME ZONE 'Asia/Kolkata'::text))::date not null,
+  campaign_name text not null,
+  destination text not null,
+  due_amount integer not null,
+  template_params jsonb default '[]'::jsonb not null,
+  status text default 'pending'::text not null,
+  provider_message_id text,
+  error_message text,
+  sent_by uuid,
+  created_at timestamp with time zone default now() not null,
+  updated_at timestamp with time zone default now() not null,
+  run_id uuid
+);
+
 -- public.whatsapp_templates
 create table if not exists public.whatsapp_templates (
   id uuid default gen_random_uuid() not null,
@@ -1208,6 +1269,9 @@ alter table public.students add constraint students_pkey PRIMARY KEY (id);
 alter table public.transport_routes add constraint transport_routes_pkey PRIMARY KEY (id);
 alter table public.user_activity_events add constraint user_activity_events_pkey PRIMARY KEY (id);
 alter table public.users add constraint users_pkey PRIMARY KEY (id);
+alter table public.whatsapp_campaign_runs add constraint whatsapp_campaign_runs_pkey PRIMARY KEY (id);
+alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_pkey PRIMARY KEY (id);
+alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_pkey PRIMARY KEY (id);
 alter table public.whatsapp_templates add constraint whatsapp_templates_pkey PRIMARY KEY (id);
 alter table public.workbook_materialized_view_refresh_queue add constraint workbook_materialized_view_refresh_queue_pkey PRIMARY KEY (queue_key);
 alter table private.vpps_direct_import_backups add constraint vpps_direct_import_backups_backup_label_key UNIQUE (backup_label);
@@ -1239,6 +1303,7 @@ alter table public.student_repayment_schedule add constraint student_repayment_s
 alter table public.student_share_links add constraint student_share_links_token_key UNIQUE (token);
 alter table public.students add constraint students_admission_no_key UNIQUE (admission_no);
 alter table public.transport_routes add constraint transport_routes_route_code_key UNIQUE (route_code);
+alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_session_label_name_key UNIQUE (session_label, name);
 alter table private.vpps_direct_import_stage_dues add constraint vpps_direct_import_stage_dues_payload_object CHECK ((jsonb_typeof(payload) = 'object'::text));
 alter table private.vpps_direct_import_stage_skipped add constraint vpps_direct_import_stage_skipped_payload_object CHECK ((jsonb_typeof(payload) = 'object'::text));
 alter table private.vpps_direct_import_stage_students add constraint vpps_direct_import_stage_students_payload_object CHECK ((jsonb_typeof(payload) = 'object'::text));
@@ -1394,6 +1459,7 @@ alter table public.student_carry_forward_balances add constraint student_carry_f
 alter table public.student_carry_forward_balances add constraint student_carry_forward_balances_source_session_label_check CHECK ((TRIM(BOTH FROM source_session_label) <> ''::text));
 alter table public.student_carry_forward_balances add constraint student_carry_forward_balances_status_check CHECK ((status = ANY (ARRAY['active'::text, 'collected'::text, 'cancelled'::text])));
 alter table public.student_carry_forward_balances add constraint student_carry_forward_balances_target_session_label_check CHECK ((TRIM(BOTH FROM target_session_label) <> ''::text));
+alter table public.student_collection_flags add constraint student_collection_flags_whatsapp_cadence_check CHECK ((whatsapp_cadence = ANY (ARRAY['every_run'::text, 'weekly'::text, 'fortnightly'::text, 'monthly'::text, 'never'::text])));
 alter table public.student_conventional_discount_assignments add constraint student_conventional_discount_as_resulting_tuition_amount_check CHECK ((resulting_tuition_amount >= 0));
 alter table public.student_conventional_discount_assignments add constraint student_conventional_discount_assig_before_tuition_amount_check CHECK ((before_tuition_amount >= 0));
 alter table public.student_fee_overrides add constraint student_fee_overrides_custom_admission_activity_misc_fee__check CHECK ((custom_admission_activity_misc_fee_amount >= 0));
@@ -1411,7 +1477,7 @@ alter table public.student_fee_overrides add constraint student_fee_overrides_ov
 alter table public.student_fee_overrides add constraint student_fee_overrides_student_type_override_check CHECK ((student_type_override = ANY (ARRAY['new'::text, 'existing'::text])));
 alter table public.student_late_fee_waivers add constraint student_late_fee_waivers_amount_check CHECK ((amount > 0));
 alter table public.student_late_fee_waivers add constraint student_late_fee_waivers_reason_check CHECK ((length(btrim(reason)) >= 4));
-alter table public.student_late_fee_waivers add constraint student_late_fee_waivers_source_check CHECK ((source = ANY (ARRAY['manual'::text, 'payment_desk'::text, 'migration'::text, 'grandfather'::text, 'repayment_plan'::text])));
+alter table public.student_late_fee_waivers add constraint student_late_fee_waivers_source_check CHECK ((source = ANY (ARRAY['manual'::text, 'payment_desk'::text, 'migration'::text, 'grandfather'::text, 'repayment_plan'::text, 'manual_collected'::text])));
 alter table public.student_late_fee_waivers add constraint student_late_fee_waivers_void_complete CHECK ((((voided_at IS NULL) AND (voided_by IS NULL) AND (void_reason IS NULL)) OR ((voided_at IS NOT NULL) AND (length(btrim(COALESCE(void_reason, ''::text))) >= 4))));
 alter table public.student_repayment_emi_late_fees add constraint student_repayment_emi_late_fees_amount_check CHECK ((amount > 0));
 alter table public.student_repayment_plan_items add constraint student_repayment_plan_items_included_base_balance_check CHECK ((included_base_balance >= 0));
@@ -1441,6 +1507,11 @@ alter table public.students add constraint students_check CHECK (((left_on IS NU
 alter table public.transport_routes add constraint transport_routes_annual_fee_amount_check CHECK ((annual_fee_amount >= 0));
 alter table public.transport_routes add constraint transport_routes_default_installment_amount_check CHECK ((default_installment_amount >= 0));
 alter table public.users add constraint users_preferred_locale_check CHECK (((preferred_locale IS NULL) OR (preferred_locale = ANY (ARRAY['en'::text, 'hi'::text, 'hi-en'::text]))));
+alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_language_check CHECK ((language = ANY (ARRAY['hi'::text, 'en'::text])));
+alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_amount_check CHECK ((late_fee_amount >= 0));
+alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_basis_check CHECK ((late_fee_basis = ANY (ARRAY['per_installment'::text, 'per_day'::text, 'flat'::text, 'none'::text])));
+alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_situation_check CHECK ((situation = ANY (ARRAY['fee_due'::text, 'balance'::text, 'prevyear'::text])));
+alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text])));
 alter table public.whatsapp_templates add constraint whatsapp_templates_category_check CHECK ((category = ANY (ARRAY['reminder'::text, 'final_reminder'::text, 'receipt'::text, 'custom'::text])));
 alter table public.workbook_materialized_view_refresh_queue add constraint workbook_materialized_view_refresh_queue_singleton CHECK ((queue_key = ANY (ARRAY['workbook'::text, 'sibling_groups'::text])));
 alter table private.vpps_student_source_mapping add constraint vpps_student_source_mapping_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
@@ -1605,6 +1676,9 @@ alter table public.user_activity_events add constraint user_activity_events_user
 alter table public.users add constraint users_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 alter table public.users add constraint users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
 alter table public.users add constraint users_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+alter table public.whatsapp_campaign_runs add constraint whatsapp_campaign_runs_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES public.whatsapp_campaigns(id) ON DELETE SET NULL;
+alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.whatsapp_campaign_runs(id) ON DELETE SET NULL;
+alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
 alter table public.whatsapp_templates add constraint whatsapp_templates_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
 
 -- ══ Indexes ═════════════════════════════════════════════════════════════
@@ -1780,10 +1854,11 @@ create index if not exists receipt_finance_adjustments_created_by_idx ON public.
 create UNIQUE index if not exists receipts_student_client_request_id_unique ON public.receipts USING btree (student_id, client_request_id) WHERE (client_request_id IS NOT NULL);
 create index if not exists scda_applied_by_idx ON public.student_conventional_discount_assignments USING btree (applied_by);
 create index if not exists student_collection_flags_session_idx ON public.student_collection_flags USING btree (session_label) WHERE (no_call = true);
+create index if not exists student_collection_flags_whatsapp_idx ON public.student_collection_flags USING btree (session_label) WHERE ((whatsapp_cadence <> 'every_run'::text) OR (whatsapp_snoozed_until IS NOT NULL));
 create index if not exists student_family_groups_created_by_idx ON public.student_family_groups USING btree (created_by);
 create index if not exists student_family_groups_updated_by_idx ON public.student_family_groups USING btree (updated_by);
 create index if not exists student_late_fee_waivers_installment_idx ON public.student_late_fee_waivers USING btree (installment_id) WHERE (voided_at IS NULL);
-create UNIQUE index if not exists student_late_fee_waivers_request_idx ON public.student_late_fee_waivers USING btree (student_id, client_request_id, installment_id) WHERE (client_request_id IS NOT NULL);
+create UNIQUE index if not exists student_late_fee_waivers_request_idx ON public.student_late_fee_waivers USING btree (student_id, client_request_id, installment_id, source) WHERE (client_request_id IS NOT NULL);
 create index if not exists student_late_fee_waivers_student_session_idx ON public.student_late_fee_waivers USING btree (student_id, session_label);
 create index if not exists student_late_fee_waivers_waived_by_idx ON public.student_late_fee_waivers USING btree (waived_by);
 create index if not exists student_repayment_emi_late_fees_plan_idx ON public.student_repayment_emi_late_fees USING btree (plan_id, sequence_no);
@@ -1798,6 +1873,12 @@ create UNIQUE index if not exists v_student_financial_state_idx ON public.v_stud
 create UNIQUE index if not exists v_workbook_installment_balances_idx ON public.v_workbook_installment_balances USING btree (installment_id);
 create UNIQUE index if not exists v_workbook_student_financials_idx ON public.v_workbook_student_financials USING btree (student_id);
 create index if not exists vpps_student_source_mapping_student_id_idx ON private.vpps_student_source_mapping USING btree (student_id);
+create index if not exists whatsapp_campaign_runs_campaign_idx ON public.whatsapp_campaign_runs USING btree (campaign_id, started_at DESC);
+create index if not exists whatsapp_campaign_runs_session_idx ON public.whatsapp_campaign_runs USING btree (session_label, started_at DESC);
+create index if not exists whatsapp_campaigns_session_idx ON public.whatsapp_campaigns USING btree (session_label, archived_at NULLS FIRST, name);
+create index if not exists whatsapp_reminder_sends_day_status_idx ON public.whatsapp_reminder_sends USING btree (sent_on DESC, status);
+create index if not exists whatsapp_reminder_sends_run_idx ON public.whatsapp_reminder_sends USING btree (run_id);
+create UNIQUE index if not exists whatsapp_reminder_sends_student_day_campaign_idx ON public.whatsapp_reminder_sends USING btree (student_id, session_label, sent_on, campaign_name);
 create index if not exists whatsapp_templates_active_idx ON public.whatsapp_templates USING btree (is_active, category, name);
 
 -- ══ Functions ═══════════════════════════════════════════════════════════
@@ -2169,6 +2250,36 @@ CREATE OR REPLACE FUNCTION private.prevent_repayment_row_update()
 AS $function$
 begin
   raise exception '% rows are written once and cannot be updated.', tg_table_name;
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION private.protect_receipt_money_columns()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'private', 'public', 'pg_temp'
+AS $function$
+begin
+  if tg_op = 'DELETE' then
+    raise exception 'receipts is append-only and cannot be deleted.';
+  end if;
+
+  if new.id is distinct from old.id
+     or new.receipt_number is distinct from old.receipt_number
+     or new.student_id is distinct from old.student_id
+     or new.payment_date is distinct from old.payment_date
+     or new.payment_mode is distinct from old.payment_mode
+     or new.total_amount is distinct from old.total_amount
+     or new.created_by is distinct from old.created_by
+     or new.created_at is distinct from old.created_at
+     or new.client_request_id is distinct from old.client_request_id
+     or new.family_payment_id is distinct from old.family_payment_id
+  then
+    raise exception
+      'A posted receipt''s money cannot be edited. Reverse it and post a corrected one.';
+  end if;
+
+  return new;
 end;
 $function$
 ;
@@ -2570,10 +2681,6 @@ AS $function$
   late_eval as (
     select
       rolled.*,
-      -- >>> SHARED LATE FEE RULE <<<
-      -- Byte-identical to v_workbook_installment_balances above. Edit both or
-      -- neither -- 20260812001114 edited only this copy and EMI late fees went
-      -- invisible to every read surface for four days.
       case
         when rolled.installment_status = 'waived' then 0
         when coalesce(rolled.late_fee_flat_amount, 0) <= 0 then 0
@@ -2601,38 +2708,74 @@ AS $function$
       greatest(waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as final_late_fee,
       greatest(waiver_eval.applied_amount + waiver_eval.discount_closeout_amount, 0)::integer as settled_amount
     from waiver_eval
+  ),
+  spill as (
+    select
+      split.*,
+      greatest(split.settled_amount - (split.base_charge + split.final_late_fee), 0)::integer
+        as row_surplus,
+      greatest((split.base_charge + split.final_late_fee) - split.settled_amount, 0)::integer
+        as row_room
+    from split
+  ),
+  carry as (
+    select
+      spill.*,
+      least(
+        coalesce(sum(spill.row_surplus) over w_before, 0),
+        coalesce(sum(spill.row_room)   over w_through, 0)
+      )::integer as cum_filled,
+      least(
+        coalesce(sum(spill.row_surplus) over w_before_prev, 0),
+        coalesce(sum(spill.row_room)    over w_before,      0)
+      )::integer as cum_filled_prev
+    from spill
+    window
+      w_before      as (partition by spill.student_id order by spill.due_date, spill.installment_no
+                        rows between unbounded preceding and 1 preceding),
+      w_through     as (partition by spill.student_id order by spill.due_date, spill.installment_no
+                        rows between unbounded preceding and current row),
+      w_before_prev as (partition by spill.student_id order by spill.due_date, spill.installment_no
+                        rows between unbounded preceding and 2 preceding)
+  ),
+  settled as (
+    select
+      carry.*,
+      (carry.settled_amount + greatest(carry.cum_filled - carry.cum_filled_prev, 0))::integer
+        as effective_settled
+    from carry
   )
   select
-    split.installment_id, split.student_id, split.admission_no,
-    split.student_name, split.father_name, split.father_phone,
-    split.session_label, split.class_id, split.class_name,
-    split.class_label, split.section, split.stream_name,
-    split.installment_no, split.installment_label, split.due_date,
-    split.base_charge, split.paid_amount, split.adjustment_amount,
-    split.applied_amount, split.raw_late_fee, split.waiver_applied,
-    split.final_late_fee,
-    greatest(split.base_charge + split.raw_late_fee - split.waiver_applied, 0)::integer as total_charge,
-    greatest(split.base_charge - split.settled_amount, 0)::integer as pending_amount,
-    greatest(split.final_late_fee - greatest(split.settled_amount - split.base_charge, 0), 0)::integer as late_fee_pending,
-    (greatest(split.base_charge - split.settled_amount, 0)
-       + greatest(split.final_late_fee - greatest(split.settled_amount - split.base_charge, 0), 0))::integer as total_pending,
+    settled.installment_id, settled.student_id, settled.admission_no,
+    settled.student_name, settled.father_name, settled.father_phone,
+    settled.session_label, settled.class_id, settled.class_name,
+    settled.class_label, settled.section, settled.stream_name,
+    settled.installment_no, settled.installment_label, settled.due_date,
+    settled.base_charge, settled.paid_amount, settled.adjustment_amount,
+    settled.applied_amount, settled.raw_late_fee, settled.waiver_applied,
+    settled.final_late_fee,
+    greatest(settled.base_charge + settled.raw_late_fee - settled.waiver_applied, 0)::integer as total_charge,
+    greatest(settled.base_charge - settled.effective_settled, 0)::integer as pending_amount,
+    greatest(settled.final_late_fee - greatest(settled.effective_settled - settled.base_charge, 0), 0)::integer as late_fee_pending,
+    (greatest(settled.base_charge - settled.effective_settled, 0)
+       + greatest(settled.final_late_fee - greatest(settled.effective_settled - settled.base_charge, 0), 0))::integer as total_pending,
     case
-      when split.installment_status = 'waived' then 'waived'
-      when greatest(split.base_charge - split.settled_amount, 0) <= 0 then 'paid'
-      when p_as_of_date > split.due_date then 'overdue'
-      when split.settled_amount > 0 then 'partial'
+      when settled.installment_status = 'waived' then 'waived'
+      when greatest(settled.base_charge - settled.effective_settled, 0) <= 0 then 'paid'
+      when p_as_of_date > settled.due_date then 'overdue'
+      when settled.effective_settled > 0 then 'partial'
       else 'pending'
     end as balance_status,
     case
-      when split.raw_late_fee <= 0 then 'none'
-      when greatest(split.final_late_fee - greatest(split.settled_amount - split.base_charge, 0), 0) > 0 then 'pending'
-      when split.waiver_applied >= split.raw_late_fee then 'waived'
+      when settled.raw_late_fee <= 0 then 'none'
+      when greatest(settled.final_late_fee - greatest(settled.effective_settled - settled.base_charge, 0), 0) > 0 then 'pending'
+      when settled.waiver_applied >= settled.raw_late_fee then 'waived'
       else 'paid'
     end as late_fee_status,
-    split.last_payment_date, split.transport_route_id,
-    split.transport_route_name, split.transport_route_code
-  from split
-  order by split.student_id, split.installment_no;
+    settled.last_payment_date, settled.transport_route_id,
+    settled.transport_route_name, settled.transport_route_code
+  from settled
+  order by settled.student_id, settled.installment_no;
 $function$
 ;
 
@@ -3375,7 +3518,6 @@ begin
     from scoped
     where pending_amount > 0
       and due_date < current_date
-      and not is_carry_forward
   ),
   debt_age as (
     select coalesce(jsonb_agg(row order by sort_key), '[]'::jsonb) as data
@@ -3479,7 +3621,6 @@ begin
       count(distinct student_id) filter (where pending_amount > 0 and due_date < current_date)::integer as students_at_risk,
       count(distinct student_id)::integer                               as students
     from scoped
-    where not is_carry_forward
     group by class_id, class_label
   ),
   class_recovery as (
@@ -3517,7 +3658,9 @@ begin
       coalesce(sum(f.outstanding_amount), 0)::integer          as fees_pending
     from public.v_workbook_student_financials f
     where f.session_label = p_session_label
-      and f.record_status = 'active'
+      -- The money rule, matching the `scoped` CTE that feeds every other board
+      -- in this function: a student who left owing money still owes it.
+      and (f.record_status = 'active' or coalesce(f.total_paid, 0) > 0)
     group by f.transport_route_id, 2
   ),
   route_recovery as (
@@ -3541,7 +3684,6 @@ begin
   per_student as (
     select student_id, sum(pending_amount)::integer as fees_pending
     from scoped
-    where not is_carry_forward
     group by student_id
     having sum(pending_amount) > 0
   ),
@@ -3565,6 +3707,64 @@ begin
                                else 0 end
     ) as data
     from ranked
+  ),
+
+  -- ── How much is the school giving away, and under which policy? ─────────
+  -- Money rule, like every board here. Close-outs are carried separately and
+  -- never summed into the discount totals: a close-out clears a pending
+  -- balance, it does not reduce what was owed.
+  discount_rows as (
+    select
+      coalesce(f.discount_amount, 0)::bigint              as discount_amount,
+      coalesce(f.conventional_discount_amount, 0)::bigint as conventional_amount,
+      coalesce(f.student_discount_amount, 0)::bigint      as manual_amount,
+      nullif(trim(coalesce(f.conventional_discount_labels, '')), '') as labels,
+      coalesce(f.total_discount_closeouts, 0)::bigint     as closeout_amount
+    from public.v_workbook_student_financials f
+    where f.session_label = p_session_label
+      and (f.record_status = 'active' or coalesce(f.total_paid, 0) > 0)
+  ),
+  discount_totals as (
+    select
+      coalesce(sum(discount_amount), 0)::bigint     as total,
+      coalesce(sum(conventional_amount), 0)::bigint as conventional,
+      coalesce(sum(manual_amount), 0)::bigint       as manual,
+      count(*) filter (where discount_amount > 0)::integer as students_with_discount,
+      coalesce(sum(closeout_amount), 0)::bigint     as closeouts,
+      count(*) filter (where closeout_amount > 0)::integer as students_with_closeout
+    from discount_rows
+  ),
+  discount_policies as (
+    select coalesce(jsonb_agg(
+      jsonb_build_object(
+        'label',    label,
+        'students', students,
+        'amount',   amount
+      ) order by amount desc, label
+    ), '[]'::jsonb) as data
+    from (
+      select labels as label,
+             count(*)::integer as students,
+             sum(conventional_amount)::bigint as amount
+      from discount_rows
+      where labels is not null
+        and conventional_amount > 0
+      group by labels
+    ) as policy_rollup
+  ),
+  discounts as (
+    select jsonb_build_object(
+      'totalDiscount',        discount_totals.total,
+      'conventionalDiscount', discount_totals.conventional,
+      'manualDiscount',       discount_totals.manual,
+      'studentsWithDiscount', discount_totals.students_with_discount,
+      'byPolicy',             discount_policies.data,
+      'closeouts', jsonb_build_object(
+        'amount',   discount_totals.closeouts,
+        'students', discount_totals.students_with_closeout
+      )
+    ) as data
+    from discount_totals, discount_policies
   )
 
   select jsonb_build_object(
@@ -3585,11 +3785,12 @@ begin
     'monthlyCollection', monthly.data,
     'classRecovery',     class_recovery.data,
     'routeRecovery',     route_recovery.data,
-    'concentration',     concentration.data
+    'concentration',     concentration.data,
+    'discounts',         discounts.data
   )
   into v_result
   from debt_age, late_fee_totals, waiver_sources, next_accrual,
-       monthly, class_recovery, route_recovery, concentration;
+       monthly, class_recovery, route_recovery, concentration, discounts;
 
   return coalesce(v_result, '{}'::jsonb);
 end;
@@ -4426,6 +4627,180 @@ begin
 
   return query
   select inserted_student_id, imported_override_id;
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.post_corrected_payment(p_student_id uuid, p_payment_date date, p_payment_mode public.payment_mode, p_allocations jsonb, p_client_request_id uuid, p_reference_number text DEFAULT NULL::text, p_received_by text DEFAULT NULL::text, p_notes text DEFAULT NULL::text, p_receipt_prefix text DEFAULT 'SVP'::text)
+ RETURNS TABLE(receipt_id uuid, receipt_number text, allocated_total integer)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'private'
+AS $function$
+declare
+  v_normalized_prefix text;
+  v_daily_sequence integer;
+  v_candidate_receipt_id uuid;
+  v_candidate_receipt_number text;
+  v_existing_receipt_id uuid;
+  v_existing_receipt_number text;
+  v_existing_total integer;
+  v_total integer := 0;
+  v_attempt integer;
+  alloc record;
+begin
+  -- Service role only. No `has_permission` arm: this must not be reachable from
+  -- a staff session, or it becomes a second posting surface for humans.
+  if coalesce(auth.role(), '') <> 'service_role' then
+    raise exception 'post_corrected_payment is callable only by the correction harness.';
+  end if;
+
+  if p_client_request_id is null then
+    raise exception 'A client_request_id is required so a re-run cannot double-post.';
+  end if;
+
+  if p_allocations is null or jsonb_typeof(p_allocations) <> 'array'
+     or jsonb_array_length(p_allocations) = 0 then
+    raise exception 'p_allocations must be a non-empty JSON array of { installment_id, amount }.';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_student_id::text, 0));
+
+  -- Idempotency, same contract as the desk RPC: a repeated run resolves to the
+  -- receipt it already wrote instead of writing a second one.
+  select r.id, r.receipt_number, r.total_amount
+  into v_existing_receipt_id, v_existing_receipt_number, v_existing_total
+  from public.receipts as r
+  where r.student_id = p_student_id
+    and r.client_request_id = p_client_request_id
+  limit 1;
+
+  if v_existing_receipt_id is not null then
+    return query select v_existing_receipt_id, v_existing_receipt_number, v_existing_total;
+    return;
+  end if;
+
+  create temporary table _corrected_allocations on commit drop as
+  select
+    (item->>'installment_id')::uuid as installment_id,
+    (item->>'amount')::integer      as amount
+  from jsonb_array_elements(p_allocations) as item;
+
+  if exists (select 1 from _corrected_allocations where amount is null or amount <= 0) then
+    raise exception 'Every allocation needs a positive amount.';
+  end if;
+
+  if exists (
+    select 1
+    from _corrected_allocations as a
+    group by a.installment_id
+    having count(*) > 1
+  ) then
+    raise exception 'The same installment appears twice in the allocation. Combine it into one row.';
+  end if;
+
+  -- Every installment must be this student's own.
+  if exists (
+    select 1
+    from _corrected_allocations as a
+    left join public.installments as i
+      on i.id = a.installment_id and i.student_id = p_student_id
+    where i.id is null
+  ) then
+    raise exception 'An allocation names an installment that does not belong to this student.';
+  end if;
+
+  -- …and must have room for it. Read the LIVE snapshot function, never the
+  -- materialized view: the matview lags a posting by up to two minutes, and a
+  -- correction runs immediately after a reversal. Pricing a repost off stale
+  -- balances is what re-committed a family to their pre-payment total once.
+  if exists (
+    select 1
+    from _corrected_allocations as a
+    join private.workbook_installment_snapshot(p_student_id, p_payment_date, true) as snap
+      on snap.installment_id = a.installment_id
+    where a.amount > snap.total_pending
+  ) then
+    raise exception 'An allocation is larger than what that installment still owes.';
+  end if;
+
+  select coalesce(sum(amount), 0) into v_total from _corrected_allocations;
+
+  v_normalized_prefix := coalesce(nullif(trim(p_receipt_prefix), ''), 'SVP');
+
+  -- Receipt numbers are a per-day sequence derived by max(), not a sequence
+  -- object, and the trailing group MUST stay exactly four digits: the desk RPC
+  -- reads it back with '-([0-9]{4})$'. A correction number of any other shape
+  -- makes that regex miss, max() return 0, and the next real posting on that
+  -- date collide through all its retries.
+  select coalesce(max((regexp_match(r.receipt_number, '-([0-9]{4})$'))[1]::integer), 0)
+  into v_daily_sequence
+  from public.receipts as r
+  where r.receipt_number like v_normalized_prefix || to_char(p_payment_date, 'YYYYMMDD') || '-%';
+
+  for v_attempt in 1..12 loop
+    v_daily_sequence := v_daily_sequence + 1;
+    v_candidate_receipt_number :=
+      v_normalized_prefix || to_char(p_payment_date, 'YYYYMMDD') || '-'
+      || lpad(v_daily_sequence::text, 4, '0');
+
+    begin
+      insert into public.receipts (
+        receipt_number, student_id, payment_date, payment_mode, total_amount,
+        reference_number, notes, received_by, client_request_id
+      )
+      values (
+        v_candidate_receipt_number, p_student_id, p_payment_date, p_payment_mode, v_total,
+        nullif(trim(coalesce(p_reference_number, '')), ''),
+        nullif(trim(coalesce(p_notes, '')), ''),
+        nullif(trim(coalesce(p_received_by, '')), ''),
+        p_client_request_id
+      )
+      returning id into v_candidate_receipt_id;
+      exit;
+    exception
+      when unique_violation then
+        -- Could be the receipt number racing another posting, or the
+        -- client_request_id landing concurrently. Re-check the latter before
+        -- trying a new number.
+        select r.id, r.receipt_number, r.total_amount
+        into v_existing_receipt_id, v_existing_receipt_number, v_existing_total
+        from public.receipts as r
+        where r.student_id = p_student_id
+          and r.client_request_id = p_client_request_id
+        limit 1;
+
+        if v_existing_receipt_id is not null then
+          return query select v_existing_receipt_id, v_existing_receipt_number, v_existing_total;
+          return;
+        end if;
+
+        continue;
+    end;
+  end loop;
+
+  if v_candidate_receipt_id is null then
+    raise exception 'Unable to generate a unique receipt number. Please retry.';
+  end if;
+
+  -- The four snapshot columns are left NULL/0 on purpose. They are frozen
+  -- display values — "the balance the parent was told at the counter" — and a
+  -- correction posted months later was never told to anybody. Same choice the
+  -- 20260727113603 allocation repair made.
+  for alloc in select installment_id, amount from _corrected_allocations order by installment_id loop
+    insert into public.payments (
+      receipt_id, student_id, installment_id, amount, notes,
+      discount_applied_at_posting, waiver_applied_at_posting,
+      pending_before_posting, pending_after_posting
+    )
+    values (
+      v_candidate_receipt_id, p_student_id, alloc.installment_id, alloc.amount,
+      nullif(trim(coalesce(p_notes, '')), ''),
+      0, 0, null, null
+    );
+  end loop;
+
+  return query select v_candidate_receipt_id, v_candidate_receipt_number, v_total;
 end;
 $function$
 ;
@@ -5694,6 +6069,130 @@ end;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.reverse_receipt_admin(p_receipt_id uuid, p_reason text)
+ RETURNS TABLE(receipt_id uuid, receipt_number text, reversed_amount integer, already_reversed_amount integer, concession_amount integer)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'private'
+AS $function$
+declare
+  v_receipt record;
+  v_reversed integer := 0;
+  v_already_reversed integer := 0;
+  v_concessions integer := 0;
+  v_open_refunds integer;
+  v_alloc integer;
+  pay record;
+begin
+  -- Dual-gated. A browser session needs the permission; the headless bulk
+  -- correction path runs as the service role, where `auth.uid()` is null and
+  -- `has_permission` can only ever answer false. Same shape as
+  -- get_dashboard_repayment_summary.
+  if coalesce(auth.role(), '') <> 'service_role'
+     and not (select public.has_permission('payments:reverse_any'))
+  then
+    raise exception 'You do not have permission to reverse a posted receipt.';
+  end if;
+
+  -- The explanation is the point of this function, so unlike undo there is no
+  -- default reason to fall back to.
+  if coalesce(trim(p_reason), '') = '' then
+    raise exception 'A reason is required to reverse a receipt.';
+  end if;
+
+  select r.id, r.receipt_number, r.student_id, r.total_amount, r.payment_date
+  into v_receipt
+  from public.receipts as r
+  where r.id = p_receipt_id;
+
+  if not found then
+    raise exception 'Receipt not found.';
+  end if;
+
+  -- Serialize against concurrent posts, refunds and undos for the same student.
+  -- Same lock key scheme as post_student_payment_with_adjustments.
+  perform pg_advisory_xact_lock(hashtextextended(v_receipt.student_id::text, 0));
+
+  -- No time window. That is the whole point of this function existing.
+
+  select count(*)
+  into v_open_refunds
+  from public.refund_requests as rr
+  where rr.receipt_id = p_receipt_id
+    and rr.status <> 'rejected';
+
+  if v_open_refunds > 0 then
+    raise exception 'This receipt has a refund request in progress. Resolve that first, in Finance Controls.';
+  end if;
+
+  select coalesce(sum(-a.amount_delta), 0)::integer
+  into v_already_reversed
+  from public.payment_adjustments as a
+  join public.payments as p on p.id = a.payment_id
+  where p.receipt_id = p_receipt_id
+    and a.adjustment_type = 'reversal'
+    and a.amount_delta < 0;
+
+  select coalesce(sum(ra.amount_delta), 0)::integer
+  into v_concessions
+  from public.receipt_adjustments as ra
+  where ra.receipt_id = p_receipt_id;
+
+  -- Reverse what is LEFT on each payment row, not its gross amount. A receipt
+  -- that already carries a partial refund, or a stray manual ledger adjustment,
+  -- reverses cleanly down to zero instead of being refused or over-reversed.
+  -- Same headroom arithmetic as process_refund_with_adjustment.
+  for pay in
+    select
+      p.id,
+      p.student_id,
+      p.installment_id,
+      (
+        p.amount
+        + coalesce(
+            (
+              select sum(a.amount_delta)
+              from public.payment_adjustments as a
+              where a.payment_id = p.id
+            ),
+            0
+          )
+      )::integer as available
+    from public.payments as p
+    where p.receipt_id = p_receipt_id
+    order by p.id
+  loop
+    continue when pay.available <= 0;
+
+    v_alloc := pay.available;
+
+    insert into public.payment_adjustments (
+      payment_id, student_id, installment_id, adjustment_type, amount_delta, reason, notes
+    )
+    values (
+      pay.id, pay.student_id, pay.installment_id, 'reversal', -v_alloc,
+      trim(p_reason),
+      'admin_reversal:' || p_receipt_id::text
+    );
+
+    v_reversed := v_reversed + v_alloc;
+  end loop;
+
+  if v_reversed = 0 then
+    raise exception 'This receipt is already fully reversed. Nothing left to give back.';
+  end if;
+
+  return query
+  select
+    v_receipt.id,
+    v_receipt.receipt_number,
+    v_reversed,
+    v_already_reversed,
+    v_concessions;
+end;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.rls_auto_enable()
  RETURNS event_trigger
  LANGUAGE plpgsql
@@ -6049,7 +6548,7 @@ AS $function$
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.waive_late_fee(p_student_id uuid, p_amount integer, p_remarks text, p_session_label text DEFAULT NULL::text, p_client_request_id uuid DEFAULT NULL::uuid, p_installment_id uuid DEFAULT NULL::uuid)
+CREATE OR REPLACE FUNCTION public.waive_late_fee(p_student_id uuid, p_amount integer, p_remarks text, p_session_label text DEFAULT NULL::text, p_client_request_id uuid DEFAULT NULL::uuid, p_installment_id uuid DEFAULT NULL::uuid, p_include_collected boolean DEFAULT false)
  RETURNS TABLE(ok boolean, message text, new_waiver_amount integer, added_amount integer)
  LANGUAGE plpgsql
  SET search_path TO 'public'
@@ -6059,15 +6558,28 @@ declare
   v_charged_late_fee integer;
   v_remaining integer;
   v_take integer;
+  v_take_owed integer;
+  v_take_collected integer;
   v_added integer := 0;
   v_total_waiver integer;
   v_today text;
   v_audit text;
   v_row record;
   v_already_added integer;
+  v_collected boolean := coalesce(p_include_collected, false);
 begin
-  if not public.has_permission('payments:waive_late_fee') then
+  if coalesce(auth.role(), '') <> 'service_role'
+     and not public.has_permission('payments:waive_late_fee')
+  then
     raise exception 'You do not have permission to waive late fees.';
+  end if;
+
+  if v_collected
+     and coalesce(auth.role(), '') <> 'service_role'
+     and not public.has_permission('fees:write')
+  then
+    raise exception
+      'Only an admin can waive a late fee that has already been collected.';
   end if;
 
   if p_student_id is null then
@@ -6082,14 +6594,11 @@ begin
 
   perform pg_advisory_xact_lock(hashtextextended(p_student_id::text, 0));
 
-  -- A student on an active EMI plan has an agreed schedule; forgiving more on
-  -- top of it changes the deal at the counter. Admins keep the escape hatch
-  -- because an old-balance-only plan leaves current-year installments
-  -- uncovered, and those can still legitimately need a waiver.
   if exists (
        select 1 from public.student_repayment_plans
        where student_id = p_student_id and lifecycle = 'active'
      )
+     and coalesce(auth.role(), '') <> 'service_role'
      and not public.has_permission('fees:repayment_plan')
   then
     return query select
@@ -6121,10 +6630,6 @@ begin
     end if;
   end if;
 
-  -- `remaining` is the late fee still OWED on the installment, not the late fee
-  -- charged. pending_amount is what the installment has left outstanding across
-  -- base and late fee together, so capping against it means a payment that has
-  -- already covered the late fee removes it from the waivable pool.
   drop table if exists _waivable;
   create temporary table _waivable on commit drop as
   select
@@ -6133,7 +6638,11 @@ begin
     snap.due_date,
     snap.session_label,
     greatest(snap.final_late_fee, 0)::integer as charged,
-    greatest(snap.late_fee_pending, 0)::integer as remaining
+    case
+      when v_collected then greatest(snap.final_late_fee, 0)::integer
+      else greatest(snap.late_fee_pending, 0)::integer
+    end as remaining,
+    greatest(snap.late_fee_pending, 0)::integer as still_owed
   from private.workbook_installment_snapshot(
          p_student_id,
          (now() at time zone 'Asia/Kolkata')::date,
@@ -6147,14 +6656,10 @@ begin
   from _waivable;
 
   if v_pending_late_fee <= 0 then
-    -- Distinguish "there is no late fee" from "the late fee is already paid".
-    -- They call for different actions, and telling a cashier the student has no
-    -- late fee when the receipt in their hand says otherwise is worse than
-    -- refusing.
     if v_charged_late_fee > 0 then
       return query select
         false,
-        'This late fee has already been paid, so it cannot be waived. Reverse the receipt or raise a refund if it was collected in error.'::text,
+        'This late fee has already been paid, so it cannot be waived. An admin can forgive it from the student page, which returns the money as credit.'::text,
         null::integer,
         null::integer;
     else
@@ -6174,7 +6679,12 @@ begin
 
     return query select
       false,
-      format('Waiver cannot exceed the current pending late fee (%s).', v_pending_late_fee)::text,
+      case
+        when v_collected then
+          format('Waiver cannot exceed the late fee still charged (%s).', v_pending_late_fee)
+        else
+          format('Waiver cannot exceed the current pending late fee (%s).', v_pending_late_fee)
+      end::text,
       v_total_waiver,
       0::integer;
     return;
@@ -6195,15 +6705,32 @@ begin
   loop
     exit when v_remaining <= 0;
     v_take := least(v_remaining, v_row.remaining);
-    if v_take > 0 then
+    v_take_owed := least(v_take, v_row.still_owed);
+    v_take_collected := v_take - v_take_owed;
+
+    if v_take_owed > 0 then
       insert into public.student_late_fee_waivers (
         student_id, installment_id, session_label, amount, reason,
         source, client_request_id, waived_by
       ) values (
-        p_student_id, v_row.installment_id, v_row.session_label, v_take, v_audit,
+        p_student_id, v_row.installment_id, v_row.session_label, v_take_owed, v_audit,
         case when p_installment_id is null then 'manual' else 'payment_desk' end,
         p_client_request_id, auth.uid()
       );
+    end if;
+
+    if v_take_collected > 0 then
+      insert into public.student_late_fee_waivers (
+        student_id, installment_id, session_label, amount, reason,
+        source, client_request_id, waived_by
+      ) values (
+        p_student_id, v_row.installment_id, v_row.session_label, v_take_collected, v_audit,
+        'manual_collected',
+        p_client_request_id, auth.uid()
+      );
+    end if;
+
+    if v_take > 0 then
       v_remaining := v_remaining - v_take;
       v_added := v_added + v_take;
     end if;
@@ -6471,6 +6998,31 @@ create or replace view public.v_transport_route_outstanding as
   WHERE outstanding_amount > 0 AND (balance_status = ANY (ARRAY['partial'::text, 'overdue'::text, 'pending'::text]))
   GROUP BY (COALESCE(transport_route_id::text, 'unassigned'::text)), transport_route_id, (COALESCE(transport_route_name, 'No route'::text)), transport_route_code;
 
+-- public.v_whatsapp_run_outcomes
+create or replace view public.v_whatsapp_run_outcomes as
+ SELECT run.id AS run_id,
+    run.campaign_id,
+    run.session_label,
+    run.campaign_name,
+    run.situation,
+    run.language,
+    run.started_at,
+    run.last_date,
+    run.late_fee_phrase,
+    count(*) FILTER (WHERE s.status = 'sent'::text) AS messaged,
+    count(*) FILTER (WHERE s.status = 'failed'::text) AS failed,
+    COALESCE(sum(s.due_amount) FILTER (WHERE s.status = 'sent'::text), 0::bigint) AS money_quoted,
+    count(*) FILTER (WHERE s.status = 'sent'::text AND COALESCE(paid.amount_paid, 0::bigint) > 0) AS families_paid,
+    COALESCE(sum(paid.amount_paid) FILTER (WHERE s.status = 'sent'::text), 0::numeric) AS money_collected
+   FROM public.whatsapp_campaign_runs run
+     LEFT JOIN public.whatsapp_reminder_sends s ON s.run_id = run.id
+     LEFT JOIN LATERAL ( SELECT sum(r.total_amount) AS amount_paid
+           FROM public.receipts r
+          WHERE r.student_id = s.student_id AND r.payment_date >= s.sent_on AND (run.last_date IS NULL OR r.payment_date <= run.last_date) AND r.payment_mode <> 'discount'::public.payment_mode AND NOT (EXISTS ( SELECT 1
+                   FROM public.v_receipt_reversal_totals rr
+                  WHERE rr.receipt_id = r.id AND rr.reversed_amount >= r.total_amount))) paid ON true
+  GROUP BY run.id;
+
 -- public.v_workbook_installment_balances
 create materialized view if not exists public.v_workbook_installment_balances as
  WITH session_policy AS (
@@ -6677,6 +7229,126 @@ create materialized view if not exists public.v_workbook_installment_balances as
             GREATEST(waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0) AS final_late_fee,
             GREATEST(waiver_eval.applied_amount + waiver_eval.discount_closeout_amount, 0) AS settled_amount
            FROM waiver_eval
+        ), spill AS (
+         SELECT split.installment_id,
+            split.student_id,
+            split.admission_no,
+            split.student_name,
+            split.father_name,
+            split.father_phone,
+            split.session_label,
+            split.class_id,
+            split.class_name,
+            split.class_label,
+            split.section,
+            split.stream_name,
+            split.installment_no,
+            split.installment_label,
+            split.due_date,
+            split.base_charge,
+            split.installment_status,
+            split.late_fee_flat_amount,
+            split.is_emi_late_fee,
+            split.is_carry_forward,
+            split.source_session_label,
+            split.transport_route_id,
+            split.transport_route_name,
+            split.transport_route_code,
+            split.paid_amount,
+            split.adjustment_amount,
+            split.applied_amount,
+            split.discount_closeout_amount,
+            split.settled_by_due_amount,
+            split.last_payment_date,
+            split.raw_late_fee,
+            split.waiver_applied,
+            split.final_late_fee,
+            split.settled_amount,
+            GREATEST(split.settled_amount - (split.base_charge + split.final_late_fee), 0) AS row_surplus,
+            GREATEST(split.base_charge + split.final_late_fee - split.settled_amount, 0) AS row_room
+           FROM split
+        ), carry AS (
+         SELECT spill.installment_id,
+            spill.student_id,
+            spill.admission_no,
+            spill.student_name,
+            spill.father_name,
+            spill.father_phone,
+            spill.session_label,
+            spill.class_id,
+            spill.class_name,
+            spill.class_label,
+            spill.section,
+            spill.stream_name,
+            spill.installment_no,
+            spill.installment_label,
+            spill.due_date,
+            spill.base_charge,
+            spill.installment_status,
+            spill.late_fee_flat_amount,
+            spill.is_emi_late_fee,
+            spill.is_carry_forward,
+            spill.source_session_label,
+            spill.transport_route_id,
+            spill.transport_route_name,
+            spill.transport_route_code,
+            spill.paid_amount,
+            spill.adjustment_amount,
+            spill.applied_amount,
+            spill.discount_closeout_amount,
+            spill.settled_by_due_amount,
+            spill.last_payment_date,
+            spill.raw_late_fee,
+            spill.waiver_applied,
+            spill.final_late_fee,
+            spill.settled_amount,
+            spill.row_surplus,
+            spill.row_room,
+            LEAST(COALESCE(sum(spill.row_surplus) OVER w_before, 0::bigint), COALESCE(sum(spill.row_room) OVER w_through, 0::bigint))::integer AS cum_filled,
+            LEAST(COALESCE(sum(spill.row_surplus) OVER w_before_prev, 0::bigint), COALESCE(sum(spill.row_room) OVER w_before, 0::bigint))::integer AS cum_filled_prev
+           FROM spill
+          WINDOW w_before AS (PARTITION BY spill.student_id ORDER BY spill.due_date, spill.installment_no ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), w_through AS (PARTITION BY spill.student_id ORDER BY spill.due_date, spill.installment_no ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), w_before_prev AS (PARTITION BY spill.student_id ORDER BY spill.due_date, spill.installment_no ROWS BETWEEN UNBOUNDED PRECEDING AND 2 PRECEDING)
+        ), settled AS (
+         SELECT carry.installment_id,
+            carry.student_id,
+            carry.admission_no,
+            carry.student_name,
+            carry.father_name,
+            carry.father_phone,
+            carry.session_label,
+            carry.class_id,
+            carry.class_name,
+            carry.class_label,
+            carry.section,
+            carry.stream_name,
+            carry.installment_no,
+            carry.installment_label,
+            carry.due_date,
+            carry.base_charge,
+            carry.installment_status,
+            carry.late_fee_flat_amount,
+            carry.is_emi_late_fee,
+            carry.is_carry_forward,
+            carry.source_session_label,
+            carry.transport_route_id,
+            carry.transport_route_name,
+            carry.transport_route_code,
+            carry.paid_amount,
+            carry.adjustment_amount,
+            carry.applied_amount,
+            carry.discount_closeout_amount,
+            carry.settled_by_due_amount,
+            carry.last_payment_date,
+            carry.raw_late_fee,
+            carry.waiver_applied,
+            carry.final_late_fee,
+            carry.settled_amount,
+            carry.row_surplus,
+            carry.row_room,
+            carry.cum_filled,
+            carry.cum_filled_prev,
+            carry.settled_amount + GREATEST(carry.cum_filled - carry.cum_filled_prev, 0) AS effective_settled
+           FROM carry
         )
  SELECT installment_id,
     student_id,
@@ -6702,19 +7374,19 @@ create materialized view if not exists public.v_workbook_installment_balances as
     waiver_applied,
     final_late_fee,
     GREATEST(base_charge + raw_late_fee - waiver_applied, 0) AS total_charge,
-    GREATEST(base_charge - settled_amount, 0) AS pending_amount,
-    GREATEST(final_late_fee - GREATEST(settled_amount - base_charge, 0), 0) AS late_fee_pending,
-    GREATEST(base_charge - settled_amount, 0) + GREATEST(final_late_fee - GREATEST(settled_amount - base_charge, 0), 0) AS total_pending,
+    GREATEST(base_charge - effective_settled, 0) AS pending_amount,
+    GREATEST(final_late_fee - GREATEST(effective_settled - base_charge, 0), 0) AS late_fee_pending,
+    GREATEST(base_charge - effective_settled, 0) + GREATEST(final_late_fee - GREATEST(effective_settled - base_charge, 0), 0) AS total_pending,
         CASE
             WHEN installment_status = 'waived'::public.installment_status THEN 'waived'::text
-            WHEN GREATEST(base_charge - settled_amount, 0) <= 0 THEN 'paid'::text
+            WHEN GREATEST(base_charge - effective_settled, 0) <= 0 THEN 'paid'::text
             WHEN CURRENT_DATE > due_date THEN 'overdue'::text
-            WHEN settled_amount > 0 THEN 'partial'::text
+            WHEN effective_settled > 0 THEN 'partial'::text
             ELSE 'pending'::text
         END AS balance_status,
         CASE
             WHEN raw_late_fee <= 0 THEN 'none'::text
-            WHEN GREATEST(final_late_fee - GREATEST(settled_amount - base_charge, 0), 0) > 0 THEN 'pending'::text
+            WHEN GREATEST(final_late_fee - GREATEST(effective_settled - base_charge, 0), 0) > 0 THEN 'pending'::text
             WHEN waiver_applied >= raw_late_fee THEN 'waived'::text
             ELSE 'paid'::text
         END AS late_fee_status,
@@ -6725,7 +7397,7 @@ create materialized view if not exists public.v_workbook_installment_balances as
     is_carry_forward,
     source_session_label,
     is_emi_late_fee
-   FROM split;
+   FROM settled;
 
 -- public.v_student_carry_forward_balances
 create or replace view public.v_student_carry_forward_balances as
@@ -7835,7 +8507,7 @@ CREATE TRIGGER receipt_adjustments_are_append_only BEFORE DELETE OR UPDATE ON pu
 CREATE TRIGGER refresh_financials_on_receipt_adjustment AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.receipt_adjustments FOR EACH STATEMENT EXECUTE FUNCTION public.trigger_refresh_financial_views();
 CREATE TRIGGER set_created_by_on_receipt_adjustments BEFORE INSERT ON public.receipt_adjustments FOR EACH ROW EXECUTE FUNCTION private.set_created_by_column();
 CREATE TRIGGER audit_receipts AFTER INSERT OR DELETE OR UPDATE ON public.receipts FOR EACH ROW EXECUTE FUNCTION private.capture_audit_event();
-CREATE TRIGGER receipts_are_append_only BEFORE DELETE OR UPDATE ON public.receipts FOR EACH ROW EXECUTE FUNCTION private.prevent_append_only_mutation();
+CREATE TRIGGER receipts_are_append_only BEFORE DELETE OR UPDATE ON public.receipts FOR EACH ROW EXECUTE FUNCTION private.protect_receipt_money_columns();
 CREATE TRIGGER refresh_financials_on_receipt AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.receipts FOR EACH STATEMENT EXECUTE FUNCTION public.trigger_refresh_financial_views();
 CREATE TRIGGER set_created_by_on_receipts BEFORE INSERT ON public.receipts FOR EACH ROW EXECUTE FUNCTION private.set_created_by_column();
 CREATE TRIGGER audit_refund_requests AFTER INSERT OR DELETE OR UPDATE ON public.refund_requests FOR EACH ROW EXECUTE FUNCTION private.capture_audit_event();
@@ -7951,6 +8623,9 @@ alter table public.students enable row level security;
 alter table public.transport_routes enable row level security;
 alter table public.user_activity_events enable row level security;
 alter table public.users enable row level security;
+alter table public.whatsapp_campaign_runs enable row level security;
+alter table public.whatsapp_campaigns enable row level security;
+alter table public.whatsapp_reminder_sends enable row level security;
 alter table public.whatsapp_templates enable row level security;
 alter table public.workbook_materialized_view_refresh_queue enable row level security;
 
@@ -8266,6 +8941,12 @@ drop policy if exists "user_activity_events: staff insert" on public.user_activi
 create policy "user_activity_events: staff insert" on public.user_activity_events as PERMISSIVE for INSERT to public with check ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "user_activity_events: staff read" on public.user_activity_events;
 create policy "user_activity_events: staff read" on public.user_activity_events as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
+drop policy if exists "whatsapp_campaign_runs: staff read" on public.whatsapp_campaign_runs;
+create policy "whatsapp_campaign_runs: staff read" on public.whatsapp_campaign_runs as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
+drop policy if exists "whatsapp_campaigns: staff read" on public.whatsapp_campaigns;
+create policy "whatsapp_campaigns: staff read" on public.whatsapp_campaigns as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
+drop policy if exists "whatsapp_reminder_sends: staff read" on public.whatsapp_reminder_sends;
+create policy "whatsapp_reminder_sends: staff read" on public.whatsapp_reminder_sends as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "whatsapp_templates: admin write delete" on public.whatsapp_templates;
 create policy "whatsapp_templates: admin write delete" on public.whatsapp_templates as PERMISSIVE for DELETE to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "whatsapp_templates: admin write insert" on public.whatsapp_templates;
@@ -8462,18 +9143,11 @@ grant DELETE on public.v_effective_late_fee_waivers to service_role;
 grant DELETE on public.v_installment_balances to anon;
 grant DELETE on public.v_installment_balances to authenticated;
 grant DELETE on public.v_installment_balances to service_role;
-grant DELETE on public.v_ledger_policy_drift to anon;
 grant DELETE on public.v_ledger_policy_drift to authenticated;
 grant DELETE on public.v_ledger_policy_drift to service_role;
-grant DELETE on public.v_notion_daily_collection_summary to anon;
-grant DELETE on public.v_notion_daily_collection_summary to authenticated;
 grant DELETE on public.v_notion_daily_collection_summary to service_role;
 grant DELETE on public.v_notion_daily_summary to service_role;
-grant DELETE on public.v_notion_family_fee_summary to anon;
-grant DELETE on public.v_notion_family_fee_summary to authenticated;
 grant DELETE on public.v_notion_family_fee_summary to service_role;
-grant DELETE on public.v_notion_student_fee_summary to anon;
-grant DELETE on public.v_notion_student_fee_summary to authenticated;
 grant DELETE on public.v_notion_student_fee_summary to service_role;
 grant DELETE on public.v_notion_student_fee_sync to service_role;
 grant DELETE on public.v_outstanding_summary to anon;
@@ -8484,25 +9158,33 @@ grant DELETE on public.v_receipt_effective_allocation_totals to service_role;
 grant DELETE on public.v_receipt_reversal_totals to anon;
 grant DELETE on public.v_receipt_reversal_totals to authenticated;
 grant DELETE on public.v_receipt_reversal_totals to service_role;
-grant DELETE on public.v_student_carry_forward_balances to anon;
 grant DELETE on public.v_student_carry_forward_balances to authenticated;
 grant DELETE on public.v_student_carry_forward_balances to service_role;
 grant DELETE on public.v_student_conventional_discounts to authenticated;
 grant DELETE on public.v_student_conventional_discounts to service_role;
-grant DELETE on public.v_student_directory to anon;
 grant DELETE on public.v_student_directory to authenticated;
 grant DELETE on public.v_student_directory to service_role;
-grant DELETE on public.v_student_installment_facets to anon;
 grant DELETE on public.v_student_installment_facets to authenticated;
 grant DELETE on public.v_student_installment_facets to service_role;
 grant DELETE on public.v_student_manual_late_fee_waivers to authenticated;
 grant DELETE on public.v_student_manual_late_fee_waivers to service_role;
-grant DELETE on public.v_student_repayment_plan_status to anon;
 grant DELETE on public.v_student_repayment_plan_status to authenticated;
 grant DELETE on public.v_student_repayment_plan_status to service_role;
 grant DELETE on public.v_transport_route_outstanding to anon;
 grant DELETE on public.v_transport_route_outstanding to authenticated;
 grant DELETE on public.v_transport_route_outstanding to service_role;
+grant DELETE on public.v_whatsapp_run_outcomes to anon;
+grant DELETE on public.v_whatsapp_run_outcomes to authenticated;
+grant DELETE on public.v_whatsapp_run_outcomes to service_role;
+grant DELETE on public.whatsapp_campaign_runs to anon;
+grant DELETE on public.whatsapp_campaign_runs to authenticated;
+grant DELETE on public.whatsapp_campaign_runs to service_role;
+grant DELETE on public.whatsapp_campaigns to anon;
+grant DELETE on public.whatsapp_campaigns to authenticated;
+grant DELETE on public.whatsapp_campaigns to service_role;
+grant DELETE on public.whatsapp_reminder_sends to anon;
+grant DELETE on public.whatsapp_reminder_sends to authenticated;
+grant DELETE on public.whatsapp_reminder_sends to service_role;
 grant DELETE on public.whatsapp_templates to anon;
 grant DELETE on public.whatsapp_templates to authenticated;
 grant DELETE on public.whatsapp_templates to service_role;
@@ -8674,18 +9356,11 @@ grant INSERT on public.v_effective_late_fee_waivers to service_role;
 grant INSERT on public.v_installment_balances to anon;
 grant INSERT on public.v_installment_balances to authenticated;
 grant INSERT on public.v_installment_balances to service_role;
-grant INSERT on public.v_ledger_policy_drift to anon;
 grant INSERT on public.v_ledger_policy_drift to authenticated;
 grant INSERT on public.v_ledger_policy_drift to service_role;
-grant INSERT on public.v_notion_daily_collection_summary to anon;
-grant INSERT on public.v_notion_daily_collection_summary to authenticated;
 grant INSERT on public.v_notion_daily_collection_summary to service_role;
 grant INSERT on public.v_notion_daily_summary to service_role;
-grant INSERT on public.v_notion_family_fee_summary to anon;
-grant INSERT on public.v_notion_family_fee_summary to authenticated;
 grant INSERT on public.v_notion_family_fee_summary to service_role;
-grant INSERT on public.v_notion_student_fee_summary to anon;
-grant INSERT on public.v_notion_student_fee_summary to authenticated;
 grant INSERT on public.v_notion_student_fee_summary to service_role;
 grant INSERT on public.v_notion_student_fee_sync to service_role;
 grant INSERT on public.v_outstanding_summary to anon;
@@ -8696,25 +9371,33 @@ grant INSERT on public.v_receipt_effective_allocation_totals to service_role;
 grant INSERT on public.v_receipt_reversal_totals to anon;
 grant INSERT on public.v_receipt_reversal_totals to authenticated;
 grant INSERT on public.v_receipt_reversal_totals to service_role;
-grant INSERT on public.v_student_carry_forward_balances to anon;
 grant INSERT on public.v_student_carry_forward_balances to authenticated;
 grant INSERT on public.v_student_carry_forward_balances to service_role;
 grant INSERT on public.v_student_conventional_discounts to authenticated;
 grant INSERT on public.v_student_conventional_discounts to service_role;
-grant INSERT on public.v_student_directory to anon;
 grant INSERT on public.v_student_directory to authenticated;
 grant INSERT on public.v_student_directory to service_role;
-grant INSERT on public.v_student_installment_facets to anon;
 grant INSERT on public.v_student_installment_facets to authenticated;
 grant INSERT on public.v_student_installment_facets to service_role;
 grant INSERT on public.v_student_manual_late_fee_waivers to authenticated;
 grant INSERT on public.v_student_manual_late_fee_waivers to service_role;
-grant INSERT on public.v_student_repayment_plan_status to anon;
 grant INSERT on public.v_student_repayment_plan_status to authenticated;
 grant INSERT on public.v_student_repayment_plan_status to service_role;
 grant INSERT on public.v_transport_route_outstanding to anon;
 grant INSERT on public.v_transport_route_outstanding to authenticated;
 grant INSERT on public.v_transport_route_outstanding to service_role;
+grant INSERT on public.v_whatsapp_run_outcomes to anon;
+grant INSERT on public.v_whatsapp_run_outcomes to authenticated;
+grant INSERT on public.v_whatsapp_run_outcomes to service_role;
+grant INSERT on public.whatsapp_campaign_runs to anon;
+grant INSERT on public.whatsapp_campaign_runs to authenticated;
+grant INSERT on public.whatsapp_campaign_runs to service_role;
+grant INSERT on public.whatsapp_campaigns to anon;
+grant INSERT on public.whatsapp_campaigns to authenticated;
+grant INSERT on public.whatsapp_campaigns to service_role;
+grant INSERT on public.whatsapp_reminder_sends to anon;
+grant INSERT on public.whatsapp_reminder_sends to authenticated;
+grant INSERT on public.whatsapp_reminder_sends to service_role;
 grant INSERT on public.whatsapp_templates to anon;
 grant INSERT on public.whatsapp_templates to authenticated;
 grant INSERT on public.whatsapp_templates to service_role;
@@ -8886,18 +9569,11 @@ grant REFERENCES on public.v_effective_late_fee_waivers to service_role;
 grant REFERENCES on public.v_installment_balances to anon;
 grant REFERENCES on public.v_installment_balances to authenticated;
 grant REFERENCES on public.v_installment_balances to service_role;
-grant REFERENCES on public.v_ledger_policy_drift to anon;
 grant REFERENCES on public.v_ledger_policy_drift to authenticated;
 grant REFERENCES on public.v_ledger_policy_drift to service_role;
-grant REFERENCES on public.v_notion_daily_collection_summary to anon;
-grant REFERENCES on public.v_notion_daily_collection_summary to authenticated;
 grant REFERENCES on public.v_notion_daily_collection_summary to service_role;
 grant REFERENCES on public.v_notion_daily_summary to service_role;
-grant REFERENCES on public.v_notion_family_fee_summary to anon;
-grant REFERENCES on public.v_notion_family_fee_summary to authenticated;
 grant REFERENCES on public.v_notion_family_fee_summary to service_role;
-grant REFERENCES on public.v_notion_student_fee_summary to anon;
-grant REFERENCES on public.v_notion_student_fee_summary to authenticated;
 grant REFERENCES on public.v_notion_student_fee_summary to service_role;
 grant REFERENCES on public.v_notion_student_fee_sync to service_role;
 grant REFERENCES on public.v_outstanding_summary to anon;
@@ -8908,25 +9584,33 @@ grant REFERENCES on public.v_receipt_effective_allocation_totals to service_role
 grant REFERENCES on public.v_receipt_reversal_totals to anon;
 grant REFERENCES on public.v_receipt_reversal_totals to authenticated;
 grant REFERENCES on public.v_receipt_reversal_totals to service_role;
-grant REFERENCES on public.v_student_carry_forward_balances to anon;
 grant REFERENCES on public.v_student_carry_forward_balances to authenticated;
 grant REFERENCES on public.v_student_carry_forward_balances to service_role;
 grant REFERENCES on public.v_student_conventional_discounts to authenticated;
 grant REFERENCES on public.v_student_conventional_discounts to service_role;
-grant REFERENCES on public.v_student_directory to anon;
 grant REFERENCES on public.v_student_directory to authenticated;
 grant REFERENCES on public.v_student_directory to service_role;
-grant REFERENCES on public.v_student_installment_facets to anon;
 grant REFERENCES on public.v_student_installment_facets to authenticated;
 grant REFERENCES on public.v_student_installment_facets to service_role;
 grant REFERENCES on public.v_student_manual_late_fee_waivers to authenticated;
 grant REFERENCES on public.v_student_manual_late_fee_waivers to service_role;
-grant REFERENCES on public.v_student_repayment_plan_status to anon;
 grant REFERENCES on public.v_student_repayment_plan_status to authenticated;
 grant REFERENCES on public.v_student_repayment_plan_status to service_role;
 grant REFERENCES on public.v_transport_route_outstanding to anon;
 grant REFERENCES on public.v_transport_route_outstanding to authenticated;
 grant REFERENCES on public.v_transport_route_outstanding to service_role;
+grant REFERENCES on public.v_whatsapp_run_outcomes to anon;
+grant REFERENCES on public.v_whatsapp_run_outcomes to authenticated;
+grant REFERENCES on public.v_whatsapp_run_outcomes to service_role;
+grant REFERENCES on public.whatsapp_campaign_runs to anon;
+grant REFERENCES on public.whatsapp_campaign_runs to authenticated;
+grant REFERENCES on public.whatsapp_campaign_runs to service_role;
+grant REFERENCES on public.whatsapp_campaigns to anon;
+grant REFERENCES on public.whatsapp_campaigns to authenticated;
+grant REFERENCES on public.whatsapp_campaigns to service_role;
+grant REFERENCES on public.whatsapp_reminder_sends to anon;
+grant REFERENCES on public.whatsapp_reminder_sends to authenticated;
+grant REFERENCES on public.whatsapp_reminder_sends to service_role;
 grant REFERENCES on public.whatsapp_templates to anon;
 grant REFERENCES on public.whatsapp_templates to authenticated;
 grant REFERENCES on public.whatsapp_templates to service_role;
@@ -9098,18 +9782,11 @@ grant SELECT on public.v_effective_late_fee_waivers to service_role;
 grant SELECT on public.v_installment_balances to anon;
 grant SELECT on public.v_installment_balances to authenticated;
 grant SELECT on public.v_installment_balances to service_role;
-grant SELECT on public.v_ledger_policy_drift to anon;
 grant SELECT on public.v_ledger_policy_drift to authenticated;
 grant SELECT on public.v_ledger_policy_drift to service_role;
-grant SELECT on public.v_notion_daily_collection_summary to anon;
-grant SELECT on public.v_notion_daily_collection_summary to authenticated;
 grant SELECT on public.v_notion_daily_collection_summary to service_role;
 grant SELECT on public.v_notion_daily_summary to service_role;
-grant SELECT on public.v_notion_family_fee_summary to anon;
-grant SELECT on public.v_notion_family_fee_summary to authenticated;
 grant SELECT on public.v_notion_family_fee_summary to service_role;
-grant SELECT on public.v_notion_student_fee_summary to anon;
-grant SELECT on public.v_notion_student_fee_summary to authenticated;
 grant SELECT on public.v_notion_student_fee_summary to service_role;
 grant SELECT on public.v_notion_student_fee_sync to service_role;
 grant SELECT on public.v_outstanding_summary to anon;
@@ -9120,25 +9797,33 @@ grant SELECT on public.v_receipt_effective_allocation_totals to service_role;
 grant SELECT on public.v_receipt_reversal_totals to anon;
 grant SELECT on public.v_receipt_reversal_totals to authenticated;
 grant SELECT on public.v_receipt_reversal_totals to service_role;
-grant SELECT on public.v_student_carry_forward_balances to anon;
 grant SELECT on public.v_student_carry_forward_balances to authenticated;
 grant SELECT on public.v_student_carry_forward_balances to service_role;
 grant SELECT on public.v_student_conventional_discounts to authenticated;
 grant SELECT on public.v_student_conventional_discounts to service_role;
-grant SELECT on public.v_student_directory to anon;
 grant SELECT on public.v_student_directory to authenticated;
 grant SELECT on public.v_student_directory to service_role;
-grant SELECT on public.v_student_installment_facets to anon;
 grant SELECT on public.v_student_installment_facets to authenticated;
 grant SELECT on public.v_student_installment_facets to service_role;
 grant SELECT on public.v_student_manual_late_fee_waivers to authenticated;
 grant SELECT on public.v_student_manual_late_fee_waivers to service_role;
-grant SELECT on public.v_student_repayment_plan_status to anon;
 grant SELECT on public.v_student_repayment_plan_status to authenticated;
 grant SELECT on public.v_student_repayment_plan_status to service_role;
 grant SELECT on public.v_transport_route_outstanding to anon;
 grant SELECT on public.v_transport_route_outstanding to authenticated;
 grant SELECT on public.v_transport_route_outstanding to service_role;
+grant SELECT on public.v_whatsapp_run_outcomes to anon;
+grant SELECT on public.v_whatsapp_run_outcomes to authenticated;
+grant SELECT on public.v_whatsapp_run_outcomes to service_role;
+grant SELECT on public.whatsapp_campaign_runs to anon;
+grant SELECT on public.whatsapp_campaign_runs to authenticated;
+grant SELECT on public.whatsapp_campaign_runs to service_role;
+grant SELECT on public.whatsapp_campaigns to anon;
+grant SELECT on public.whatsapp_campaigns to authenticated;
+grant SELECT on public.whatsapp_campaigns to service_role;
+grant SELECT on public.whatsapp_reminder_sends to anon;
+grant SELECT on public.whatsapp_reminder_sends to authenticated;
+grant SELECT on public.whatsapp_reminder_sends to service_role;
 grant SELECT on public.whatsapp_templates to anon;
 grant SELECT on public.whatsapp_templates to authenticated;
 grant SELECT on public.whatsapp_templates to service_role;
@@ -9310,18 +9995,11 @@ grant TRIGGER on public.v_effective_late_fee_waivers to service_role;
 grant TRIGGER on public.v_installment_balances to anon;
 grant TRIGGER on public.v_installment_balances to authenticated;
 grant TRIGGER on public.v_installment_balances to service_role;
-grant TRIGGER on public.v_ledger_policy_drift to anon;
 grant TRIGGER on public.v_ledger_policy_drift to authenticated;
 grant TRIGGER on public.v_ledger_policy_drift to service_role;
-grant TRIGGER on public.v_notion_daily_collection_summary to anon;
-grant TRIGGER on public.v_notion_daily_collection_summary to authenticated;
 grant TRIGGER on public.v_notion_daily_collection_summary to service_role;
 grant TRIGGER on public.v_notion_daily_summary to service_role;
-grant TRIGGER on public.v_notion_family_fee_summary to anon;
-grant TRIGGER on public.v_notion_family_fee_summary to authenticated;
 grant TRIGGER on public.v_notion_family_fee_summary to service_role;
-grant TRIGGER on public.v_notion_student_fee_summary to anon;
-grant TRIGGER on public.v_notion_student_fee_summary to authenticated;
 grant TRIGGER on public.v_notion_student_fee_summary to service_role;
 grant TRIGGER on public.v_notion_student_fee_sync to service_role;
 grant TRIGGER on public.v_outstanding_summary to anon;
@@ -9332,25 +10010,33 @@ grant TRIGGER on public.v_receipt_effective_allocation_totals to service_role;
 grant TRIGGER on public.v_receipt_reversal_totals to anon;
 grant TRIGGER on public.v_receipt_reversal_totals to authenticated;
 grant TRIGGER on public.v_receipt_reversal_totals to service_role;
-grant TRIGGER on public.v_student_carry_forward_balances to anon;
 grant TRIGGER on public.v_student_carry_forward_balances to authenticated;
 grant TRIGGER on public.v_student_carry_forward_balances to service_role;
 grant TRIGGER on public.v_student_conventional_discounts to authenticated;
 grant TRIGGER on public.v_student_conventional_discounts to service_role;
-grant TRIGGER on public.v_student_directory to anon;
 grant TRIGGER on public.v_student_directory to authenticated;
 grant TRIGGER on public.v_student_directory to service_role;
-grant TRIGGER on public.v_student_installment_facets to anon;
 grant TRIGGER on public.v_student_installment_facets to authenticated;
 grant TRIGGER on public.v_student_installment_facets to service_role;
 grant TRIGGER on public.v_student_manual_late_fee_waivers to authenticated;
 grant TRIGGER on public.v_student_manual_late_fee_waivers to service_role;
-grant TRIGGER on public.v_student_repayment_plan_status to anon;
 grant TRIGGER on public.v_student_repayment_plan_status to authenticated;
 grant TRIGGER on public.v_student_repayment_plan_status to service_role;
 grant TRIGGER on public.v_transport_route_outstanding to anon;
 grant TRIGGER on public.v_transport_route_outstanding to authenticated;
 grant TRIGGER on public.v_transport_route_outstanding to service_role;
+grant TRIGGER on public.v_whatsapp_run_outcomes to anon;
+grant TRIGGER on public.v_whatsapp_run_outcomes to authenticated;
+grant TRIGGER on public.v_whatsapp_run_outcomes to service_role;
+grant TRIGGER on public.whatsapp_campaign_runs to anon;
+grant TRIGGER on public.whatsapp_campaign_runs to authenticated;
+grant TRIGGER on public.whatsapp_campaign_runs to service_role;
+grant TRIGGER on public.whatsapp_campaigns to anon;
+grant TRIGGER on public.whatsapp_campaigns to authenticated;
+grant TRIGGER on public.whatsapp_campaigns to service_role;
+grant TRIGGER on public.whatsapp_reminder_sends to anon;
+grant TRIGGER on public.whatsapp_reminder_sends to authenticated;
+grant TRIGGER on public.whatsapp_reminder_sends to service_role;
 grant TRIGGER on public.whatsapp_templates to anon;
 grant TRIGGER on public.whatsapp_templates to authenticated;
 grant TRIGGER on public.whatsapp_templates to service_role;
@@ -9522,18 +10208,11 @@ grant TRUNCATE on public.v_effective_late_fee_waivers to service_role;
 grant TRUNCATE on public.v_installment_balances to anon;
 grant TRUNCATE on public.v_installment_balances to authenticated;
 grant TRUNCATE on public.v_installment_balances to service_role;
-grant TRUNCATE on public.v_ledger_policy_drift to anon;
 grant TRUNCATE on public.v_ledger_policy_drift to authenticated;
 grant TRUNCATE on public.v_ledger_policy_drift to service_role;
-grant TRUNCATE on public.v_notion_daily_collection_summary to anon;
-grant TRUNCATE on public.v_notion_daily_collection_summary to authenticated;
 grant TRUNCATE on public.v_notion_daily_collection_summary to service_role;
 grant TRUNCATE on public.v_notion_daily_summary to service_role;
-grant TRUNCATE on public.v_notion_family_fee_summary to anon;
-grant TRUNCATE on public.v_notion_family_fee_summary to authenticated;
 grant TRUNCATE on public.v_notion_family_fee_summary to service_role;
-grant TRUNCATE on public.v_notion_student_fee_summary to anon;
-grant TRUNCATE on public.v_notion_student_fee_summary to authenticated;
 grant TRUNCATE on public.v_notion_student_fee_summary to service_role;
 grant TRUNCATE on public.v_notion_student_fee_sync to service_role;
 grant TRUNCATE on public.v_outstanding_summary to anon;
@@ -9544,25 +10223,33 @@ grant TRUNCATE on public.v_receipt_effective_allocation_totals to service_role;
 grant TRUNCATE on public.v_receipt_reversal_totals to anon;
 grant TRUNCATE on public.v_receipt_reversal_totals to authenticated;
 grant TRUNCATE on public.v_receipt_reversal_totals to service_role;
-grant TRUNCATE on public.v_student_carry_forward_balances to anon;
 grant TRUNCATE on public.v_student_carry_forward_balances to authenticated;
 grant TRUNCATE on public.v_student_carry_forward_balances to service_role;
 grant TRUNCATE on public.v_student_conventional_discounts to authenticated;
 grant TRUNCATE on public.v_student_conventional_discounts to service_role;
-grant TRUNCATE on public.v_student_directory to anon;
 grant TRUNCATE on public.v_student_directory to authenticated;
 grant TRUNCATE on public.v_student_directory to service_role;
-grant TRUNCATE on public.v_student_installment_facets to anon;
 grant TRUNCATE on public.v_student_installment_facets to authenticated;
 grant TRUNCATE on public.v_student_installment_facets to service_role;
 grant TRUNCATE on public.v_student_manual_late_fee_waivers to authenticated;
 grant TRUNCATE on public.v_student_manual_late_fee_waivers to service_role;
-grant TRUNCATE on public.v_student_repayment_plan_status to anon;
 grant TRUNCATE on public.v_student_repayment_plan_status to authenticated;
 grant TRUNCATE on public.v_student_repayment_plan_status to service_role;
 grant TRUNCATE on public.v_transport_route_outstanding to anon;
 grant TRUNCATE on public.v_transport_route_outstanding to authenticated;
 grant TRUNCATE on public.v_transport_route_outstanding to service_role;
+grant TRUNCATE on public.v_whatsapp_run_outcomes to anon;
+grant TRUNCATE on public.v_whatsapp_run_outcomes to authenticated;
+grant TRUNCATE on public.v_whatsapp_run_outcomes to service_role;
+grant TRUNCATE on public.whatsapp_campaign_runs to anon;
+grant TRUNCATE on public.whatsapp_campaign_runs to authenticated;
+grant TRUNCATE on public.whatsapp_campaign_runs to service_role;
+grant TRUNCATE on public.whatsapp_campaigns to anon;
+grant TRUNCATE on public.whatsapp_campaigns to authenticated;
+grant TRUNCATE on public.whatsapp_campaigns to service_role;
+grant TRUNCATE on public.whatsapp_reminder_sends to anon;
+grant TRUNCATE on public.whatsapp_reminder_sends to authenticated;
+grant TRUNCATE on public.whatsapp_reminder_sends to service_role;
 grant TRUNCATE on public.whatsapp_templates to anon;
 grant TRUNCATE on public.whatsapp_templates to authenticated;
 grant TRUNCATE on public.whatsapp_templates to service_role;
@@ -9734,18 +10421,11 @@ grant UPDATE on public.v_effective_late_fee_waivers to service_role;
 grant UPDATE on public.v_installment_balances to anon;
 grant UPDATE on public.v_installment_balances to authenticated;
 grant UPDATE on public.v_installment_balances to service_role;
-grant UPDATE on public.v_ledger_policy_drift to anon;
 grant UPDATE on public.v_ledger_policy_drift to authenticated;
 grant UPDATE on public.v_ledger_policy_drift to service_role;
-grant UPDATE on public.v_notion_daily_collection_summary to anon;
-grant UPDATE on public.v_notion_daily_collection_summary to authenticated;
 grant UPDATE on public.v_notion_daily_collection_summary to service_role;
 grant UPDATE on public.v_notion_daily_summary to service_role;
-grant UPDATE on public.v_notion_family_fee_summary to anon;
-grant UPDATE on public.v_notion_family_fee_summary to authenticated;
 grant UPDATE on public.v_notion_family_fee_summary to service_role;
-grant UPDATE on public.v_notion_student_fee_summary to anon;
-grant UPDATE on public.v_notion_student_fee_summary to authenticated;
 grant UPDATE on public.v_notion_student_fee_summary to service_role;
 grant UPDATE on public.v_notion_student_fee_sync to service_role;
 grant UPDATE on public.v_outstanding_summary to anon;
@@ -9756,25 +10436,33 @@ grant UPDATE on public.v_receipt_effective_allocation_totals to service_role;
 grant UPDATE on public.v_receipt_reversal_totals to anon;
 grant UPDATE on public.v_receipt_reversal_totals to authenticated;
 grant UPDATE on public.v_receipt_reversal_totals to service_role;
-grant UPDATE on public.v_student_carry_forward_balances to anon;
 grant UPDATE on public.v_student_carry_forward_balances to authenticated;
 grant UPDATE on public.v_student_carry_forward_balances to service_role;
 grant UPDATE on public.v_student_conventional_discounts to authenticated;
 grant UPDATE on public.v_student_conventional_discounts to service_role;
-grant UPDATE on public.v_student_directory to anon;
 grant UPDATE on public.v_student_directory to authenticated;
 grant UPDATE on public.v_student_directory to service_role;
-grant UPDATE on public.v_student_installment_facets to anon;
 grant UPDATE on public.v_student_installment_facets to authenticated;
 grant UPDATE on public.v_student_installment_facets to service_role;
 grant UPDATE on public.v_student_manual_late_fee_waivers to authenticated;
 grant UPDATE on public.v_student_manual_late_fee_waivers to service_role;
-grant UPDATE on public.v_student_repayment_plan_status to anon;
 grant UPDATE on public.v_student_repayment_plan_status to authenticated;
 grant UPDATE on public.v_student_repayment_plan_status to service_role;
 grant UPDATE on public.v_transport_route_outstanding to anon;
 grant UPDATE on public.v_transport_route_outstanding to authenticated;
 grant UPDATE on public.v_transport_route_outstanding to service_role;
+grant UPDATE on public.v_whatsapp_run_outcomes to anon;
+grant UPDATE on public.v_whatsapp_run_outcomes to authenticated;
+grant UPDATE on public.v_whatsapp_run_outcomes to service_role;
+grant UPDATE on public.whatsapp_campaign_runs to anon;
+grant UPDATE on public.whatsapp_campaign_runs to authenticated;
+grant UPDATE on public.whatsapp_campaign_runs to service_role;
+grant UPDATE on public.whatsapp_campaigns to anon;
+grant UPDATE on public.whatsapp_campaigns to authenticated;
+grant UPDATE on public.whatsapp_campaigns to service_role;
+grant UPDATE on public.whatsapp_reminder_sends to anon;
+grant UPDATE on public.whatsapp_reminder_sends to authenticated;
+grant UPDATE on public.whatsapp_reminder_sends to service_role;
 grant UPDATE on public.whatsapp_templates to anon;
 grant UPDATE on public.whatsapp_templates to authenticated;
 grant UPDATE on public.whatsapp_templates to service_role;
@@ -9790,6 +10478,8 @@ grant execute on function private.normalize_workbook_class_label(text, text) to 
 grant execute on function private.normalize_workbook_class_label(text, text) to service_role;
 grant execute on function private.prevent_append_only_mutation() to service_role;
 grant execute on function private.prevent_receipt_adjustment_mutation() to service_role;
+grant execute on function private.protect_receipt_money_columns() to authenticated;
+grant execute on function private.protect_receipt_money_columns() to service_role;
 grant execute on function private.set_actor_columns() to service_role;
 grant execute on function private.set_created_by_column() to service_role;
 grant execute on function private.set_updated_at() to service_role;
@@ -9826,6 +10516,7 @@ grant execute on function public.import_student_batch_row(uuid, integer, text, u
 grant execute on function public.import_student_batch_row(uuid, integer, text, uuid, text, date, text, text, text, text, text, uuid, public.student_status, text, integer, integer, integer, integer, jsonb, integer, integer, text, boolean) to service_role;
 grant execute on function public.import_student_batch_row(uuid, integer, text, uuid, text, date, text, text, text, text, text, uuid, public.student_status, text, integer, integer, integer, integer, jsonb, integer, integer, text, boolean, text, integer, integer) to authenticated;
 grant execute on function public.import_student_batch_row(uuid, integer, text, uuid, text, date, text, text, text, text, text, uuid, public.student_status, text, integer, integer, integer, integer, jsonb, integer, integer, text, boolean, text, integer, integer) to service_role;
+grant execute on function public.post_corrected_payment(uuid, date, public.payment_mode, jsonb, uuid, text, text, text, text) to service_role;
 grant execute on function public.post_student_payment(uuid, date, public.payment_mode, integer, text, text, text, text, uuid) to authenticated;
 grant execute on function public.post_student_payment(uuid, date, public.payment_mode, integer, text, text, text, text, uuid) to service_role;
 grant execute on function public.post_student_payment_with_adjustments(uuid, date, public.payment_mode, integer, text, text, text, text, uuid, integer, integer) to authenticated;
@@ -9845,6 +10536,8 @@ grant execute on function public.refresh_financial_materialized_views(boolean) t
 grant execute on function public.refresh_workbook_materialized_views_if_requested() to service_role;
 grant execute on function public.reschedule_student_repayment_plan(uuid, integer, date, text, integer, uuid, date[]) to authenticated;
 grant execute on function public.reschedule_student_repayment_plan(uuid, integer, date, text, integer, uuid, date[]) to service_role;
+grant execute on function public.reverse_receipt_admin(uuid, text) to authenticated;
+grant execute on function public.reverse_receipt_admin(uuid, text) to service_role;
 grant execute on function public.rls_auto_enable() to service_role;
 grant execute on function public.set_my_preferred_locale(text) to authenticated;
 grant execute on function public.set_my_preferred_locale(text) to service_role;
@@ -9856,8 +10549,8 @@ grant execute on function public.undo_recent_payment(uuid, text) to service_role
 grant execute on function public.void_late_fee_waiver(uuid, text) to authenticated;
 grant execute on function public.void_late_fee_waiver(uuid, text) to service_role;
 grant execute on function public.vpps_apply_chunk_proxy(text, jsonb) to service_role;
-grant execute on function public.waive_late_fee(uuid, integer, text, text, uuid, uuid) to authenticated;
-grant execute on function public.waive_late_fee(uuid, integer, text, text, uuid, uuid) to service_role;
+grant execute on function public.waive_late_fee(uuid, integer, text, text, uuid, uuid, boolean) to authenticated;
+grant execute on function public.waive_late_fee(uuid, integer, text, text, uuid, uuid, boolean) to service_role;
 
 
 -- ══ Scheduled jobs (pg_cron) ════════════════════════════════════════════
