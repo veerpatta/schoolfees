@@ -22,10 +22,35 @@ const WAIVE_FORM_ID = "waive-late-fee-form";
 export type WaivableInstallment = {
   installmentId: string;
   label: string;
+  /**
+   * Late fee still OWED on this installment. This is `late_fee_pending`, NOT
+   * `least(final_late_fee, pending_amount)` — since the columns split in
+   * 20260812120000 the latter reads 0 for exactly the families who still have a
+   * waivable late fee, which is why this sheet used to be unreachable for them.
+   */
   remainingLateFee: number;
+  /**
+   * Late fee on this installment the family has ALREADY PAID. Only an admin may
+   * forgive it, and doing so returns the money to them: the installment's charge
+   * falls, what they paid does not, and the difference settles the next
+   * installments before anything left over becomes credit.
+   */
+  collectedLateFee: number;
 };
 
 const ALL_PENDING = "";
+
+/**
+ * Where the target picker starts.
+ *
+ * With exactly one waivable installment, pin to it rather than leaving the
+ * server to allocate oldest-first — the phone mounts this sheet inside the
+ * installment row it belongs to, and "oldest first" there would forgive a
+ * different row than the one the staffer tapped.
+ */
+function initialTarget(installments: WaivableInstallment[]) {
+  return installments.length === 1 ? installments[0].installmentId : ALL_PENDING;
+}
 
 type WaiveLateFeeSheetProps = {
   open: boolean;
@@ -38,11 +63,18 @@ type WaiveLateFeeSheetProps = {
   currentWaiverAmount: number;
   sessionLabel: string;
   /**
-   * Installments that still carry a late fee. When two or more are supplied the
-   * sheet offers a target picker; a waiver then belongs to that installment
-   * permanently. Omitted or single, the RPC allocates oldest-first.
+   * Installments that still carry a late fee. When two or more are supplied, or
+   * when any of them carries a collected late fee, the sheet offers a target
+   * picker; a waiver then belongs to that installment permanently. Omitted or
+   * single, the RPC allocates oldest-first.
    */
   waivableInstallments?: WaivableInstallment[];
+  /**
+   * `fees:write` — admin. Forgiving a late fee the family has already paid is a
+   * strictly larger act than forgiving one they still owe, so it is offered only
+   * here and refused again server-side.
+   */
+  canWaiveCollected?: boolean;
 };
 
 export function WaiveLateFeeSheet({
@@ -56,11 +88,14 @@ export function WaiveLateFeeSheet({
   currentWaiverAmount,
   sessionLabel,
   waivableInstallments = [],
+  canWaiveCollected = false,
 }: WaiveLateFeeSheetProps) {
   const t = useTranslations("Payments");
   const [amount, setAmount] = useState<string>(String(pendingLateFeeAmount));
   const [reason, setReason] = useState<string>("");
-  const [installmentId, setInstallmentId] = useState<string>(ALL_PENDING);
+  const [installmentId, setInstallmentId] = useState<string>(() =>
+    initialTarget(waivableInstallments),
+  );
   // Regenerated per sheet-open, not per submit, so retrying the same attempt
   // reuses the id. The server is now idempotent on it (a replay returns the
   // original result instead of stacking a second waiver), so this is what makes
@@ -80,13 +115,25 @@ export function WaiveLateFeeSheet({
 
   useEffect(() => {
     if (open) {
-      setAmount(String(pendingLateFeeAmount));
+      const target = initialTarget(waivableInstallments);
+      const pinned = waivableInstallments.find((item) => item.installmentId === target);
+      setAmount(
+        String(
+          pinned
+            ? pinned.remainingLateFee + (canWaiveCollected ? pinned.collectedLateFee : 0)
+            : pendingLateFeeAmount,
+        ),
+      );
       setReason("");
-      setInstallmentId(ALL_PENDING);
+      setInstallmentId(target);
       setClientRequestId(crypto.randomUUID());
       setSubmitted(false);
     }
-  }, [open, pendingLateFeeAmount]);
+    // waivableInstallments is a fresh array on every server render, so it is
+    // deliberately NOT a dependency: including it re-runs this on every parent
+    // re-render and wipes what the staffer has typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pendingLateFeeAmount, canWaiveCollected]);
 
   // An error means the waiver did not land, so allow a corrected retry. Success
   // closes the sheet, and reopening resets the guard.
@@ -111,10 +158,25 @@ export function WaiveLateFeeSheet({
   const selectedInstallment = waivableInstallments.find(
     (item) => item.installmentId === installmentId,
   );
+  const collectedOnTarget = canWaiveCollected
+    ? (selectedInstallment?.collectedLateFee ?? 0)
+    : 0;
+  // Only ever true for a SPECIFIC installment an admin picked that has collected
+  // money on it. "All pending, oldest first" deliberately stays on the narrow
+  // pool: with the wide one, typing 1,000 to clear installment 2's unpaid late
+  // fee would silently forgive installment 1's paid one instead, because the RPC
+  // allocates by due date.
+  const includeCollected = collectedOnTarget > 0;
   // Targeting one installment caps the waiver at what that installment still
   // carries; otherwise the ceiling is the student's whole pending late fee.
-  const maxWaivable = selectedInstallment?.remainingLateFee ?? pendingLateFeeAmount;
-  const showInstallmentPicker = waivableInstallments.length > 1;
+  const maxWaivable = selectedInstallment
+    ? selectedInstallment.remainingLateFee + collectedOnTarget
+    : pendingLateFeeAmount;
+  const hasCollected =
+    canWaiveCollected && waivableInstallments.some((item) => item.collectedLateFee > 0);
+  // A single installment normally needs no picker, but one carrying collected
+  // money does: that is the only way to reach the wider pool.
+  const showInstallmentPicker = waivableInstallments.length > 1 || hasCollected;
 
   const numericAmount = Number(amount);
   const validAmount =
@@ -159,6 +221,7 @@ export function WaiveLateFeeSheet({
         <input type="hidden" name="sessionLabel" value={sessionLabel} />
         <input type="hidden" name="clientRequestId" value={clientRequestId} />
         <input type="hidden" name="installmentId" value={installmentId} />
+        <input type="hidden" name="includeCollected" value={String(includeCollected)} />
 
         <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
           <p>
@@ -190,20 +253,56 @@ export function WaiveLateFeeSheet({
                 const target = waivableInstallments.find(
                   (item) => item.installmentId === next,
                 );
-                setAmount(String(target?.remainingLateFee ?? pendingLateFeeAmount));
+                setAmount(
+                  String(
+                    target
+                      ? target.remainingLateFee +
+                          (canWaiveCollected ? target.collectedLateFee : 0)
+                      : pendingLateFeeAmount,
+                  ),
+                );
               }}
               className="flex h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
             >
-              <option value={ALL_PENDING}>
-                {t("waiveInstallmentAll", { amount: formatInr(pendingLateFeeAmount) })}
-              </option>
-              {waivableInstallments.map((item) => (
-                <option key={item.installmentId} value={item.installmentId}>
-                  {item.label} — {formatInr(item.remainingLateFee)}
+              {/* Only when there is genuinely a choice. With one waivable
+                  installment the sheet is already pinned to it, and offering
+                  "all pending, oldest first" beside it would just be a second
+                  name for the same row — or, on a fully-collected one, a
+                  zero-rupee option that can only be refused. */}
+              {waivableInstallments.length > 1 ? (
+                <option value={ALL_PENDING}>
+                  {t("waiveInstallmentAll", { amount: formatInr(pendingLateFeeAmount) })}
                 </option>
-              ))}
+              ) : null}
+              {waivableInstallments.map((item) => {
+                const collected = canWaiveCollected ? item.collectedLateFee : 0;
+                return (
+                  <option key={item.installmentId} value={item.installmentId}>
+                    {item.label} —{" "}
+                    {collected > 0 && item.remainingLateFee > 0
+                      ? t("waiveInstallmentMixed", {
+                          owed: formatInr(item.remainingLateFee),
+                          collected: formatInr(collected),
+                        })
+                      : collected > 0
+                        ? t("waiveInstallmentCollected", { amount: formatInr(collected) })
+                        : t("waiveInstallmentOwed", {
+                            amount: formatInr(item.remainingLateFee),
+                          })}
+                  </option>
+                );
+              })}
             </select>
             <p className="text-xs text-muted-foreground">{t("waiveInstallmentHint")}</p>
+          </div>
+        ) : null}
+
+        {includeCollected ? (
+          // Say what actually happens to the money, in the place where the
+          // decision is made. This is the one waiver that gives rupees back.
+          <div className="flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>{t("waiveCollectedNotice", { amount: formatInr(collectedOnTarget) })}</p>
           </div>
         ) : null}
 

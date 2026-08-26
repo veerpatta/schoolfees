@@ -19,6 +19,10 @@ import {
 } from "@/modules/repayment-plans/data/queries";
 import { REPAYMENT_PLAN_SCOPES } from "@/modules/repayment-plans/domain/types";
 import { getStudentDetail, getStudentFormOptions } from "@/modules/students/data/queries";
+import { getWorkbookInstallmentBalances } from "@/modules/fees/data/queries";
+import { getDisplayInstallmentLabel } from "@/modules/prev-year-dues/domain/display";
+import { WaiveLateFeeTrigger } from "@/modules/payments/ui/waive-late-fee-trigger";
+import { Money } from "@/ui/primitives/money";
 import { toStudentInfoFormValues } from "@/modules/students/domain/info-fields";
 import {
   hasStaffPermission,
@@ -121,9 +125,41 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
   // form: converting dues to a repayment calendar and forgiving late fees is
   // not a record correction, and must not ride along on a name change.
   const canManageRepaymentPlans = hasStaffPermission(staff, "fees:repayment_plan");
-  const repaymentPlan = canManageRepaymentPlans
-    ? await loadRepaymentPlanSection(student.id, resolvedSessionLabel)
-    : null;
+  const canWaiveLateFee = hasStaffPermission(staff, "payments:waive_late_fee");
+  // Admin-only and strictly larger than waiving a debt: this gives money back.
+  const canWaiveCollectedLateFee = hasStaffPermission(staff, "fees:write");
+
+  // Late fees live OUTSIDE the student-master form for the same reason EMI plans
+  // do (see the note above): forgiving money is not a record correction and must
+  // not ride along on a name change. src/modules/students/README.md states the
+  // rule as "never let a student edit rewrite posted money".
+  const [repaymentPlan, installmentBalances] = await Promise.all([
+    canManageRepaymentPlans
+      ? loadRepaymentPlanSection(student.id, resolvedSessionLabel)
+      : Promise.resolve(null),
+    canWaiveLateFee
+      ? getWorkbookInstallmentBalances(student.id)
+      : Promise.resolve([]),
+  ]);
+
+  const lateFeeWaivedTotal = installmentBalances.reduce(
+    (sum, row) => sum + row.waiverApplied,
+    0,
+  );
+  const waivableInstallments = installmentBalances
+    .map((item) => ({
+      installmentId: item.installmentId,
+      label: getDisplayInstallmentLabel(item),
+      remainingLateFee: item.lateFeePending,
+      collectedLateFee: canWaiveCollectedLateFee
+        ? Math.max(item.finalLateFee - item.lateFeePending, 0)
+        : 0,
+    }))
+    .filter((item) => item.remainingLateFee > 0 || item.collectedLateFee > 0);
+  const waivableTotal = waivableInstallments.reduce(
+    (sum, item) => sum + item.remainingLateFee + item.collectedLateFee,
+    0,
+  );
 
   return (
     <div className="space-y-6">
@@ -190,6 +226,75 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
           returnTo={sessionAwareReturnTo}
           action={updateStudentAction.bind(null, student.id)}
         />
+
+      {canWaiveLateFee && waivableInstallments.length > 0 ? (
+        <SectionCard
+          id="late-fee"
+          title="Late fee"
+          description="Late fees are charged automatically the day an installment passes its due date. Forgiving one here writes a waiver against that installment, with your reason — it never edits a posted payment or receipt. Dues, the dashboard, defaulters and the next receipt all follow at once."
+        >
+          <div className="space-y-4">
+            <dl className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Still owed
+                </dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  <Money
+                    value={waivableInstallments.reduce(
+                      (sum, item) => sum + item.remainingLateFee,
+                      0,
+                    )}
+                  />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Already collected
+                </dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  <Money
+                    value={waivableInstallments.reduce(
+                      (sum, item) => sum + item.collectedLateFee,
+                      0,
+                    )}
+                  />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Waived so far
+                </dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  <Money value={lateFeeWaivedTotal} />
+                </dd>
+              </div>
+            </dl>
+
+            {canWaiveCollectedLateFee ? (
+              <Notice tone="info" title="You can forgive a late fee that was already paid">
+                Admins only. It gives the money back rather than cancelling a debt: the
+                installment charges less, what the family already paid settles the next
+                installments, and anything left over stays as credit. Nothing is written to
+                a payment or a receipt.
+              </Notice>
+            ) : null}
+
+            <WaiveLateFeeTrigger
+              studentId={student.id}
+              studentLabel={student.fullName}
+              studentAdmissionNo={student.admissionNo}
+              classLabel={student.classLabel}
+              currentWaiverAmount={lateFeeWaivedTotal}
+              pendingLateFeeAmount={waivableTotal}
+              sessionLabel={resolvedSessionLabel}
+              waivableInstallments={waivableInstallments}
+              canWaiveCollected={canWaiveCollectedLateFee}
+              size="default"
+            />
+          </div>
+        </SectionCard>
+      ) : null}
 
       {repaymentPlan ? (
         <SectionCard

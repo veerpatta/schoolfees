@@ -56,11 +56,22 @@ intent.
 - It can be waived per installment, with a reason, by whoever has
   `payments:waive_late_fee`. A waiver is voided, never deleted, and voiding one bills that
   installment again.
-- **A late fee that has already been paid cannot be waived.** Handing back collected money
-  is a refund — a different act, with its own surface and audit trail.
+- **An admin may waive a late fee that has already been paid.** Anyone else is capped at
+  what is still owed. This is deliberate and it reverses the older rule: late fees land
+  automatically the day an installment goes past due, a fair share of them are wrong, and
+  by the time the office notices the family has usually paid the quote including the
+  ₹1,000 because that is what the counter asked for. Refusing to correct it because the
+  money arrived is the wrong answer.
+  Nothing is written to a payment or a receipt. The installment simply charges less, so
+  what the family already handed over settles the **next** installments, oldest first, and
+  anything still left over becomes credit. Waivers that released collected money are
+  recorded with `source = 'manual_collected'` so they can be found again.
+  Handing cash back across the counter is still a refund — a different act, with its own
+  surface and audit trail.
 
 Two engines compute this — `v_workbook_installment_balances` and
-`private.workbook_installment_snapshot` — and they carry the same rule verbatim. They must
+`private.workbook_installment_snapshot` — and they carry the same rule verbatim, along with
+the surplus-spill rule that puts a released late fee onto the next installments. They must
 be changed together.
 
 When the rule itself changed on 08-08-2026, the school approved the correction but **not**

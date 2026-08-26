@@ -466,6 +466,25 @@ express the school's rule and never fired once:
   `v_whatsapp_run_outcomes`, which 20260822090000 should have had. Without it the
   view reads `receipts` as its owner and RLS is never consulted.
 
+- `20260826115000_installment_surplus_spills_forward` — money applied to an
+  installment beyond its own `base_charge + final_late_fee` now reduces the NEXT
+  installments' pending, oldest first; whatever is left after the last one still
+  surfaces as `credit_balance`. Both engines, one migration, per the shared-rule
+  marker. Until 20260826120000 there was no such surplus — posting allocates
+  against `total_pending`, so nothing could over-apply a row — and the migration
+  asserts that by snapshotting every row before the rebuild and aborting if a
+  single figure moved. Apply it BEFORE 20260826120000: on its own it is a no-op,
+  but without it the waiver below loses money into the `greatest(..., 0)` clips.
+
+- `20260826120000_an_admin_may_waive_a_collected_late_fee` — reverses
+  `20260808190000` for admins (`fees:write`), for late fees only, at the
+  school's instruction. Adds `p_include_collected` as a seventh, defaulted
+  argument, so the six-arg overload is dropped and recreated (PostgREST cannot
+  disambiguate overloads). A partly-collected installment is written as two
+  rows — the still-owed part under the usual source, the released part under the
+  new `manual_collected` — so `student_late_fee_waivers_request_idx` gains
+  `source`. Nothing is written to `payments` or `receipts`.
+
 ## When you add a new migration
 
 1. Create the file via `supabase migration new <name>` so the timestamp is

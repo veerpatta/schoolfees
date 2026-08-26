@@ -32,6 +32,12 @@ vi.mock("next/server", () => ({
 
 vi.mock("@/platform/supabase/session", () => ({
   requireStaffPermission,
+  // Real role logic, so "which roles may forgive a COLLECTED late fee" is
+  // answered by src/platform/auth/roles.ts rather than by the mock.
+  hasStaffPermission: (
+    staff: { appRole: StaffRole },
+    permission: Parameters<typeof hasRolePermission>[1],
+  ) => hasRolePermission(staff.appRole, permission),
 }));
 
 vi.mock("@/platform/supabase/server", () => ({
@@ -148,6 +154,9 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
       // Null means "allocate oldest-first" — the sheet only sends an id when the
       // staff member aims the waiver at one installment.
       p_installment_id: null,
+      // Defaulted false: the ordinary waiver still caps at the late fee the
+      // family still OWES. Only an admin asking for it reaches the wider pool.
+      p_include_collected: false,
     });
 
     // A waiver moves late_fee_pending and total_pending, so the dashboard's
@@ -393,6 +402,145 @@ describe("waiveLateFeeAction — RBAC + RPC path (audit 1.5)", () => {
         payload: expect.objectContaining({
           waivedAmount: 400,
           newWaiverTotal: 700,
+        }),
+      }),
+    );
+  });
+});
+
+/**
+ * Forgiving a late fee the family has ALREADY PAID.
+ *
+ * 20260808190000 forbade this outright: waiving collected money does not hand it
+ * back, it lowers what the installment charges, and the payment that covered it
+ * turns into credit. The school decided in Aug 2026 that for LATE FEES that is
+ * the behaviour they want -- a late fee charged in error should be reversible
+ * whether or not it was collected -- so 20260826120000 reopened it behind
+ * `fees:write`, and 20260826115000 makes the released money actually land on the
+ * next installments instead of being clipped away.
+ *
+ * The escalation is checked three times: here, in the RPC, and by the RLS insert
+ * policy on student_late_fee_waivers. These tests cover the first.
+ */
+describe("waiveLateFeeAction — forgiving an already-collected late fee", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    afterCallbacks.length = 0;
+    recordActivity.mockResolvedValue(undefined);
+    drainFinancialViewRefresh.mockResolvedValue(undefined);
+    createClient.mockResolvedValue(
+      buildSupabaseClient({
+        ok: true,
+        message: "Waiver applied.",
+        new_waiver_amount: 1000,
+        added_amount: 1000,
+      }),
+    );
+  });
+
+  it("an admin reaches the wider pool", async () => {
+    setStaff("admin");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    const result = await waiveLateFeeAction(
+      INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
+      makeFormData({ includeCollected: "true" }),
+    );
+
+    expect(result.status).toBe("success");
+    const supabase = await createClient.mock.results[0]?.value;
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "waive_late_fee",
+      expect.objectContaining({ p_include_collected: true }),
+    );
+  });
+
+  it("says what happens to the money, because this waiver gives rupees back", async () => {
+    setStaff("admin");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    const result = await waiveLateFeeAction(
+      INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
+      makeFormData({ includeCollected: "true" }),
+    );
+
+    expect(result.message).toContain("credit");
+  });
+
+  it("an accountant is refused BEFORE the RPC is called", async () => {
+    // An accountant holds payments:waive_late_fee but not fees:write, so they
+    // keep the narrow pool. Refusing in the app layer means they read a sentence
+    // rather than a Postgres exception -- and means a hand-crafted POST never
+    // reaches the database at all.
+    setStaff("accountant");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    const result = await waiveLateFeeAction(
+      INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
+      makeFormData({ includeCollected: "true" }),
+    );
+
+    expect(result.status).toBe("error");
+    expect(result.message).toMatch(/only an admin/i);
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("an accountant may still waive an ordinary, still-owed late fee", async () => {
+    setStaff("accountant");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    const result = await waiveLateFeeAction(
+      INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
+      makeFormData(),
+    );
+
+    expect(result.status).toBe("success");
+    const supabase = await createClient.mock.results[0]?.value;
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "waive_late_fee",
+      expect.objectContaining({ p_include_collected: false }),
+    );
+  });
+
+  it("anything but the literal string 'true' stays on the narrow pool", async () => {
+    // The flag arrives as form text. A checkbox that posts "on", a stray "1", a
+    // truthy-looking "false" -- none of them may widen what an action forgives.
+    setStaff("admin");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    await waiveLateFeeAction(
+      INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
+      makeFormData({ includeCollected: "on" }),
+    );
+
+    const supabase = await createClient.mock.results[0]?.value;
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "waive_late_fee",
+      expect.objectContaining({ p_include_collected: false }),
+    );
+  });
+
+  it("records which of the two acts it was, so the wider one can be found later", async () => {
+    setStaff("admin");
+    const { waiveLateFeeAction, INITIAL_WAIVE_LATE_FEE_ACTION_STATE } =
+      await loadAction();
+
+    await waiveLateFeeAction(
+      INITIAL_WAIVE_LATE_FEE_ACTION_STATE,
+      makeFormData({ includeCollected: "true" }),
+    );
+
+    await flushAfter();
+    expect(recordActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          action: "late_fee_waiver",
+          includeCollected: true,
         }),
       }),
     );

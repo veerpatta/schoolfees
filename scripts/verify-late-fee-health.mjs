@@ -17,13 +17,24 @@ import { existsSync, readFileSync } from "node:fs";
  *
  *   1. The two engines agree, installment by installment.
  *   2. No waiver exceeds the fee it forgives.
- *   3. No waiver sits on an installment that has already been paid --
- *      20260808190000 caps waivable at `least(final_late_fee, pending_amount)`,
- *      so a paid late fee cannot be forgiven after the fact.
+ *   3. No final late fee has gone negative. This used to read "no waiver sits
+ *      on an installment that has already been paid", which 20260826120000
+ *      makes untrue on purpose: an admin may now forgive a late fee the family
+ *      HAS paid, and the released money comes back to them as dues relief. The
+ *      arithmetic check is unchanged -- a waiver is capped at the charge, so
+ *      `greatest(raw - waiver, 0)` can never go below zero -- and invariant 9
+ *      is what actually watches the new case.
  *   4. Every waiver points at a real, current installment.
  *   5. Grandfathering held: nobody's final late fee moved when the rule changed.
  *   6. Expected fees exclude late fees -- the school treats the late fee as a
  *      separate charge to get payment in on time, not part of what is owed.
+ *   7. Fees and late fee stay in their own columns and still add up.
+ *   8. Every chargeable installment carries a late-fee rate.
+ *   9. Nothing a waiver released has gone missing: per student, what the
+ *      per-installment engine says is owed equals total charge minus everything
+ *      settled. This is the check that earns 20260826120000 -- forgiving a
+ *      collected late fee is only honest if the money it frees actually lands
+ *      on the next installments.
  *
  * Usage:
  *   node scripts/verify-late-fee-health.mjs                # active session
@@ -123,7 +134,7 @@ async function fetchAll(table, columns, apply) {
 // ── The data ───────────────────────────────────────────────────────────────
 const balances = await fetchAll(
   "v_workbook_installment_balances",
-  "installment_id, student_id, installment_no, base_charge, paid_amount, pending_amount, late_fee_pending, total_pending, raw_late_fee, waiver_applied, final_late_fee, balance_status, late_fee_status, is_carry_forward",
+  "installment_id, student_id, installment_no, base_charge, paid_amount, applied_amount, discount_closeout_amount, total_charge, pending_amount, late_fee_pending, total_pending, raw_late_fee, waiver_applied, final_late_fee, balance_status, late_fee_status, is_carry_forward",
   (query) => query.eq("session_label", sessionLabel),
 );
 
@@ -403,6 +414,59 @@ const CUT_OVER_DATE = "2026-08-08";
       offenders.slice(0, 5).map((row) => `${row.id}: rate ${row.late_fee_flat_amount ?? "null"}`),
     );
   }
+}
+
+// ── 9. Nothing a waiver released has gone missing ──────────────────────────
+// The check that earns 20260826120000.
+//
+// An admin may now forgive a late fee the family has ALREADY PAID. That lowers
+// what the installment charges without lowering what was applied to it, and
+// both engines used to clip the difference away with greatest(..., 0): the
+// released rupees vanished from every per-installment figure while
+// v_student_financial_state disagreed by exactly that amount. 20260826115000
+// spills the surplus onto the next installments instead.
+//
+// So, per student, what the per-installment engine says is still owed must
+// equal what the whole year charges minus everything settled against it. That
+// is the arithmetic v_student_financial_state does; if the two part company,
+// the spill is broken and somebody is being asked for money they have paid.
+//
+// This is checked for EVERY student, not just those with a manual_collected
+// waiver: a divergence anywhere means an installment is over-applied for some
+// other reason, which is worth knowing about on its own.
+{
+  const byStudent = new Map();
+  for (const row of balances) {
+    const acc = byStudent.get(row.student_id) ?? { pending: 0, charge: 0, settled: 0 };
+    acc.pending += row.total_pending;
+    acc.charge += row.total_charge;
+    acc.settled += row.applied_amount + row.discount_closeout_amount;
+    byStudent.set(row.student_id, acc);
+  }
+
+  const collectedWaiverStudents = new Set(
+    waivers.filter((row) => row.source === "manual_collected").map((row) => row.student_id),
+  );
+
+  const offenders = [];
+  for (const [studentId, acc] of byStudent) {
+    const expected = Math.max(acc.charge - acc.settled, 0);
+    if (acc.pending !== expected) {
+      offenders.push(
+        `${studentId}: installments say ${acc.pending} pending, charge - settled says ${expected}` +
+          (collectedWaiverStudents.has(studentId) ? " (has a collected-late-fee waiver)" : ""),
+      );
+    }
+  }
+
+  record(
+    "released money lands on the next installments",
+    offenders.length === 0,
+    offenders.length === 0
+      ? `0 student(s) diverging; ${collectedWaiverStudents.size} carry a collected-late-fee waiver`
+      : `${offenders.length} student(s) where per-installment dues disagree with charge - settled`,
+    offenders.slice(0, 5),
+  );
 }
 
 // ── Report ─────────────────────────────────────────────────────────────────

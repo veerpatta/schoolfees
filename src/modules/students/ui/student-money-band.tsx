@@ -81,6 +81,8 @@ export function StudentMoneyBand({
     currentWaiverAmount: number;
     sessionLabel: string;
     waivableInstallments: WaivableInstallment[];
+    /** `fees:write` — admin. Lets the sheet offer an already-collected late fee. */
+    canWaiveCollected: boolean;
   };
   encodedReturnTo: string;
 }) {
@@ -165,6 +167,7 @@ export function StudentMoneyBand({
               pendingLateFeeAmount={pendingLateFeeAmount}
               sessionLabel={waive.sessionLabel}
               waivableInstallments={waive.waivableInstallments}
+              canWaiveCollected={waive.canWaiveCollected}
             />
           ) : null}
         </div>

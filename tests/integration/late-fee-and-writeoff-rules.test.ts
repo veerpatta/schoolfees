@@ -10,15 +10,27 @@ function readMigration(name: string) {
 }
 
 /**
- * A late fee that has already been paid cannot be waived.
+ * A paid late fee could not be waived — the rule as 20260808190000 wrote it.
  *
- * Waiving collected money does not return it — it reduces what the installment
- * charges, so the payment that covered the late fee turns into an unexplained
- * credit and the late fee drops out of the late-fee figures entirely. Money that
- * came in as a late fee has to keep being counted as one. Giving it back is a
- * refund, which is a different act with its own surface and audit trail.
+ * Its reasoning: waiving collected money does not return it, it reduces what the
+ * installment charges, so the payment that covered the late fee turns into an
+ * unexplained credit and the late fee drops out of the late-fee figures. Money
+ * that came in as a late fee has to keep being counted as one.
+ *
+ * That reasoning held for four months and then met the office. Late fees land
+ * automatically the day an installment goes past due, and a fair share of them
+ * are simply wrong — and by the time anyone notices, the family has usually paid
+ * the quote including the ₹1,000, because that is what the counter asked for.
+ * 20260826120000 reopened the case for admins (`fees:write`) and late fees only;
+ * 20260826115000 answered the "unexplained credit" objection by spilling the
+ * released money onto the next installments, where it is anything but
+ * unexplained. See the describe below.
+ *
+ * This block stays, unchanged, because 20260808190000 is immutable history and
+ * because it is the written record of what the narrow rule was and why. It is
+ * still live behaviour for everyone without `fees:write`.
  */
-describe("a paid late fee cannot be waived", () => {
+describe("a paid late fee could not be waived (until 20260826120000)", () => {
   const sql = readMigration("20260808190000_cannot_waive_a_paid_late_fee.sql");
 
   it("caps waivable at what is still outstanding on the installment", () => {

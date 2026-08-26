@@ -13,7 +13,7 @@ import {
 // client itself.
 import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-view-refresh";
 import { createClient } from "@/platform/supabase/server";
-import { requireStaffPermission } from "@/platform/supabase/session";
+import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
 // A "use server" module may export only async functions. The action-state type
 // and INITIAL_* constant live in a plain sibling module; re-exporting the type
 // here is fine (types are erased at build), but the const must not be exported
@@ -84,6 +84,14 @@ function parseClientRequestId(value: FormDataEntryValue | null): string | null {
  *
  * `installmentId` is optional: supplied, the waiver is pinned to that one
  * installment; omitted, the RPC allocates oldest-first by due date.
+ *
+ * `includeCollected` is the admin-only widening added on 26 Aug 2026. Without it
+ * the RPC caps at the late fee still OWED. With it an admin may also forgive a
+ * late fee the family has already handed over: total_due falls, total_paid does
+ * not, and the difference surfaces as credit on the student's ledger. It writes
+ * no payment and no receipt, so financial immutability is untouched. Gated twice
+ * on purpose — `fees:write` here and again inside the RPC — so a hand-crafted
+ * POST cannot reach the wider pool.
  */
 export async function waiveLateFeeAction(
   _previous: WaiveLateFeeActionState,
@@ -101,6 +109,7 @@ export async function waiveLateFeeAction(
     // p_installment_id is null. Anything malformed degrades to that rather than
     // failing the waiver.
     const installmentId = parseClientRequestId(formData.get("installmentId"));
+    const includeCollected = (formData.get("includeCollected") ?? "").toString() === "true";
 
     if (!studentId) {
       return { status: "error", message: "Student is required.", newWaiverAmount: null };
@@ -127,6 +136,19 @@ export async function waiveLateFeeAction(
       };
     }
 
+    // Forgiving a late fee the family has ALREADY PAID returns money to them, so
+    // it needs the admin permission on top of the waiver permission. The RPC
+    // raises on this too; checking here means the staffer reads a sentence rather
+    // than a Postgres exception, and the app never sends a request the database
+    // is going to refuse.
+    if (includeCollected && !hasStaffPermission(staff, "fees:write")) {
+      return {
+        status: "error",
+        message: "Only an admin can waive a late fee that has already been collected.",
+        newWaiverAmount: null,
+      };
+    }
+
     // Audit 1.5 hotfix — call the RPC via the user-JWT supabase client
     // (createClient), NOT the service-role admin client. The waive_late_fee
     // RPC's first guard is `public.has_permission('payments:waive_late_fee')`,
@@ -143,6 +165,7 @@ export async function waiveLateFeeAction(
       p_session_label: sessionLabel,
       p_client_request_id: clientRequestId,
       p_installment_id: installmentId,
+      p_include_collected: includeCollected,
     });
 
     if (rpcError) {
@@ -208,6 +231,9 @@ export async function waiveLateFeeAction(
             action: "late_fee_waiver",
             waivedAmount: amount,
             newWaiverTotal: newWaiver,
+            // Which of the two acts this was. A waiver that released collected
+            // money is the one somebody will come looking for later.
+            includeCollected,
             reason,
           },
         });
@@ -218,7 +244,9 @@ export async function waiveLateFeeAction(
 
     return {
       status: "success",
-      message: `Waived ₹${amount} of late fee. Total waiver for this student: ₹${newWaiver}.`,
+      message: includeCollected
+        ? `Waived ₹${amount} of late fee. Anything already collected comes back as credit on the student's ledger. Total waiver for this student: ₹${newWaiver}.`
+        : `Waived ₹${amount} of late fee. Total waiver for this student: ₹${newWaiver}.`,
       newWaiverAmount: newWaiver,
     };
   } catch (error) {
