@@ -181,11 +181,30 @@ describe("installment surplus spills forward", () => {
       "v_notion_student_fee_summary",
       "v_notion_family_fee_summary",
       "v_notion_daily_collection_summary",
+      // Created after 20260812120000, so it is missing from that migration's
+      // list — the list this one was copied from. On the live database the
+      // cascade drops it, and without this entry the replay would not put it
+      // back. Found by asking the catalog what the cascade actually catches.
+      "v_ledger_policy_drift",
     ]) {
       expect(sql).toContain(view);
     }
     expect(sql).toContain("create unique index v_workbook_installment_balances_idx");
     expect(sql).toContain("create unique index v_student_financial_state_idx");
+  });
+
+  it("checks its dependent list against the catalog instead of trusting it", () => {
+    // A hand-written list goes stale the moment somebody adds a view, and the
+    // cascade does not care. This guard is what turns that from a silent
+    // deletion into a refusal to apply.
+    expect(sql).toContain("pg_rewrite");
+    expect(sql).toMatch(/the cascade would also drop %, which this migration does not replay/);
+  });
+
+  it("restores each dependent's comment from the catalog", () => {
+    // A comment nobody re-typed is a comment silently deleted.
+    expect(sql).toContain("obj_description(format('public.%I', name)::regclass, 'pg_class')");
+    expect(sql).toMatch(/comment on %s public\.%I is %L/);
   });
 
   it("runs as one transaction", () => {

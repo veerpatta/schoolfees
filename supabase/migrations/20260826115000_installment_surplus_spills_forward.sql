@@ -91,15 +91,20 @@ from public.v_workbook_installment_balances;
 -- ===========================================================================
 -- 2. Capture every dependent of the balances matview before dropping it
 -- ===========================================================================
--- The same ten objects, in the same order, as 20260812120000. Every one is
--- replayed byte-for-byte: this migration changes no column name, no column type
--- and no column order, so nothing downstream needs rewriting.
+-- 20260812120000's nine, plus v_ledger_policy_drift, which was created after it.
+-- Every one is replayed byte-for-byte with its comment: this migration changes
+-- no column name, no column type and no column order, so nothing downstream
+-- needs rewriting. The guard below checks the list against the catalog rather
+-- than trusting it.
 
-create temporary table _spill_dependents (ord int, name text, kind text, ddl text)
+create temporary table _spill_dependents (ord int, name text, kind text, ddl text, note text)
   on commit drop;
 
-insert into _spill_dependents (ord, name, kind, ddl)
-select ord, name, kind, pg_get_viewdef(format('public.%I', name)::regclass, true)
+insert into _spill_dependents (ord, name, kind, ddl, note)
+select
+  ord, name, kind,
+  pg_get_viewdef(format('public.%I', name)::regclass, true),
+  obj_description(format('public.%I', name)::regclass, 'pg_class')
 from (values
   (1, 'v_workbook_student_financials',      'm'),
   (2, 'v_student_carry_forward_balances',   'v'),
@@ -109,16 +114,54 @@ from (values
   (6, 'v_student_directory',                'v'),
   (7, 'v_notion_student_fee_summary',       'v'),
   (8, 'v_notion_family_fee_summary',        'v'),
-  (9, 'v_notion_daily_collection_summary',  'v')
+  (9, 'v_notion_daily_collection_summary',  'v'),
+  -- Created after 20260812120000, so it is absent from that migration's list --
+  -- which is exactly the list this one was copied from. The cascade would have
+  -- dropped it and the replay would never have put it back. Nothing depends on
+  -- it, so it goes last.
+  (10, 'v_ledger_policy_drift',             'v')
 ) as t(ord, name, kind);
 
 do $$
 declare
   v_missing int;
+  v_unlisted text;
 begin
   select count(*) into v_missing from _spill_dependents where coalesce(ddl, '') = '';
   if v_missing > 0 then
     raise exception 'surplus spill: % dependent definition(s) came back empty', v_missing;
+  end if;
+
+  -- A hand-written list of dependents goes stale the moment somebody adds a
+  -- view, and the cascade below does not care: it drops what it drops, and the
+  -- replay only restores what is named here. 20260812120000's list was already
+  -- one short by the time this migration was written -- v_ledger_policy_drift
+  -- was created after it -- so ask the catalog instead of trusting the list.
+  select string_agg(name, ', ' order by name) into v_unlisted
+  from (
+    with recursive deps as (
+      select c.oid
+      from pg_class c
+      where c.oid = 'public.v_workbook_installment_balances'::regclass
+      union
+      select c.oid
+      from deps
+      join pg_depend d on d.refobjid = deps.oid and d.classid = 'pg_rewrite'::regclass
+      join pg_rewrite rw on rw.oid = d.objid
+      join pg_class c on c.oid = rw.ev_class
+      where c.oid <> deps.oid
+    )
+    select c.relname::text as name
+    from deps
+    join pg_class c on c.oid = deps.oid
+    where c.oid <> 'public.v_workbook_installment_balances'::regclass
+      and not exists (select 1 from _spill_dependents dep where dep.name = c.relname::text)
+  ) as unlisted;
+
+  if v_unlisted is not null then
+    raise exception
+      'surplus spill: the cascade would also drop %, which this migration does not replay. Add it to the list above before applying.',
+      v_unlisted;
   end if;
 end $$;
 
@@ -384,6 +427,14 @@ begin
     else
       execute format('create view public.%I as %s', v_row.name, v_row.ddl);
     end if;
+
+    -- Restore the comment from the catalog rather than from a hand-written
+    -- block below. A comment nobody re-typed is a comment silently deleted.
+    if v_row.note is not null then
+      execute format('comment on %s public.%I is %L',
+                     case when v_row.kind = 'm' then 'materialized view' else 'view' end,
+                     v_row.name, v_row.note);
+    end if;
   end loop;
 end $$;
 
@@ -407,18 +458,15 @@ grant all on public.v_student_directory              to authenticated, service_r
 grant all on public.v_notion_student_fee_summary     to anon, authenticated, service_role;
 grant all on public.v_notion_family_fee_summary      to anon, authenticated, service_role;
 grant all on public.v_notion_daily_collection_summary to anon, authenticated, service_role;
+grant all on public.v_ledger_policy_drift            to anon, authenticated, service_role;
 
 grant select on public.v_workbook_student_financials     to notion_fee_sync_role;
 grant select on public.v_notion_student_fee_summary      to notion_fee_sync_role;
 grant select on public.v_notion_family_fee_summary       to notion_fee_sync_role;
 grant select on public.v_notion_daily_collection_summary to notion_fee_sync_role;
 
-comment on view public.v_student_directory is
-  'One filterable row per student per session. seg_* booleans back the Students and Transactions segment chips. The three payment buckets (seg_never_paid, seg_partly_paid, seg_year_clear) partition the roll; seg_overdue is a timing flag and overlaps all three. Every money segment reads fees only -- an unpaid late fee alone never puts a student in one, seg_late_fee_pending carries that.';
-comment on view public.v_student_installment_facets is
-  'Per-student installment rollups that v_workbook_student_financials does not expose -- notably the previous-year carry-forward balance. Mirrors the TypeScript helpers in lib/fees/due-amounts.ts, including their existing rounding quirks, so filters agree with the figures already rendered.';
-comment on view public.v_student_repayment_plan_status is
-  'Single source of EMI plan standing. Every surface (Student, Payment Desk, Dashboard, Defaulters, Exports) reads this so statuses cannot disagree.';
+-- Comments are restored inside the replay loop above, from what the catalog
+-- actually held, so this migration cannot drop one by forgetting to re-type it.
 
 -- ===========================================================================
 -- 6. The snapshot function -- engine A
