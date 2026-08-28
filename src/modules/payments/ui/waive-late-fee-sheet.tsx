@@ -174,6 +174,15 @@ export function WaiveLateFeeSheet({
     : pendingLateFeeAmount;
   const hasCollected =
     canWaiveCollected && waivableInstallments.some((item) => item.collectedLateFee > 0);
+  // Never call money "pending" when the family has already handed it over. The
+  // server is careful about this in its refusal messages; the sheet has to be
+  // too, or an admin correcting a wrongly-charged fee is told it is outstanding
+  // while the parent is holding the receipt for it.
+  const owedTotal = waivableInstallments.reduce((sum, i) => sum + i.remainingLateFee, 0);
+  const collectedTotal = canWaiveCollected
+    ? waivableInstallments.reduce((sum, i) => sum + i.collectedLateFee, 0)
+    : 0;
+  const scopeIsAllCollected = owedTotal === 0 && collectedTotal > 0;
   // A single installment normally needs no picker, but one carrying collected
   // money does: that is the only way to reach the wider pool.
   const showInstallmentPicker = waivableInstallments.length > 1 || hasCollected;
@@ -189,7 +198,11 @@ export function WaiveLateFeeSheet({
       open={open}
       onClose={onClose}
       title={`${t("waiveSheetTitlePrefix")} ${studentLabel}`}
-      description={t("waiveSheetDescription", { amount: formatInr(pendingLateFeeAmount) })}
+      description={
+        scopeIsAllCollected
+          ? t("waiveSheetDescriptionCollected", { amount: formatInr(collectedTotal) })
+          : t("waiveSheetDescription", { amount: formatInr(pendingLateFeeAmount) })
+      }
       size="md"
       /* Pinned outside the scroll body so the amount/reason keyboard can
          never bury the Waive button. */
@@ -321,7 +334,9 @@ export function WaiveLateFeeSheet({
             onChange={(event) => setAmount(event.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            {t("waiveAmountHint", { amount: formatInr(maxWaivable) })}
+            {includeCollected || scopeIsAllCollected
+              ? t("waiveAmountHintCharged", { amount: formatInr(maxWaivable) })
+              : t("waiveAmountHint", { amount: formatInr(maxWaivable) })}
           </p>
         </div>
 

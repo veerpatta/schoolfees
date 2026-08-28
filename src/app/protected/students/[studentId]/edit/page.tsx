@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { PageHeader } from "@/ui/shell/page-header";
 import { SectionCard } from "@/ui/shell/section-card";
+import { Section } from "@/ui/primitives/section";
 import { StudentForm } from "@/modules/students/ui/student-form";
 import { Notice } from "@/ui/primitives/notice";
 import {
@@ -161,6 +162,72 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
     0,
   );
 
+  const lateFeeSlot =
+    canWaiveLateFee && waivableInstallments.length > 0 ? (
+      <Section
+        id="late-fee"
+        title="Late fee"
+        description="Charged automatically the day an installment passes its due date. Forgiving one writes a waiver against that installment with your reason — it never edits a posted payment or receipt, and it is not part of Update student. Dues, the dashboard and the next receipt follow at once."
+      >
+        <div className="space-y-4">
+          {/* Three across even on a phone: the values are short, and stacking
+              them pushed the Waive button most of a screen further down. */}
+          <dl className="grid grid-cols-3 gap-3">
+            <div>
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Still owed
+              </dt>
+              <dd className="mt-1 font-semibold text-foreground">
+                <Money
+                  value={waivableInstallments.reduce((sum, item) => sum + item.remainingLateFee, 0)}
+                />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Already collected
+              </dt>
+              <dd className="mt-1 font-semibold text-foreground">
+                <Money
+                  value={waivableInstallments.reduce((sum, item) => sum + item.collectedLateFee, 0)}
+                />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Waived so far
+              </dt>
+              <dd className="mt-1 font-semibold text-foreground">
+                <Money value={lateFeeWaivedTotal} />
+              </dd>
+            </div>
+          </dl>
+
+          {canWaiveCollectedLateFee ? (
+            <Notice tone="info" title="You can forgive a late fee that was already paid">
+              Admins only. It gives the money back rather than cancelling a debt: the
+              installment charges less, what the family already paid settles the next
+              installments, and anything left over stays as credit. Nothing is written to a
+              payment or a receipt.
+            </Notice>
+          ) : null}
+
+          <WaiveLateFeeTrigger
+            studentId={student.id}
+            studentLabel={student.fullName}
+            studentAdmissionNo={student.admissionNo}
+            classLabel={student.classLabel}
+            currentWaiverAmount={lateFeeWaivedTotal}
+            pendingLateFeeAmount={waivableTotal}
+            sessionLabel={resolvedSessionLabel}
+            waivableInstallments={waivableInstallments}
+            canWaiveCollected={canWaiveCollectedLateFee}
+            size="default"
+          />
+        </div>
+      </Section>
+    ) : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -224,77 +291,9 @@ export default async function EditStudentPage({ params, searchParams }: EditStud
             photoPath: student.photoPath ?? "",
           }}
           returnTo={sessionAwareReturnTo}
+          lateFeeSlot={lateFeeSlot}
           action={updateStudentAction.bind(null, student.id)}
         />
-
-      {canWaiveLateFee && waivableInstallments.length > 0 ? (
-        <SectionCard
-          id="late-fee"
-          title="Late fee"
-          description="Late fees are charged automatically the day an installment passes its due date. Forgiving one here writes a waiver against that installment, with your reason — it never edits a posted payment or receipt. Dues, the dashboard, defaulters and the next receipt all follow at once."
-        >
-          <div className="space-y-4">
-            <dl className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Still owed
-                </dt>
-                <dd className="mt-1 font-semibold text-foreground">
-                  <Money
-                    value={waivableInstallments.reduce(
-                      (sum, item) => sum + item.remainingLateFee,
-                      0,
-                    )}
-                  />
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Already collected
-                </dt>
-                <dd className="mt-1 font-semibold text-foreground">
-                  <Money
-                    value={waivableInstallments.reduce(
-                      (sum, item) => sum + item.collectedLateFee,
-                      0,
-                    )}
-                  />
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Waived so far
-                </dt>
-                <dd className="mt-1 font-semibold text-foreground">
-                  <Money value={lateFeeWaivedTotal} />
-                </dd>
-              </div>
-            </dl>
-
-            {canWaiveCollectedLateFee ? (
-              <Notice tone="info" title="You can forgive a late fee that was already paid">
-                Admins only. It gives the money back rather than cancelling a debt: the
-                installment charges less, what the family already paid settles the next
-                installments, and anything left over stays as credit. Nothing is written to
-                a payment or a receipt.
-              </Notice>
-            ) : null}
-
-            <WaiveLateFeeTrigger
-              studentId={student.id}
-              studentLabel={student.fullName}
-              studentAdmissionNo={student.admissionNo}
-              classLabel={student.classLabel}
-              currentWaiverAmount={lateFeeWaivedTotal}
-              pendingLateFeeAmount={waivableTotal}
-              sessionLabel={resolvedSessionLabel}
-              waivableInstallments={waivableInstallments}
-              canWaiveCollected={canWaiveCollectedLateFee}
-              size="default"
-            />
-          </div>
-        </SectionCard>
-      ) : null}
 
       {repaymentPlan ? (
         <SectionCard
