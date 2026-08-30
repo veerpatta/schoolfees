@@ -311,6 +311,18 @@ const LATE_FEE_ENGINES = [
 /** The marker both copies carry, in either the self-closing or the paired form. */
 const SHARED_RULE_MARKER = "SHARED LATE FEE RULE";
 
+/**
+ * A marker declaration, rather than prose that happens to quote the marker.
+ *
+ * Migration 20260826115000 explains the convention in its header before the
+ * two real rule blocks. Searching for the bare phrase treated that prose as a
+ * third copy and reported both genuine, byte-identical engines as drifted.
+ */
+const SHARED_RULE_MARKER_LINE =
+  /^[\t ]*--[\t ]*>>>[\t ]*SHARED LATE FEE RULE[\t ]*<<<[\t ]*$/m;
+const SHARED_RULE_MARKER_LINES =
+  /^[\t ]*--[\t ]*>>>[\t ]*SHARED LATE FEE RULE[\t ]*<<<[\t ]*$/gm;
+
 /** A late-fee branch in real SQL, not in a comment. Comments are stripped first. */
 const LATE_FEE_BRANCH = /\bwhen\b[^\n]*\blate_fee_flat_amount\b/i;
 
@@ -429,6 +441,29 @@ function extractSide(file, side) {
     startLine: lineOfIndex(text, lineStart),
     endLine: lineOfIndex(text, lineEnd),
   };
+}
+
+/** Pull every real shared-rule block from one migration. */
+function extractMarkedRuleCopies(file) {
+  const copies = [];
+  for (const marker of file.text.matchAll(SHARED_RULE_MARKER_LINES)) {
+    const startAt = marker.index;
+    const endAt = file.text.indexOf("as raw_late_fee", startAt + marker[0].length);
+    if (endAt === -1) continue;
+
+    const lineStart = file.text.lastIndexOf("\n", startAt) + 1;
+    const lineEndBreak = file.text.indexOf("\n", endAt + "as raw_late_fee".length);
+    const lineEnd = lineEndBreak === -1 ? file.text.length : lineEndBreak;
+    const body = file.text.slice(lineStart, lineEnd);
+    copies.push({
+      body,
+      language: "sql",
+      normalised: normalise(body, "sql"),
+      startLine: lineOfIndex(file.text, lineStart),
+      endLine: lineOfIndex(file.text, lineEnd),
+    });
+  }
+  return copies;
 }
 
 /* ─── baseline generation ──────────────────────────────────────────────── */
@@ -675,24 +710,11 @@ export async function run({ project, sink, coverage }) {
 
   /* ── 4: the two copies inside one migration, compared live ──────────── */
 
-  const markerCarriers = migrations.filter((file) => file.text.includes(SHARED_RULE_MARKER));
+  const markerCarriers = migrations.filter((file) => SHARED_RULE_MARKER_LINE.test(file.text));
   const newestCarrier = markerCarriers[markerCarriers.length - 1] ?? null;
 
   if (newestCarrier) {
-    const copies = [];
-    let cursor = 0;
-    for (;;) {
-      const at = newestCarrier.text.indexOf(SHARED_RULE_MARKER, cursor);
-      if (at === -1) break;
-      cursor = at + SHARED_RULE_MARKER.length;
-      const found = extractSide(newestCarrier, {
-        from: SHARED_RULE_MARKER,
-        to: "as raw_late_fee",
-        occurrence: copies.length + 1,
-      });
-      if (found.missing) continue;
-      copies.push(found);
-    }
+    const copies = extractMarkedRuleCopies(newestCarrier);
 
     // A `>>> … <<<` open/close pair produces two marker hits for one copy; the
     // extracted bodies are then identical by construction. Dedupe on the

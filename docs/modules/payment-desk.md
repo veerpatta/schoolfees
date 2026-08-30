@@ -5,8 +5,7 @@
 > added. Allocating against fees alone would refuse to let a cashier take a late fee the
 > ledger is still asking for.
 >
-> Also on this surface and not described below: the per-installment **late-fee waiver
-> sheet** (`waive-late-fee-sheet.tsx`), the **EMI banner** for a student on a repayment plan
+> Also on this surface and not described below: the **EMI banner** for a student on a repayment plan
 > (`payment-desk-emi-banner.tsx`), the **UPI QR** (`upi-qr-code.tsx`), and the admin **bulk
 > entry** sub-surface at `/protected/payments/bulk` — part of this module precisely because
 > every row posts through `post_student_payment_with_adjustments`.
@@ -16,6 +15,27 @@
 >
 > `src/modules/payments/ui/payment-desk-mobile.tsx` carries a **3,520-line CI budget**. It has
 > been raised once and must not be raised again — split the file instead.
+
+## The late-fee waiver sheet
+
+`src/modules/payments/ui/waive-late-fee-sheet.tsx` is the only place a late fee is
+forgiven with an amount and a reason. It is mounted from the student page (all three of
+its surfaces — see `docs/modules/students.md`), never from the desk itself. What the desk
+has is a different, narrower thing: an all-or-nothing **tick** during collection, which
+takes the whole pending late fee and writes a canned reason.
+
+The sheet collects a target installment, an amount and a reason of at least four
+characters, and posts to `waiveLateFeeAction`, which calls the `waive_late_fee` RPC. Three
+things about it are load-bearing:
+
+- **It must go through the user-JWT client** (`createClient()`), never the service-role
+  admin client. The RPC's first guard is `has_permission(...)`, which reads `auth.uid()` —
+  null under a service-role JWT, so every waiver would be refused.
+- **`clientRequestId` is minted per sheet-open, not per submit.** The RPC is idempotent on
+  it, so a double-tap replays instead of stacking a second waiver.
+- **Forgiving a late fee the family has already paid needs `fees:write`** and is offered
+  only against a named installment. It gives money back rather than cancelling a debt;
+  `docs/product/school-rules.md` has the rule and where the rupees go.
 
 ## Purpose
 

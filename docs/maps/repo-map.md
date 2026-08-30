@@ -80,11 +80,11 @@ happen there. `src/modules/README.md` indexes them and records why there is no
 |---|---:|---:|
 | `tests/deep` | 0 | 43 |
 | `tests/helpers` | 0 | 2 |
-| `tests/integration` | 93 | 93 |
+| `tests/integration` | 94 | 94 |
 | `tests/scan` | 0 | 25 |
 | `tests/smoke-2026-05` | 0 | 6 |
 | `tests/smoke-readiness` | 0 | 3 |
-| `tests/ui` | 93 | 94 |
+| `tests/ui` | 94 | 95 |
 | `tests/unit` | 159 | 159 |
 
 `npm run test` runs vitest over two projects — `node` for everything and

@@ -61,6 +61,29 @@ Two constraints that are easy to break:
   `md:hidden` renders unchanged. A `md:hidden` block *inside* a `hidden md:block` tree can
   never render — two such dead blocks were found and deleted.
 
+### Waiving a late fee
+
+Three entry points, all the same sheet and the same server action
+(`waiveLateFeeAction`), all gated on `payments:waive_late_fee`:
+
+| Where | Scope |
+|---|---|
+| The money band's status ribbon (desktop) | Every waivable installment, with a picker |
+| Each installment row on the Fees tab (phone) | Pinned to that one installment |
+| The **Late fee** section on `/edit` | Every waivable installment, with the totals |
+
+Two things about it are easy to get wrong, and both have already been wrong here.
+
+- **The waivable list reads `lateFeePending`, never `min(finalLateFee, pendingAmount)`.**
+  Since `20260812120000` split the columns, `pendingAmount` is fees-only, so that
+  expression reads 0 for exactly the families who still owe a late fee — and an empty list
+  meant the button did not render at all. Same trap CLAUDE.md names for the SQL side.
+- **An already-collected late fee is admin-only** (`fees:write`), refused in the action and
+  again inside the RPC, and it is offered only against a specific installment: "all pending,
+  oldest first" would otherwise forgive a paid late fee on installment 1 when the staffer
+  meant the unpaid one on installment 2. See `docs/product/school-rules.md` for where the
+  money goes.
+
 ## Student information (the Info tab)
 
 25 optional columns on `public.students` — identity, government IDs, school record,

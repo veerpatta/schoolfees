@@ -14,6 +14,7 @@ import {
 import { OfficeRecentTracker, ValueStatePill } from "@/ui/office/office-ui";
 import { MobileStudentFamilyTab } from "@/modules/students/ui/mobile-student-family-tab";
 import { MobileStudentProfile } from "@/modules/students/ui/mobile-student-profile";
+import { WaiveLateFeeTrigger } from "@/modules/payments/ui/waive-late-fee-trigger";
 import { StudentAboutPanel } from "@/modules/students/ui/student-about-panel";
 import { StudentDangerZone } from "@/modules/students/ui/student-danger-zone";
 import { StudentDetailHeader } from "@/modules/students/ui/student-detail-header";
@@ -187,6 +188,11 @@ export default async function StudentDetailPage({
   const canReverseReceipts = hasStaffPermission(staff, "payments:reverse_any");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
   const canWaiveLateFee = hasStaffPermission(staff, "payments:waive_late_fee");
+  // Admin-only, and strictly larger: forgiving a late fee the family has ALREADY
+  // PAID gives money back rather than cancelling a debt. `fees:write` sits in
+  // adminPermissions; accountants get only `fees:view`. Refused again in the
+  // server action and a third time inside the waive_late_fee RPC.
+  const canWaiveCollectedLateFee = hasStaffPermission(staff, "fees:write");
   // Admin-only: `fees:write` sits in adminPermissions, while accountants get
   // only `fees:view`.
   const canEditFeePlan = hasStaffPermission(staff, "fees:write");
@@ -258,16 +264,33 @@ export default async function StudentDetailPage({
       : undefined;
 
   // Installments that still carry a late fee, so the waive sheet can aim at one
-  // rather than handing the server a bare rupee amount. Capped at what is still
-  // outstanding on the row: a late fee already collected is not "waivable" in the
-  // sense the cashier means.
+  // rather than handing the server a bare rupee amount.
+  //
+  // `remainingLateFee` is lateFeePending and nothing else. It used to be
+  // `Math.min(finalLateFee, pendingAmount)`, which CLAUDE.md names as the one
+  // expression never to re-derive: since 20260812120000 made pendingAmount
+  // fees-only, that reads 0 for exactly the families who still owe a late fee.
+  // A student whose fees were clear got an empty list, so the guard in
+  // StudentMoneyBand hid the Waive button precisely when it was needed.
+  //
+  // `collectedLateFee` is the rest of the charge — the part the family has
+  // already handed over. Only an admin may forgive that, and doing so returns
+  // the money to them rather than taking it off a bill, so it is carried
+  // separately and labelled as such in the sheet.
   const waivableInstallments = installmentBalances
     .map((item) => ({
       installmentId: item.installmentId,
       label: getDisplayInstallmentLabel(item),
-      remainingLateFee: Math.min(item.finalLateFee, item.pendingAmount),
+      remainingLateFee: item.lateFeePending,
+      collectedLateFee: canWaiveCollectedLateFee
+        ? Math.max(item.finalLateFee - item.lateFeePending, 0)
+        : 0,
     }))
-    .filter((item) => item.remainingLateFee > 0);
+    .filter((item) => item.remainingLateFee > 0 || item.collectedLateFee > 0);
+
+  const waivableByInstallment = new Map(
+    waivableInstallments.map((item) => [item.installmentId, item]),
+  );
 
   // The policy RATE, used only by the mobile overdue warning ("a ₹1,000 late fee
   // applies"). Not a figure this student owes — that is pendingLateFeeAmount.
@@ -912,6 +935,39 @@ export default async function StudentDetailPage({
                         {tm("lateFeeFullyWaived", { amount: formatInr(item.waiverApplied) })}
                       </p>
                     ) : null}
+                    {/* The phone had no way to forgive a late fee at all: the
+                        only trigger lived in StudentMoneyBand, inside the
+                        `hidden md:block` desktop tree. It sits in the row that
+                        charges the fee rather than in the sticky header, which
+                        belongs to Edit, or the bottom bar, which belongs to
+                        Collect — one saffron CTA per screen (design system §6),
+                        so this one is ghost. */}
+                    {canWaiveLateFee && waivableByInstallment.has(item.installmentId) ? (
+                      <div className="px-2.5 pb-2">
+                        <WaiveLateFeeTrigger
+                          studentId={student.id}
+                          studentLabel={student.fullName}
+                          studentAdmissionNo={student.admissionNo}
+                          classLabel={student.classLabel}
+                          currentWaiverAmount={lateFeeWaivedTotal}
+                          // This row's own figure, not the student's. The sheet
+                          // is pinned to this installment, so a student-wide
+                          // total would describe money it cannot touch.
+                          pendingLateFeeAmount={
+                            (waivableByInstallment.get(item.installmentId)?.remainingLateFee ?? 0) +
+                            (waivableByInstallment.get(item.installmentId)?.collectedLateFee ?? 0)
+                          }
+                          sessionLabel={
+                            financialSnapshot?.policy.academicSessionLabel ?? ""
+                          }
+                          waivableInstallments={[
+                            waivableByInstallment.get(item.installmentId)!,
+                          ]}
+                          canWaiveCollected={canWaiveCollectedLateFee}
+                          variant="ghost"
+                        />
+                      </div>
+                    ) : null}
                     {headRows.length > 0 ? (
                       <div className="border-t border-border bg-surface-2/40 px-2.5 py-2">
                         <p className="mobile-eyebrow text-muted-foreground">
@@ -1302,6 +1358,7 @@ export default async function StudentDetailPage({
           currentWaiverAmount: lateFeeWaivedTotal,
           sessionLabel: financialSnapshot?.policy.academicSessionLabel ?? "",
           waivableInstallments,
+          canWaiveCollected: canWaiveCollectedLateFee,
         }}
         encodedReturnTo={encodedReturnTo}
       />

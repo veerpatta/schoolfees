@@ -20,6 +20,8 @@ type WaiveLateFeeTriggerProps = {
   sessionLabel: string;
   /** Installments still carrying a late fee, so the waiver can be targeted. */
   waivableInstallments?: WaivableInstallment[];
+  /** `fees:write` — lets an admin also forgive an already-collected late fee. */
+  canWaiveCollected?: boolean;
   className?: string;
   size?: "sm" | "default";
   variant?: "outline" | "default" | "ghost";
@@ -27,9 +29,13 @@ type WaiveLateFeeTriggerProps = {
 
 /**
  * Standalone "Waive late fee" trigger. Only mount when the active staff has
- * `payments:waive_late_fee` AND the student has a non-zero pending late fee.
- * Caller is responsible for both gates so the button never appears when the
- * waiver wouldn't be actionable.
+ * `payments:waive_late_fee`; this decides for itself whether there is anything
+ * to waive.
+ *
+ * That decision used to be `pendingLateFeeAmount <= 0`, which hid the button for
+ * exactly the student it exists for: an admin correcting a late fee the family
+ * has ALREADY PAID sees a pending late fee of zero. It now counts what the
+ * caller says is waivable, collected money included.
  */
 export function WaiveLateFeeTrigger({
   studentId,
@@ -40,6 +46,7 @@ export function WaiveLateFeeTrigger({
   currentWaiverAmount,
   sessionLabel,
   waivableInstallments,
+  canWaiveCollected = false,
   className,
   size = "sm",
   variant = "outline",
@@ -47,7 +54,15 @@ export function WaiveLateFeeTrigger({
   const t = useTranslations("Payments");
   const [open, setOpen] = useState(false);
 
-  if (pendingLateFeeAmount <= 0) {
+  const waivableTotal = waivableInstallments?.length
+    ? waivableInstallments.reduce(
+        (sum, item) =>
+          sum + item.remainingLateFee + (canWaiveCollected ? item.collectedLateFee : 0),
+        0,
+      )
+    : pendingLateFeeAmount;
+
+  if (waivableTotal <= 0) {
     return null;
   }
 
@@ -74,6 +89,7 @@ export function WaiveLateFeeTrigger({
         currentWaiverAmount={currentWaiverAmount}
         sessionLabel={sessionLabel}
         waivableInstallments={waivableInstallments}
+        canWaiveCollected={canWaiveCollected}
       />
     </>
   );

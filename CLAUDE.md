@@ -55,7 +55,7 @@ Validation sequence (from AGENTS.md): `typecheck` → `lint` → `test` → `bui
 ```bash
 node scripts/bootstrap-staff.mjs          # One-time staff setup (uses service role key)
 node scripts/verify-live-fee-health.mjs   # Production fee-health verification
-node scripts/verify-late-fee-health.mjs   # Late-fee invariants (both engines, waivers, grandfathering)
+node scripts/verify-late-fee-health.mjs   # Late-fee invariants (both engines, waivers, grandfathering, released money)
 node scripts/verify-live-sync-health.mjs  # System sync verification
 node scripts/check-quality-budgets.mjs    # Quality budget checks
 node scripts/verify-workbook-parity.mjs   # Workbook engine parity
@@ -156,7 +156,7 @@ Since `20260812120000` the two kinds of money have their own columns everywhere:
 `late_fee_status` (`none | pending | waived | paid`) carries that separately. A family
 whose only debt is a late fee is **not** a defaulter.
 
-Three things follow, and getting one wrong is a money bug:
+Four things follow, and getting one wrong is a money bug:
 
 - **The posting RPCs and the desk preview allocate against `total_pending`.** Fees-only
   would refuse to let a cashier take a late fee the ledger is still asking for.
@@ -164,9 +164,17 @@ Three things follow, and getting one wrong is a money bug:
   fee by hand; doing that now subtracts it twice.
 - **`waive_late_fee` caps on `late_fee_pending`.** Never re-derive it as
   `least(final_late_fee, pending_amount)` — that expression reads 0 for exactly the
-  families who still have a waivable late fee.
+  families who still have a waivable late fee. The same trap exists in TypeScript: it is
+  what made the Waive button invisible on the student page until `20260826120000`.
+- **An admin (`fees:write`) may waive a late fee that has already been COLLECTED**, via
+  `p_include_collected`. Nothing is written to `payments` or `receipts`: the installment
+  charges less, and since `20260826115000` the money the family already handed over spills
+  onto the next installments, oldest first, before anything left becomes credit. Those
+  waivers carry `source = 'manual_collected'`. The spill rule is a second block duplicated
+  across both engines — `>>> SHARED SURPLUS SPILL RULE <<<` — with the same
+  edit-both-or-neither rule as the late-fee CASE.
 
-Verify with `node scripts/verify-late-fee-health.mjs --session <label>` (8 invariants).
+Verify with `node scripts/verify-late-fee-health.mjs --session <label>` (9 invariants).
 
 ### RBAC
 
@@ -508,7 +516,10 @@ Copy `.env.example` to `.env.local` for local development. Required values:
 7. Fee Setup publish must preview impact first and protect paid/partial/adjusted rows from
    silent rewrite. It must also leave carry-forward rows and EMI-covered installments alone.
 8. A late fee is never folded into a fees figure, and never makes a student a defaulter.
-   The rule lives in two engines that must be edited together.
+   The rule lives in two engines that must be edited together — as does the surplus-spill
+   rule beside it. An admin may forgive a late fee the family has already paid; that
+   returns money to them through the derived views and still never rewrites a posted
+   payment or receipt.
 8b. **Headcount and money count different students, on purpose.** Headcount is
    `record_status = 'active'`. Money — expected, collected, pending, defaulters — is
    `record_status = 'active' OR total_paid > 0`, because a student who left owing money

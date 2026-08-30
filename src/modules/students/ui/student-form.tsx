@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 import Link from "next/link";
 
 import { MobileTabs } from "@/ui/mobile/mobile-tabs";
@@ -87,6 +87,13 @@ type StudentFormProps = {
    * dropdown.
    */
   canEditFinance?: boolean;
+  /**
+   * Rendered at the end of the Fees group, where somebody looking for a fee
+   * lands. Used for the late-fee waiver, which is NOT a form field: it is a
+   * separate audited action, and the Sheet it opens renders through a portal,
+   * so no form is nested inside this one. Only a `type="button"` sits here.
+   */
+  lateFeeSlot?: ReactNode;
   action: (
     previous: StudentFormActionState,
     formData: FormData,
@@ -155,6 +162,7 @@ export function StudentForm({
   returnTo = "/protected/students",
   canEditAdmissionNo = true,
   canEditFinance = true,
+  lateFeeSlot = null,
   action,
 }: StudentFormProps) {
   const [state, formAction, isPending] = useActionState(
@@ -557,6 +565,10 @@ export function StudentForm({
       </div>
 
       <div className={cn("space-y-6", groupPanel("fees"))}>
+      {/* First in the group on purpose. Forgiving a wrongly-charged late fee is
+          a quick, targeted correction; behind the conventional-discount editor
+          and the fee-exception grid it sat three screens down on a phone. */}
+      {lateFeeSlot}
       {canEditFinance ? (
       <Section
         title="Conventional discounts"
