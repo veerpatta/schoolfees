@@ -285,6 +285,20 @@ export type CampaignDescriptor = {
    * seventh cannot inherit approval by omission.
    */
   approved: boolean;
+  /**
+   * Who the message is addressed to.
+   *
+   * `student` names one child and quotes that child's figures — every campaign
+   * that exists today. `family` names the children on one phone and quotes
+   * their total, which is what a parent with three children should receive
+   * instead of three messages.
+   *
+   * Explicit rather than optional, like `approved`: a descriptor added without
+   * deciding would default to addressing one child, and the failure — a family
+   * quoted one sibling's balance as if it were the whole debt — is invisible
+   * until a parent brings the message to the counter.
+   */
+  audience: "student" | "family";
 };
 
 /**
@@ -718,6 +732,7 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     renderPreview: feeDueBodyHi,
     sample: SAMPLES.fee_due.hi,
     approved: true,
+    audience: "student",
   },
   {
     situation: "fee_due",
@@ -728,6 +743,7 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     renderPreview: feeDueBodyEn,
     sample: SAMPLES.fee_due.en,
     approved: true,
+    audience: "student",
   },
   {
     situation: "balance",
@@ -738,6 +754,7 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     renderPreview: balanceBodyHi,
     sample: SAMPLES.balance.hi,
     approved: true,
+    audience: "student",
   },
   {
     situation: "balance",
@@ -748,6 +765,7 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     renderPreview: balanceBodyEn,
     sample: SAMPLES.balance.en,
     approved: true,
+    audience: "student",
   },
   {
     situation: "prevyear",
@@ -758,6 +776,7 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     renderPreview: prevYearBodyHi,
     sample: SAMPLES.prevyear.hi,
     approved: true,
+    audience: "student",
   },
   {
     situation: "prevyear",
@@ -768,6 +787,7 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     renderPreview: prevYearBodyEn,
     sample: SAMPLES.prevyear.en,
     approved: true,
+    audience: "student",
   },
 
 ];

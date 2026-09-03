@@ -1,3 +1,4 @@
+import { formatRupeesPlain } from "@/platform/helpers/currency";
 import {
   LATE_FEE_APPLIED_SKELETON,
   lateFeeAppliedParams,
@@ -376,6 +377,7 @@ export const V3_CAMPAIGNS: readonly CampaignDescriptor[] = [
     renderPreview: upcomingBodyHi,
     sample: SAMPLES.upcoming.hi,
     approved: false,
+    audience: "student",
   },
   {
     situation: "upcoming",
@@ -386,6 +388,7 @@ export const V3_CAMPAIGNS: readonly CampaignDescriptor[] = [
     renderPreview: upcomingBodyEn,
     sample: SAMPLES.upcoming.en,
     approved: false,
+    audience: "student",
   },
   {
     situation: "upcoming_final",
@@ -396,6 +399,7 @@ export const V3_CAMPAIGNS: readonly CampaignDescriptor[] = [
     renderPreview: upcomingFinalBodyHi,
     sample: SAMPLES.upcoming_final.hi,
     approved: false,
+    audience: "student",
   },
   {
     situation: "upcoming_final",
@@ -406,6 +410,7 @@ export const V3_CAMPAIGNS: readonly CampaignDescriptor[] = [
     renderPreview: upcomingFinalBodyEn,
     sample: SAMPLES.upcoming_final.en,
     approved: false,
+    audience: "student",
   },
   {
     situation: "late_fee_applied",
@@ -416,6 +421,7 @@ export const V3_CAMPAIGNS: readonly CampaignDescriptor[] = [
     renderPreview: lateFeeAppliedBodyHi,
     sample: SAMPLES.late_fee_applied.hi,
     approved: false,
+    audience: "student",
   },
   {
     situation: "late_fee_applied",
@@ -426,6 +432,7 @@ export const V3_CAMPAIGNS: readonly CampaignDescriptor[] = [
     renderPreview: lateFeeAppliedBodyEn,
     sample: SAMPLES.late_fee_applied.en,
     approved: false,
+    audience: "student",
   },
   {
     situation: "promise_lapsed",
@@ -436,6 +443,7 @@ export const V3_CAMPAIGNS: readonly CampaignDescriptor[] = [
     renderPreview: promiseLapsedBodyHi,
     sample: SAMPLES.promise_lapsed.hi,
     approved: false,
+    audience: "student",
   },
   {
     situation: "promise_lapsed",
@@ -446,6 +454,7 @@ export const V3_CAMPAIGNS: readonly CampaignDescriptor[] = [
     renderPreview: promiseLapsedBodyEn,
     sample: SAMPLES.promise_lapsed.en,
     approved: false,
+    audience: "student",
   },
 ];
 
@@ -470,6 +479,289 @@ export function describeCampaign(
 ): CampaignDescriptor | null {
   return (
     ALL_CAMPAIGNS.find(
+      (entry) => entry.situation === situation && entry.language === language,
+    ) ?? null
+  );
+}
+
+
+/* ------------------------------------------------------- family notices (v3) */
+
+/**
+ * One phone, more than one child.
+ *
+ * Five slots, not seven. A family notice names the children and quotes ONE
+ * total, so there is no per-child installment phrase and no per-child figure to
+ * carry — which is the whole reason it exists. A parent with three children was
+ * receiving three messages quoting three balances for one debt.
+ *
+ * None of these is approved. Until they are, `sendFamily` falls back to sending
+ * the spokesperson's ordinary per-child notice ONCE per phone and logging the
+ * siblings as `covered_by_sibling` — the family still gets one message, it just
+ * names one child instead of all of them.
+ */
+export const FAMILY_SLOT_SKELETON = [
+  "parentName",
+  "childrenLine",
+  "totalAmount",
+  "date",
+  "lateFeePhrase",
+] as const;
+
+/** Everything a family notice needs. `childrenLine` comes from `family-grouping`. */
+export type FamilyNoticeValues = {
+  parentName: string;
+  /** "Aaradhya (2), Bhavya (5)" — built by `childrenLine()`, never here. */
+  childrenLine: string;
+  /** Every child's figure, summed. The one number a family notice quotes. */
+  totalAmount: number;
+  lastDate?: string;
+  lateFeePhrase?: string;
+};
+
+function familyParams(v: FamilyNoticeValues, language: NoticeLanguage): string[] {
+  const phrase = (v.lateFeePhrase ?? "").trim();
+  return [
+    v.parentName,
+    v.childrenLine,
+    formatRupeesPlain(Math.max(0, Math.round(Number(v.totalAmount) || 0))),
+    v.lastDate ?? "",
+    // Never empty: WhatsApp rejects an empty parameter, same rule as slot 7 on
+    // the per-student notices.
+    phrase || (language === "hi" ? "इस राशि पर लागू नहीं" : "Not applicable on this amount"),
+  ];
+}
+
+function familyBody(args: {
+  title: string;
+  greeting: string;
+  childrenLabel: string;
+  totalLabel: string;
+  dateLabel: string;
+  lateFeeLabel: string;
+  explanation: string;
+  payLine: string;
+  closing: string;
+  office: string;
+  values: FamilyNoticeValues;
+  language: NoticeLanguage;
+}): string {
+  const [parent, children, total, date, fee] = familyParams(args.values, args.language);
+  const rupees = args.language === "hi" ? "रु." : "Rs.";
+  return [
+    `*${args.title}*`,
+    "",
+    `${args.greeting} ${parent},`,
+    "",
+    `${args.childrenLabel}: ${children}`,
+    `${args.totalLabel}: ${rupees} ${total}`, // @allow-raw-money-format: the currency word is part of the Meta-approved body
+    `${args.dateLabel}: ${date}`,
+    `${args.lateFeeLabel}: ${fee}`,
+    "",
+    args.explanation,
+    "",
+    args.payLine,
+    UPI,
+    "",
+    args.closing,
+    "",
+    args.office,
+  ].join("\n");
+}
+
+const HI = {
+  greeting: "प्रिय",
+  childrenLabel: "विद्यार्थी",
+  totalLabel: "कुल देय राशि",
+  payLine: "फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:",
+  closing:
+    "भुगतान करते समय विद्यार्थियों के नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।",
+  office: "जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।",
+};
+
+const EN = {
+  greeting: "Dear",
+  childrenLabel: "Students",
+  totalLabel: "Total amount due",
+  payLine: "Pay at the school fee counter or using this UPI link:",
+  closing:
+    "Please write the students' names with the payment and collect a receipt. If you have already paid, kindly ignore this message.",
+  office: "For any query, call the office on 9352205884.",
+};
+
+/**
+ * One body builder per situation and language.
+ *
+ * Worded differently per situation rather than parameterised, because Meta
+ * rejects a body that near-duplicates an approved one — the same reason the
+ * three per-student situations read differently.
+ */
+const FAMILY_BODIES: Record<
+  string,
+  Record<NoticeLanguage, (v: FamilyNoticeValues) => string>
+> = {
+  fee_due: {
+    en: (v) =>
+      familyBody({
+        ...EN,
+        title: "Fee Notice — Shri Veer Patta Sr. Sec. School",
+        dateLabel: "Last date",
+        lateFeeLabel: "Late fee after the last date",
+        explanation:
+          "The amount above covers all the students named. Paying on or before the last date avoids the late fee.",
+        values: v,
+        language: "en",
+      }),
+    hi: (v) =>
+      familyBody({
+        ...HI,
+        title: "फीस सूचना — श्री वीर पत्ता सी. सै. स्कूल",
+        dateLabel: "अंतिम तिथि",
+        lateFeeLabel: "अंतिम तिथि के बाद विलंब शुल्क",
+        explanation:
+          "उपरोक्त राशि सभी दर्शाए गए विद्यार्थियों की है। अंतिम तिथि तक जमा करने पर कोई विलंब शुल्क नहीं लगेगा।",
+        values: v,
+        language: "hi",
+      }),
+  },
+  balance: {
+    en: (v) =>
+      familyBody({
+        ...EN,
+        title: "Fee Balance — Shri Veer Patta Sr. Sec. School",
+        totalLabel: "Balance due in total",
+        dateLabel: "Next date",
+        lateFeeLabel: "Late fee after the next date",
+        explanation:
+          "Thank you for the payments received. The balance above is what remains across the students named, and clearing it by the next date avoids the late fee.",
+        values: v,
+        language: "en",
+      }),
+    hi: (v) =>
+      familyBody({
+        ...HI,
+        title: "फीस शेष विवरण — श्री वीर पत्ता सी. सै. स्कूल",
+        totalLabel: "कुल शेष बकाया",
+        dateLabel: "अगली तिथि",
+        lateFeeLabel: "अगली तिथि के बाद विलंब शुल्क",
+        explanation:
+          "प्राप्त भुगतान के लिए धन्यवाद। उपरोक्त शेष राशि दर्शाए गए सभी विद्यार्थियों की है। अगली तिथि तक जमा करने पर कोई विलंब शुल्क नहीं लगेगा।",
+        values: v,
+        language: "hi",
+      }),
+  },
+  upcoming: {
+    en: (v) =>
+      familyBody({
+        ...EN,
+        title: "Fee Reminder — Shri Veer Patta Sr. Sec. School",
+        totalLabel: "Amount due in total",
+        dateLabel: "Last date",
+        lateFeeLabel: "Late fee after the last date",
+        explanation:
+          "The next installment for the students named falls due shortly. Settling the total on or before the last date avoids the late fee.",
+        values: v,
+        language: "en",
+      }),
+    hi: (v) =>
+      familyBody({
+        ...HI,
+        title: "फीस स्मरण — श्री वीर पत्ता सी. सै. स्कूल",
+        totalLabel: "कुल देय राशि",
+        dateLabel: "अंतिम तिथि",
+        lateFeeLabel: "अंतिम तिथि के बाद विलंब शुल्क",
+        explanation:
+          "दर्शाए गए विद्यार्थियों की अगली किश्त शीघ्र ही देय है। अंतिम तिथि तक कुल राशि जमा करने पर कोई विलंब शुल्क नहीं लगेगा।",
+        values: v,
+        language: "hi",
+      }),
+  },
+  late_fee_applied: {
+    en: (v) =>
+      familyBody({
+        ...EN,
+        title: "Late Fee Applied — Shri Veer Patta Sr. Sec. School",
+        totalLabel: "Total to pay",
+        dateLabel: "Date passed",
+        lateFeeLabel: "Late fee included above",
+        explanation:
+          "The last date shown has passed and the late fee is now on this account. The total above covers all the students named.",
+        values: v,
+        language: "en",
+      }),
+    hi: (v) =>
+      familyBody({
+        ...HI,
+        title: "विलंब शुल्क लागू — श्री वीर पत्ता सी. सै. स्कूल",
+        totalLabel: "कुल देय",
+        dateLabel: "निकल चुकी तिथि",
+        lateFeeLabel: "उपरोक्त राशि में सम्मिलित विलंब शुल्क",
+        explanation:
+          "दर्शाई गई अंतिम तिथि निकल चुकी है तथा विलंब शुल्क इस खाते में जुड़ चुका है। उपरोक्त कुल राशि सभी दर्शाए गए विद्यार्थियों की है।",
+        values: v,
+        language: "hi",
+      }),
+  },
+};
+
+const FAMILY_SAMPLE: FamilyNoticeValues = {
+  parentName: "Ramesh Lal Gurjar",
+  childrenLine: "Aaradhya Gurjar (2), Bhavya Gurjar (5)",
+  totalAmount: 22375,
+  lastDate: "20-10-2026",
+  lateFeePhrase: "Rs. 1,000 per installment", // @allow-raw-money-format: the literal sample submitted to Meta
+};
+
+const FAMILY_SAMPLE_HI: FamilyNoticeValues = {
+  parentName: "रमेश लाल गुर्जर",
+  childrenLine: "आराध्या गुर्जर (2), भव्या गुर्जर (5)",
+  totalAmount: 22375,
+  lastDate: "20-10-2026",
+  lateFeePhrase: "रु. 1,000 प्रति किश्त",
+};
+
+export type FamilyCampaignDescriptor = {
+  situation: string;
+  language: NoticeLanguage;
+  campaignName: string;
+  slotOrder: readonly string[];
+  buildParams(values: FamilyNoticeValues): string[];
+  renderPreview(values: FamilyNoticeValues): string;
+  sample: FamilyNoticeValues;
+  approved: boolean;
+  audience: "family";
+};
+
+/** The eight family notices. None approved; all written and ready to submit. */
+export const FAMILY_CAMPAIGNS: readonly FamilyCampaignDescriptor[] = (
+  ["fee_due", "balance", "upcoming", "late_fee_applied"] as const
+).flatMap((situation) =>
+  (["hi", "en"] as const).map((language) => ({
+    situation,
+    language,
+    campaignName: `vpps_app_family_${situation}_${language}_v3`,
+    slotOrder: FAMILY_SLOT_SKELETON,
+    buildParams: (values: FamilyNoticeValues) => familyParams(values, language),
+    renderPreview: FAMILY_BODIES[situation]![language],
+    sample: language === "hi" ? FAMILY_SAMPLE_HI : FAMILY_SAMPLE,
+    approved: false,
+    audience: "family" as const,
+  })),
+);
+
+/**
+ * The family campaign for a notice, or null when there is none.
+ *
+ * Returns the descriptor regardless of approval, exactly as `describeCampaign`
+ * does — approval is checked at the send, not the lookup, so the screen can say
+ * "a family template exists but is not Live yet" rather than nothing.
+ */
+export function describeFamilyCampaign(
+  situation: string,
+  language: NoticeLanguage,
+): FamilyCampaignDescriptor | null {
+  return (
+    FAMILY_CAMPAIGNS.find(
       (entry) => entry.situation === situation && entry.language === language,
     ) ?? null
   );

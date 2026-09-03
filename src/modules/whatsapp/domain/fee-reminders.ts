@@ -246,6 +246,21 @@ export type ReminderCandidate = {
   lateFeeInstallments: number[];
   /** The date this family gave, when their latest contact was a promise. */
   promisedOn: string | null;
+  /**
+   * The language THIS family reads, from `student_collection_flags`. Null means
+   * they have never been asked, so the run's language applies.
+   */
+  preferredLanguage: NoticeLanguage | null;
+  /**
+   * The other parent's number, when one is on file, usable, and not the same
+   * digits as the primary.
+   *
+   * Only reached after two delivered notices leave the family still on the list
+   * — see `chooseDestinations`.
+   */
+  secondaryDestination: string | null;
+  /** Delivered notices logged for this family this session, any campaign. */
+  sentCount: number;
 };
 
 export type ReminderSkipCounts = {
@@ -294,6 +309,8 @@ export type PausedFamily = {
 export type ReminderFlags = {
   cadence: ReminderCadence;
   snoozedUntil: string | null;
+  /** Null is the normal state and means "follow the run", not "Hindi". */
+  preferredLanguage: NoticeLanguage | null;
 };
 
 export type ClassOption = { classId: string; label: string; count: number };
@@ -618,7 +635,8 @@ export async function loadReminderAudience(
 
     const studentClass = row.class_label ?? "";
     const fatherDestination = toWhatsappDestination(row.father_phone);
-    const destination = fatherDestination ?? toWhatsappDestination(row.mother_phone);
+    const motherDestination = toWhatsappDestination(row.mother_phone);
+    const destination = fatherDestination ?? motherDestination;
     if (!destination) {
       if (!row.father_phone && !row.mother_phone) {
         skipped.noPhoneOnRecord += 1;
@@ -667,7 +685,8 @@ export async function loadReminderAudience(
     const flags = reminderFlags.get(row.student_id);
     const cadence = flags?.cadence ?? DEFAULT_CADENCE;
     const snoozedUntil = flags?.snoozedUntil ?? null;
-    const lastSentOn = lastSent.get(row.student_id) ?? null;
+    const history = lastSent.get(row.student_id) ?? null;
+    const lastSentOn = history?.lastSentOn ?? null;
 
     const pause = (reason: PausedFamily["reason"], returnsOn: string | null) => {
       paused.push({
@@ -738,6 +757,14 @@ export async function loadReminderAudience(
       lateFeeFeesPending: applied?.feesPending ?? 0,
       lateFeeInstallments: applied?.installments ?? [],
       promisedOn,
+      preferredLanguage: flags?.preferredLanguage ?? null,
+      // The number NOT being used. `destination` already picked the better of
+      // the two, so this is whichever one it did not take.
+      secondaryDestination:
+        [fatherDestination, motherDestination].find(
+          (candidateNumber) => candidateNumber && candidateNumber !== destination,
+        ) ?? null,
+      sentCount: history?.sentCount ?? 0,
     });
   }
 
@@ -959,7 +986,7 @@ async function loadReminderFlags(
 ): Promise<Map<string, ReminderFlags>> {
   const { data, error } = await supabase
     .from("student_collection_flags")
-    .select("student_id, whatsapp_cadence, whatsapp_snoozed_until")
+    .select("student_id, whatsapp_cadence, whatsapp_snoozed_until, whatsapp_language")
     .eq("session_label", sessionLabel);
 
   // Failing open here would message families the office asked us to hold back,
@@ -972,12 +999,19 @@ async function loadReminderFlags(
         student_id: string;
         whatsapp_cadence: ReminderCadence | null;
         whatsapp_snoozed_until: string | null;
+        whatsapp_language: string | null;
       }>
     ).map((row) => [
       row.student_id,
       {
         cadence: row.whatsapp_cadence ?? DEFAULT_CADENCE,
         snoozedUntil: row.whatsapp_snoozed_until,
+        // Validated rather than cast: a value the check constraint somehow let
+        // through must fall back to the run, not name a campaign that does not
+        // exist.
+        preferredLanguage: isNoticeLanguage(row.whatsapp_language)
+          ? (row.whatsapp_language as NoticeLanguage)
+          : null,
       },
     ]),
   );
@@ -999,7 +1033,7 @@ async function loadLastSentOn(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   sessionLabel: string,
-): Promise<Map<string, string>> {
+): Promise<Map<string, { lastSentOn: string; sentCount: number }>> {
   const { data, error } = await supabase
     .from("whatsapp_reminder_sends")
     .select("student_id, sent_on")
@@ -1009,9 +1043,15 @@ async function loadLastSentOn(
 
   if (error) throw new Error(`Could not read the send history: ${error.message}`);
 
-  const latest = new Map<string, string>();
+  const latest = new Map<string, { lastSentOn: string; sentCount: number }>();
   for (const row of (data ?? []) as Array<{ student_id: string; sent_on: string }>) {
-    if (!latest.has(row.student_id)) latest.set(row.student_id, row.sent_on);
+    const existing = latest.get(row.student_id);
+    if (existing) {
+      existing.sentCount += 1;
+      continue;
+    }
+    // Rows arrive newest-first, so the first one seen is the latest.
+    latest.set(row.student_id, { lastSentOn: row.sent_on, sentCount: 1 });
   }
   return latest;
 }

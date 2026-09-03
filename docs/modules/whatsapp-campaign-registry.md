@@ -583,6 +583,252 @@ The registry's `approved: false` is the floor. The column can only turn a
 campaign **on**; it can never approve something the code has not written a body
 for, because a name absent from `campaigns.ts` has no descriptor to enable.
 
+## The family notices — one phone, one message
+
+Eight more templates, also `_v3` and also **not yet submitted**. A parent with
+three children at the school was receiving three messages within a few seconds,
+each quoting one child's balance: three times the cost, and three times the
+nagging, for one family who owes one total.
+
+| Campaign | Language | Situation | Slots |
+|---|---|---|---|
+| `vpps_app_family_fee_due_hi_v3` | Hindi | Nothing received, all children | 5 |
+| `vpps_app_family_fee_due_en_v3` | English | same | 5 |
+| `vpps_app_family_balance_hi_v3` | Hindi | Part paid, balance across the children | 5 |
+| `vpps_app_family_balance_en_v3` | English | same | 5 |
+| `vpps_app_family_upcoming_hi_v3` | Hindi | Next installment due soon | 5 |
+| `vpps_app_family_upcoming_en_v3` | English | same | 5 |
+| `vpps_app_family_late_fee_applied_hi_v3` | Hindi | A date has passed, late fee on the account | 5 |
+| `vpps_app_family_late_fee_applied_en_v3` | English | same | 5 |
+
+### Five slots, not seven
+
+| Slot | Contents |
+|---|---|
+| `{{1}}` | Parent name |
+| `{{2}}` | **The children line** — `Aaradhya Gurjar (2), Bhavya Gurjar (5)` |
+| `{{3}}` | **The total** — every child's figure, summed |
+| `{{4}}` | The date |
+| `{{5}}` | The late-fee phrase |
+
+There is no per-child installment phrase and no per-child figure, which is the
+whole point: the family owes one total and is asked for it once. Classes in
+`{{2}}` are stripped of the `Class ` prefix exactly as `{{3}}` is on the
+per-student notices, so the line reads the way the body around it does.
+
+`{{3}}` goes through `formatRupeesPlain` and the body supplies `रु.` / `Rs.`
+itself, same as every other money slot here.
+
+### What runs until these are approved
+
+`sendFamily` groups the audience by destination and sends the **spokesperson's
+ordinary per-child notice, once per phone** — the largest debt on that number.
+The siblings get `whatsapp_reminder_sends` rows with
+`status = 'covered_by_sibling'` carrying the same `provider_message_id`, so:
+
+- the per-student unique index still holds and they are not messaged again
+  tomorrow,
+- `v_whatsapp_run_outcomes` still joins their payments to the run,
+- and the screen can say *why* they were not messaged separately, rather than
+  showing them as un-contacted.
+
+So the family already gets one message. Approving these templates changes what
+that message SAYS — all the children instead of one — not how many go out.
+
+### Bodies to submit
+
+All eight share one skeleton and are worded differently per situation, because
+Meta rejects a body that near-duplicates an approved one.
+
+#### `vpps_app_family_fee_due_en_v3`
+
+```
+*Fee Notice — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Students: {{2}}
+Total amount due: Rs. {{3}}
+Last date: {{4}}
+Late fee after the last date: {{5}}
+
+The amount above covers all the students named. Paying on or before the last date avoids the late fee.
+
+Pay at the school fee counter or using this UPI link:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+Please write the students' names with the payment and collect a receipt. If you have already paid, kindly ignore this message.
+
+For any query, call the office on 9352205884.
+```
+
+Samples: `Ramesh Lal Gurjar` · `Aaradhya Gurjar (2), Bhavya Gurjar (5)` ·
+`22,375` · `20-10-2026` · `Rs. 1,000 per installment`
+
+#### `vpps_app_family_fee_due_hi_v3`
+
+```
+*फीस सूचना — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कुल देय राशि: रु. {{3}}
+अंतिम तिथि: {{4}}
+अंतिम तिथि के बाद विलंब शुल्क: {{5}}
+
+उपरोक्त राशि सभी दर्शाए गए विद्यार्थियों की है। अंतिम तिथि तक जमा करने पर कोई विलंब शुल्क नहीं लगेगा।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+भुगतान करते समय विद्यार्थियों के नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।
+
+जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
+```
+
+Samples: `रमेश लाल गुर्जर` · `आराध्या गुर्जर (2), भव्या गुर्जर (5)` · `22,375` ·
+`20-10-2026` · `रु. 1,000 प्रति किश्त`
+
+#### `vpps_app_family_balance_en_v3`
+
+```
+*Fee Balance — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Students: {{2}}
+Balance due in total: Rs. {{3}}
+Next date: {{4}}
+Late fee after the next date: {{5}}
+
+Thank you for the payments received. The balance above is what remains across the students named, and clearing it by the next date avoids the late fee.
+
+Pay at the school fee counter or using this UPI link:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+Please write the students' names with the payment and collect a receipt. If you have already paid, kindly ignore this message.
+
+For any query, call the office on 9352205884.
+```
+
+Samples: as above, with `20-10-2026` as the next date.
+
+#### `vpps_app_family_balance_hi_v3`
+
+```
+*फीस शेष विवरण — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कुल शेष बकाया: रु. {{3}}
+अगली तिथि: {{4}}
+अगली तिथि के बाद विलंब शुल्क: {{5}}
+
+प्राप्त भुगतान के लिए धन्यवाद। उपरोक्त शेष राशि दर्शाए गए सभी विद्यार्थियों की है। अगली तिथि तक जमा करने पर कोई विलंब शुल्क नहीं लगेगा।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+भुगतान करते समय विद्यार्थियों के नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।
+
+जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
+```
+
+#### `vpps_app_family_upcoming_en_v3`
+
+```
+*Fee Reminder — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Students: {{2}}
+Amount due in total: Rs. {{3}}
+Last date: {{4}}
+Late fee after the last date: {{5}}
+
+The next installment for the students named falls due shortly. Settling the total on or before the last date avoids the late fee.
+
+Pay at the school fee counter or using this UPI link:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+Please write the students' names with the payment and collect a receipt. If you have already paid, kindly ignore this message.
+
+For any query, call the office on 9352205884.
+```
+
+#### `vpps_app_family_upcoming_hi_v3`
+
+```
+*फीस स्मरण — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कुल देय राशि: रु. {{3}}
+अंतिम तिथि: {{4}}
+अंतिम तिथि के बाद विलंब शुल्क: {{5}}
+
+दर्शाए गए विद्यार्थियों की अगली किश्त शीघ्र ही देय है। अंतिम तिथि तक कुल राशि जमा करने पर कोई विलंब शुल्क नहीं लगेगा।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+भुगतान करते समय विद्यार्थियों के नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।
+
+जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
+```
+
+#### `vpps_app_family_late_fee_applied_en_v3`
+
+Note `{{5}}` here is the late fee **already included** in `{{3}}`, not a warning
+about one to come — the family variant quotes one total, so the split into three
+figures that the per-student `late_fee_applied` notice makes is not available.
+The label says so.
+
+```
+*Late Fee Applied — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Students: {{2}}
+Total to pay: Rs. {{3}}
+Date passed: {{4}}
+Late fee included above: {{5}}
+
+The last date shown has passed and the late fee is now on this account. The total above covers all the students named.
+
+Pay at the school fee counter or using this UPI link:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+Please write the students' names with the payment and collect a receipt. If you have already paid, kindly ignore this message.
+
+For any query, call the office on 9352205884.
+```
+
+#### `vpps_app_family_late_fee_applied_hi_v3`
+
+```
+*विलंब शुल्क लागू — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कुल देय: रु. {{3}}
+निकल चुकी तिथि: {{4}}
+उपरोक्त राशि में सम्मिलित विलंब शुल्क: {{5}}
+
+दर्शाई गई अंतिम तिथि निकल चुकी है तथा विलंब शुल्क इस खाते में जुड़ चुका है। उपरोक्त कुल राशि सभी दर्शाए गए विद्यार्थियों की है।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+भुगतान करते समय विद्यार्थियों के नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।
+
+जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
+```
+
 ## Authoring notes, for whoever adds the eighth
 
 - **The AiSensy body editor auto-pairs braces.** Typing `({{3}})` produces

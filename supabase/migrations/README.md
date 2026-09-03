@@ -538,3 +538,32 @@ repair it as reverted so only `20260421203000` remains:
 supabase migration repair --status reverted 20260421140354
 supabase migration repair --status applied 20260421203000
 ```
+
+## 20260903130517 — WhatsApp family, language and second numbers
+
+Applied through the Supabase MCP, so the recorded version came from the wall
+clock at apply time and not from the filename. The file was written as
+`20260903120000_…` and renamed to `20260903130517_…` in the same session, per
+the workflow in `CLAUDE.md`. Contents are byte-for-byte what was applied; only
+the leading timestamp changed.
+
+What it does, and the one thing to know about each:
+
+- `student_collection_flags.whatsapp_language` — nullable, and **null is not
+  the same as `'hi'`**. Null means "follow the run"; a family who has answered
+  keeps their answer when the office switches the run to the other language.
+- `whatsapp_reminder_sends.language` — what actually went out. The run record's
+  `language` is the DEFAULT, so answering "which language did this parent get"
+  from the run would be a guess.
+- `status` gains `covered_by_sibling` — not a send and not a failure. It records
+  that a child's family WAS reached, on a message naming a sibling. No provider
+  call is made for one of these rows and it costs nothing.
+- `destination_role` (`primary` / `secondary`) and the unique index widened to
+  include it. This was the alternative to putting `destination` in the index,
+  and it is better: the index is what guarantees a family is not messaged twice
+  for one notice, and keying it on a phone STRING would let a re-formatted
+  number silently buy a third message. A role has exactly two values, so the
+  ceiling is two.
+
+The index it replaces was strictly stronger, so no existing row could violate
+the new one and the swap needed no backfill.

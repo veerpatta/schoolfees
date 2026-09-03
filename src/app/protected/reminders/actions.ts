@@ -7,6 +7,10 @@ import { requireStaffPermission } from "@/platform/supabase/session";
 import { isAisensyConfigured, sendAisensyCampaignMessage } from "@/modules/whatsapp/data/aisensy";
 import { getFeePolicySummary } from "@/modules/fees/data/policy";
 import {
+  groupIntoFamilies,
+  type ReminderFamily,
+} from "@/modules/whatsapp/domain/family-grouping";
+import {
   buildInstallmentCalendar,
   describeDateGuard,
 } from "@/modules/whatsapp/domain/installment-calendar";
@@ -185,29 +189,54 @@ export async function sendRemindersAction(
   const failures: NonNullable<SendRemindersState["failures"]> = [];
   const sentStudentIds: string[] = [];
 
-  for (let index = 0; index < candidates.length; index += SEND_CONCURRENCY) {
-    const batch = candidates.slice(index, index + SEND_CONCURRENCY);
+  // One phone, one message.
+  //
+  // The audience is derived per STUDENT, because that is how the ledger stores
+  // money and how the send log prevents duplicates. Sending per student meant a
+  // parent with three children got three messages in a few seconds — three
+  // times the cost, and three times the nagging for one family who owes one
+  // total. Grouping happens HERE rather than in the audience so the screen keeps
+  // showing, ticking and skipping per child, which is what the office works in.
+  const families = groupIntoFamilies(
+    candidates.map((candidate) => ({
+      studentId: candidate.studentId,
+      studentName: candidate.studentName,
+      studentClass: candidate.studentClass,
+      parentName: candidate.parentName,
+      destination: candidate.destination,
+      dueAmount: candidate.dueAmount,
+      preferredLanguage: candidate.preferredLanguage,
+      sentCount: candidate.sentCount,
+      secondaryDestination: candidate.secondaryDestination,
+    })),
+    filters.language,
+  );
+
+  const byStudentId = new Map(candidates.map((candidate) => [candidate.studentId, candidate]));
+
+  for (let index = 0; index < families.length; index += SEND_CONCURRENCY) {
+    const batch = families.slice(index, index + SEND_CONCURRENCY);
     const outcomes = await Promise.all(
-      batch.map((candidate) =>
-        sendOne({ supabase, candidate, campaign, filters, sessionLabel, today, staffId, runId }),
+      batch.map((family) =>
+        sendFamily({
+          supabase,
+          family,
+          byStudentId,
+          filters,
+          sessionLabel,
+          today,
+          staffId,
+          runId,
+        }),
       ),
     );
-    for (let position = 0; position < outcomes.length; position += 1) {
-      const outcome = outcomes[position];
-      if (outcome.kind === "sent") {
-        sent += 1;
-        moneyQuoted += batch[position].dueAmount;
-        sentStudentIds.push(batch[position].studentId);
-      } else if (outcome.kind === "already") {
-        alreadySentToday += 1;
-      } else {
-        failed += 1;
-        failures.push({
-          admissionNo: batch[position].admissionNo,
-          studentName: batch[position].studentName,
-          error: outcome.error,
-        });
-      }
+    for (const outcome of outcomes) {
+      sent += outcome.sent;
+      failed += outcome.failed;
+      alreadySentToday += outcome.already;
+      moneyQuoted += outcome.moneyQuoted;
+      sentStudentIds.push(...outcome.sentStudentIds);
+      failures.push(...outcome.failures);
     }
   }
 
@@ -285,7 +314,190 @@ export async function sendRemindersAction(
   };
 }
 
-type SendOutcome = { kind: "sent" } | { kind: "already" } | { kind: "failed"; error: string };
+type SendOutcome =
+  // The provider id travels back so the siblings' `covered_by_sibling` rows can
+  // carry the id of the message that actually reached their family.
+  | { kind: "sent"; providerMessageId: string | null }
+  | { kind: "already" }
+  | { kind: "failed"; error: string };
+
+type FamilyOutcome = {
+  sent: number;
+  failed: number;
+  already: number;
+  moneyQuoted: number;
+  sentStudentIds: string[];
+  failures: NonNullable<SendRemindersState["failures"]>;
+};
+
+const EMPTY_FAMILY_OUTCOME = (): FamilyOutcome => ({
+  sent: 0,
+  failed: 0,
+  already: 0,
+  moneyQuoted: 0,
+  sentStudentIds: [],
+  failures: [],
+});
+
+/**
+ * One family, one message — and one send-log row per child regardless.
+ *
+ * The row per child is not bookkeeping for its own sake. The unique index is
+ * keyed on `student_id`, the cadence gap is measured from it, and
+ * `v_whatsapp_run_outcomes` joins payments to it. A family messaged once but
+ * logged once would leave the siblings looking un-contacted tomorrow and get
+ * them messaged again.
+ *
+ * So the siblings get `covered_by_sibling` rows carrying the SAME
+ * `provider_message_id` as the message that actually went. No provider call is
+ * made for them, they cost nothing, and the screen can say why they were not
+ * messaged separately.
+ *
+ * The family template is not approved yet, so today the message that goes is the
+ * spokesperson's ordinary per-child notice: the largest debt on the phone. Once
+ * `vpps_app_family_*` is Live this is where it swaps in, and the sibling rows
+ * are already shaped for it.
+ */
+async function sendFamily(args: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  family: ReminderFamily;
+  byStudentId: Map<string, ReminderCandidate>;
+  filters: ReminderFilters;
+  sessionLabel: string;
+  today: string;
+  staffId: string | null;
+  runId: string | null;
+}): Promise<FamilyOutcome> {
+  const { supabase, family, byStudentId, filters, sessionLabel, today, staffId, runId } = args;
+  const outcome = EMPTY_FAMILY_OUTCOME();
+
+  const spokesperson = byStudentId.get(family.spokesperson.studentId);
+  if (!spokesperson) return outcome;
+
+  // Resolved per FAMILY, not per run: a family who reads English gets the
+  // English campaign out of a Hindi run. The run's language is the default that
+  // applies to everyone who has never said.
+  let campaign: CampaignDescriptor;
+  try {
+    campaign = campaignFor(filters.situation, family.language);
+  } catch (caught) {
+    outcome.failed += 1;
+    outcome.failures.push({
+      admissionNo: spokesperson.admissionNo,
+      studentName: spokesperson.studentName,
+      error: caught instanceof Error ? caught.message : "No campaign for that notice.",
+    });
+    return outcome;
+  }
+
+  // The family's own language decides the phrase too, or an English family would
+  // read a Hindi late-fee line inside an English message.
+  const familyFilters: ReminderFilters = { ...filters, language: family.language };
+
+  for (const target of family.destinations) {
+    const result = await sendOne({
+      supabase,
+      candidate: spokesperson,
+      campaign,
+      filters: familyFilters,
+      sessionLabel,
+      today,
+      staffId,
+      runId,
+      destination: target.destination,
+      destinationRole: target.role,
+      language: family.language,
+    });
+
+    if (result.kind === "sent") {
+      outcome.sent += 1;
+      // Counted ONCE per family, on the primary. A second number reaching the
+      // same family is a second message, not a second debt.
+      if (target.role === "primary") {
+        outcome.moneyQuoted += family.totalAmount;
+        outcome.sentStudentIds.push(...family.members.map((member) => member.studentId));
+      }
+    } else if (result.kind === "already") {
+      outcome.already += 1;
+    } else {
+      outcome.failed += 1;
+      outcome.failures.push({
+        admissionNo: spokesperson.admissionNo,
+        studentName: spokesperson.studentName,
+        error: result.error,
+      });
+    }
+
+    // Siblings are recorded against the PRIMARY message only. The secondary is
+    // the same message to another handset, not a second thing that happened.
+    if (target.role === "primary" && result.kind === "sent") {
+      await recordSiblingCoverage({
+        supabase,
+        family,
+        byStudentId,
+        campaignName: campaign.campaignName,
+        providerMessageId: result.providerMessageId,
+        sessionLabel,
+        today,
+        staffId,
+        runId,
+      });
+    }
+  }
+
+  return outcome;
+}
+
+/**
+ * The siblings who were reached without being messaged.
+ *
+ * Best-effort and deliberately after the send: the parent already has the
+ * message, and a bookkeeping hiccup must not be reported as a failed send. A
+ * unique violation here is the normal "already logged today" case, not an error.
+ */
+async function recordSiblingCoverage(args: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  family: ReminderFamily;
+  byStudentId: Map<string, ReminderCandidate>;
+  campaignName: string;
+  providerMessageId: string | null;
+  sessionLabel: string;
+  today: string;
+  staffId: string | null;
+  runId: string | null;
+}): Promise<void> {
+  const rows = args.family.covered
+    .map((member) => args.byStudentId.get(member.studentId))
+    .filter((candidate): candidate is ReminderCandidate => Boolean(candidate))
+    .map((candidate) => ({
+      student_id: candidate.studentId,
+      session_label: args.sessionLabel,
+      sent_on: args.today,
+      campaign_name: args.campaignName,
+      destination: args.family.destination,
+      due_amount: candidate.dueAmount,
+      template_params: [],
+      status: "covered_by_sibling",
+      // The same id as the message that actually went, which is what ties the
+      // family back together on the run page.
+      provider_message_id: args.providerMessageId,
+      language: args.family.language,
+      destination_role: "primary",
+      sent_by: args.staffId,
+      run_id: args.runId,
+    }));
+
+  if (rows.length === 0) return;
+
+  try {
+    await args.supabase.from("whatsapp_reminder_sends").insert(rows);
+  } catch (caught) {
+    console.warn("[whatsapp-reminders] sibling coverage log failed", caught);
+  }
+}
+
 
 async function sendOne(args: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -298,8 +510,18 @@ async function sendOne(args: {
   staffId: string | null;
   /** Null when the run record could not be opened; the send still happens. */
   runId: string | null;
+  /**
+   * The number this copy goes to. Defaults to the candidate's own, and differs
+   * only when a family is being reached on the second parent's handset.
+   */
+  destination?: string;
+  destinationRole?: "primary" | "secondary";
+  /** The family's language, which the run's default only sometimes matches. */
+  language?: string;
 }): Promise<SendOutcome> {
   const { supabase, candidate, campaign, filters, sessionLabel, today, staffId, runId } = args;
+  const destination = args.destination ?? candidate.destination;
+  const destinationRole = args.destinationRole ?? "primary";
   const campaignName = campaign.campaignName;
   // Per-situation: 6 slots for fee_due and balance, 5 for prevyear. A count that
   // does not match is refused by AiSensy with "Template params does not match
@@ -316,10 +538,14 @@ async function sendOne(args: {
       session_label: sessionLabel,
       sent_on: today,
       campaign_name: campaignName,
-      destination: candidate.destination,
+      destination,
       due_amount: candidate.dueAmount,
       template_params: templateParams,
       status: "pending",
+      // What actually went out, not the run default. Answering "which language
+      // did this parent get" from the run record would be a guess.
+      language: args.language ?? filters.language,
+      destination_role: destinationRole,
       sent_by: staffId,
       // Stamped on the claim, so the grouping survives even if this action dies
       // before it can close the run. NOT part of the unique index — that index
@@ -337,7 +563,7 @@ async function sendOne(args: {
 
   const result = await sendAisensyCampaignMessage({
     campaignName,
-    destination: candidate.destination,
+    destination,
     userName: candidate.parentName,
     templateParams,
     source: "veerpatta-fees-app/admin-tools",
@@ -353,7 +579,9 @@ async function sendOne(args: {
     })
     .eq("id", claim.id);
 
-  return result.ok ? { kind: "sent" } : { kind: "failed", error: result.error };
+  return result.ok
+    ? { kind: "sent", providerMessageId: result.messageId ?? null }
+    : { kind: "failed", error: result.error };
 }
 
 export type CadenceState = {

@@ -13,11 +13,24 @@ Three screens:
 | `/protected/reminders/campaigns` | Saved settings you can apply again, and what each has collected. |
 | `/protected/reminders/runs/[runId]` | One press of Send: who it reached, and what came in after. |
 
-There are **three notices in two languages** — six approved templates, six Live
-campaigns, all `_v2`. Which one goes out is picked on screen, and it changes who
-is on the list: fee due (nothing received), balance (part paid, still owing) and
-previous session (a carry-forward balance). Measured live on 22 Aug: 146, 171
-and 51 families.
+There are **seven notices in two languages**. Six templates are approved and
+Live, all `_v2`, covering three of them: fee due (nothing received), balance
+(part paid, still owing) and previous session (a carry-forward balance).
+Measured live on 22 Aug: 146, 171 and 51 families.
+
+The other four — **due soon, final call, late fee applied, promise lapsed** —
+are written, in the registry, and marked `approved: false`. Their chips render
+disabled with "awaiting Meta approval" and `campaignFor` refuses them, until an
+admin turns them on having seen the template Live in AiSensy. The bodies to
+submit are in `docs/modules/whatsapp-campaign-registry.md`.
+
+**The calendar decides which installments a notice is about.** It used to be a
+hardcoded `[1, 2]`, which was true in August and silently wrong from October:
+installment 3 passed its due date with nothing on the screen aware it existed.
+`domain/installment-calendar.ts` reads the fee policy's schedule and answers
+what today makes of it — what has passed, what falls inside the pre-due window
+(10 days, settable per run), and which installment is next. An explicit
+installment choice on the screen still wins.
 
 **Every send is a press.** There is no cron, no scheduler and no auto-send, and
 that is a decision rather than an omission.
@@ -44,6 +57,11 @@ costs money and reaches a real parent with a child's name and fee balance on it.
 | `src/modules/whatsapp/domain/phone.ts` | `toWhatsappDestination`. Pure, client-safe |
 | `src/modules/whatsapp/data/aisensy.ts` | Campaign API client. `server-only` |
 | `src/modules/whatsapp/domain/fee-reminders.ts` | Audience query and filters. `server-only` — a client component may only `import type` from it |
+| `src/modules/whatsapp/domain/installment-calendar.ts` | What today makes of the fee calendar, and the per-notice date guard. Pure, **no `server-only`** |
+| `src/modules/whatsapp/domain/family-grouping.ts` | One phone, one message: grouping, the children line, the family's language, the second number. Pure |
+| `src/modules/whatsapp/domain/campaign-bodies-v3.ts` | The sixteen unapproved bodies. **No `ui/` or `src/app` file may import it** — a test enforces it |
+| `src/platform/helpers/phone-responsiveness.ts` | `suggestPhoneLabel`, shared with defaulters. Moved out of that module to avoid a cycle |
+| `supabase/migrations/20260903130517_whatsapp_family_language_and_numbers.sql` | Family language, sibling coverage, second numbers |
 | `supabase/migrations/20260820140000_whatsapp_reminder_sends.sql` | The send log |
 | `supabase/migrations/20260821170000_whatsapp_reminder_sends_per_campaign.sql` | One send per campaign per day, not one per day |
 | `docs/modules/whatsapp-campaign-registry.md` | **Ground truth** for the six campaign names, slot orders and bodies |
@@ -60,8 +78,10 @@ costs money and reaches a real parent with a child's name and fee balance on it.
   submitted student ids. Never trust an amount posted from the client — a family
   who paid since page load must drop out at send time.
 - **`whatsapp_reminder_sends` claims the row before the provider call**, so the
-  unique `(student_id, session_label, sent_on, campaign_name)` index decides
-  races. Already-sent families render greyed and unselectable — for *that notice*
+  unique `(student_id, session_label, sent_on, campaign_name, destination_role)`
+  index decides races. The role joined it in 20260903130517 so a family who has
+  stopped answering on one number can be reached on the other — and no further,
+  because a role has exactly two values. Already-sent families render greyed and unselectable — for *that notice*
   only, which is the point of `campaign_name` being in the index.
 - **The notice, the language and the date live in the query string**, never in
   client state. The notice changes the audience, and `sendRemindersAction`
@@ -75,6 +95,47 @@ costs money and reaches a real parent with a child's name and fee balance on it.
   silently reset them mid-task.
 - Exclusions reuse `student_collection_flags.no_call` — do not invent a second
   do-not-contact list.
+- **One phone gets one message.** The audience is still derived per STUDENT,
+  because that is how the ledger stores money and how the send log prevents
+  duplicates — but `sendFamily` groups by destination before sending. A parent
+  with three children was getting three messages within a few seconds, quoting
+  three balances for one debt.
+
+  Every child still gets a send-log row. The siblings who were not messaged
+  separately carry `status = 'covered_by_sibling'` and the SAME
+  `provider_message_id` as the message that went, so the per-student unique
+  index still holds, the cadence gap is still measured per student, and
+  `v_whatsapp_run_outcomes` still joins their payments to the run. Without the
+  row they would look un-contacted tomorrow and be messaged again.
+
+  The family templates are not approved yet, so what goes today is the
+  **spokesperson's** ordinary per-child notice — the largest debt on the phone.
+  Approving `vpps_app_family_*` changes what that one message SAYS, not how many
+  go out.
+- **Language belongs to the family, not the run.** The run's language is a
+  DEFAULT; `student_collection_flags.whatsapp_language` overrides it, and
+  `whatsapp_reminder_sends.language` records what actually went out. Answering
+  "which language did this parent get" from the run record would be a guess.
+- **A family is messaged on a second number only after two delivered notices.**
+  There is deliberately no separate "and they have not paid" check: the ledger is
+  applied before everything else, so a family who paid is ABSENT from the list
+  rather than present-and-filtered. Still being here after two sends IS not
+  having paid. The ceiling of two numbers is enforced by `destination_role`
+  being an enum, not by the code.
+- **A late fee is read from the ledger, never derived.** `late_fee_applied`
+  quotes `v_workbook_installment_balances.late_fee_pending`, and the amount is
+  not editable on that notice — there is nothing to drift from, so
+  `describeLateFeeDrift` returns null for it. Fees, the late fee and the total go
+  in three separate slots because the ledger keeps them in three separate
+  columns.
+- **A family inside a promise they have given is held back** from every notice
+  except `promise_lapsed`, and appears in the held-back list with the date.
+  Chasing a family inside their own promise window is how a promise that was
+  going to hold stops holding.
+- **The date guard is per notice.** Every forward-looking notice refuses a date
+  already gone. `late_fee_applied` carries no date slot at all — its subject is
+  that a date has passed — so requiring a future one would block the only notice
+  that fits the situation. `describeDateGuard` owns the rule.
 - Sends are logged to `defaulter_contacts` as a `whatsapp` contact, best-effort.
 - **A test is never written to `whatsapp_reminder_sends`.** There is no Supabase
   call anywhere in `sendTestReminderAction`, and that absence is the guarantee.

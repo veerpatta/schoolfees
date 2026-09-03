@@ -56,66 +56,21 @@ export type DefaulterContactSummary = {
 /** Coarse time-of-day bands (Asia/Kolkata) for the best-time-to-call hint. */
 export type CallWindow = "morning" | "afternoon" | "evening" | "night";
 
-/** Responsiveness stats for a single stored number within the session. */
-export type PhoneResponsiveness = {
-  /** The phone label, e.g. "Father" or "Mother". */
-  label: string;
-  /** Total attempts recorded against this number. */
-  attempts: number;
-  /** Attempts whose outcome was `reached`. */
-  reached: number;
-  /** Trailing run of `no_answer` outcomes ending at the most recent attempt. */
-  noAnswerStreak: number;
-  /** ISO timestamp of the most recent `reached` against this number, or null. */
-  lastReachedAt: string | null;
-};
-
 /**
- * Picks the best number to try next from per-number responsiveness. Pure.
+ * Moved to `@/platform/helpers/phone-responsiveness` and re-exported here.
  *
- * Priority:
- *   1. The number with the most recent `reached` outcome (someone picked up).
- *   2. Otherwise the highest answer-rate number with at least one attempt.
- *   3. Otherwise the number with the shortest no-answer streak.
- * Ties fall back to the supplied `preferredOrder` (e.g. Father before Mother).
- *
- * Returns null when there is no per-number signal at all.
+ * The WhatsApp reminders pick which parent to message from the same signal the
+ * call queue picks which parent to ring, and `defaulters/ui` already imports
+ * `whatsapp/domain/render` — so importing the other way would close a module
+ * cycle. Re-exported rather than moved-and-updated so every existing caller and
+ * its tests keep working unchanged.
  */
-export function suggestPhoneLabel(
-  perNumber: Record<string, PhoneResponsiveness> | undefined,
-  preferredOrder: readonly string[] = ["Father", "Mother"],
-): string | null {
-  if (!perNumber) return null;
-  const stats = Object.values(perNumber).filter((s) => s.attempts > 0);
-  if (stats.length === 0) return null;
+import type { PhoneResponsiveness } from "@/platform/helpers/phone-responsiveness";
 
-  const orderIndex = (label: string) => {
-    const idx = preferredOrder.indexOf(label);
-    return idx === -1 ? preferredOrder.length : idx;
-  };
-
-  // 1) Most recent reached wins.
-  const reachedStats = stats.filter((s) => s.lastReachedAt);
-  if (reachedStats.length > 0) {
-    return reachedStats.sort((a, b) => {
-      const at = a.lastReachedAt ?? "";
-      const bt = b.lastReachedAt ?? "";
-      if (at !== bt) return bt.localeCompare(at);
-      return orderIndex(a.label) - orderIndex(b.label);
-    })[0].label;
-  }
-
-  // 2) Best answer-rate; 3) shortest no-answer streak; then preferred order.
-  return stats.sort((a, b) => {
-    const ar = a.reached / a.attempts;
-    const br = b.reached / b.attempts;
-    if (ar !== br) return br - ar;
-    if (a.noAnswerStreak !== b.noAnswerStreak) {
-      return a.noAnswerStreak - b.noAnswerStreak;
-    }
-    return orderIndex(a.label) - orderIndex(b.label);
-  })[0].label;
-}
+export {
+  suggestPhoneLabel,
+  type PhoneResponsiveness,
+} from "@/platform/helpers/phone-responsiveness";
 
 /**
  * Returns the cadence bucket for a single student. Pure — no IO.
