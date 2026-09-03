@@ -9,9 +9,14 @@ import { StatTile } from "@/ui/charts";
 import { MobileEmptyRows, MobileRecordCard, MobileStatStrip } from "@/ui/mobile/mobile-kit";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { requireAnyStaffPermission } from "@/platform/supabase/session";
-import { listRunOutcomes, loadRunRecipients } from "@/modules/whatsapp/data/campaign-store";
+import {
+  listRunOutcomes,
+  loadRunHoldout,
+  loadRunRecipients,
+} from "@/modules/whatsapp/data/campaign-store";
 import { loadStuckSends } from "@/modules/whatsapp/data/delivery-store";
 import { RunDeliveryPanel } from "./run-delivery-panel";
+import { RunMeasurementPanel } from "@/modules/whatsapp/ui/run-measurement-panel";
 import { resolveCurrentSessionLabel } from "@/modules/whatsapp/domain/fee-reminders";
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { formatInr } from "@/platform/helpers/currency";
@@ -46,6 +51,7 @@ export default async function ReminderRunPage({ params }: Props) {
   // Rows the provider never answered about. Best-effort: a run page that cannot
   // load this is still worth showing.
   const stuck = await loadStuckSends({ supabase, runId }).catch(() => []);
+  const holdout = await loadRunHoldout(supabase, runId);
 
   // Null, not zero, when no delivery report has ever been imported. Zero would
   // read as "nothing arrived", which is a very different thing from "we have not
@@ -181,6 +187,17 @@ export default async function ReminderRunPage({ params }: Props) {
           </table>
         </div>
       </SectionCard>
+      <RunMeasurementPanel
+        daysToPay={run.daysToPay}
+        messaged={run.messaged}
+        familiesPaid={run.familiesPaid}
+        moneyCollected={run.moneyCollected}
+        // Second numbers make a run cost more messages than it has families,
+        // and the bill follows the messages.
+        messagesBilled={run.messaged + run.failed}
+        holdout={holdout}
+      />
+
       <RunDeliveryPanel
         runId={runId}
         failedCount={failedRows.length}

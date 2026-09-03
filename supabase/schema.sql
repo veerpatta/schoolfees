@@ -13,8 +13,8 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260903173025
--- Objects: 88 tables/views, 60 functions
+-- Schema version: 20260903175116
+-- Objects: 90 tables/views, 60 functions
 
 
 -- ══ Extensions ══════════════════════════════════════════════════════════
@@ -1197,6 +1197,13 @@ create table if not exists public.whatsapp_reminder_sends (
   last_attempt_at timestamp with time zone
 );
 
+-- public.whatsapp_run_holdouts
+create table if not exists public.whatsapp_run_holdouts (
+  run_id uuid not null,
+  student_id uuid not null,
+  created_at timestamp with time zone default now() not null
+);
+
 -- public.whatsapp_templates
 create table if not exists public.whatsapp_templates (
   id uuid default gen_random_uuid() not null,
@@ -1286,6 +1293,7 @@ alter table public.users add constraint users_pkey PRIMARY KEY (id);
 alter table public.whatsapp_campaign_runs add constraint whatsapp_campaign_runs_pkey PRIMARY KEY (id);
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_pkey PRIMARY KEY (id);
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_pkey PRIMARY KEY (id);
+alter table public.whatsapp_run_holdouts add constraint whatsapp_run_holdouts_pkey PRIMARY KEY (run_id, student_id);
 alter table public.whatsapp_templates add constraint whatsapp_templates_pkey PRIMARY KEY (id);
 alter table public.workbook_materialized_view_refresh_queue add constraint workbook_materialized_view_refresh_queue_pkey PRIMARY KEY (queue_key);
 alter table private.vpps_direct_import_backups add constraint vpps_direct_import_backups_backup_label_key UNIQUE (backup_label);
@@ -1698,6 +1706,8 @@ alter table public.whatsapp_campaign_runs add constraint whatsapp_campaign_runs_
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_receipt_id_fkey FOREIGN KEY (receipt_id) REFERENCES public.receipts(id) ON DELETE SET NULL;
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.whatsapp_campaign_runs(id) ON DELETE SET NULL;
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
+alter table public.whatsapp_run_holdouts add constraint whatsapp_run_holdouts_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.whatsapp_campaign_runs(id) ON DELETE CASCADE;
+alter table public.whatsapp_run_holdouts add constraint whatsapp_run_holdouts_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
 alter table public.whatsapp_templates add constraint whatsapp_templates_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
 
 -- ══ Indexes ═════════════════════════════════════════════════════════════
@@ -1905,6 +1915,7 @@ create index if not exists whatsapp_reminder_sends_read_idx ON public.whatsapp_r
 create UNIQUE index if not exists whatsapp_reminder_sends_receipt_idx ON public.whatsapp_reminder_sends USING btree (receipt_id) WHERE (receipt_id IS NOT NULL);
 create index if not exists whatsapp_reminder_sends_run_idx ON public.whatsapp_reminder_sends USING btree (run_id);
 create UNIQUE index if not exists whatsapp_reminder_sends_student_day_campaign_role_idx ON public.whatsapp_reminder_sends USING btree (student_id, session_label, sent_on, campaign_name, destination_role);
+create index if not exists whatsapp_run_holdouts_student_idx ON public.whatsapp_run_holdouts USING btree (student_id);
 create index if not exists whatsapp_templates_active_idx ON public.whatsapp_templates USING btree (is_active, category, name);
 
 -- ══ Functions ═══════════════════════════════════════════════════════════
@@ -7024,6 +7035,21 @@ create or replace view public.v_transport_route_outstanding as
   WHERE outstanding_amount > 0 AND (balance_status = ANY (ARRAY['partial'::text, 'overdue'::text, 'pending'::text]))
   GROUP BY (COALESCE(transport_route_id::text, 'unassigned'::text)), transport_route_id, (COALESCE(transport_route_name, 'No route'::text)), transport_route_code;
 
+-- public.v_whatsapp_run_holdout_outcomes
+create or replace view public.v_whatsapp_run_holdout_outcomes as
+ SELECT h.run_id,
+    count(*) AS held_out,
+    count(*) FILTER (WHERE COALESCE(paid.amount_paid, 0::bigint) > 0) AS held_out_paid,
+    COALESCE(sum(paid.amount_paid), 0::numeric) AS held_out_collected
+   FROM public.whatsapp_run_holdouts h
+     JOIN public.whatsapp_campaign_runs run ON run.id = h.run_id
+     LEFT JOIN LATERAL ( SELECT sum(r.total_amount) AS amount_paid
+           FROM public.receipts r
+          WHERE r.student_id = h.student_id AND r.payment_date >= run.started_at::date AND (run.last_date IS NULL OR r.payment_date <= run.last_date) AND r.payment_mode <> 'discount'::public.payment_mode AND NOT (EXISTS ( SELECT 1
+                   FROM public.v_receipt_reversal_totals rr
+                  WHERE rr.receipt_id = r.id AND rr.reversed_amount >= r.total_amount))) paid ON true
+  GROUP BY h.run_id;
+
 -- public.v_whatsapp_run_outcomes
 create or replace view public.v_whatsapp_run_outcomes as
  SELECT run.id AS run_id,
@@ -8660,6 +8686,7 @@ alter table public.users enable row level security;
 alter table public.whatsapp_campaign_runs enable row level security;
 alter table public.whatsapp_campaigns enable row level security;
 alter table public.whatsapp_reminder_sends enable row level security;
+alter table public.whatsapp_run_holdouts enable row level security;
 alter table public.whatsapp_templates enable row level security;
 alter table public.workbook_materialized_view_refresh_queue enable row level security;
 
@@ -8981,6 +9008,8 @@ drop policy if exists "whatsapp_campaigns: staff read" on public.whatsapp_campai
 create policy "whatsapp_campaigns: staff read" on public.whatsapp_campaigns as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "whatsapp_reminder_sends: staff read" on public.whatsapp_reminder_sends;
 create policy "whatsapp_reminder_sends: staff read" on public.whatsapp_reminder_sends as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
+drop policy if exists "whatsapp_run_holdouts: staff read" on public.whatsapp_run_holdouts;
+create policy "whatsapp_run_holdouts: staff read" on public.whatsapp_run_holdouts as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "whatsapp_templates: admin write delete" on public.whatsapp_templates;
 create policy "whatsapp_templates: admin write delete" on public.whatsapp_templates as PERMISSIVE for DELETE to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "whatsapp_templates: admin write insert" on public.whatsapp_templates;
@@ -9207,6 +9236,9 @@ grant DELETE on public.v_student_repayment_plan_status to service_role;
 grant DELETE on public.v_transport_route_outstanding to anon;
 grant DELETE on public.v_transport_route_outstanding to authenticated;
 grant DELETE on public.v_transport_route_outstanding to service_role;
+grant DELETE on public.v_whatsapp_run_holdout_outcomes to anon;
+grant DELETE on public.v_whatsapp_run_holdout_outcomes to authenticated;
+grant DELETE on public.v_whatsapp_run_holdout_outcomes to service_role;
 grant DELETE on public.v_whatsapp_run_outcomes to anon;
 grant DELETE on public.v_whatsapp_run_outcomes to authenticated;
 grant DELETE on public.v_whatsapp_run_outcomes to service_role;
@@ -9219,6 +9251,9 @@ grant DELETE on public.whatsapp_campaigns to service_role;
 grant DELETE on public.whatsapp_reminder_sends to anon;
 grant DELETE on public.whatsapp_reminder_sends to authenticated;
 grant DELETE on public.whatsapp_reminder_sends to service_role;
+grant DELETE on public.whatsapp_run_holdouts to anon;
+grant DELETE on public.whatsapp_run_holdouts to authenticated;
+grant DELETE on public.whatsapp_run_holdouts to service_role;
 grant DELETE on public.whatsapp_templates to anon;
 grant DELETE on public.whatsapp_templates to authenticated;
 grant DELETE on public.whatsapp_templates to service_role;
@@ -9420,6 +9455,9 @@ grant INSERT on public.v_student_repayment_plan_status to service_role;
 grant INSERT on public.v_transport_route_outstanding to anon;
 grant INSERT on public.v_transport_route_outstanding to authenticated;
 grant INSERT on public.v_transport_route_outstanding to service_role;
+grant INSERT on public.v_whatsapp_run_holdout_outcomes to anon;
+grant INSERT on public.v_whatsapp_run_holdout_outcomes to authenticated;
+grant INSERT on public.v_whatsapp_run_holdout_outcomes to service_role;
 grant INSERT on public.v_whatsapp_run_outcomes to anon;
 grant INSERT on public.v_whatsapp_run_outcomes to authenticated;
 grant INSERT on public.v_whatsapp_run_outcomes to service_role;
@@ -9432,6 +9470,9 @@ grant INSERT on public.whatsapp_campaigns to service_role;
 grant INSERT on public.whatsapp_reminder_sends to anon;
 grant INSERT on public.whatsapp_reminder_sends to authenticated;
 grant INSERT on public.whatsapp_reminder_sends to service_role;
+grant INSERT on public.whatsapp_run_holdouts to anon;
+grant INSERT on public.whatsapp_run_holdouts to authenticated;
+grant INSERT on public.whatsapp_run_holdouts to service_role;
 grant INSERT on public.whatsapp_templates to anon;
 grant INSERT on public.whatsapp_templates to authenticated;
 grant INSERT on public.whatsapp_templates to service_role;
@@ -9633,6 +9674,9 @@ grant REFERENCES on public.v_student_repayment_plan_status to service_role;
 grant REFERENCES on public.v_transport_route_outstanding to anon;
 grant REFERENCES on public.v_transport_route_outstanding to authenticated;
 grant REFERENCES on public.v_transport_route_outstanding to service_role;
+grant REFERENCES on public.v_whatsapp_run_holdout_outcomes to anon;
+grant REFERENCES on public.v_whatsapp_run_holdout_outcomes to authenticated;
+grant REFERENCES on public.v_whatsapp_run_holdout_outcomes to service_role;
 grant REFERENCES on public.v_whatsapp_run_outcomes to anon;
 grant REFERENCES on public.v_whatsapp_run_outcomes to authenticated;
 grant REFERENCES on public.v_whatsapp_run_outcomes to service_role;
@@ -9645,6 +9689,9 @@ grant REFERENCES on public.whatsapp_campaigns to service_role;
 grant REFERENCES on public.whatsapp_reminder_sends to anon;
 grant REFERENCES on public.whatsapp_reminder_sends to authenticated;
 grant REFERENCES on public.whatsapp_reminder_sends to service_role;
+grant REFERENCES on public.whatsapp_run_holdouts to anon;
+grant REFERENCES on public.whatsapp_run_holdouts to authenticated;
+grant REFERENCES on public.whatsapp_run_holdouts to service_role;
 grant REFERENCES on public.whatsapp_templates to anon;
 grant REFERENCES on public.whatsapp_templates to authenticated;
 grant REFERENCES on public.whatsapp_templates to service_role;
@@ -9846,6 +9893,9 @@ grant SELECT on public.v_student_repayment_plan_status to service_role;
 grant SELECT on public.v_transport_route_outstanding to anon;
 grant SELECT on public.v_transport_route_outstanding to authenticated;
 grant SELECT on public.v_transport_route_outstanding to service_role;
+grant SELECT on public.v_whatsapp_run_holdout_outcomes to anon;
+grant SELECT on public.v_whatsapp_run_holdout_outcomes to authenticated;
+grant SELECT on public.v_whatsapp_run_holdout_outcomes to service_role;
 grant SELECT on public.v_whatsapp_run_outcomes to anon;
 grant SELECT on public.v_whatsapp_run_outcomes to authenticated;
 grant SELECT on public.v_whatsapp_run_outcomes to service_role;
@@ -9858,6 +9908,9 @@ grant SELECT on public.whatsapp_campaigns to service_role;
 grant SELECT on public.whatsapp_reminder_sends to anon;
 grant SELECT on public.whatsapp_reminder_sends to authenticated;
 grant SELECT on public.whatsapp_reminder_sends to service_role;
+grant SELECT on public.whatsapp_run_holdouts to anon;
+grant SELECT on public.whatsapp_run_holdouts to authenticated;
+grant SELECT on public.whatsapp_run_holdouts to service_role;
 grant SELECT on public.whatsapp_templates to anon;
 grant SELECT on public.whatsapp_templates to authenticated;
 grant SELECT on public.whatsapp_templates to service_role;
@@ -10059,6 +10112,9 @@ grant TRIGGER on public.v_student_repayment_plan_status to service_role;
 grant TRIGGER on public.v_transport_route_outstanding to anon;
 grant TRIGGER on public.v_transport_route_outstanding to authenticated;
 grant TRIGGER on public.v_transport_route_outstanding to service_role;
+grant TRIGGER on public.v_whatsapp_run_holdout_outcomes to anon;
+grant TRIGGER on public.v_whatsapp_run_holdout_outcomes to authenticated;
+grant TRIGGER on public.v_whatsapp_run_holdout_outcomes to service_role;
 grant TRIGGER on public.v_whatsapp_run_outcomes to anon;
 grant TRIGGER on public.v_whatsapp_run_outcomes to authenticated;
 grant TRIGGER on public.v_whatsapp_run_outcomes to service_role;
@@ -10071,6 +10127,9 @@ grant TRIGGER on public.whatsapp_campaigns to service_role;
 grant TRIGGER on public.whatsapp_reminder_sends to anon;
 grant TRIGGER on public.whatsapp_reminder_sends to authenticated;
 grant TRIGGER on public.whatsapp_reminder_sends to service_role;
+grant TRIGGER on public.whatsapp_run_holdouts to anon;
+grant TRIGGER on public.whatsapp_run_holdouts to authenticated;
+grant TRIGGER on public.whatsapp_run_holdouts to service_role;
 grant TRIGGER on public.whatsapp_templates to anon;
 grant TRIGGER on public.whatsapp_templates to authenticated;
 grant TRIGGER on public.whatsapp_templates to service_role;
@@ -10272,6 +10331,9 @@ grant TRUNCATE on public.v_student_repayment_plan_status to service_role;
 grant TRUNCATE on public.v_transport_route_outstanding to anon;
 grant TRUNCATE on public.v_transport_route_outstanding to authenticated;
 grant TRUNCATE on public.v_transport_route_outstanding to service_role;
+grant TRUNCATE on public.v_whatsapp_run_holdout_outcomes to anon;
+grant TRUNCATE on public.v_whatsapp_run_holdout_outcomes to authenticated;
+grant TRUNCATE on public.v_whatsapp_run_holdout_outcomes to service_role;
 grant TRUNCATE on public.v_whatsapp_run_outcomes to anon;
 grant TRUNCATE on public.v_whatsapp_run_outcomes to authenticated;
 grant TRUNCATE on public.v_whatsapp_run_outcomes to service_role;
@@ -10284,6 +10346,9 @@ grant TRUNCATE on public.whatsapp_campaigns to service_role;
 grant TRUNCATE on public.whatsapp_reminder_sends to anon;
 grant TRUNCATE on public.whatsapp_reminder_sends to authenticated;
 grant TRUNCATE on public.whatsapp_reminder_sends to service_role;
+grant TRUNCATE on public.whatsapp_run_holdouts to anon;
+grant TRUNCATE on public.whatsapp_run_holdouts to authenticated;
+grant TRUNCATE on public.whatsapp_run_holdouts to service_role;
 grant TRUNCATE on public.whatsapp_templates to anon;
 grant TRUNCATE on public.whatsapp_templates to authenticated;
 grant TRUNCATE on public.whatsapp_templates to service_role;
@@ -10485,6 +10550,9 @@ grant UPDATE on public.v_student_repayment_plan_status to service_role;
 grant UPDATE on public.v_transport_route_outstanding to anon;
 grant UPDATE on public.v_transport_route_outstanding to authenticated;
 grant UPDATE on public.v_transport_route_outstanding to service_role;
+grant UPDATE on public.v_whatsapp_run_holdout_outcomes to anon;
+grant UPDATE on public.v_whatsapp_run_holdout_outcomes to authenticated;
+grant UPDATE on public.v_whatsapp_run_holdout_outcomes to service_role;
 grant UPDATE on public.v_whatsapp_run_outcomes to anon;
 grant UPDATE on public.v_whatsapp_run_outcomes to authenticated;
 grant UPDATE on public.v_whatsapp_run_outcomes to service_role;
@@ -10497,6 +10565,9 @@ grant UPDATE on public.whatsapp_campaigns to service_role;
 grant UPDATE on public.whatsapp_reminder_sends to anon;
 grant UPDATE on public.whatsapp_reminder_sends to authenticated;
 grant UPDATE on public.whatsapp_reminder_sends to service_role;
+grant UPDATE on public.whatsapp_run_holdouts to anon;
+grant UPDATE on public.whatsapp_run_holdouts to authenticated;
+grant UPDATE on public.whatsapp_run_holdouts to service_role;
 grant UPDATE on public.whatsapp_templates to anon;
 grant UPDATE on public.whatsapp_templates to authenticated;
 grant UPDATE on public.whatsapp_templates to service_role;

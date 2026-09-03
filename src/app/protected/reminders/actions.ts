@@ -142,6 +142,20 @@ export async function sendRemindersAction(
   // Both are real runs; only one has a name attached.
   const campaignId = (formData.get("campaignId") as string | null)?.trim() || null;
 
+  // A held-back family is money the school does not chase, so the field is
+  // admin-only and re-checked here rather than trusted from the form.
+  let canHoldOut = false;
+  try {
+    await requireStaffPermission("settings:write");
+    canHoldOut = true;
+  } catch {
+    canHoldOut = false;
+  }
+  const holdoutPercent = Math.min(
+    50,
+    Math.max(0, Number(formData.get("holdoutPercent") ?? 0) || 0),
+  );
+
   const outcome = await executeReminderRun({
     supabase,
     candidates,
@@ -153,11 +167,15 @@ export async function sendRemindersAction(
     campaignId,
     staffId,
     source: "manual",
+    // Admin-only, off by default, and never persisted: a holdout is a decision
+    // about THIS run. The form only renders the field for an admin, and this
+    // re-reads the permission rather than trusting that.
+    holdoutPercent: canHoldOut ? holdoutPercent : 0,
     logContacts: insertDefaulterContacts,
     scheduledFor: null,
   });
 
-  const { sent, failed, alreadySentToday, failures } = outcome;
+  const { sent, failed, alreadySentToday, failures, heldOut } = outcome;
 
   // Deliberately NO revalidatePath here.
   //
@@ -174,6 +192,7 @@ export async function sendRemindersAction(
 
   const summary = [
     `${sent} sent`,
+    heldOut > 0 ? `${heldOut} held back for comparison` : null,
     failed > 0 ? `${failed} failed` : null,
     alreadySentToday > 0 ? `${alreadySentToday} already messaged today` : null,
   ]

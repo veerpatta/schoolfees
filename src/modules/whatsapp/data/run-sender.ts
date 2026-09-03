@@ -17,6 +17,7 @@ import {
   type ReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
 import { lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
+import { splitHoldout } from "@/modules/whatsapp/domain/run-measurement";
 
 /**
  * One reminder run, from opening the record to closing it.
@@ -49,6 +50,8 @@ export type ReminderRunOutcome = {
   failures: Array<{ admissionNo: string; studentName: string; error: string }>;
   /** How many messages were actually billed, including second numbers. */
   messagesAttempted: number;
+  /** Families deliberately not messaged, so the run has a control group. */
+  heldOut: number;
 };
 
 export type ExecuteReminderRunArgs = {
@@ -67,6 +70,15 @@ export type ExecuteReminderRunArgs = {
   /** Null for a cron run, which is the honest record rather than a guess. */
   staffId: string | null;
   source: "manual" | "cron";
+  /**
+   * Hold back a random share of the audience, so the run has a control group.
+   *
+   * 0 means everybody is messaged, which is the default and the normal case. A
+   * holdout means deliberately NOT chasing money the school is owed, in exchange
+   * for the only causal number this system can produce — so it is a decision an
+   * admin makes on purpose, per run, and never a setting that persists.
+   */
+  holdoutPercent?: number;
   /**
    * Write the messaged families into the office's contact history.
    *
@@ -118,12 +130,19 @@ export async function executeReminderRun(
     scheduledFor,
     dryRun = false,
     logContacts,
+    holdoutPercent = 0,
   } = args;
+
+  // Split BEFORE grouping into families, so a held-out student cannot arrive as
+  // a sibling on somebody else's message. Splitting after would mean a "held
+  // out" family still got messaged, which is worse than not running the
+  // experiment at all.
+  const { messaged: toMessage, heldOut } = splitHoldout(candidates, holdoutPercent);
 
   // One phone, one message. Grouping happens here rather than in the audience so
   // the screen keeps showing, ticking and skipping per child.
   const families = groupIntoFamilies(
-    candidates.map((candidate) => ({
+    toMessage.map((candidate) => ({
       studentId: candidate.studentId,
       studentName: candidate.studentName,
       studentClass: candidate.studentClass,
@@ -151,6 +170,7 @@ export async function executeReminderRun(
       moneyQuoted: families.reduce((total, family) => total + family.totalAmount, 0),
       failures: [],
       messagesAttempted,
+      heldOut: heldOut.length,
     };
   }
 
@@ -181,6 +201,19 @@ export async function executeReminderRun(
     scheduledFor,
   });
 
+  // Recorded before the first message, so a crash halfway through still leaves
+  // the record of who was deliberately not contacted. Best-effort: a failed
+  // holdout write must not stop the run.
+  if (heldOut.length > 0) {
+    try {
+      await supabase.from("whatsapp_run_holdouts").insert(
+        heldOut.map((candidate) => ({ run_id: runId, student_id: candidate.studentId })),
+      );
+    } catch (caught) {
+      console.warn("[whatsapp-reminders] holdout record failed", caught);
+    }
+  }
+
   let sent = 0;
   let failed = 0;
   let alreadySentToday = 0;
@@ -188,7 +221,7 @@ export async function executeReminderRun(
   const failures: ReminderRunOutcome["failures"] = [];
   const sentStudentIds: string[] = [];
 
-  const byStudentId = new Map(candidates.map((candidate) => [candidate.studentId, candidate]));
+  const byStudentId = new Map(toMessage.map((candidate) => [candidate.studentId, candidate]));
 
   for (let index = 0; index < families.length; index += SEND_CONCURRENCY) {
     const batch = families.slice(index, index + SEND_CONCURRENCY);
@@ -260,7 +293,16 @@ export async function executeReminderRun(
     console.warn("[whatsapp-reminders] activity log failed", caught);
   }
 
-  return { runId, sent, failed, alreadySentToday, moneyQuoted, failures, messagesAttempted };
+  return {
+    runId,
+    sent,
+    failed,
+    alreadySentToday,
+    moneyQuoted,
+    failures,
+    messagesAttempted,
+    heldOut: heldOut.length,
+  };
 }
 
 type SendOutcome =

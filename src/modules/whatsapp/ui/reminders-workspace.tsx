@@ -491,6 +491,47 @@ export function RemindersWorkspace({
         <input type="hidden" name="lastDate" value={filters.lastDate} />
         <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
         <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
+        {/* ----------------------------------------------------- holdout */}
+        {/* Behind a <details> so it is never the thing somebody sets by accident
+            on the way to Send. Off unless opened AND typed into. */}
+        {canSend ? (
+          <details className="rounded-lg border border-dashed border-border bg-surface-2 px-3 py-2">
+            <summary className="min-h-11 cursor-pointer list-none py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Hold some families back, to measure this
+            </summary>
+            <div className="flex flex-col gap-2 pb-2">
+              <p className="text-xs text-muted-foreground">
+                This run says who paid <em>after</em> a reminder, never because of it — payments
+                are spiky and no join can tell a response apart from a batch of counter cash.
+                Holding a random share back is the only way to find out.
+              </p>
+              <p className="text-xs font-semibold text-warning-foreground">
+                It also means deliberately not chasing money these families owe. They get no
+                message and no second chance in this run.
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="holdoutPercent">Hold back</Label>
+                  <SelectNative
+                    id="holdoutPercent"
+                    name="holdoutPercent"
+                    defaultValue="0"
+                    className="w-40"
+                  >
+                    <option value="0">Nobody (default)</option>
+                    <option value="5">5% of the list</option>
+                    <option value="10">10% of the list</option>
+                    <option value="20">20% of the list</option>
+                  </SelectNative>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Rounded down, and never everybody. The run page compares them afterwards.
+                </p>
+              </div>
+            </div>
+          </details>
+        ) : null}
+
         {/* Ties the run to the saved campaign it came from. Absent for an ad-hoc
             send, which is still a run — just an unnamed one. */}
         {savedCampaign ? (

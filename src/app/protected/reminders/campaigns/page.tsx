@@ -5,6 +5,7 @@ import { Button } from "@/ui/primitives/button";
 import { SectionCard } from "@/ui/shell/section-card";
 import { OfficeNotice } from "@/ui/office/office-ui";
 import { CampaignManager } from "@/modules/whatsapp/ui/campaign-manager";
+import { RunComparisons } from "@/modules/whatsapp/ui/run-comparisons";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
 import {
@@ -99,6 +100,21 @@ export default async function ReminderCampaignsPage() {
         </OfficeNotice>
       ) : (
         <>
+          {/* Above the campaign list: "which of these works better" is the
+              question the office came to this page with. */}
+          <RunComparisons
+            runs={runs.map((run) => ({
+              language: run.language,
+              situation: run.situation,
+              startedAt: run.startedAt,
+              messaged: run.messaged,
+              familiesPaid: run.familiesPaid,
+              daysToPay: run.daysToPay,
+              scheduledFor: run.scheduledFor,
+              lastDate: run.lastDate,
+            }))}
+          />
+
           <SectionCard
             title="Saved campaigns"
             description={`Session ${sessionLabel}. A campaign stores the rule, not the list — run it again and anyone who has paid since simply is not in it.`}

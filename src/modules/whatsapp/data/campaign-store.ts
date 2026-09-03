@@ -416,3 +416,29 @@ export async function loadRanScheduleSlots(
   }
   return byCampaign;
 }
+
+/**
+ * What the families held back from a run did.
+ *
+ * Null when the run held nobody back, which is the normal case — a holdout is
+ * off by default and means deliberately not chasing money the school is owed.
+ */
+export async function loadRunHoldout(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  runId: string,
+): Promise<{ heldOut: number; heldOutPaid: number; heldOutCollected: number } | null> {
+  const { data, error } = await supabase
+    .from("v_whatsapp_run_holdout_outcomes")
+    .select("held_out, held_out_paid, held_out_collected")
+    .eq("run_id", runId)
+    .maybeSingle();
+
+  // Best-effort: a missing holdout comparison must not take the run page down.
+  if (error || !data) return null;
+  return {
+    heldOut: Number(data.held_out ?? 0),
+    heldOutPaid: Number(data.held_out_paid ?? 0),
+    heldOutCollected: Number(data.held_out_collected ?? 0),
+  };
+}
