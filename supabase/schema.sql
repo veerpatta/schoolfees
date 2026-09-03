@@ -13,7 +13,7 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260826120000
+-- Schema version: 20260903131911
 -- Objects: 88 tables/views, 60 functions
 
 
@@ -827,7 +827,8 @@ create table if not exists public.student_collection_flags (
   created_at timestamp with time zone default now() not null,
   updated_at timestamp with time zone default now() not null,
   whatsapp_cadence text default 'every_run'::text not null,
-  whatsapp_snoozed_until date
+  whatsapp_snoozed_until date,
+  whatsapp_language text
 );
 
 -- public.student_conventional_discount_assignments
@@ -1180,7 +1181,9 @@ create table if not exists public.whatsapp_reminder_sends (
   sent_by uuid,
   created_at timestamp with time zone default now() not null,
   updated_at timestamp with time zone default now() not null,
-  run_id uuid
+  run_id uuid,
+  language text,
+  destination_role text default 'primary'::text not null
 );
 
 -- public.whatsapp_templates
@@ -1460,6 +1463,7 @@ alter table public.student_carry_forward_balances add constraint student_carry_f
 alter table public.student_carry_forward_balances add constraint student_carry_forward_balances_status_check CHECK ((status = ANY (ARRAY['active'::text, 'collected'::text, 'cancelled'::text])));
 alter table public.student_carry_forward_balances add constraint student_carry_forward_balances_target_session_label_check CHECK ((TRIM(BOTH FROM target_session_label) <> ''::text));
 alter table public.student_collection_flags add constraint student_collection_flags_whatsapp_cadence_check CHECK ((whatsapp_cadence = ANY (ARRAY['every_run'::text, 'weekly'::text, 'fortnightly'::text, 'monthly'::text, 'never'::text])));
+alter table public.student_collection_flags add constraint student_collection_flags_whatsapp_language_check CHECK (((whatsapp_language IS NULL) OR (whatsapp_language = ANY (ARRAY['hi'::text, 'en'::text]))));
 alter table public.student_conventional_discount_assignments add constraint student_conventional_discount_as_resulting_tuition_amount_check CHECK ((resulting_tuition_amount >= 0));
 alter table public.student_conventional_discount_assignments add constraint student_conventional_discount_assig_before_tuition_amount_check CHECK ((before_tuition_amount >= 0));
 alter table public.student_fee_overrides add constraint student_fee_overrides_custom_admission_activity_misc_fee__check CHECK ((custom_admission_activity_misc_fee_amount >= 0));
@@ -1510,8 +1514,9 @@ alter table public.users add constraint users_preferred_locale_check CHECK (((pr
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_language_check CHECK ((language = ANY (ARRAY['hi'::text, 'en'::text])));
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_amount_check CHECK ((late_fee_amount >= 0));
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_basis_check CHECK ((late_fee_basis = ANY (ARRAY['per_installment'::text, 'per_day'::text, 'flat'::text, 'none'::text])));
-alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_situation_check CHECK ((situation = ANY (ARRAY['fee_due'::text, 'balance'::text, 'prevyear'::text])));
-alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text])));
+alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_situation_check CHECK ((situation = ANY (ARRAY['fee_due'::text, 'balance'::text, 'prevyear'::text, 'upcoming'::text, 'upcoming_final'::text, 'late_fee_applied'::text, 'promise_lapsed'::text])));
+alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_destination_role_check CHECK ((destination_role = ANY (ARRAY['primary'::text, 'secondary'::text])));
+alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text, 'covered_by_sibling'::text])));
 alter table public.whatsapp_templates add constraint whatsapp_templates_category_check CHECK ((category = ANY (ARRAY['reminder'::text, 'final_reminder'::text, 'receipt'::text, 'custom'::text])));
 alter table public.workbook_materialized_view_refresh_queue add constraint workbook_materialized_view_refresh_queue_singleton CHECK ((queue_key = ANY (ARRAY['workbook'::text, 'sibling_groups'::text])));
 alter table private.vpps_student_source_mapping add constraint vpps_student_source_mapping_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
@@ -1877,8 +1882,9 @@ create index if not exists whatsapp_campaign_runs_campaign_idx ON public.whatsap
 create index if not exists whatsapp_campaign_runs_session_idx ON public.whatsapp_campaign_runs USING btree (session_label, started_at DESC);
 create index if not exists whatsapp_campaigns_session_idx ON public.whatsapp_campaigns USING btree (session_label, archived_at NULLS FIRST, name);
 create index if not exists whatsapp_reminder_sends_day_status_idx ON public.whatsapp_reminder_sends USING btree (sent_on DESC, status);
+create index if not exists whatsapp_reminder_sends_provider_message_idx ON public.whatsapp_reminder_sends USING btree (provider_message_id) WHERE (provider_message_id IS NOT NULL);
 create index if not exists whatsapp_reminder_sends_run_idx ON public.whatsapp_reminder_sends USING btree (run_id);
-create UNIQUE index if not exists whatsapp_reminder_sends_student_day_campaign_idx ON public.whatsapp_reminder_sends USING btree (student_id, session_label, sent_on, campaign_name);
+create UNIQUE index if not exists whatsapp_reminder_sends_student_day_campaign_role_idx ON public.whatsapp_reminder_sends USING btree (student_id, session_label, sent_on, campaign_name, destination_role);
 create index if not exists whatsapp_templates_active_idx ON public.whatsapp_templates USING btree (is_active, category, name);
 
 -- ══ Functions ═══════════════════════════════════════════════════════════
