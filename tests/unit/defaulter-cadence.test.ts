@@ -206,3 +206,88 @@ describe("appendPaymentBlockIfMissing", () => {
     expect(text.match(/upi:\/\/pay/g)).toHaveLength(1);
   });
 });
+
+describe("a broadcast does not empty the call list", () => {
+  /**
+   * The six-hour rule exists so a collector does not ring the same parent twice
+   * in an afternoon. It is a fact about a PERSON having just spoken to them.
+   *
+   * `sendRemindersAction` logs every messaged family to `defaulter_contacts`, so
+   * before `bulk` existed a 171-family morning run put all of them in `done` and
+   * the callers lost their worklist on exactly the days the office was pushing
+   * hardest.
+   */
+  const justNow = new Date("2026-09-03T10:00:00Z");
+  const anHourAgo = "2026-09-03T09:00:00Z";
+
+  it("keeps a family in Now after a bulk reminder an hour ago", () => {
+    expect(
+      deriveCadence(
+        {
+          snoozeUntil: null,
+          lastContactedAt: anHourAgo,
+          // Nobody has spoken to them; they were only broadcast to.
+          lastPersonalContactedAt: null,
+          lastOutcome: "other",
+        },
+        justNow,
+      ),
+    ).toBe("now");
+  });
+
+  it("still cools a family off after a real call an hour ago", () => {
+    expect(
+      deriveCadence(
+        {
+          snoozeUntil: null,
+          lastContactedAt: anHourAgo,
+          lastPersonalContactedAt: anHourAgo,
+          lastOutcome: "reached",
+        },
+        justNow,
+      ),
+    ).toBe("done");
+  });
+
+  it("uses the older personal call, not the newer broadcast", () => {
+    // A collector rang at 09:00 and the broadcast went at 09:30. The call is
+    // what matters, and it is still inside the cool-off.
+    expect(
+      deriveCadence(
+        {
+          snoozeUntil: null,
+          lastContactedAt: "2026-09-03T09:30:00Z",
+          lastPersonalContactedAt: anHourAgo,
+          lastOutcome: "other",
+        },
+        justNow,
+      ),
+    ).toBe("done");
+  });
+
+  it("falls back to lastContactedAt when the field is absent", () => {
+    // A caller that predates the distinction must keep the old behaviour rather
+    // than silently losing the cool-off altogether.
+    expect(
+      deriveCadence(
+        { snoozeUntil: null, lastContactedAt: anHourAgo, lastOutcome: "reached" },
+        justNow,
+      ),
+    ).toBe("done");
+  });
+
+  it("does not let a broadcast override a promise", () => {
+    // A family who promised to pay today stays in Soon whatever else happened.
+    expect(
+      deriveCadence(
+        {
+          snoozeUntil: "2026-09-03",
+          lastContactedAt: anHourAgo,
+          lastPersonalContactedAt: null,
+          lastOutcome: "promised_pay",
+        },
+        justNow,
+      ),
+    ).toBe("soon");
+  });
+});

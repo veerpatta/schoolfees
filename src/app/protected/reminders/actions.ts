@@ -257,6 +257,11 @@ export async function sendRemindersAction(
         sessionLabel,
         channel: "whatsapp" as const,
         outcome: "other" as const,
+        // A broadcast, not a conversation. Without this every messaged family
+        // reads as "contacted in the last six hours" and drops out of the
+        // collectors' Now bucket — a 171-family run emptied the call list for
+        // the rest of the day.
+        bulk: true,
         note: `WhatsApp fee reminder sent (${campaignName})`,
       })),
     );

@@ -13,7 +13,7 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260903131911
+-- Schema version: 20260903165436
 -- Objects: 88 tables/views, 60 functions
 
 
@@ -240,7 +240,8 @@ create table if not exists public.defaulter_contacts (
   created_at timestamp with time zone default now() not null,
   voice_note_path text,
   contacted_phone text,
-  phone_label text
+  phone_label text,
+  bulk boolean default false not null
 );
 
 -- public.defaulter_recovery_state
@@ -1690,6 +1691,7 @@ alter table public.whatsapp_templates add constraint whatsapp_templates_created_
 
 create index if not exists defaulter_contacts_contacted_by_idx ON public.defaulter_contacts USING btree (contacted_by);
 create index if not exists defaulter_contacts_session_idx ON public.defaulter_contacts USING btree (session_label, contacted_at DESC);
+create index if not exists defaulter_contacts_student_personal_idx ON public.defaulter_contacts USING btree (student_id, session_label, contacted_at DESC) WHERE (NOT bulk);
 create index if not exists defaulter_contacts_student_recent_idx ON public.defaulter_contacts USING btree (student_id, contacted_at DESC);
 create index if not exists defaulter_recovery_state_family_idx ON public.defaulter_recovery_state USING btree (family_group_id, session_label) WHERE (family_group_id IS NOT NULL);
 create index if not exists defaulter_recovery_state_last_contact_idx ON public.defaulter_recovery_state USING btree (last_resolved_contact_id) WHERE (last_resolved_contact_id IS NOT NULL);

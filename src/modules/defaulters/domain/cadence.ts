@@ -14,6 +14,22 @@ export type DefaulterContactSummary = {
   snoozeUntil: string | null;
   /** ISO timestamp of last contact, or null if never contacted. */
   lastContactedAt: string | null;
+  /**
+   * ISO timestamp of the last contact a PERSON made — the latest row that was
+   * not part of a broadcast. Null when nobody has contacted this family
+   * individually, however many reminders they have been sent.
+   *
+   * The cool-off rules read this and never `lastContactedAt`. The six-hour rule
+   * exists so a collector does not ring the same parent twice in an afternoon,
+   * which is a fact about a human having just spoken to them — a bulk WhatsApp
+   * reminder is not that. Measured on a live 171-family broadcast: every one of
+   * them fell into `done` and the call list emptied for the rest of the day.
+   *
+   * Optional, and falls back to `lastContactedAt` when absent, so a caller that
+   * has not been updated keeps the old behaviour rather than losing the cool-off
+   * entirely.
+   */
+  lastPersonalContactedAt?: string | null;
   /** Last recorded outcome — drives the inline status chip. */
   lastOutcome?:
     | "reached"
@@ -79,7 +95,11 @@ export {
  *   - now   → has dues, no attempt today, not snoozed (officer's main list)
  *   - soon  → promised today, OR no-answer ≥24h ago, OR snooze landed today
  *   - later → snoozed for the future
- *   - done  → contacted in last 6 hours (out of sight for today)
+ *   - done  → contacted IN PERSON in last 6 hours (out of sight for today)
+ *
+ * "In person" meaning by a member of staff rather than by a broadcast. A bulk
+ * WhatsApp reminder does not cool a family off the call list — see
+ * `lastPersonalContactedAt`.
  */
 export function deriveCadence(
   contact: DefaulterContactSummary,
@@ -98,7 +118,14 @@ export function deriveCadence(
 
   const snoozedFuture = snoozeMs !== null && snoozeMs > todayUtc.getTime();
 
-  const lastTouchMs = parseIsoTimestamp(contact.lastContactedAt);
+  // The last time a PERSON contacted them, not the last time a broadcast
+  // included them. `?? lastContactedAt` keeps a caller that predates the
+  // distinction working exactly as before.
+  const lastTouchMs = parseIsoTimestamp(
+    contact.lastPersonalContactedAt !== undefined
+      ? contact.lastPersonalContactedAt
+      : contact.lastContactedAt,
+  );
   const hoursSinceLastTouch =
     lastTouchMs !== null
       ? (today.getTime() - lastTouchMs) / (1000 * 60 * 60)
@@ -221,6 +248,10 @@ export function heatScore(input: HeatInput): number {
   if (contact?.lastOutcome === "reached") responsivenessAdj += 10;
 
   // 5) Freshness — within last 6 hours, cool off (don't ring back same call).
+  //    Reads the last PERSONAL contact for the same reason `deriveCadence`
+  //    does: a broadcast is not a call, and penalising a family for having
+  //    received one would push exactly the families the office is chasing
+  //    hardest to the bottom of the collectors' list.
   let freshness = 0;
   if (contact?.lastContactedAt) {
     const hoursSince =

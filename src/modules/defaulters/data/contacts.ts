@@ -32,6 +32,12 @@ export type InsertContactArgs = {
   sessionLabel: string;
   channel: ContactChannel;
   outcome: ContactOutcome;
+  /**
+   * True when this row records a family being included in a BROADCAST rather
+   * than a member of staff contacting them. Defaults false, so every hand-logged
+   * contact stays exactly what it was.
+   */
+  bulk?: boolean;
   /** ISO yyyy-mm-dd. When outcome=promised_pay this is the promised date. */
   snoozeUntil?: string | null;
   note?: string | null;
@@ -45,6 +51,8 @@ export type InsertContactArgs = {
 type RawContactRow = {
   student_id: string;
   contacted_at: string;
+  /** True for a row written by a broadcast rather than by a member of staff. */
+  bulk?: boolean | null;
   snooze_until: string | null;
   outcome:
     | "reached"
@@ -89,6 +97,10 @@ export async function insertDefaulterContacts(rows: InsertContactArgs[]): Promis
       voice_note_path: args.voiceNotePath ?? null,
       contacted_phone: args.contactedPhone ?? null,
       phone_label: args.phoneLabel ?? null,
+      // A broadcast is not a conversation. `deriveCadence` ignores these rows
+      // for its cool-off rules, so a morning reminder run does not empty the
+      // collectors' call list for the rest of the day.
+      bulk: args.bulk ?? false,
     })),
   );
   if (error) throw new Error(`Failed to log ${rows.length} contacts: ${error.message}`);
@@ -203,7 +215,7 @@ export async function getContactSummariesForStudents(
   {
     const res = await db
       .from("defaulter_contacts")
-      .select("student_id, contacted_at, snooze_until, outcome, channel, voice_note_path, phone_label")
+      .select("student_id, contacted_at, snooze_until, outcome, channel, voice_note_path, phone_label, bulk")
       .eq("session_label", sessionLabel)
       .order("contacted_at", { ascending: false });
     data = res.data as RawContactRow[] | null;
@@ -228,6 +240,15 @@ export async function getContactSummariesForStudents(
   }
 
   const result = new Map<string, DefaulterContactSummary>();
+  /**
+   * The latest contact a PERSON made, per student.
+   *
+   * Tracked separately from `lastContactedAt` because the cadence cool-off asks
+   * "has a collector just spoken to this family", and being included in a
+   * 171-family broadcast is not that. Rows arrive newest-first, so the first
+   * non-bulk row seen per student is the answer.
+   */
+  const lastPersonal = new Map<string, string>();
   const counts = new Map<string, number>();
   const streaks = new Map<string, number>();
   const streakBroken = new Set<string>();
@@ -255,6 +276,9 @@ export async function getContactSummariesForStudents(
       } else if (row.outcome) {
         streakBroken.add(row.student_id);
       }
+    }
+    if (!row.bulk && !lastPersonal.has(row.student_id) && row.contacted_at) {
+      lastPersonal.set(row.student_id, row.contacted_at);
     }
     if (!result.has(row.student_id)) {
       result.set(row.student_id, {
@@ -304,6 +328,9 @@ export async function getContactSummariesForStudents(
       ...summary,
       noAnswerStreak: streaks.get(studentId) ?? 0,
       totalAttempts: counts.get(studentId) ?? 0,
+      // Null when a family has only ever been broadcast to, which is what puts
+      // them back in the callers' Now bucket instead of `done`.
+      lastPersonalContactedAt: lastPersonal.get(studentId) ?? null,
       perNumber: perNumberObj,
       suggestedPhoneLabel: suggestPhoneLabel(perNumberObj),
       bestCallWindow: pickBestCallWindow(callWindows.get(studentId) ?? {}),
