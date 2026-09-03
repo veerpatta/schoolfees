@@ -49,6 +49,7 @@ describe("parseReminderFilters", () => {
       lastDate: "",
       lateFeeAmount: 0,
       lateFeeBasis: DEFAULT_REMINDER_FILTERS.lateFeeBasis,
+      preDueWindowDays: DEFAULT_REMINDER_FILTERS.preDueWindowDays,
     });
   });
 
@@ -140,6 +141,7 @@ describe("parseReminderFilters", () => {
       lastDate: "",
       lateFeeAmount: 0,
       lateFeeBasis: DEFAULT_REMINDER_FILTERS.lateFeeBasis,
+      preDueWindowDays: DEFAULT_REMINDER_FILTERS.preDueWindowDays,
     });
   });
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import {
+  isCampaignApproved,
   NOTICE_LANGUAGES,
   NOTICE_SITUATIONS,
   type NoticeLanguage,
@@ -57,6 +58,9 @@ function hrefWith(
   // message threatens.
   params.set("lateFeeAmount", String(filters.lateFeeAmount));
   params.set("lateFeeBasis", filters.lateFeeBasis);
+  // Changes which installments the calendar calls active, so it changes the
+  // audience, so it travels.
+  params.set("preDueWindowDays", String(filters.preDueWindowDays));
   return `?${params.toString()}`;
 }
 
@@ -77,6 +81,29 @@ export function NoticePicker({ filters, counts, dateFieldId, lateFeeWarning }: P
         {NOTICE_SITUATIONS.map((entry) => {
           const active = entry.value === filters.situation;
           const count = counts[entry.value];
+          // A notice whose template Meta has not approved yet is shown and
+          // disabled, never hidden. The office needs to know the notice exists
+          // and why it cannot be sent — a missing chip is a mystery, and the
+          // alternative is learning it from `400 Campaign does not exist.`
+          if (!isCampaignApproved(entry.value, filters.language)) {
+            return (
+              <span
+                key={entry.value}
+                aria-disabled="true"
+                title={`${entry.hint} — awaiting Meta approval`}
+                className={cn(
+                  CHIP_BASE,
+                  "cursor-not-allowed border-dashed border-border bg-surface-2 text-muted-foreground",
+                )}
+              >
+                <span className="whitespace-nowrap">{entry.label}</span>
+                <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide">
+                  awaiting Meta approval
+                </span>
+              </span>
+            );
+          }
+
           return (
             <Link
               key={entry.value}

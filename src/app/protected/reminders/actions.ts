@@ -5,6 +5,11 @@ import { insertDefaulterContacts } from "@/modules/defaulters/data/contacts";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import { isAisensyConfigured, sendAisensyCampaignMessage } from "@/modules/whatsapp/data/aisensy";
+import { getFeePolicySummary } from "@/modules/fees/data/policy";
+import {
+  buildInstallmentCalendar,
+  describeDateGuard,
+} from "@/modules/whatsapp/domain/installment-calendar";
 import {
   drainPendingFinancialRefresh,
   istToday,
@@ -82,7 +87,18 @@ export async function sendRemindersAction(
     // Drain it first, so the amount quoted below is the one the ledger holds now.
     await drainPendingFinancialRefresh(supabase);
     filters = filtersFromForm(formData, sessionLabel);
-    const audience = await loadReminderAudience(supabase, filters);
+    // The very same calendar the screen built, from the very same policy and
+    // window. The audience rebuild below is what actually decides who is
+    // messaged, so a calendar this action could not see would send the courtesy
+    // notice to a different set of families than the office ticked — the exact
+    // failure the situation and the filters travel in the form to prevent.
+    const policy = await getFeePolicySummary({ useAdmin: true }).catch(() => null);
+    const calendar = buildInstallmentCalendar({
+      schedule: policy?.installmentSchedule ?? [],
+      today,
+      windowDays: filters.preDueWindowDays,
+    });
+    const audience = await loadReminderAudience(supabase, filters, calendar);
     // Re-derived server-side rather than read off the form. The amount a parent
     // is quoted must come from the ledger at send time, not from a number that
     // was rendered into a checkbox some minutes ago — and a student who has
@@ -95,19 +111,23 @@ export async function sendRemindersAction(
     };
   }
 
-  // The six approved templates take their date as a variable, so nothing expires
-  // — but a date already in the past would tell a parent to beat a deadline that
+  // The approved templates take their date as a variable, so nothing expires —
+  // but a date already in the past would tell a parent to beat a deadline that
   // has gone. This is the live replacement for the old fixed-deadline guard.
-  // Every v2 notice carries a date, including prevyear — it gained a settle-by
-  // date precisely because a late-fee line with no date says nothing.
+  //
+  // The rule is per notice now, and `describeDateGuard` owns it: every
+  // forward-looking notice needs a date parents can still meet, and
+  // `late_fee_applied` needs none at all because it prints none — its subject is
+  // that a date has already passed.
   const lastDateIso = isoFromDdMmYyyy(filters.lastDate);
-  if (!lastDateIso || lastDateIso < today) {
-    return {
-      status: "error",
-      message: !lastDateIso
-        ? "Pick a last date for this notice before sending."
-        : `The last date on this notice is ${filters.lastDate}, which has already passed. Pick a date parents can still meet.`,
-    };
+  const dateProblem = describeDateGuard({
+    situation: filters.situation,
+    lastDateIso,
+    lastDateLabel: filters.lastDate,
+    today,
+  });
+  if (dateProblem) {
+    return { status: "error", message: dateProblem };
   }
 
   let campaign: CampaignDescriptor;

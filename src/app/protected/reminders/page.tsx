@@ -20,8 +20,12 @@ import {
 } from "@/modules/whatsapp/domain/fee-reminders";
 import {
   campaignFor,
+  campaignNameFor,
   installmentPhrase,
   NOTICE_SITUATIONS,
+  noticeValuesFrom,
+  NOT_THIS_NOTICE,
+  SITUATION_RULE,
   TEMPLATE_INSTALLMENTS,
 } from "@/modules/whatsapp/domain/campaigns";
 import { getFeePolicySummary } from "@/modules/fees/data/policy";
@@ -118,8 +122,12 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   const activeCampaign = campaignId
     ? savedCampaigns.find((entry) => entry.id === campaignId) ?? null
     : null;
-  const campaign = campaignFor(filters.situation, filters.language);
-  const campaignName = campaign.campaignName;
+  // `campaignNameFor`, not `campaignFor`: this page must RENDER a notice
+  // awaiting Meta approval — disabled chip, audience count, held-back list — and
+  // `campaignFor` throws for one. A hand-edited `?situation=upcoming` would
+  // otherwise blank the whole screen, which is the failure
+  // `parseReminderFilters` falls back rather than throws to avoid.
+  const campaignName = campaignNameFor(filters.situation, filters.language) ?? "";
   const providerReady = isAisensyConfigured();
   // Only the fee_due template names its installments in fixed-ish wording; the
   // warning is meaningless for the other two.
@@ -140,6 +148,27 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     ledgerAmount: ledgerLateFee,
     isCarryForward: filters.situation === "prevyear",
   });
+  /**
+   * The message the top family on the list would receive, rendered here rather
+   * than in the browser.
+   *
+   * `campaignFor` throws for a notice awaiting Meta approval, so this is
+   * deliberately guarded: a hand-edited `?situation=` must leave the screen
+   * standing with no preview, not blank it. Same descriptor as the send path,
+   * so the preview and the message cannot quote different values.
+   */
+  const previewSample = audience.candidates[0] ?? null;
+  let previewBody: string | null = null;
+  if (previewSample) {
+    try {
+      previewBody = campaignFor(filters.situation, filters.language).renderPreview(
+        noticeValuesFrom(previewSample, filters),
+      );
+    } catch {
+      previewBody = null;
+    }
+  }
+
   const situationLabel =
     NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
 
@@ -196,6 +225,9 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           canSend={canSend && providerReady && !dateHasPassed}
           campaignName={campaignName}
           lateFeeWarning={lateFeeWarning}
+          previewBody={previewBody}
+          situationRule={SITUATION_RULE[filters.situation]}
+          notThisNotice={NOT_THIS_NOTICE[filters.situation]}
           savedCampaign={activeCampaign ? { id: activeCampaign.id, name: activeCampaign.name } : null}
         />
       </SectionCard>

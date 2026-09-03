@@ -72,19 +72,34 @@ const SLOT_LABELS: Record<string, string> = {
   amount: "Amount",
   date: "Date (DD-MM-YYYY)",
   lateFeePhrase: "Late fee phrase",
+  // `late_fee_applied` is the one notice off the shared skeleton: three money
+  // slots and no date, because the fee is charged rather than threatened.
+  feesPending: "Fees pending",
+  lateFeeApplied: "Late fee applied",
+  totalToPay: "Total to pay",
 };
 
 /** What slots 4, 5 and 6 actually mean, per notice. */
 const SITUATION_SLOT_LABELS: Record<NoticeSituation, Record<string, string>> = {
+  upcoming: { contextLine: "Installment", amount: "Amount due", date: "Last date (DD-MM-YYYY)" },
+  upcoming_final: { contextLine: "Installment", amount: "Amount payable", date: "Last date (DD-MM-YYYY)" },
   fee_due: { contextLine: "Installment", amount: "Amount due", date: "Last date (DD-MM-YYYY)" },
   balance: { contextLine: "Received so far", amount: "Balance due", date: "Next date (DD-MM-YYYY)" },
+  late_fee_applied: { contextLine: "Installment" },
+  promise_lapsed: { contextLine: "Date given (DD-MM-YYYY)", amount: "Amount pending", date: "New date (DD-MM-YYYY)" },
   prevyear: { contextLine: "Session", amount: "Balance", date: "Settle by (DD-MM-YYYY)" },
 };
 
 /** Slot 4 is money on `balance` only; on the other two it is text. */
 const MONEY_SLOT_BY_SITUATION: Record<NoticeSituation, ReadonlySet<string>> = {
+  upcoming: new Set(["amount"]),
+  upcoming_final: new Set(["amount"]),
   fee_due: new Set(["amount"]),
   balance: new Set(["contextLine", "amount"]),
+  // All three of its money slots, and its context line is the installment text.
+  late_fee_applied: new Set(["feesPending", "lateFeeApplied", "totalToPay"]),
+  // Slot 4 is the promised DATE here, not money.
+  promise_lapsed: new Set(["amount"]),
   prevyear: new Set(["amount"]),
 };
 

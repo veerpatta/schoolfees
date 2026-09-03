@@ -93,9 +93,22 @@ export function describeLateFeeDrift(args: {
   ledgerAmount: number;
   /** Carry-forward never accrues a late fee, whatever the notice says. */
   isCarryForward: boolean;
+  /**
+   * `late_fee_applied` quotes the fee the ledger HAS charged, per family, read
+   * from `v_workbook_installment_balances.late_fee_pending`.
+   *
+   * On every other notice the late fee is a lever the office sets and drift is
+   * possible by design. Here it is a statement of account, so drift is not
+   * merely discouraged — it is impossible, because the amount never comes from
+   * the control. The screen disables the control and this returns the reason,
+   * rather than the two silently disagreeing about which figure is live.
+   */
+  isLedgerQuoted?: boolean;
 }): string | null {
-  const { amount, basis, ledgerAmount, isCarryForward } = args;
+  const { amount, basis, ledgerAmount, isCarryForward, isLedgerQuoted } = args;
   const quoted = Math.max(0, Math.round(Number(amount) || 0));
+
+  if (isLedgerQuoted) return null;
 
   if (isCarryForward) {
     return basis === "none" || quoted <= 0

@@ -24,17 +24,11 @@ import { formatInr } from "@/platform/helpers/currency";
 import { cn } from "@/platform/utils";
 import { cadenceLabel } from "@/modules/whatsapp/domain/reminder-cadence";
 import {
-  campaignFor,
   installmentPhrase,
   NOTICE_SITUATIONS,
 } from "@/modules/whatsapp/domain/campaigns";
 import { NoticePicker } from "@/modules/whatsapp/ui/notice-picker";
-import {
-  noticeValuesFrom,
-  SITUATION_FILTERS,
-  SITUATION_RULE,
-  type NoticeSituation,
-} from "@/modules/whatsapp/domain/campaigns";
+import { SITUATION_FILTERS } from "@/modules/whatsapp/domain/campaigns";
 import type { ReminderAudience, ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
 
 type Props = {
@@ -46,20 +40,34 @@ type Props = {
   lateFeeWarning: string | null;
   /** Set when the office arrived via a saved campaign's Load button. */
   savedCampaign: { id: string; name: string } | null;
+  /**
+   * One line saying who this notice is about, and the wording for the families
+   * it is not about.
+   *
+   * Props rather than a lookup here, because both are a single read keyed by a
+   * situation the SERVER already knows. Shipping all seven of each to the
+   * browser to pick one is ~900 gzip bytes of copy nobody reads, on a route
+   * whose ceiling in `quality/route-bundle-baseline.json` only ratchets down.
+   */
+  situationRule: string;
+  notThisNotice: string;
+  /**
+   * The body the top family on the list will read, rendered on the server.
+   *
+   * Was `campaignFor(...).renderPreview(...)` right here, which was wrong twice
+   * over. `campaignFor` THROWS for a notice awaiting Meta approval, so
+   * `?situation=upcoming` in a hand-edited URL took the whole screen down inside
+   * a client render — the very thing `parseReminderFilters` falls back rather
+   * than throws to prevent. And it pulled every approved template body into the
+   * browser to render one of them, on a route with a gzip ceiling.
+   *
+   * Null when the selected notice has no sendable campaign, which is exactly
+   * when there is no message to preview.
+   */
+  previewBody: string | null;
 };
 
 const IDLE_SEND: SendRemindersState = { status: "idle" };
-
-/**
- * `installmentsClear` counts everyone the SELECTED notice is not about, so its
- * wording has to follow the notice. On `prevyear` "nothing pending on those
- * installments" would be flatly wrong — that notice never looks at them.
- */
-const NOT_THIS_NOTICE: Record<NoticeSituation, string> = {
-  fee_due: "already paid something, or nothing pending on those installments",
-  balance: "nothing owing on those installments",
-  prevyear: "no balance carried forward from last session",
-};
 
 const SKIP_LABELS: Array<{ key: keyof ReminderAudience["skipped"]; label: string }> = [
   { key: "leftAndNeverPaid", label: "left and never paid" },
@@ -68,6 +76,9 @@ const SKIP_LABELS: Array<{ key: keyof ReminderAudience["skipped"]; label: string
   { key: "belowMinimum", label: "below the minimum amount" },
   { key: "noPhoneOnRecord", label: "no phone on record" },
   { key: "phoneUnusable", label: "phone number unusable" },
+  // Named in the office's own terms. This is not the ledger saying nothing is
+  // owed — it is the family having already said when they will pay.
+  { key: "promiseOpen", label: "inside a promise they have already given" },
   { key: "whatsappNever", label: "set to never remind" },
   { key: "whatsappSnoozed", label: "skipped for now" },
   { key: "whatsappTooSoon", label: "messaged too recently for their cadence" },
@@ -167,6 +178,9 @@ function ReminderFilterFields({
       <input type="hidden" name="situation" value={filters.situation} />
       <input type="hidden" name="language" value={filters.language} />
       <input type="hidden" name="lastDate" value={filters.lastDate} />
+      {/* The window decides which installments the calendar calls active, so it
+          changes the audience and must travel with the rest of them. */}
+      <input type="hidden" name="preDueWindowDays" value={filters.preDueWindowDays} />
       <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
       <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
 
@@ -195,6 +209,9 @@ export function RemindersWorkspace({
   campaignName,
   lateFeeWarning,
   savedCampaign,
+  situationRule,
+  notThisNotice,
+  previewBody,
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
@@ -250,19 +267,8 @@ export function RemindersWorkspace({
   // A live summary rather than an "N applied" count: a count would need
   // DEFAULT_REMINDER_FILTERS to know what "applied" means, and that constant
   // lives in the server-only module this client component may not import.
-  const campaign = campaignFor(filters.situation, filters.language);
   const situationLabel =
     NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
-
-  /**
-   * What one family's message will actually say.
-   *
-   * The SAME function the send path uses. This was a second, hand-kept copy
-   * until slot 7 arrived and the copies disagreed — the preview said "no late
-   * fee applies" while the send carried the real one.
-   */
-  const noticeValues = (candidate: ReminderAudience["candidates"][number]) =>
-    noticeValuesFrom(candidate, filters);
 
   // The chip on the phone disclosure summarises what is applied. It must not
   // claim an installment filter on `prevyear`, which ignores one.
@@ -326,6 +332,7 @@ export function RemindersWorkspace({
         <input type="hidden" name="maxTotalPaid" value={filters.maxTotalPaid} />
         <input type="hidden" name="minDueAmount" value={filters.minDueAmount} />
         <input type="hidden" name="installments" value={filters.installments.join(",")} />
+        <input type="hidden" name="preDueWindowDays" value={filters.preDueWindowDays} />
         <input type="hidden" name="classId" value={filters.classId ?? ""} />
         {filters.includeRte ? <input type="hidden" name="includeRte" value="on" /> : null}
       </form>
@@ -364,13 +371,13 @@ export function RemindersWorkspace({
           answers it only if you already know what the notice is looking for. */}
       <p className="-mt-3 text-sm text-muted-foreground max-md:order-5 max-md:-mt-1">
         <strong className="font-semibold text-foreground">Who is on this list:</strong>{" "}
-        {SITUATION_RULE[filters.situation]}
+        {situationRule}
       </p>
 
       <p className="-mt-3 text-sm text-muted-foreground max-md:order-5">
         Excluded by these filters:{" "}
         {[
-          { count: audience.skipped.installmentsClear, label: NOT_THIS_NOTICE[filters.situation] },
+          { count: audience.skipped.installmentsClear, label: notThisNotice },
           ...SKIP_LABELS.map((entry) => ({
             count: audience.skipped[entry.key],
             label: entry.label,
@@ -411,7 +418,9 @@ export function RemindersWorkspace({
                       ? "Set to never remind"
                       : family.reason === "snoozed"
                         ? `Skipped until ${family.returnsOn}`
-                        : `${cadenceLabel(family.cadence)} — next reminder from ${family.returnsOn}`}
+                        : family.reason === "promise_open"
+                          ? `Promised to pay by ${family.returnsOn}`
+                          : `${cadenceLabel(family.cadence)} — next reminder from ${family.returnsOn}`}
                   </p>
                 </div>
                 {canSend ? <ResumeReminderButton studentId={family.studentId} /> : null}
@@ -471,6 +480,7 @@ export function RemindersWorkspace({
         <input type="hidden" name="maxTotalPaid" value={filters.maxTotalPaid} />
         <input type="hidden" name="minDueAmount" value={filters.minDueAmount} />
         <input type="hidden" name="installments" value={filters.installments.join(",")} />
+        <input type="hidden" name="preDueWindowDays" value={filters.preDueWindowDays} />
         <input type="hidden" name="classId" value={filters.classId ?? ""} />
         {filters.includeRte ? <input type="hidden" name="includeRte" value="on" /> : null}
         {/* The notice decides the audience the action rebuilds. Without these the
@@ -807,14 +817,14 @@ export function RemindersWorkspace({
       </form>
 
       {/* ----------------------------------------------------------------- preview */}
-      {sample ? (
+      {sample && previewBody ? (
         <div className="rounded-lg border border-border bg-surface-2 p-4 max-md:order-7">
           <div className="mb-2 flex items-center gap-2 text-sm font-medium">
             <MessageCircle className="size-4" aria-hidden="true" />
             What {sample.parentName} will receive
           </div>
           <pre className="whitespace-pre-wrap break-words font-sans text-sm text-muted-foreground">
-            {campaign.renderPreview(noticeValues(sample))}
+            {previewBody}
           </pre>
           <p className="mt-2 text-xs text-muted-foreground">
             A copy of the approved template for preview only — WhatsApp sends whatever Meta

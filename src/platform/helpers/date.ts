@@ -48,6 +48,9 @@ const ISO_DATE_FORMATTER = new Intl.DateTimeFormat("sv-SE", {
   day: "2-digit",
 });
 
+/** A bare IST calendar date. Anything else is rejected rather than coerced. */
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 const FALLBACK_DASH = "—";
 
 function parseToDate(value: string | Date | null | undefined): Date | null {
@@ -227,4 +230,46 @@ export function weekdayHeadings() {
   return Array.from({ length: 7 }, (_, index) =>
     WEEKDAY_FORMATTER.format(new Date(Date.UTC(2026, 2, 1 + index))),
   );
+}
+
+/* ------------------------------------------------------- IST day arithmetic */
+
+/**
+ * Today as `YYYY-MM-DD` in IST.
+ *
+ * The school's day, not the server's. Vercel runs west of IST, so a `new Date()`
+ * date near midnight is yesterday's for the office — which on this screen would
+ * mean an installment that passed its due date this morning reading as still
+ * upcoming, and a "pay before the last date" notice going out the day after the
+ * late fee already landed.
+ */
+export function istTodayIso(now: Date = new Date()): string {
+  return ISO_DATE_FORMATTER.format(now);
+}
+
+/**
+ * Whole days from one IST calendar date to another; negative when `endIso` is
+ * the earlier of the two.
+ *
+ * Both ends are anchored at `T00:00:00+05:30` rather than parsed as local time,
+ * so the result is a count of calendar days and never 0.96 of one rounded the
+ * wrong way across a DST-free but offset-bearing boundary.
+ *
+ * Returns null when either side is not a `YYYY-MM-DD` date, so a caller can tell
+ * "no due date on this installment" from "due today".
+ */
+export function daysBetweenIsoDates(startIso: string, endIso: string): number | null {
+  if (!ISO_DATE_PATTERN.test(startIso) || !ISO_DATE_PATTERN.test(endIso)) return null;
+  const start = new Date(`${startIso}T00:00:00+05:30`).getTime();
+  const end = new Date(`${endIso}T00:00:00+05:30`).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return Math.round((end - start) / 86_400_000);
+}
+
+/** Shift an IST calendar date by whole days, staying in `YYYY-MM-DD`. */
+export function addIsoDays(iso: string, delta: number): string | null {
+  if (!ISO_DATE_PATTERN.test(iso)) return null;
+  const shifted = new Date(`${iso}T00:00:00+05:30`).getTime() + delta * 86_400_000;
+  if (!Number.isFinite(shifted)) return null;
+  return ISO_DATE_FORMATTER.format(new Date(shifted));
 }

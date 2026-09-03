@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -11,6 +11,17 @@ import { describe, expect, it } from "vitest";
 
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
+}
+
+/** Every file under `dir`, recursively, as repo-relative paths with `/`. */
+function walk(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) out.push(...walk(full));
+    else out.push(full);
+  }
+  return out;
 }
 
 const WORKSPACE = "src/modules/whatsapp/ui/reminders-workspace.tsx";
@@ -60,7 +71,7 @@ describe("WhatsApp reminders on a phone", () => {
     }
   });
 
-  it("carries the chosen notice, language and date through every GET form", () => {
+  it("carries the chosen notice, language, date and window through every GET form", () => {
     // Three forms submit to the same URL: the notice picker (which owns all three
     // of these) and the phone and desk copies of the filters. A filter form
     // missing them drops them from the query string, so narrowing to one class
@@ -73,7 +84,10 @@ describe("WhatsApp reminders on a phone", () => {
       source.indexOf("function ReminderFilterFields"),
       source.indexOf("export function RemindersWorkspace"),
     );
-    for (const field of ["situation", "language", "lastDate"]) {
+    // `preDueWindowDays` joined the list when the calendar started deriving the
+    // installment set: it decides which installments are active, so it decides
+    // the audience, so it has to survive an Apply exactly like the other three.
+    for (const field of ["situation", "language", "lastDate", "preDueWindowDays"]) {
       expect(fields).toContain(`name="${field}"`);
     }
     // Both filter forms render the same component, so one hidden input covers both.
@@ -106,9 +120,63 @@ describe("WhatsApp reminders on a phone", () => {
     // a seventh campaign cannot be added without deciding what its filters mean.
     const source = read(CAMPAIGNS);
 
-    for (const situation of ["fee_due", "balance", "prevyear"]) {
+    for (const situation of [
+      "fee_due",
+      "balance",
+      "prevyear",
+      "upcoming",
+      "upcoming_final",
+      "late_fee_applied",
+      "promise_lapsed",
+    ]) {
       expect(source.slice(source.indexOf("SITUATION_FILTERS"))).toContain(`${situation}:`);
       expect(source.slice(source.indexOf("SITUATION_RULE"))).toContain(`${situation}:`);
+    }
+  });
+
+  it("keeps the unapproved template bodies out of the browser", () => {
+    // `campaign-bodies-v3.ts` holds eight Hindi and English bodies for notices
+    // Meta has not approved. A preview is only ever rendered for a campaign
+    // `campaignFor` returned, and that returns approved campaigns only — so
+    // every byte of them in the client bundle is provably unreachable text, and
+    // it measured 1084 gzip bytes against a ceiling that only ratchets down.
+    //
+    // The module header says "nothing in src/app or src/modules/**/ui may
+    // import this file". A comment is not a guard; this is.
+    const offenders: string[] = [];
+    for (const dir of ["src/app", "src/modules"]) {
+      for (const file of walk(dir)) {
+        if (!/\.(ts|tsx)$/.test(file)) continue;
+        // Only the surfaces that reach a browser. `domain/` and `data/` may
+        // import it freely, and so may tests.
+        if (!file.includes("/ui/") && !file.startsWith("src/app")) continue;
+        if (readFileSync(file, "utf8").includes("campaign-bodies-v3")) offenders.push(file);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("shows an unapproved notice disabled rather than hiding it", () => {
+    // A missing chip is a mystery; a disabled one with a reason is an answer.
+    // The alternative is the office learning a template is not Live from
+    // `400 Campaign does not exist.` after pressing Send.
+    const source = read(PICKER);
+
+    expect(source).toContain("isCampaignApproved");
+    expect(source).toContain("awaiting Meta approval");
+    // A `<span>`, never a `<Link>` — an unapproved notice must not be navigable
+    // to a screen that would then refuse to send from it.
+    expect(source).toContain('aria-disabled="true"');
+  });
+
+  it("carries the window on every notice and language link", () => {
+    // `hrefWith` rebuilds the whole query string, so a parameter it forgets is a
+    // parameter that resets the moment somebody switches notice.
+    const source = read(PICKER);
+    const href = source.slice(source.indexOf("function hrefWith"), source.indexOf("const CHIP_BASE"));
+
+    for (const field of ["situation", "language", "installments", "preDueWindowDays"]) {
+      expect(href).toContain(`"${field}"`);
     }
   });
 
@@ -162,8 +230,14 @@ describe("WhatsApp reminders template", () => {
       expect([...named]).toContain(name);
     }
     // And the superseded six are gone for good.
+    //
+    // Asserted as "carries a version suffix" rather than "ends with _v2": the
+    // thing being guarded is that the UN-SUFFIXED six from 21 August — no
+    // late-fee slot, no settle-by date — can never be pointed at again. Pinning
+    // the literal `_v2` made that guarantee expire the moment a `_v3` was
+    // written, which is exactly when it is still needed.
     for (const stale of [...named]) {
-      expect(stale.endsWith("_v2")).toBe(true);
+      expect(stale).toMatch(/_v\d+$/);
     }
   });
 });
