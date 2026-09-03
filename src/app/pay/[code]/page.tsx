@@ -97,8 +97,9 @@ export default async function PayPage({ params }: PayPageProps) {
   const result = await resolvePayCode(code);
 
   return (
-    // dvh, not vh: on a phone browser with a chrome bar, 100vh is taller than
-    // the visible viewport and the button lands under it.
+    // dvh, never the static viewport unit: on a phone browser with a chrome
+    // bar the static unit is taller than what is actually visible, and the pay
+    // button ends up underneath it.
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-5 py-10">
       <header className="text-center">
         <h1 className="text-lg font-bold text-foreground">{schoolProfile.name}</h1>
