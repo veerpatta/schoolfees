@@ -289,15 +289,42 @@ describe("WhatsApp reminders client boundary", () => {
 
 describe("the reminder test send", () => {
   it("never writes to the send log", () => {
-    // Logging a test would claim that student's day and silently drop them from
-    // the real send.
+    // THE rule: logging a test to `whatsapp_reminder_sends` would claim that
+    // student's day, and the unique index would then silently drop them from the
+    // real send.
+    //
+    // This used to be enforced as "no Supabase call at all in the action", which
+    // was a good proxy while there was nowhere else for a test to be recorded.
+    // There is now: the untested-campaign guard needs to know whether a campaign
+    // was tested today, so a test writes to `whatsapp_test_sends` — a different
+    // table, with no student_id and no day to claim.
+    //
+    // So the assertion is now the rule itself rather than the proxy, and it is
+    // TIGHTER on the thing that matters: the send log may not be named at all,
+    // and the only table the action may write to is the test log.
     const source = read(ACTIONS);
     const start = source.indexOf("export async function sendTestReminderAction");
     expect(start).toBeGreaterThan(-1);
 
-    const body = source.slice(start);
+    // Bounded to THIS function. Slicing to end-of-file used to work only
+    // because it happened to be the last one in the file, and it silently stops
+    // testing anything the moment something is appended after it.
+    const after = source.indexOf("\nexport ", start + 1);
+    const body = source.slice(start, after === -1 ? undefined : after);
+
     expect(body).not.toContain("whatsapp_reminder_sends");
+    // `recordTestSend` is the one recorded write, and it owns its own table.
+    expect(body).not.toContain(".from(");
     expect(body).not.toContain(".insert(");
+    expect(body).toContain("recordTestSend");
+
+    // And that helper writes only to the test log, never to the send log.
+    const helper = read("src/modules/whatsapp/data/guard-context.ts");
+    const recordStart = helper.indexOf("export async function recordTestSend");
+    expect(recordStart).toBeGreaterThan(-1);
+    const recordBody = helper.slice(recordStart);
+    expect(recordBody).toContain("whatsapp_test_sends");
+    expect(recordBody).not.toContain("whatsapp_reminder_sends");
   });
 
   it("passes the provider's own result through instead of summarising it", () => {

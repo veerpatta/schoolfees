@@ -19,12 +19,14 @@ import {
 } from "@/modules/whatsapp/domain/fee-reminders";
 import { addDays, CADENCE_VALUES } from "@/modules/whatsapp/domain/reminder-cadence";
 import { toWhatsappDestination } from "@/modules/whatsapp/domain/phone";
+import { loadGuardFacts, recordTestSend } from "@/modules/whatsapp/data/guard-context";
 import {
   evaluateSendGuards,
-  firstBlockingMessage,
+  resolveGuards,
 } from "@/modules/whatsapp/domain/send-guards";
 import {
   campaignFor,
+  campaignNameFor,
   isCampaignApproved,
   DEFAULT_LANGUAGE,
   DEFAULT_SITUATION,
@@ -37,6 +39,12 @@ import { isoFromDdMmYyyy } from "@/platform/helpers/date";
 import { executeReminderRun } from "@/modules/whatsapp/data/run-sender";
 
 export type SendRemindersState = {
+  /**
+   * The judgements standing in the way of this run, when it was refused for
+   * one. The screen turns each into a tick-box; agreeing to all of them plus a
+   * reason lets the run through, and both land on the run record.
+   */
+  guards?: Array<{ code: string; message: string }>;
   status: "idle" | "success" | "partial" | "error";
   message?: string;
   sent?: number;
@@ -115,6 +123,16 @@ export async function sendRemindersAction(
   // there: every forward-looking notice needs a date parents can still meet, and
   // `late_fee_applied` needs none at all because it prints none.
   const lastDateIso = isoFromDdMmYyyy(filters.lastDate);
+  // The facts only the database can answer — quiet hours, the holiday list, the
+  // budget, whether this campaign was tested today. Best-effort throughout: a
+  // guard that cannot load its data falls back to the value that permits.
+  const facts = await loadGuardFacts({
+    supabase,
+    lastDateIso,
+    campaignName: campaignNameFor(filters.situation, filters.language) ?? "",
+    requireRecentTest: true,
+  });
+
   const guards = evaluateSendGuards({
     providerReady: isAisensyConfigured(),
     campaignApproved: isCampaignApproved(filters.situation, filters.language),
@@ -123,10 +141,28 @@ export async function sendRemindersAction(
     lastDateLabel: filters.lastDate,
     today,
     recipientCount: candidates.length,
+    ...facts,
   });
-  const blocked = firstBlockingMessage(guards);
-  if (blocked) {
-    return { status: "error", message: blocked };
+
+  // What the admin ticked, and why. An override is only honoured when both are
+  // present — the point is that the decision lands on the run, not that it is
+  // easy to get past.
+  const overrideCodes = formData.getAll("overrideGuard").map(String).filter(Boolean);
+  const overrideReason = String(formData.get("overrideReason") ?? "").trim();
+  const resolved = resolveGuards(
+    guards,
+    overrideCodes.length > 0 ? { codes: overrideCodes, reason: overrideReason } : null,
+  );
+  if (!resolved.allowed) {
+    return {
+      status: "error",
+      message: resolved.message ?? "This run was refused.",
+      // So the screen can render the tick-boxes for exactly what is in the way.
+      guards: guards.overridable.map((finding) => ({
+        code: finding.code,
+        message: finding.message,
+      })),
+    };
   }
 
   // Safe after the approval guard above: `campaignFor` throws for an unapproved
@@ -171,6 +207,8 @@ export async function sendRemindersAction(
     // about THIS run. The form only renders the field for an admin, and this
     // re-reads the permission rather than trusting that.
     holdoutPercent: canHoldOut ? holdoutPercent : 0,
+    overriddenGuards: resolved.overridden,
+    overrideReason: resolved.overridden.length > 0 ? overrideReason : null,
     logContacts: insertDefaulterContacts,
     scheduledFor: null,
   });
@@ -400,8 +438,13 @@ export async function sendTestReminderAction(
   _prev: TestSendState,
   formData: FormData,
 ): Promise<TestSendState> {
+  // Held, because the test is RECORDED against whoever ran it — the
+  // untested-campaign guard reads that record before letting a run reach real
+  // families.
+  let staffId: string | null = null;
   try {
-    await requireStaffPermission("settings:write");
+    const staff = await requireStaffPermission("settings:write");
+    staffId = (staff?.id as string | undefined) ?? null;
   } catch {
     return { status: "error", message: "Permission denied." };
   }
@@ -487,6 +530,27 @@ export async function sendTestReminderAction(
     userName: templateParams[0],
     templateParams,
     source: "veerpatta-fees-app/admin-tools-test",
+  });
+
+  // Recorded in its OWN table, never in the send log.
+  //
+  // A row in the send log claims a student's day, and the unique index would
+  // then drop that family out of the real run — which is why "a test never
+  // writes to the send log" is a standing rule, pinned by
+  // tests/ui/whatsapp-reminders-screen.test.ts. `recordTestSend` writes to
+  // `whatsapp_test_sends`, which has no student_id and no day to claim, so the
+  // untested-campaign guard can read it without breaking that rule.
+  //
+  // (The send log is deliberately not named in this function: the test asserts
+  // on the source text, and naming it here would defeat the check.)
+  await recordTestSend({
+    supabase: createAdminClient(),
+    campaignName,
+    destination,
+    succeeded: result.ok,
+    providerMessageId: result.ok ? result.messageId : null,
+    errorMessage: result.ok ? null : result.error,
+    staffId,
   });
 
   // Everything the provider told us, passed through rather than summarised, so

@@ -638,3 +638,59 @@ it exists.
 It writes exactly what the CSV import writes, through the same pure rules: the
 same status vocabulary, the same never-backwards ranking, and the same refusal to
 touch a `covered_by_sibling` row.
+
+## The guardrails
+
+Four judgements sit between a finished audience and a sent message. All four
+WOULD send fine — the question is whether they should — so each is
+**overridable by an admin who gives a reason**, and both the reason and which
+guards were waved through land on the run in `override_reason` and
+`overridden_guards`. A guard that cannot be overridden gets worked around; a
+guard that can be overridden silently teaches nothing.
+
+| Guard | Refuses when | Where the setting lives |
+|---|---|---|
+| `quiet_hours` | Outside 08:00-20:00 IST | `app_settings` |
+| `counter_closed` | The fee counter is shut on the date the notice names, or it is Sunday | `school_holidays` |
+| `budget_exceeded` | Over 250 messages in a run, or 4000 in a month | `app_settings` |
+| `untested_campaign` | No successful test send in the last 24 hours | — |
+
+The blocking guards above them — no API key, an unapproved template, a date
+already gone, an empty list — are never overridable, because they are "this
+would not work" rather than "this is unwise".
+
+Two things about the data behind them:
+
+- **Every read is best-effort and falls back to the value that PERMITS.** A
+  missing holiday list must not stop the office sending, so an unknown counter
+  state reads as open.
+- **Sundays are in code, not in the table.** They recur, and a table of every
+  Sunday for a decade is a table nobody maintains. A holiday row with the
+  counter staffed still lets a send through, because the parent can pay.
+
+### Test sends are recorded, and still never claim a day
+
+`whatsapp_test_sends` is a separate table with no student column. A row in the
+send log claims a student's day, and the unique index would then drop that
+family out of the real run — which is why "a test never writes to the send log"
+is a standing rule.
+
+That rule used to be enforced as "no Supabase call at all in the test action",
+which was a good proxy while there was nowhere else for a test to go. The
+assertion is now the rule itself, and tighter: the action may not name the send
+log, may not open a table or insert at all, and the helper is checked separately
+to write only to the test log. The assertion is also bounded to the function now
+— it previously read to end-of-file and only worked because that function
+happened to be last.
+
+## Families WhatsApp cannot reach
+
+`/protected/reminders/unreachable` lists everyone with no usable number, grouped
+by class. Two ways off it, both on every row: print a slip to send home with the
+child, and edit the student to add a number. Only the second works permanently,
+which is why it is the link and the slip is the fallback.
+
+Printed with an `@media print` stylesheet and the browser's own dialog — which
+offers Save as PDF — rather than a server-side PDF library. The office already
+prints receipts this way, and a dependency for a list of names is not a trade
+worth making.

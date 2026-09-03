@@ -7,6 +7,7 @@ import { CollapsibleSection } from "@/ui/primitives/collapsible-section";
 import { OfficeNotice } from "@/ui/office/office-ui";
 import { RemindersWorkspace } from "@/modules/whatsapp/ui/reminders-workspace";
 import { DueTodayCard } from "@/modules/whatsapp/ui/due-today-card";
+import { HoldoutControl } from "@/modules/whatsapp/ui/holdout-control";
 import { campaignsDueOn } from "@/modules/whatsapp/domain/campaign-schedule";
 import {
   buildInstallmentCalendar,
@@ -305,6 +306,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           campaignName={campaignName}
           lateFeeWarning={lateFeeWarning}
           previewBody={previewBody}
+          holdoutControl={<HoldoutControl />}
           situationRule={SITUATION_RULE[filters.situation]}
           notThisNotice={NOT_THIS_NOTICE[filters.situation]}
           savedCampaign={activeCampaign ? { id: activeCampaign.id, name: activeCampaign.name } : null}

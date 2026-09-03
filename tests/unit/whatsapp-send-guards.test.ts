@@ -4,6 +4,7 @@ import {
   evaluateSendGuards,
   firstBlockingMessage,
   isSendAllowed,
+  resolveGuards,
   type SendGuardContext,
 } from "@/modules/whatsapp/domain/send-guards";
 
@@ -118,5 +119,157 @@ describe("evaluateSendGuards", () => {
       expect(finding.code).toMatch(/^[a-z_]+$/);
       expect(finding.message.length).toBeGreaterThan(10);
     }
+  });
+});
+
+describe("the overridable guards", () => {
+  /**
+   * All four WOULD send fine. The question is whether they should — which is why
+   * each is overridable by an admin who gives a reason that lands on the run.
+   * A guard that cannot be overridden gets worked around.
+   */
+
+  it("warns outside quiet hours, and does not block", () => {
+    // A fee reminder at eleven at night is the school waking a family up to ask
+    // for money.
+    const late = evaluateSendGuards(context({ hourIst: 23 }));
+    expect(late.blocking).toEqual([]);
+    expect(late.overridable.map((f) => f.code)).toContain("quiet_hours");
+
+    const early = evaluateSendGuards(context({ hourIst: 6 }));
+    expect(early.overridable.map((f) => f.code)).toContain("quiet_hours");
+  });
+
+  it("is quiet at the edges in the right direction", () => {
+    // 08:00 is inside, 20:00 is outside — the window is [start, end).
+    expect(evaluateSendGuards(context({ hourIst: 8 })).overridable).toEqual([]);
+    expect(
+      evaluateSendGuards(context({ hourIst: 20 })).overridable.map((f) => f.code),
+    ).toContain("quiet_hours");
+  });
+
+  it("honours a quiet-hours window the office has changed", () => {
+    expect(
+      evaluateSendGuards(context({ hourIst: 7, quietHours: { start: 6, end: 21 } })).overridable,
+    ).toEqual([]);
+  });
+
+  it("warns when the fee counter is closed", () => {
+    const closed = evaluateSendGuards(
+      context({ counterOpenOnLastDate: false, closedReason: "Diwali" }),
+    );
+    expect(closed.overridable.map((f) => f.code)).toContain("counter_closed");
+    expect(closed.overridable.find((f) => f.code === "counter_closed")!.message).toContain("Diwali");
+  });
+
+  it("treats an unknown holiday list as open, rather than blocking everything", () => {
+    // A missing holiday list must not stop the office sending.
+    expect(
+      evaluateSendGuards(context({ counterOpenOnLastDate: null })).overridable,
+    ).toEqual([]);
+  });
+
+  it("warns on a Sunday unless the counter is explicitly open", () => {
+    expect(
+      evaluateSendGuards(context({ weekdayIst: 0 })).overridable.map((f) => f.code),
+    ).toContain("counter_closed");
+    expect(
+      evaluateSendGuards(context({ weekdayIst: 0, counterOpenOnLastDate: true })).overridable,
+    ).toEqual([]);
+  });
+
+  it("names an over-budget run rather than refusing it", () => {
+    const big = evaluateSendGuards(
+      context({ recipientCount: 400, messageCount: 400, runMessageCap: 250 }),
+    );
+    expect(big.blocking).toEqual([]);
+    expect(big.overridable.map((f) => f.code)).toContain("budget_exceeded");
+    expect(big.overridable.find((f) => f.code === "budget_exceeded")!.message).toContain("400");
+  });
+
+  it("counts MESSAGES against the cap, not families", () => {
+    // A family reached on a second number is a second charge.
+    const guarded = evaluateSendGuards(
+      context({ recipientCount: 200, messageCount: 260, runMessageCap: 250 }),
+    );
+    expect(guarded.overridable.map((f) => f.code)).toContain("budget_exceeded");
+  });
+
+  it("warns when the month's cap would be crossed", () => {
+    const guarded = evaluateSendGuards(
+      context({
+        recipientCount: 100,
+        messageCount: 100,
+        runMessageCap: 250,
+        monthMessageCap: 4000,
+        messagesSentThisMonth: 3950,
+      }),
+    );
+    expect(guarded.overridable.map((f) => f.code)).toContain("budget_exceeded");
+  });
+
+  it("warns about a campaign nobody has tested today", () => {
+    // A wrong slot order sends cleanly and a parent reads their child's class
+    // where the amount should be — the one failure that costs money and is
+    // invisible.
+    expect(
+      evaluateSendGuards(context({ testedRecently: false })).overridable.map((f) => f.code),
+    ).toContain("untested_campaign");
+  });
+
+  it("does not ask an established campaign to be re-tested every day", () => {
+    expect(evaluateSendGuards(context({ testedRecently: null })).overridable).toEqual([]);
+  });
+});
+
+describe("resolveGuards", () => {
+  const quiet = () => evaluateSendGuards(context({ hourIst: 23 }));
+
+  it("lets a clean run through with nothing overridden", () => {
+    const resolved = resolveGuards(evaluateSendGuards(context()), null);
+    expect(resolved).toEqual({ allowed: true, message: null, overridden: [] });
+  });
+
+  it("refuses a judgement the admin has not agreed to", () => {
+    const resolved = resolveGuards(quiet(), null);
+    expect(resolved.allowed).toBe(false);
+    expect(resolved.message).toContain("23:00");
+  });
+
+  it("refuses an override with no reason", () => {
+    // The point of an overridable guard is that the override is on the record,
+    // not that it is easy.
+    const resolved = resolveGuards(quiet(), { codes: ["quiet_hours"], reason: "" });
+    expect(resolved.allowed).toBe(false);
+    expect(resolved.message).toContain("Say why");
+  });
+
+  it("allows an override that names the guard and gives a reason", () => {
+    const resolved = resolveGuards(quiet(), {
+      codes: ["quiet_hours"],
+      reason: "Owner asked for the last-day push tonight.",
+    });
+    expect(resolved.allowed).toBe(true);
+    expect(resolved.overridden).toEqual(["quiet_hours"]);
+  });
+
+  it("refuses when only SOME of the guards were agreed to", () => {
+    // Ticking one box must not wave the others through.
+    const both = evaluateSendGuards(
+      context({ hourIst: 23, recipientCount: 400, messageCount: 400, runMessageCap: 250 }),
+    );
+    const resolved = resolveGuards(both, { codes: ["quiet_hours"], reason: "Because." });
+    expect(resolved.allowed).toBe(false);
+  });
+
+  it("never lets a BLOCKING finding be overridden", () => {
+    // No key means no message, whatever anybody types into a reason box.
+    const blocked = evaluateSendGuards(context({ providerReady: false, hourIst: 23 }));
+    const resolved = resolveGuards(blocked, {
+      codes: ["provider_unconfigured", "quiet_hours"],
+      reason: "I really mean it.",
+    });
+    expect(resolved.allowed).toBe(false);
+    expect(resolved.overridden).toEqual([]);
   });
 });

@@ -13,8 +13,8 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260903175116
--- Objects: 90 tables/views, 60 functions
+-- Schema version: 20260903175928
+-- Objects: 92 tables/views, 60 functions
 
 
 -- ══ Extensions ══════════════════════════════════════════════════════════
@@ -771,6 +771,15 @@ create table if not exists public.school_fee_defaults (
   updated_at timestamp with time zone default now() not null
 );
 
+-- public.school_holidays
+create table if not exists public.school_holidays (
+  holiday_date date not null,
+  label text not null,
+  counter_open boolean default false not null,
+  created_by uuid,
+  created_at timestamp with time zone default now() not null
+);
+
 -- public.session_reconcile_log
 create table if not exists public.session_reconcile_log (
   id uuid default gen_random_uuid() not null,
@@ -1147,7 +1156,9 @@ create table if not exists public.whatsapp_campaign_runs (
   money_quoted bigint default 0 not null,
   created_at timestamp with time zone default now() not null,
   scheduled_for date,
-  source text default 'manual'::text not null
+  source text default 'manual'::text not null,
+  override_reason text,
+  overridden_guards text[]
 );
 
 -- public.whatsapp_campaigns
@@ -1217,6 +1228,18 @@ create table if not exists public.whatsapp_templates (
   created_by uuid
 );
 
+-- public.whatsapp_test_sends
+create table if not exists public.whatsapp_test_sends (
+  id uuid default gen_random_uuid() not null,
+  campaign_name text not null,
+  destination text not null,
+  succeeded boolean not null,
+  provider_message_id text,
+  error_message text,
+  sent_by uuid,
+  created_at timestamp with time zone default now() not null
+);
+
 -- public.workbook_materialized_view_refresh_queue
 create table if not exists public.workbook_materialized_view_refresh_queue (
   queue_key text default 'workbook'::text not null,
@@ -1270,6 +1293,7 @@ alter table public.receipt_finance_adjustments add constraint receipt_finance_ad
 alter table public.receipts add constraint receipts_pkey PRIMARY KEY (id);
 alter table public.refund_requests add constraint refund_requests_pkey PRIMARY KEY (id);
 alter table public.school_fee_defaults add constraint school_fee_defaults_pkey PRIMARY KEY (id);
+alter table public.school_holidays add constraint school_holidays_pkey PRIMARY KEY (holiday_date);
 alter table public.session_reconcile_log add constraint session_reconcile_log_pkey PRIMARY KEY (id);
 alter table public.setup_progress add constraint setup_progress_pkey PRIMARY KEY (id);
 alter table public.student_carry_forward_balances add constraint student_carry_forward_balances_pkey PRIMARY KEY (id);
@@ -1295,6 +1319,7 @@ alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_pkey PRI
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_pkey PRIMARY KEY (id);
 alter table public.whatsapp_run_holdouts add constraint whatsapp_run_holdouts_pkey PRIMARY KEY (run_id, student_id);
 alter table public.whatsapp_templates add constraint whatsapp_templates_pkey PRIMARY KEY (id);
+alter table public.whatsapp_test_sends add constraint whatsapp_test_sends_pkey PRIMARY KEY (id);
 alter table public.workbook_materialized_view_refresh_queue add constraint workbook_materialized_view_refresh_queue_pkey PRIMARY KEY (queue_key);
 alter table private.vpps_direct_import_backups add constraint vpps_direct_import_backups_backup_label_key UNIQUE (backup_label);
 alter table public.academic_sessions add constraint academic_sessions_session_label_key UNIQUE (session_label);
@@ -1917,6 +1942,7 @@ create index if not exists whatsapp_reminder_sends_run_idx ON public.whatsapp_re
 create UNIQUE index if not exists whatsapp_reminder_sends_student_day_campaign_role_idx ON public.whatsapp_reminder_sends USING btree (student_id, session_label, sent_on, campaign_name, destination_role);
 create index if not exists whatsapp_run_holdouts_student_idx ON public.whatsapp_run_holdouts USING btree (student_id);
 create index if not exists whatsapp_templates_active_idx ON public.whatsapp_templates USING btree (is_active, category, name);
+create index if not exists whatsapp_test_sends_campaign_idx ON public.whatsapp_test_sends USING btree (campaign_name, created_at DESC);
 
 -- ══ Functions ═══════════════════════════════════════════════════════════
 
@@ -8663,6 +8689,7 @@ alter table public.receipt_finance_adjustments enable row level security;
 alter table public.receipts enable row level security;
 alter table public.refund_requests enable row level security;
 alter table public.school_fee_defaults enable row level security;
+alter table public.school_holidays enable row level security;
 alter table public.session_reconcile_log enable row level security;
 alter table public.setup_progress enable row level security;
 alter table public.student_carry_forward_balances enable row level security;
@@ -8688,6 +8715,7 @@ alter table public.whatsapp_campaigns enable row level security;
 alter table public.whatsapp_reminder_sends enable row level security;
 alter table public.whatsapp_run_holdouts enable row level security;
 alter table public.whatsapp_templates enable row level security;
+alter table public.whatsapp_test_sends enable row level security;
 alter table public.workbook_materialized_view_refresh_queue enable row level security;
 
 drop policy if exists "admin can create repayment plan items" on public.student_repayment_plan_items;
@@ -8940,6 +8968,8 @@ drop policy if exists "payment posting can link receipts to plans" on public.stu
 create policy "payment posting can link receipts to plans" on public.student_repayment_receipt_links as PERMISSIVE for INSERT to authenticated with check (( SELECT public.has_permission('payments:write'::text) AS has_permission));
 drop policy if exists "payment writers can insert receipt finance adjustments" on public.receipt_finance_adjustments;
 create policy "payment writers can insert receipt finance adjustments" on public.receipt_finance_adjustments as PERMISSIVE for INSERT to authenticated with check (( SELECT public.has_permission('payments:write'::text) AS has_permission));
+drop policy if exists "school_holidays: staff read" on public.school_holidays;
+create policy "school_holidays: staff read" on public.school_holidays as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "settings:write can delete app_settings" on public.app_settings;
 create policy "settings:write can delete app_settings" on public.app_settings as PERMISSIVE for DELETE to authenticated using (( SELECT public.has_permission('settings:write'::text) AS has_permission));
 drop policy if exists "settings:write can insert app_settings" on public.app_settings;
@@ -9018,6 +9048,8 @@ drop policy if exists "whatsapp_templates: admin write update" on public.whatsap
 create policy "whatsapp_templates: admin write update" on public.whatsapp_templates as PERMISSIVE for UPDATE to public using ((( SELECT auth.role() AS role) = 'authenticated'::text)) with check ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "whatsapp_templates: staff read" on public.whatsapp_templates;
 create policy "whatsapp_templates: staff read" on public.whatsapp_templates as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
+drop policy if exists "whatsapp_test_sends: staff read" on public.whatsapp_test_sends;
+create policy "whatsapp_test_sends: staff read" on public.whatsapp_test_sends as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists payment_import_batches_insert on public.payment_import_batches;
 create policy payment_import_batches_insert on public.payment_import_batches as PERMISSIVE for INSERT to authenticated with check (( SELECT public.has_permission('payments:bulk'::text) AS has_permission));
 drop policy if exists payment_import_batches_select on public.payment_import_batches;
@@ -9141,6 +9173,9 @@ grant DELETE on public.refund_requests to service_role;
 grant DELETE on public.school_fee_defaults to anon;
 grant DELETE on public.school_fee_defaults to authenticated;
 grant DELETE on public.school_fee_defaults to service_role;
+grant DELETE on public.school_holidays to anon;
+grant DELETE on public.school_holidays to authenticated;
+grant DELETE on public.school_holidays to service_role;
 grant DELETE on public.session_reconcile_log to anon;
 grant DELETE on public.session_reconcile_log to authenticated;
 grant DELETE on public.session_reconcile_log to service_role;
@@ -9257,6 +9292,9 @@ grant DELETE on public.whatsapp_run_holdouts to service_role;
 grant DELETE on public.whatsapp_templates to anon;
 grant DELETE on public.whatsapp_templates to authenticated;
 grant DELETE on public.whatsapp_templates to service_role;
+grant DELETE on public.whatsapp_test_sends to anon;
+grant DELETE on public.whatsapp_test_sends to authenticated;
+grant DELETE on public.whatsapp_test_sends to service_role;
 grant DELETE on public.workbook_materialized_view_refresh_queue to service_role;
 grant INSERT on public.academic_sessions to anon;
 grant INSERT on public.academic_sessions to authenticated;
@@ -9360,6 +9398,9 @@ grant INSERT on public.refund_requests to service_role;
 grant INSERT on public.school_fee_defaults to anon;
 grant INSERT on public.school_fee_defaults to authenticated;
 grant INSERT on public.school_fee_defaults to service_role;
+grant INSERT on public.school_holidays to anon;
+grant INSERT on public.school_holidays to authenticated;
+grant INSERT on public.school_holidays to service_role;
 grant INSERT on public.session_reconcile_log to anon;
 grant INSERT on public.session_reconcile_log to authenticated;
 grant INSERT on public.session_reconcile_log to service_role;
@@ -9476,6 +9517,9 @@ grant INSERT on public.whatsapp_run_holdouts to service_role;
 grant INSERT on public.whatsapp_templates to anon;
 grant INSERT on public.whatsapp_templates to authenticated;
 grant INSERT on public.whatsapp_templates to service_role;
+grant INSERT on public.whatsapp_test_sends to anon;
+grant INSERT on public.whatsapp_test_sends to authenticated;
+grant INSERT on public.whatsapp_test_sends to service_role;
 grant INSERT on public.workbook_materialized_view_refresh_queue to service_role;
 grant REFERENCES on public.academic_sessions to anon;
 grant REFERENCES on public.academic_sessions to authenticated;
@@ -9579,6 +9623,9 @@ grant REFERENCES on public.refund_requests to service_role;
 grant REFERENCES on public.school_fee_defaults to anon;
 grant REFERENCES on public.school_fee_defaults to authenticated;
 grant REFERENCES on public.school_fee_defaults to service_role;
+grant REFERENCES on public.school_holidays to anon;
+grant REFERENCES on public.school_holidays to authenticated;
+grant REFERENCES on public.school_holidays to service_role;
 grant REFERENCES on public.session_reconcile_log to anon;
 grant REFERENCES on public.session_reconcile_log to authenticated;
 grant REFERENCES on public.session_reconcile_log to service_role;
@@ -9695,6 +9742,9 @@ grant REFERENCES on public.whatsapp_run_holdouts to service_role;
 grant REFERENCES on public.whatsapp_templates to anon;
 grant REFERENCES on public.whatsapp_templates to authenticated;
 grant REFERENCES on public.whatsapp_templates to service_role;
+grant REFERENCES on public.whatsapp_test_sends to anon;
+grant REFERENCES on public.whatsapp_test_sends to authenticated;
+grant REFERENCES on public.whatsapp_test_sends to service_role;
 grant REFERENCES on public.workbook_materialized_view_refresh_queue to service_role;
 grant SELECT on public.academic_sessions to anon;
 grant SELECT on public.academic_sessions to authenticated;
@@ -9798,6 +9848,9 @@ grant SELECT on public.refund_requests to service_role;
 grant SELECT on public.school_fee_defaults to anon;
 grant SELECT on public.school_fee_defaults to authenticated;
 grant SELECT on public.school_fee_defaults to service_role;
+grant SELECT on public.school_holidays to anon;
+grant SELECT on public.school_holidays to authenticated;
+grant SELECT on public.school_holidays to service_role;
 grant SELECT on public.session_reconcile_log to anon;
 grant SELECT on public.session_reconcile_log to authenticated;
 grant SELECT on public.session_reconcile_log to service_role;
@@ -9914,6 +9967,9 @@ grant SELECT on public.whatsapp_run_holdouts to service_role;
 grant SELECT on public.whatsapp_templates to anon;
 grant SELECT on public.whatsapp_templates to authenticated;
 grant SELECT on public.whatsapp_templates to service_role;
+grant SELECT on public.whatsapp_test_sends to anon;
+grant SELECT on public.whatsapp_test_sends to authenticated;
+grant SELECT on public.whatsapp_test_sends to service_role;
 grant SELECT on public.workbook_materialized_view_refresh_queue to service_role;
 grant TRIGGER on public.academic_sessions to anon;
 grant TRIGGER on public.academic_sessions to authenticated;
@@ -10017,6 +10073,9 @@ grant TRIGGER on public.refund_requests to service_role;
 grant TRIGGER on public.school_fee_defaults to anon;
 grant TRIGGER on public.school_fee_defaults to authenticated;
 grant TRIGGER on public.school_fee_defaults to service_role;
+grant TRIGGER on public.school_holidays to anon;
+grant TRIGGER on public.school_holidays to authenticated;
+grant TRIGGER on public.school_holidays to service_role;
 grant TRIGGER on public.session_reconcile_log to anon;
 grant TRIGGER on public.session_reconcile_log to authenticated;
 grant TRIGGER on public.session_reconcile_log to service_role;
@@ -10133,6 +10192,9 @@ grant TRIGGER on public.whatsapp_run_holdouts to service_role;
 grant TRIGGER on public.whatsapp_templates to anon;
 grant TRIGGER on public.whatsapp_templates to authenticated;
 grant TRIGGER on public.whatsapp_templates to service_role;
+grant TRIGGER on public.whatsapp_test_sends to anon;
+grant TRIGGER on public.whatsapp_test_sends to authenticated;
+grant TRIGGER on public.whatsapp_test_sends to service_role;
 grant TRIGGER on public.workbook_materialized_view_refresh_queue to service_role;
 grant TRUNCATE on public.academic_sessions to anon;
 grant TRUNCATE on public.academic_sessions to authenticated;
@@ -10236,6 +10298,9 @@ grant TRUNCATE on public.refund_requests to service_role;
 grant TRUNCATE on public.school_fee_defaults to anon;
 grant TRUNCATE on public.school_fee_defaults to authenticated;
 grant TRUNCATE on public.school_fee_defaults to service_role;
+grant TRUNCATE on public.school_holidays to anon;
+grant TRUNCATE on public.school_holidays to authenticated;
+grant TRUNCATE on public.school_holidays to service_role;
 grant TRUNCATE on public.session_reconcile_log to anon;
 grant TRUNCATE on public.session_reconcile_log to authenticated;
 grant TRUNCATE on public.session_reconcile_log to service_role;
@@ -10352,6 +10417,9 @@ grant TRUNCATE on public.whatsapp_run_holdouts to service_role;
 grant TRUNCATE on public.whatsapp_templates to anon;
 grant TRUNCATE on public.whatsapp_templates to authenticated;
 grant TRUNCATE on public.whatsapp_templates to service_role;
+grant TRUNCATE on public.whatsapp_test_sends to anon;
+grant TRUNCATE on public.whatsapp_test_sends to authenticated;
+grant TRUNCATE on public.whatsapp_test_sends to service_role;
 grant TRUNCATE on public.workbook_materialized_view_refresh_queue to service_role;
 grant UPDATE on public.academic_sessions to anon;
 grant UPDATE on public.academic_sessions to authenticated;
@@ -10455,6 +10523,9 @@ grant UPDATE on public.refund_requests to service_role;
 grant UPDATE on public.school_fee_defaults to anon;
 grant UPDATE on public.school_fee_defaults to authenticated;
 grant UPDATE on public.school_fee_defaults to service_role;
+grant UPDATE on public.school_holidays to anon;
+grant UPDATE on public.school_holidays to authenticated;
+grant UPDATE on public.school_holidays to service_role;
 grant UPDATE on public.session_reconcile_log to anon;
 grant UPDATE on public.session_reconcile_log to authenticated;
 grant UPDATE on public.session_reconcile_log to service_role;
@@ -10571,6 +10642,9 @@ grant UPDATE on public.whatsapp_run_holdouts to service_role;
 grant UPDATE on public.whatsapp_templates to anon;
 grant UPDATE on public.whatsapp_templates to authenticated;
 grant UPDATE on public.whatsapp_templates to service_role;
+grant UPDATE on public.whatsapp_test_sends to anon;
+grant UPDATE on public.whatsapp_test_sends to authenticated;
+grant UPDATE on public.whatsapp_test_sends to service_role;
 grant UPDATE on public.workbook_materialized_view_refresh_queue to service_role;
 
 grant execute on function private.capture_audit_event() to service_role;

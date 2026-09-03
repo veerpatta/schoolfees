@@ -247,6 +247,9 @@ export async function openRun(
      * day late still counts as that slot instead of leaving it forever due.
      */
     scheduledFor?: string | null;
+    /** Guard codes an admin overrode, by their stable codes, and why. */
+    overriddenGuards?: string[];
+    overrideReason?: string | null;
   },
 ): Promise<string | null> {
   try {

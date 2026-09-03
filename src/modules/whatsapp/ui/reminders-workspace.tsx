@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import type { ReactNode } from "react";
 import { useActionState, useMemo, useState } from "react";
 import { AlertTriangle, MessageCircle, Send } from "lucide-react";
 
@@ -51,6 +53,15 @@ type Props = {
    */
   situationRule: string;
   notThisNotice: string;
+  /**
+   * The "hold some families back" disclosure, rendered on the server.
+   *
+   * A `ReactNode` prop rather than markup here, because it is static copy with
+   * no client state and every byte of it would otherwise ship to the browser on
+   * a route with a bundle ceiling. It renders inside this component's form, so
+   * the field still posts with the run.
+   */
+  holdoutControl: ReactNode;
   /**
    * The body the top family on the list will read, rendered on the server.
    *
@@ -212,6 +223,7 @@ export function RemindersWorkspace({
   situationRule,
   notThisNotice,
   previewBody,
+  holdoutControl,
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
@@ -436,12 +448,20 @@ export function RemindersWorkspace({
             {audience.unreachable.length} families have no phone number at all — they need a call
           </summary>
           <ul className="mt-3 grid gap-1 md:grid-cols-2">
-            {audience.unreachable.map((entry) => (
-              <li key={entry.admissionNo + entry.studentName} className="text-muted-foreground">
+            {audience.unreachable.slice(0, 20).map((entry) => (
+              <li key={entry.studentId} className="text-muted-foreground">
                 {entry.admissionNo} · {entry.studentName} · {entry.studentClass}
               </li>
             ))}
           </ul>
+          {/* The full list, class-wise, with a printable slip and a link to fix
+              each number. Only the second of those gets a family off the list. */}
+          <Link
+            href="/protected/reminders/unreachable"
+            className="focus-ring mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-xs font-semibold"
+          >
+            Open all {audience.unreachable.length} — print slips, fix numbers
+          </Link>
         </details>
       ) : null}
 
@@ -491,46 +511,49 @@ export function RemindersWorkspace({
         <input type="hidden" name="lastDate" value={filters.lastDate} />
         <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
         <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
-        {/* ----------------------------------------------------- holdout */}
-        {/* Behind a <details> so it is never the thing somebody sets by accident
-            on the way to Send. Off unless opened AND typed into. */}
-        {canSend ? (
-          <details className="rounded-lg border border-dashed border-border bg-surface-2 px-3 py-2">
-            <summary className="min-h-11 cursor-pointer list-none py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              Hold some families back, to measure this
-            </summary>
-            <div className="flex flex-col gap-2 pb-2">
-              <p className="text-xs text-muted-foreground">
-                This run says who paid <em>after</em> a reminder, never because of it — payments
-                are spiky and no join can tell a response apart from a batch of counter cash.
-                Holding a random share back is the only way to find out.
-              </p>
-              <p className="text-xs font-semibold text-warning-foreground">
-                It also means deliberately not chasing money these families owe. They get no
-                message and no second chance in this run.
-              </p>
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="holdoutPercent">Hold back</Label>
-                  <SelectNative
-                    id="holdoutPercent"
-                    name="holdoutPercent"
-                    defaultValue="0"
-                    className="w-40"
-                  >
-                    <option value="0">Nobody (default)</option>
-                    <option value="5">5% of the list</option>
-                    <option value="10">10% of the list</option>
-                    <option value="20">20% of the list</option>
-                  </SelectNative>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Rounded down, and never everybody. The run page compares them afterwards.
-                </p>
-              </div>
+        {/* ---------------------------------------------------- overrides */}
+        {/* Rendered only after a run has actually been refused, so the ordinary
+            path never shows a row of boxes inviting somebody to tick them. */}
+        {sendState.status === "error" && sendState.guards && sendState.guards.length > 0 ? (
+          <div className="flex flex-col gap-2 rounded-lg border border-warning/50 bg-warning/5 p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-warning-foreground">
+              Held back — say you mean it
+            </p>
+            <ul className="flex flex-col gap-2">
+              {sendState.guards.map((guard) => (
+                <li key={guard.code}>
+                  {/* min-h-11 so the whole sentence is a tap target, not just the box. */}
+                  <label className="flex min-h-11 items-start gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      name="overrideGuard"
+                      value={guard.code}
+                      className="mt-1 size-4 shrink-0"
+                    />
+                    <span className="text-foreground">{guard.message}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="space-y-1.5">
+              <Label htmlFor="overrideReason">Why send anyway?</Label>
+              <Input
+                id="overrideReason"
+                name="overrideReason"
+                placeholder="Owner asked for the last-day push tonight"
+              />
             </div>
-          </details>
+            <p className="text-[11px] text-muted-foreground">
+              Both the reason and which of these you ticked are written to the run.
+            </p>
+          </div>
         ) : null}
+
+        {/* Server-rendered and passed in: it is static markup with no client
+            state, and this route sits under a gzip ceiling that only ratchets
+            down. It still lives INSIDE the one form, so its value posts with
+            the rest of the run. */}
+        {canSend ? holdoutControl : null}
 
         {/* Ties the run to the saved campaign it came from. Absent for an ad-hoc
             send, which is still a run — just an unnamed one. */}

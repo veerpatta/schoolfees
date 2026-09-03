@@ -319,7 +319,12 @@ export type ReminderAudience = {
   candidates: ReminderCandidate[];
   skipped: ReminderSkipCounts;
   /** Named, because WhatsApp can never reach these families at all. */
-  unreachable: Array<{ admissionNo: string; studentName: string; studentClass: string }>;
+  unreachable: Array<{
+    studentId: string;
+    admissionNo: string;
+    studentName: string;
+    studentClass: string;
+  }>;
   /** Held back by a cadence or a snooze — reversible, so shown and undoable. */
   paused: PausedFamily[];
   classOptions: ClassOption[];
@@ -641,6 +646,10 @@ export async function loadReminderAudience(
       if (!row.father_phone && !row.mother_phone) {
         skipped.noPhoneOnRecord += 1;
         unreachable.push({
+          // Carried so the screen can link straight to the edit page. Fixing the
+          // number is the only thing that gets this family off the list, and
+          // making somebody search for them by name is how it stays undone.
+          studentId: row.student_id,
           admissionNo,
           studentName: titleCase(row.student_name),
           studentClass,

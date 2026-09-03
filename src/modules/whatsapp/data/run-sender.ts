@@ -79,6 +79,9 @@ export type ExecuteReminderRunArgs = {
    * admin makes on purpose, per run, and never a setting that persists.
    */
   holdoutPercent?: number;
+  /** Guard codes an admin agreed to override, and why. Written to the run. */
+  overriddenGuards?: string[];
+  overrideReason?: string | null;
   /**
    * Write the messaged families into the office's contact history.
    *
@@ -131,6 +134,8 @@ export async function executeReminderRun(
     dryRun = false,
     logContacts,
     holdoutPercent = 0,
+    overriddenGuards = [],
+    overrideReason = null,
   } = args;
 
   // Split BEFORE grouping into families, so a held-out student cannot arrive as
@@ -199,6 +204,8 @@ export async function executeReminderRun(
     startedBy: staffId,
     source,
     scheduledFor,
+    overriddenGuards,
+    overrideReason,
   });
 
   // Recorded before the first message, so a crash halfway through still leaves
