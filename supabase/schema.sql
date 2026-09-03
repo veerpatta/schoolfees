@@ -13,7 +13,7 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260903175928
+-- Schema version: 20260903181330
 -- Objects: 92 tables/views, 60 functions
 
 
@@ -1205,7 +1205,9 @@ create table if not exists public.whatsapp_reminder_sends (
   read_at timestamp with time zone,
   attempts integer default 1 not null,
   last_error text,
-  last_attempt_at timestamp with time zone
+  last_attempt_at timestamp with time zone,
+  pay_code text,
+  pay_code_expires_on date
 );
 
 -- public.whatsapp_run_holdouts
@@ -1935,6 +1937,7 @@ create index if not exists whatsapp_campaigns_scheduled_idx ON public.whatsapp_c
 create index if not exists whatsapp_campaigns_session_idx ON public.whatsapp_campaigns USING btree (session_label, archived_at NULLS FIRST, name);
 create index if not exists whatsapp_reminder_sends_day_status_idx ON public.whatsapp_reminder_sends USING btree (sent_on DESC, status);
 create index if not exists whatsapp_reminder_sends_delivery_idx ON public.whatsapp_reminder_sends USING btree (run_id, delivery_status) WHERE (delivery_status IS NOT NULL);
+create UNIQUE index if not exists whatsapp_reminder_sends_pay_code_idx ON public.whatsapp_reminder_sends USING btree (pay_code) WHERE (pay_code IS NOT NULL);
 create index if not exists whatsapp_reminder_sends_provider_message_idx ON public.whatsapp_reminder_sends USING btree (provider_message_id) WHERE (provider_message_id IS NOT NULL);
 create index if not exists whatsapp_reminder_sends_read_idx ON public.whatsapp_reminder_sends USING btree (read_at) WHERE (read_at IS NOT NULL);
 create UNIQUE index if not exists whatsapp_reminder_sends_receipt_idx ON public.whatsapp_reminder_sends USING btree (receipt_id) WHERE (receipt_id IS NOT NULL);

@@ -16,6 +16,10 @@ import {
   type ReminderCandidate,
   type ReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
+import { randomBytes } from "node:crypto";
+
+import { isoFromDdMmYyyy } from "@/platform/helpers/date";
+
 import { lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
 import { splitHoldout } from "@/modules/whatsapp/domain/run-measurement";
 
@@ -526,6 +530,15 @@ async function sendOne(args: {
   // the campaign", which is why the registry owns both the count and the order.
   const templateParams = campaign.buildParams(noticeValuesFor(candidate, filters));
 
+  // The opaque code behind this message's pay link.
+  //
+  // 160 bits from the platform CSPRNG, per send. Never derived from the student
+  // or the receipt: a code that could be computed from an admission number would
+  // let anyone enumerate what every family owes. It expires with the notice,
+  // because the amount it quotes is the amount that was owed when the message
+  // went out.
+  const payCode = randomBytes(20).toString("base64url");
+
   // Claim the day BEFORE calling the provider. Two staff members working the
   // same list at the same time collide on the unique index here, and the loser
   // never reaches AiSensy — rather than both passing a check-then-send.
@@ -544,6 +557,8 @@ async function sendOne(args: {
       // did this parent get" from the run record would be a guess.
       language: args.language ?? filters.language,
       destination_role: destinationRole,
+      pay_code: payCode,
+      pay_code_expires_on: lastDateIsoFor(filters),
       sent_by: staffId,
       // Stamped on the claim, so the grouping survives even if this action dies
       // before it can close the run. NOT part of the unique index — that index
@@ -583,4 +598,13 @@ async function sendOne(args: {
 }
 
 
-/** Default length of a one-tap "not this time". */
+/**
+ * The date a pay link stops resolving: the notice's own date.
+ *
+ * Null on a notice that prints no date — `late_fee_applied` — where there is
+ * nothing to expire against, and the link simply stays live until the family
+ * pays and the next run stops including them.
+ */
+function lastDateIsoFor(filters: ReminderFilters): string | null {
+  return isoFromDdMmYyyy(filters.lastDate);
+}

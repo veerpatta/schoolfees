@@ -81,6 +81,17 @@ const PUBLIC_BY_DESIGN = new Map([
     "Sign-in. Guarding it would require the session it exists to create.",
   ],
   [
+    "src/app/pay/[code]/page.tsx",
+    "The pay link a parent taps from a WhatsApp reminder. There is no session to "
+      + "require: the visitor is a parent on their own phone. It is a payment "
+      + "link, not a portal — it shows an amount, a UPI id and a date, and "
+      + "NOTHING else. No name, no class, no admission number, no history, which "
+      + "is stricter than /r/[code]. The code is 160 bits of randomness in a "
+      + "unique index, expires with the notice, and is rejected on shape before "
+      + "reaching Postgres. Widening what this page shows is the change that "
+      + "needs review, not the absence of a staff guard.",
+  ],
+  [
     "src/app/api/webhooks/aisensy/route.ts",
     "AiSensy delivery webhook. There is no staff session to require — the caller "
       + "is a provider, not a person. It is guarded by AISENSY_WEBHOOK_SECRET and "

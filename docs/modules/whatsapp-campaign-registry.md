@@ -933,6 +933,54 @@ Samples: `रमेश लाल गुर्जर` · `आराध्या �
 
 Note this body has no UPI link. Nothing is being asked for.
 
+## The two buttons every `_v3` template carries
+
+Slots are unaffected — buttons are configured separately in the AiSensy template
+form and do not consume a `{{n}}`.
+
+| Button | Type | Value |
+|---|---|---|
+| **Pay now** | URL, dynamic | `https://schoolfees-two.vercel.app/pay/{{1}}` |
+| **Call office** | Phone number | `+919352205884` |
+
+### Why not the `upi://` link that is already in the body
+
+WhatsApp will not accept `upi://` as a button URL — only `http`/`https`. The raw
+link stays in the BODY, where it works on a phone that recognises the scheme and
+does nothing at all on one that does not. The button points at `/pay/[code]`,
+which builds the same intent and additionally shows the UPI id as selectable
+text for a parent whose phone did nothing.
+
+The URL button's variable is its own — numbered from 1 within the button, not
+continuing the body's slots. The app fills it with the send row's `pay_code`.
+
+### What is on the other end
+
+`/pay/[code]` shows **an amount, a UPI id, a reference and a date. Nothing
+else.** No name, no class, no admission number, no history — deliberately
+stricter than `/r/[code]`, which at least confirms a receipt exists. Somebody
+who guesses a code learns that somebody owes some money, which is not
+information about anybody.
+
+The code is 160 bits from the platform CSPRNG, generated per send, stored in a
+partial unique index, and never derived from the student — a code computable
+from an admission number would let anyone enumerate what every family owes. It
+expires on the notice's own date, because the amount it quotes is what was owed
+when the message went out, and a parent paying from a three-week-old link would
+pay the wrong figure.
+
+### Counter days and hours
+
+The bodies say to pay "at the school fee counter" without naming its hours,
+deliberately. Hours change, a template body cannot be edited once approved
+(changing it means a new template name and another review), and a body that
+names Monday-Saturday 9-2 becomes wrong the first term that changes and stays
+wrong for thirty days after deletion.
+
+The **Call office** button is the answer to "when is it open", and the pay link
+works at any hour. If the office later wants hours in the message, they belong
+in a slot — not in the fixed text.
+
 ## Authoring notes, for whoever adds the eighth
 
 - **The AiSensy body editor auto-pairs braces.** Typing `({{3}})` produces

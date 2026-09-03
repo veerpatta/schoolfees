@@ -694,3 +694,28 @@ Printed with an `@media print` stylesheet and the browser's own dialog — which
 offers Save as PDF — rather than a server-side PDF library. The office already
 prints receipts this way, and a dependency for a list of names is not a trade
 worth making.
+
+## The pay link
+
+`/pay/[code]` is the target of the **Pay now** button on every `_v3` template.
+It builds the UPI intent with `buildStudentFeeUpiPayment` and shows the UPI id as
+selectable text underneath, because the button does nothing on a phone with no
+app registered to the `upi://` scheme and a parent can still type the id into the
+one they have.
+
+**It is a payment link, not a portal.** An amount, a UPI id, a reference and a
+date — no name, no class, no admission number, no history. Stricter than
+`/r/[code]`, which at least confirms a receipt exists.
+
+- The code is **160 bits from the platform CSPRNG, per send**, in a partial
+  unique index. Never derived from the student: a code computable from an
+  admission number would let anyone enumerate what every family owes.
+- It **expires on the notice's own date**. The amount is what was owed when the
+  message went out, and a parent paying from a three-week-old link would pay the
+  wrong figure. `late_fee_applied` prints no date, so its links do not expire.
+- Malformed codes are rejected on SHAPE before reaching Postgres, which is the
+  whole rate-limiting story — 160 bits is not guessable, and a bad request never
+  becomes a query.
+
+Declared in the scan's `PUBLIC_BY_DESIGN` with that reasoning, alongside
+`/r/[code]` and the webhook.
