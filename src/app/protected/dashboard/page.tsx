@@ -37,6 +37,16 @@ import { EmiTrackingCard } from "@/modules/dashboard/ui/emi-tracking-card";
 import { DashboardPrefetcher } from "@/modules/dashboard/ui/dashboard-prefetcher";
 import { ClassCollectionProgress } from "@/modules/dashboard/ui/class-collection-progress";
 import { CollectionHeatmap } from "@/modules/dashboard/ui/collection-heatmap";
+import { createAdminClient } from "@/platform/supabase/admin";
+import { getFeePolicySummary } from "@/modules/fees/data/policy";
+import { DueTodayCard } from "@/modules/whatsapp/ui/due-today-card";
+import { campaignsDueOn } from "@/modules/whatsapp/domain/campaign-schedule";
+import {
+  listCampaigns,
+  loadRanScheduleSlots,
+  type SavedCampaign,
+} from "@/modules/whatsapp/data/campaign-store";
+import { buildInstallmentCalendar } from "@/modules/whatsapp/domain/installment-calendar";
 import { MobileDashboardBoards } from "@/modules/dashboard/ui/mobile-boards";
 import { MobileDashboardScreen } from "@/modules/dashboard/ui/mobile-dashboard-screen";
 import { MorningBrief } from "@/modules/dashboard/ui/morning-brief";
@@ -1459,6 +1469,48 @@ async function DashboardBelowFold({
     getDashboardAnalytics(sessionLabel),
     getRepaymentDashboardSummary(sessionLabel).catch(() => null),
   ]);
+  /**
+   * Reminder campaigns whose scheduled slot has arrived.
+   *
+   * Loaded here, in the same tick as everything else, and every failure caught:
+   * a due-today card is a convenience, and the dashboard is what the office
+   * opens first every morning. It must not be able to fail on a WhatsApp query.
+   *
+   * Two small reads, both indexed and both scoped to the session. They only
+   * matter when a campaign carries a schedule, which most never will.
+   */
+  const dueReminderCampaigns = await (async () => {
+    try {
+      const supabaseForReminders = createAdminClient();
+      const [campaigns, ranSlots, policy] = await Promise.all([
+        listCampaigns(supabaseForReminders, sessionLabel),
+        loadRanScheduleSlots(supabaseForReminders, sessionLabel),
+        getFeePolicySummary({ useAdmin: true }).catch(() => null),
+      ]);
+      const scheduled = campaigns.filter((campaign: SavedCampaign) => campaign.schedule);
+      if (scheduled.length === 0) return [];
+
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      return campaignsDueOn(
+        scheduled.map((campaign: SavedCampaign) => ({
+          id: campaign.id,
+          name: campaign.name,
+          situation: campaign.situation,
+          language: campaign.language,
+          schedule: campaign.schedule,
+          ranForSlots: ranSlots.get(campaign.id) ?? [],
+        })),
+        buildInstallmentCalendar({
+          schedule: policy?.installmentSchedule ?? [],
+          today,
+        }),
+        today,
+      );
+    } catch {
+      return [];
+    }
+  })();
+
   scheduleDashboardAutoPrepare({
     canAutoPrepareDues,
     sessionLabel,
@@ -1552,6 +1604,17 @@ async function DashboardBelowFold({
 
       {view === "overview" ? (
       <>
+      {/* A scheduled reminder slot that has arrived belongs at the top of the
+          overview, not two screens into a section nobody opens. Server-rendered
+          and returns null when nothing is due, so it costs the dashboard nothing
+          on an ordinary day — this route is under a bundle ceiling too. */}
+      <DueTodayCard
+        due={dueReminderCampaigns}
+        compact
+        hrefFor={(campaign) =>
+          `/protected/reminders?campaignId=${campaign.id}&situation=${campaign.situation}&language=${campaign.language}`
+        }
+      />
       <OverviewBoard
         installmentSummary={data.installmentSummary}
         followUpQueue={data.followUpQueue}

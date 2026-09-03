@@ -6,6 +6,13 @@ import { SectionCard } from "@/ui/shell/section-card";
 import { CollapsibleSection } from "@/ui/primitives/collapsible-section";
 import { OfficeNotice } from "@/ui/office/office-ui";
 import { RemindersWorkspace } from "@/modules/whatsapp/ui/reminders-workspace";
+import { DueTodayCard } from "@/modules/whatsapp/ui/due-today-card";
+import { campaignsDueOn } from "@/modules/whatsapp/domain/campaign-schedule";
+import {
+  buildInstallmentCalendar,
+  describeDateGuard,
+  type InstallmentCalendar,
+} from "@/modules/whatsapp/domain/installment-calendar";
 import { TestSendPanel } from "@/modules/whatsapp/ui/test-send-panel";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
@@ -29,7 +36,11 @@ import {
   TEMPLATE_INSTALLMENTS,
 } from "@/modules/whatsapp/domain/campaigns";
 import { getFeePolicySummary } from "@/modules/fees/data/policy";
-import { listCampaigns, type SavedCampaign } from "@/modules/whatsapp/data/campaign-store";
+import {
+  listCampaigns,
+  loadRanScheduleSlots,
+  type SavedCampaign,
+} from "@/modules/whatsapp/data/campaign-store";
 import { describeLateFeeDrift, lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
 import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
 
@@ -66,7 +77,12 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
 
   let sessionLabel: string;
   let ledgerLateFee = 0;
+  let calendar: InstallmentCalendar = buildInstallmentCalendar({
+    schedule: [],
+    today: istToday(),
+  });
   let savedCampaigns: SavedCampaign[] = [];
+  let ranSlots = new Map<string, string[]>();
   let audience: Awaited<ReturnType<typeof loadReminderAudience>>;
   let filters: ReminderFilters;
   let loadError: string | null = null;
@@ -89,15 +105,37 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       .sort()[0];
     // What the ledger really charges, so slot 7 opens agreeing with the receipt.
     ledgerLateFee = Number(policy?.lateFeeFlatAmount ?? 0);
+    // The window is an audience setting like any other, so it is read off the
+    // query string BEFORE the calendar that depends on it. A cheap second parse
+    // rather than a calendar built on the wrong window.
+    const windowDays = parseReminderFilters(reader(params), sessionLabel).preDueWindowDays;
+    calendar = buildInstallmentCalendar({
+      schedule: policy?.installmentSchedule ?? [],
+      today: istToday(),
+      windowDays,
+    });
     filters = parseReminderFilters(
       reader(params),
       sessionLabel,
       formatDdMmYyyy(upcoming ?? null),
       ledgerLateFee,
+      // The calendar's answer becomes the default installment set. An explicit
+      // choice in the URL still wins.
+      calendar.active,
     );
-    audience = await loadReminderAudience(supabase, filters);
+    // The calendar is what `upcoming`, `upcoming_final` and `late_fee_applied`
+    // are derived from. Passing it is not optional in spirit: without it those
+    // three notices reach nobody and the installment default silently reverts to
+    // the hardcoded pair this whole phase replaced.
+    audience = await loadReminderAudience(supabase, filters, calendar);
     // Cheap, and it lets the header say how many are saved without a second page.
     savedCampaigns = await listCampaigns(supabase, sessionLabel).catch(() => []);
+    // Which scheduled slots have already gone out, so a campaign that ran this
+    // morning is not offered again this afternoon. Best-effort: a due-card that
+    // cannot be built must not take the send screen down with it.
+    ranSlots = await loadRanScheduleSlots(supabase, sessionLabel).catch(
+      () => new Map<string, string[]>(),
+    );
   } catch (caught) {
     loadError = caught instanceof Error ? caught.message : "Could not build the recipient list.";
     return (
@@ -139,7 +177,18 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       ));
   const pickedIso = isoFromDdMmYyyy(filters.lastDate);
   // No prevyear exception any more: v2 gave that notice a settle-by date too.
-  const dateHasPassed = !pickedIso || pickedIso < today;
+  // `describeDateGuard`, not a bare comparison: the rule is per notice.
+  // `late_fee_applied` prints no date at all — its subject IS that a date has
+  // gone — so a raw `pickedIso < today` would grey out the send button on the
+  // one notice that fits the situation.
+  const dateHasPassed = Boolean(
+    describeDateGuard({
+      situation: filters.situation,
+      lastDateIso: pickedIso,
+      lastDateLabel: filters.lastDate,
+      today,
+    }),
+  );
   // Warn, never block: the office may deliberately quote a late fee the ledger
   // will not charge — that is what the control is for — but not by accident.
   const lateFeeWarning = describeLateFeeDrift({
@@ -168,6 +217,26 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       previewBody = null;
     }
   }
+
+  /**
+   * The scheduled slots that have arrived and not gone out.
+   *
+   * Computed here rather than in the card because it is a pure read over data
+   * this page already holds, and the card is a server component with no state —
+   * keeping the arithmetic out of the client bundle on a route with a ceiling.
+   */
+  const dueCampaigns = campaignsDueOn(
+    savedCampaigns.map((campaign) => ({
+      id: campaign.id,
+      name: campaign.name,
+      situation: campaign.situation,
+      language: campaign.language,
+      schedule: campaign.schedule,
+      ranForSlots: ranSlots.get(campaign.id) ?? [],
+    })),
+    calendar,
+    today,
+  );
 
   const situationLabel =
     NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
@@ -219,7 +288,17 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
         description={`Session ${sessionLabel}. ${familyLabel} match the filters below.`}
         className="max-md:order-4"
       >
-        <RemindersWorkspace
+        {/* Above the list on every viewport: a slot that has arrived is the
+          first thing the office needs to know, and on a phone anything below
+          the card list is 40 screens down. */}
+      <DueTodayCard
+        due={dueCampaigns}
+        hrefFor={(campaign) =>
+          `/protected/reminders?campaignId=${campaign.id}&situation=${campaign.situation}&language=${campaign.language}`
+        }
+      />
+
+      <RemindersWorkspace
           filters={filters}
           audience={audience}
           canSend={canSend && providerReady && !dateHasPassed}

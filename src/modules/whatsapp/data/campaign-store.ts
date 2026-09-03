@@ -40,6 +40,11 @@ export type SavedCampaign = {
   lateFeeBasis: LateFeeBasis;
   archivedAt: string | null;
   createdAt: string;
+  /**
+   * Raw `schedule` jsonb. Parsed by `parseCampaignSchedule`, never here — this
+   * layer does IO and the shape rules are pure and tested separately.
+   */
+  schedule: unknown;
 };
 
 export type SavedCampaignFilters = {
@@ -68,7 +73,7 @@ export type CampaignRunOutcome = {
 };
 
 const CAMPAIGN_COLUMNS =
-  "id, session_label, name, situation, language, filters, last_date, late_fee_amount, late_fee_basis, archived_at, created_at";
+  "id, session_label, name, situation, language, filters, last_date, late_fee_amount, late_fee_basis, archived_at, created_at, schedule";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -94,6 +99,7 @@ function toCampaign(row: any): SavedCampaign {
     lateFeeBasis: isLateFeeBasis(row.late_fee_basis) ? row.late_fee_basis : DEFAULT_LATE_FEE_BASIS,
     archivedAt: row.archived_at ? String(row.archived_at) : null,
     createdAt: String(row.created_at),
+    schedule: row.schedule ?? null,
   };
 }
 
@@ -137,6 +143,13 @@ export type CampaignInput = {
   lastDate: string | null;
   lateFeeAmount: number;
   lateFeeBasis: LateFeeBasis;
+  /**
+   * The parsed schedule, or null for a campaign that only ever runs by hand.
+   *
+   * Written straight to the jsonb column. Validated by `parseCampaignSchedule`
+   * before it reaches here, so an unusable shape never lands in the database.
+   */
+  schedule: Record<string, unknown> | null;
 };
 
 export async function saveCampaign(
@@ -154,6 +167,7 @@ export async function saveCampaign(
     last_date: input.lastDate,
     late_fee_amount: input.lateFeeAmount,
     late_fee_basis: input.lateFeeBasis,
+    schedule: input.schedule,
     updated_by: staffId,
     updated_at: new Date().toISOString(),
   };
@@ -212,6 +226,15 @@ export async function openRun(
     lateFeePhrase: string;
     selectedCount: number;
     startedBy: string | null;
+    /** 'manual' = somebody pressed Send. 'cron' = the scheduled runner. */
+    source?: "manual" | "cron";
+    /**
+     * The schedule slot this run satisfies, or null for an ad-hoc send.
+     *
+     * Stored rather than derived from `started_at`, so a slot deliberately run a
+     * day late still counts as that slot instead of leaving it forever due.
+     */
+    scheduledFor?: string | null;
   },
 ): Promise<string | null> {
   try {
@@ -338,4 +361,37 @@ export async function loadRunRecipients(
     status: String(row.status ?? ""),
     error: row.error_message ? String(row.error_message) : null,
   }));
+}
+
+/**
+ * The scheduled slots each campaign has already run for, this session.
+ *
+ * Keyed by campaign so `campaignsDueOn` can ask "has this slot gone out" without
+ * a query per campaign. Only rows carrying a `scheduled_for` count: an ad-hoc
+ * send of the same campaign is not the scheduled run, and treating it as one
+ * would silently skip the slot.
+ */
+export async function loadRanScheduleSlots(
+   
+  supabase: any,
+  sessionLabel: string,
+): Promise<Map<string, string[]>> {
+  const { data, error } = await supabase
+    .from("whatsapp_campaign_runs")
+    .select("campaign_id, scheduled_for")
+    .eq("session_label", sessionLabel)
+    .not("scheduled_for", "is", null)
+    .not("campaign_id", "is", null);
+
+  // Failing open would offer every scheduled campaign as due and invite the
+  // office to send a second copy of something that already went out.
+  if (error) throw new Error(`Could not read scheduled run history: ${error.message}`);
+
+  const byCampaign = new Map<string, string[]>();
+  for (const row of (data ?? []) as Array<{ campaign_id: string; scheduled_for: string }>) {
+    const slots = byCampaign.get(row.campaign_id);
+    if (slots) slots.push(row.scheduled_for);
+    else byCampaign.set(row.campaign_id, [row.scheduled_for]);
+  }
+  return byCampaign;
 }

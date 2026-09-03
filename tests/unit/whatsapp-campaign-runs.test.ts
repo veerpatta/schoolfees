@@ -12,7 +12,16 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
 const MIGRATION = "supabase/migrations/20260822090000_whatsapp_campaigns_and_runs.sql";
-const ACTIONS = "src/app/protected/reminders/actions.ts";
+/**
+ * The run executor moved out of the action in Phase 3.
+ *
+ * There are two ways to start a run now — an admin pressing Send, and the
+ * scheduled cron — and `executeReminderRun` is the single path both take. These
+ * invariants are about the RUN, so they follow it: asserting them against the
+ * action would now pass while proving nothing, because the action no longer
+ * opens a run at all.
+ */
+const RUN_SENDER = "src/modules/whatsapp/data/run-sender.ts";
 const STORE = "src/modules/whatsapp/data/campaign-store.ts";
 
 describe("the run grouping key", () => {
@@ -74,7 +83,7 @@ describe("the send action", () => {
   it("opens the run before the first message", () => {
     // So a crash halfway leaves a record of what was attempted rather than
     // nothing at all.
-    const source = read(ACTIONS);
+    const source = read(RUN_SENDER);
     const openIndex = source.indexOf("openRun(");
     const sendIndex = source.indexOf("sendAisensyCampaignMessage(");
     expect(openIndex).toBeGreaterThan(-1);
@@ -85,7 +94,7 @@ describe("the send action", () => {
   it("stamps run_id on the claim, not after the provider call", () => {
     // The claim insert is the only write that happens before AiSensy is called.
     // Stamping later would lose the grouping for any send that failed.
-    const source = read(ACTIONS);
+    const source = read(RUN_SENDER);
     const claim = source.slice(
       source.indexOf('.from("whatsapp_reminder_sends")'),
       source.indexOf("sendAisensyCampaignMessage("),
@@ -95,7 +104,7 @@ describe("the send action", () => {
 
   it("records the phrase that went out, not the amount it came from", () => {
     // The campaign is editable; what a parent read is not.
-    const source = read(ACTIONS);
+    const source = read(RUN_SENDER);
     expect(source).toMatch(/lateFeePhrase: lateFeePhrase\(/);
   });
 

@@ -32,11 +32,21 @@ what today makes of it — what has passed, what falls inside the pre-due window
 (10 days, settable per run), and which installment is next. An explicit
 installment choice on the screen still wins.
 
-**Every send is a press.** There is no cron, no scheduler and no auto-send, and
-that is a decision rather than an omission.
+**Every send is a press, unless an admin has said otherwise on that campaign.**
 
-Nothing on this screen sends on its own. Every send is a press, and every press
-costs money and reaches a real parent with a child's name and fee balance on it.
+That was an absolute rule until Phase 3, and the exception is deliberately
+narrow. A saved campaign may carry a `schedule` — "ten days before installment 3
+is due" — and a schedule may carry `auto`. Only a campaign with `auto` explicitly
+ticked is ever sent by `/api/cron/whatsapp-scheduled-runs`; everything else that
+comes due is a row on a card, and the office still presses Send.
+
+`auto` defaults off, the form says out loud what ticking it means, and the card
+badges such a campaign "sends itself". The cron applies exactly the same guards
+the manual path applies — the same pure list, the same executor — so there is no
+second, laxer way to reach a parent.
+
+Every press still costs money and reaches a real parent with a child's name and
+fee balance on it.
 
 ## Files
 
@@ -58,6 +68,12 @@ costs money and reaches a real parent with a child's name and fee balance on it.
 | `src/modules/whatsapp/data/aisensy.ts` | Campaign API client. `server-only` |
 | `src/modules/whatsapp/domain/fee-reminders.ts` | Audience query and filters. `server-only` — a client component may only `import type` from it |
 | `src/modules/whatsapp/domain/installment-calendar.ts` | What today makes of the fee calendar, and the per-notice date guard. Pure, **no `server-only`** |
+| `src/modules/whatsapp/domain/campaign-schedule.ts` | When a saved campaign is due, and how that reads on screen. Pure |
+| `src/modules/whatsapp/domain/send-guards.ts` | **The one list** of reasons a run may not send. Pure; read by the action AND the cron |
+| `src/modules/whatsapp/data/run-sender.ts` | **The one executor.** Opens the run, groups families, sends, closes, logs |
+| `src/modules/whatsapp/ui/due-today-card.tsx` | The due-to-run card. A SERVER component — no state, and this route has a ceiling |
+| `src/app/api/cron/whatsapp-scheduled-runs/route.ts` | The scheduled runner. `CRON_SECRET`, `?dryRun=1` |
+| `supabase/migrations/20260903165853_whatsapp_campaign_schedules.sql` | `schedule`, `scheduled_for`, `source` |
 | `src/modules/whatsapp/domain/family-grouping.ts` | One phone, one message: grouping, the children line, the family's language, the second number. Pure |
 | `src/modules/whatsapp/domain/campaign-bodies-v3.ts` | The sixteen unapproved bodies. **No `ui/` or `src/app` file may import it** — a test enforces it |
 | `src/platform/helpers/phone-responsiveness.ts` | `suggestPhoneLabel`, shared with defaulters. Moved out of that module to avoid a cycle |
@@ -484,3 +500,66 @@ submission — a 7.5× cost move, with no notification. Nothing in the app can
 detect it. The cheap mitigation is that `whatsapp_reminder_sends` already stores
 `campaign_name` per row, so a monthly count by campaign checked against the
 AiSensy bill is a two-line query rather than a feature.
+
+## The scheduled runner
+
+`/api/cron/whatsapp-scheduled-runs`, gated by `CRON_SECRET` exactly like
+`auto-day-close`. It sends only campaigns whose slot has arrived and whose
+`schedule.auto` is true, and it records `source = 'cron'` with `started_by`
+NULL — attributing an automatic send to whoever last edited the campaign would
+be a lie in the record.
+
+`?dryRun=1` reports what it WOULD send: no run opened, no row claimed, no
+provider call, nothing billed. Point it at production and read it before
+trusting it with production.
+
+### It is not in `vercel.json`, deliberately
+
+The Hobby plan's cron allowance is already spent on `nightly-backup` and
+`auto-day-close`. A third entry does not fail quietly — it fails the whole
+deployment, on a live school system. So the route ships and the schedule entry
+does not.
+
+Until the plan changes, any external scheduler can call it with the secret. When
+it does change, this is the line to add:
+
+```json
+{ "path": "/api/cron/whatsapp-scheduled-runs", "schedule": "0 4 * * *" }
+```
+
+04:00 UTC is 09:30 IST — inside office hours, and comfortably inside the quiet
+hours guard so a scheduled run is never the thing that wakes a parent.
+
+### Why the executor and the guards were extracted
+
+There are two ways to start a run now. The prompt for the cron says it "applies
+every guard the manual path applies", and the only way that stays true as both
+grow is if there is ONE list of guards and ONE executor, with both callers
+reading them.
+
+Two copies would drift exactly the way this feature's copies have drifted
+before: the filter parser once hardcoded `1100 / [1,2] / 1` instead of reading
+the constants, and the notice-values mapping once quoted a different late fee in
+the preview than in the send. `domain/send-guards.ts` and `data/run-sender.ts`
+exist so that cannot happen a third time.
+
+`executeReminderRun` takes `logContacts` as a parameter rather than importing
+`insertDefaulterContacts`, because `defaulters/ui` already imports
+`whatsapp/domain/render` and importing back would close a module cycle that
+`npm run quality:architecture` refuses. The app layer may import both, so both
+callers pass it in.
+
+## What is due to run
+
+`campaignsDueOn` is pure and takes today as an argument. A campaign is due when
+its slot date is today or within the last **seven days** and no run has already
+satisfied that slot.
+
+Two details that are easy to get wrong:
+
+- **The slot is compared, not the date.** A run that happened on the 11th but
+  satisfied the 10th's slot carries `scheduled_for = 2026-10-10`, so the slot is
+  closed. Comparing `started_at` to today would leave it forever due.
+- **A missed slot expires after a week.** Past that it is history, not a
+  backlog: a T-10 notice sent three weeks late would quote a deadline that has
+  gone, and the date guard would refuse it anyway.

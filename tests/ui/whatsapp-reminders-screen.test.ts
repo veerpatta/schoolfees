@@ -156,6 +156,27 @@ describe("WhatsApp reminders on a phone", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("passes the calendar to the audience, and derives the date banner from it", () => {
+    // `loadReminderAudience`'s calendar parameter has a default, so leaving it
+    // out typechecks cleanly and silently reverts the installment set to the
+    // hardcoded pair this feature replaced — while `upcoming`,
+    // `upcoming_final` and `late_fee_applied` reach nobody at all.
+    //
+    // That is not hypothetical: the wiring was lost once to a stray
+    // `git checkout` and committed green. This is the guard.
+    const source = read(PAGE);
+
+    expect(source).toContain("buildInstallmentCalendar");
+    expect(source).toMatch(/loadReminderAudience\(\s*supabase,\s*filters,\s*calendar\s*\)/);
+    // The calendar's active set must reach the parser, or the installment
+    // default is still a constant.
+    expect(source).toContain("calendar.active");
+    // And the banner must ask the per-notice rule rather than comparing dates,
+    // or `late_fee_applied` is greyed out on the one screen it belongs on.
+    expect(source).toContain("describeDateGuard");
+    expect(source).not.toMatch(/dateHasPassed = !pickedIso \|\| pickedIso < today/);
+  });
+
   it("shows an unapproved notice disabled rather than hiding it", () => {
     // A missing chip is a mystery; a disabled one with a reason is an answer.
     // The alternative is the office learning a template is not Live from

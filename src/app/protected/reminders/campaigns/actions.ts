@@ -1,5 +1,6 @@
 "use server";
 
+import { parseCampaignSchedule } from "@/modules/whatsapp/domain/campaign-schedule";
 import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/platform/supabase/admin";
@@ -101,6 +102,7 @@ export async function saveCampaignAction(
         lastDate,
         lateFeeAmount: number("lateFeeAmount", 0),
         lateFeeBasis: (isLateFeeBasis(rawBasis) ? rawBasis : DEFAULT_LATE_FEE_BASIS) as LateFeeBasis,
+        schedule: scheduleFromForm(formData),
       },
       (staff?.id as string | undefined) ?? null,
       existingId,
@@ -150,4 +152,29 @@ export async function archiveCampaignAction(
 
   revalidatePath("/protected/reminders/campaigns");
   return { status: "success", message: archived ? "Archived." : "Restored." };
+}
+
+/**
+ * The schedule the form describes, or null when it is left unscheduled.
+ *
+ * Built and then round-tripped through `parseCampaignSchedule`, so what reaches
+ * the jsonb column is exactly what the reader will accept. Writing a shape the
+ * parser then rejects would leave a campaign that looks scheduled on the form
+ * and is invisible to the due-today card.
+ */
+function scheduleFromForm(formData: FormData): Record<string, unknown> | null {
+  const installment = Number(formData.get("scheduleInstallment"));
+  if (!Number.isInteger(installment) || installment < 1 || installment > 4) return null;
+
+  const offsetDays = Number(formData.get("scheduleOffsetDays"));
+  const candidate = {
+    installment,
+    offsetDays: Number.isFinite(offsetDays) ? Math.trunc(offsetDays) : 0,
+    // Only a ticked box turns it on. A campaign must never start sending itself
+    // because a value was absent.
+    auto: formData.get("scheduleAuto") === "on",
+  };
+
+  const parsed = parseCampaignSchedule(candidate);
+  return parsed ? { ...parsed } : null;
 }

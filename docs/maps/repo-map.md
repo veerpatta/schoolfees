@@ -105,8 +105,8 @@ Surfaced because size is the thing a map can measure and a reader cannot.
 | 3516 | `src/modules/payments/ui/payment-desk-mobile.tsx` |
 | 2130 | `src/modules/payments/data/queries.ts` |
 | 2082 | `src/modules/fees/ui/fee-setup-client.tsx` |
+| 2058 | `src/app/protected/dashboard/page.tsx` |
 | 2007 | `src/modules/imports/data/queries.ts` |
-| 1995 | `src/app/protected/dashboard/page.tsx` |
 | 1894 | `src/modules/students/data/queries.ts` |
 | 1888 | `src/modules/transactions/ui/transactions-client-shell.tsx` |
 | 1726 | `src/modules/reports/data/queries.ts` |

@@ -9,6 +9,7 @@ import {
   TEMPLATE_INSTALLMENTS,
   type NoticeSituation,
 } from "@/modules/whatsapp/domain/campaigns";
+import { parseCampaignSchedule } from "@/modules/whatsapp/domain/campaign-schedule";
 import { LATE_FEE_BASES, lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
 import type { CampaignRunOutcome, SavedCampaign } from "@/modules/whatsapp/data/campaign-store";
 import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
@@ -80,6 +81,16 @@ export function campaignHref(campaign: SavedCampaign): string {
 
 function situationLabel(situation: NoticeSituation): string {
   return NOTICE_SITUATIONS.find((entry) => entry.value === situation)?.label ?? situation;
+}
+
+/**
+ * The saved schedule for the campaign being edited, or null.
+ *
+ * Parsed rather than read raw, so a hand-edited row cannot put an unusable value
+ * into a form control and then straight back into the database.
+ */
+function scheduleOf(campaign: { schedule?: unknown } | null | undefined) {
+  return campaign ? parseCampaignSchedule(campaign.schedule) : null;
 }
 
 export function CampaignManager({
@@ -349,6 +360,70 @@ export function CampaignManager({
                   </option>
                 ))}
               </SelectNative>
+            </div>
+
+            {/* --------------------------------------------------- schedule */}
+            {/* flex gap rather than space-y: the auto row is conditional, and
+                space-y also puts a margin around a hidden child. */}
+            <div className="flex w-full basis-full flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                Schedule
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Relative to an installment, so a campaign written in April still fires correctly in
+                January. Leave it unscheduled for one you only ever run by hand.
+              </p>
+              {/* Wraps onto two rows on a phone, one at the desk. */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cScheduleInstallment">Installment</Label>
+                  <SelectNative
+                    id="cScheduleInstallment"
+                    name="scheduleInstallment"
+                    defaultValue={scheduleOf(open)?.installment?.toString() ?? ""}
+                    className="w-36"
+                  >
+                    <option value="">Not scheduled</option>
+                    {[1, 2, 3, 4].map((installment) => (
+                      <option key={installment} value={installment}>
+                        Installment {installment}
+                      </option>
+                    ))}
+                  </SelectNative>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cScheduleOffsetDays">When</Label>
+                  <SelectNative
+                    id="cScheduleOffsetDays"
+                    name="scheduleOffsetDays"
+                    defaultValue={scheduleOf(open)?.offsetDays?.toString() ?? "-10"}
+                    className="w-56"
+                  >
+                    <option value="-10">10 days before it is due</option>
+                    <option value="-3">3 days before it is due</option>
+                    <option value="0">On the day it is due</option>
+                    <option value="1">1 day after it was due</option>
+                    <option value="15">15 days after it was due</option>
+                  </SelectNative>
+                </div>
+              </div>
+              {/* min-h-11 so the whole sentence is a comfortable tap target. */}
+              <label className="flex min-h-11 items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="scheduleAuto"
+                  defaultChecked={scheduleOf(open)?.auto === true}
+                  className="mt-1 size-4 shrink-0"
+                />
+                <span>
+                  <span className="font-semibold">Send this campaign automatically.</span>{" "}
+                  <span className="text-muted-foreground">
+                    On its scheduled day it will message families without anybody pressing Send.
+                    It still refuses on a passed date, an unapproved template or an empty list.
+                    Off unless you tick it.
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div className="space-y-1.5">

@@ -13,7 +13,7 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260903165436
+-- Schema version: 20260903165853
 -- Objects: 88 tables/views, 60 functions
 
 
@@ -1145,7 +1145,9 @@ create table if not exists public.whatsapp_campaign_runs (
   failed_count integer default 0 not null,
   already_count integer default 0 not null,
   money_quoted bigint default 0 not null,
-  created_at timestamp with time zone default now() not null
+  created_at timestamp with time zone default now() not null,
+  scheduled_for date,
+  source text default 'manual'::text not null
 );
 
 -- public.whatsapp_campaigns
@@ -1163,7 +1165,8 @@ create table if not exists public.whatsapp_campaigns (
   created_by uuid,
   updated_by uuid,
   created_at timestamp with time zone default now() not null,
-  updated_at timestamp with time zone default now() not null
+  updated_at timestamp with time zone default now() not null,
+  schedule jsonb
 );
 
 -- public.whatsapp_reminder_sends
@@ -1512,6 +1515,7 @@ alter table public.students add constraint students_check CHECK (((left_on IS NU
 alter table public.transport_routes add constraint transport_routes_annual_fee_amount_check CHECK ((annual_fee_amount >= 0));
 alter table public.transport_routes add constraint transport_routes_default_installment_amount_check CHECK ((default_installment_amount >= 0));
 alter table public.users add constraint users_preferred_locale_check CHECK (((preferred_locale IS NULL) OR (preferred_locale = ANY (ARRAY['en'::text, 'hi'::text, 'hi-en'::text]))));
+alter table public.whatsapp_campaign_runs add constraint whatsapp_campaign_runs_source_check CHECK ((source = ANY (ARRAY['manual'::text, 'cron'::text])));
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_language_check CHECK ((language = ANY (ARRAY['hi'::text, 'en'::text])));
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_amount_check CHECK ((late_fee_amount >= 0));
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_basis_check CHECK ((late_fee_basis = ANY (ARRAY['per_installment'::text, 'per_day'::text, 'flat'::text, 'none'::text])));
@@ -1881,7 +1885,9 @@ create UNIQUE index if not exists v_workbook_installment_balances_idx ON public.
 create UNIQUE index if not exists v_workbook_student_financials_idx ON public.v_workbook_student_financials USING btree (student_id);
 create index if not exists vpps_student_source_mapping_student_id_idx ON private.vpps_student_source_mapping USING btree (student_id);
 create index if not exists whatsapp_campaign_runs_campaign_idx ON public.whatsapp_campaign_runs USING btree (campaign_id, started_at DESC);
+create index if not exists whatsapp_campaign_runs_scheduled_idx ON public.whatsapp_campaign_runs USING btree (campaign_id, scheduled_for) WHERE (scheduled_for IS NOT NULL);
 create index if not exists whatsapp_campaign_runs_session_idx ON public.whatsapp_campaign_runs USING btree (session_label, started_at DESC);
+create index if not exists whatsapp_campaigns_scheduled_idx ON public.whatsapp_campaigns USING btree (session_label) WHERE ((schedule IS NOT NULL) AND (archived_at IS NULL));
 create index if not exists whatsapp_campaigns_session_idx ON public.whatsapp_campaigns USING btree (session_label, archived_at NULLS FIRST, name);
 create index if not exists whatsapp_reminder_sends_day_status_idx ON public.whatsapp_reminder_sends USING btree (sent_on DESC, status);
 create index if not exists whatsapp_reminder_sends_provider_message_idx ON public.whatsapp_reminder_sends USING btree (provider_message_id) WHERE (provider_message_id IS NOT NULL);
