@@ -70,6 +70,18 @@ export type CampaignRunOutcome = {
   moneyQuoted: number;
   familiesPaid: number;
   moneyCollected: number;
+  /** Counted DISTINCT on provider_message_id, so a family of siblings counts once. */
+  delivered: number;
+  readCount: number;
+  deliveryFailed: number;
+  /** Siblings reached on a message naming another child. Costs nothing. */
+  coveredBySibling: number;
+  /** manual = somebody pressed Send. cron = the scheduled runner. */
+  source: string;
+  /** The schedule slot this run satisfied, or null for an ad-hoc send. */
+  scheduledFor: string | null;
+  /** Days between the send and the first receipt, one per family who paid. */
+  daysToPay: number[];
 };
 
 const CAMPAIGN_COLUMNS =
@@ -294,7 +306,7 @@ export async function listRunOutcomes(
   let query = supabase
     .from("v_whatsapp_run_outcomes")
     .select(
-      "run_id, campaign_id, campaign_name, situation, language, started_at, last_date, late_fee_phrase, messaged, failed, money_quoted, families_paid, money_collected",
+      "run_id, campaign_id, campaign_name, situation, language, started_at, last_date, late_fee_phrase, messaged, failed, money_quoted, families_paid, money_collected, delivered, read_count, delivery_failed, covered_by_sibling, source, scheduled_for, days_to_pay",
     )
     .eq("session_label", sessionLabel)
     .order("started_at", { ascending: false })
@@ -319,6 +331,15 @@ export async function listRunOutcomes(
     moneyQuoted: Number(row.money_quoted ?? 0),
     familiesPaid: Number(row.families_paid ?? 0),
     moneyCollected: Number(row.money_collected ?? 0),
+    delivered: Number(row.delivered ?? 0),
+    readCount: Number(row.read_count ?? 0),
+    deliveryFailed: Number(row.delivery_failed ?? 0),
+    coveredBySibling: Number(row.covered_by_sibling ?? 0),
+    source: String(row.source ?? "manual"),
+    scheduledFor: row.scheduled_for ? String(row.scheduled_for) : null,
+    daysToPay: Array.isArray(row.days_to_pay)
+      ? (row.days_to_pay as unknown[]).map(Number).filter((value) => Number.isFinite(value))
+      : [],
   }));
 }
 

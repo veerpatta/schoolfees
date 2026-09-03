@@ -5,6 +5,8 @@ import {
   snoozeIso,
   tallyCadence,
   type DefaulterContactSummary,
+  heatScore,
+  SEEN_BUT_NOT_PAID_WEIGHT,
 } from "@/modules/defaulters/domain/cadence";
 import {
   appendPaymentBlockIfMissing,
@@ -289,5 +291,62 @@ describe("a broadcast does not empty the call list", () => {
         justNow,
       ),
     ).toBe("soon");
+  });
+});
+
+describe("seen and ignored ranks higher", () => {
+  /**
+   * The strongest signal this system produces. A family who never saw the
+   * message has an excuse; a family who read it days ago and still has not paid
+   * has made a decision.
+   */
+  const base = {
+    totalPending: 9000,
+    daysOverdue: 10,
+    contact: null,
+    today: new Date("2026-09-03T10:00:00Z"),
+  };
+
+  it("adds nothing until delivery data has been imported", () => {
+    // Absent, not zero. The score must not quietly change meaning on the day
+    // the office starts uploading campaign reports.
+    const withoutContact = heatScore(base);
+    const withContact = heatScore({
+      ...base,
+      contact: { snoozeUntil: null, lastContactedAt: null, readAndUnpaidDays: null },
+    });
+    expect(withContact).toBe(withoutContact);
+  });
+
+  it("ranks a family who read it above an identical family who did not", () => {
+    const unread = heatScore({
+      ...base,
+      contact: { snoozeUntil: null, lastContactedAt: null },
+    });
+    const read = heatScore({
+      ...base,
+      contact: { snoozeUntil: null, lastContactedAt: null, readAndUnpaidDays: 7 },
+    });
+    expect(read).toBeGreaterThan(unread);
+    expect(read - unread).toBe(SEEN_BUT_NOT_PAID_WEIGHT);
+  });
+
+  it("grows with the days since the read, and caps", () => {
+    const scores = [0, 2, 7, 30].map((days) =>
+      heatScore({
+        ...base,
+        contact: { snoozeUntil: null, lastContactedAt: null, readAndUnpaidDays: days },
+      }),
+    );
+    // Non-decreasing, and the last two are equal because the boost is capped.
+    expect(scores[0]).toBeLessThanOrEqual(scores[1]!);
+    expect(scores[1]).toBeLessThan(scores[2]!);
+    expect(scores[3]).toBe(scores[2]);
+  });
+
+  it("stays smaller than the money and age weights it sits beside", () => {
+    // It is evidence about intent, not about how much is owed. A read reminder
+    // must not outrank a much larger debt.
+    expect(SEEN_BUT_NOT_PAID_WEIGHT).toBeLessThan(25);
   });
 });

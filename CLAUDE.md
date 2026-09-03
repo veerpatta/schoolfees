@@ -411,6 +411,7 @@ Routes are embedded in their respective modules (not centralized under `/api/`):
 | `/api/cron/nightly-backup` | Nightly backup (`CRON_SECRET`) |
 | `/api/admin/repair-discount-drift` | Re-runs the fee engine for drifted students |
 | `/api/command/students`, `/api/command/receipts` | Command-palette lookups |
+| `/api/webhooks/aisensy` | AiSensy delivery webhook. 404 unless `AISENSY_WEBHOOK_SECRET` is set |
 | `/api/cron/whatsapp-scheduled-runs` | Scheduled WhatsApp campaign runner (`CRON_SECRET`, `?dryRun=1`) |
 | `/api/manifest` | PWA manifest (role-aware runtime caching) |
 | `/auth/confirm` | Email confirmation callback |

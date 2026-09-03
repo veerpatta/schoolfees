@@ -47,6 +47,17 @@ would have made every channel filter, icon map and per-number attribution wrong.
 Bulk rows still show in the history, still count as attempts and still carry
 their outcome. They simply do not cool a family off the call list.
 
+## Seen but not paid
+
+`heatScore` adds up to `SEEN_BUT_NOT_PAID_WEIGHT` (15) for a family who READ a
+reminder they have still not paid, reaching full weight after seven days.
+
+Smaller than the money and age weights on purpose: it is evidence about intent,
+not about how much is owed, and a read reminder must not outrank a much larger
+debt. It comes from imported AiSensy delivery data, so `readAndUnpaidDays` is
+absent — not zero — until a campaign report has been uploaded, and the score does
+not quietly change meaning on the day the office starts importing.
+
 ## Shared with the reminders
 
 `suggestPhoneLabel` and `PhoneResponsiveness` moved to

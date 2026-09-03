@@ -68,6 +68,11 @@ fee balance on it.
 | `src/modules/whatsapp/data/aisensy.ts` | Campaign API client. `server-only` |
 | `src/modules/whatsapp/domain/fee-reminders.ts` | Audience query and filters. `server-only` — a client component may only `import type` from it |
 | `src/modules/whatsapp/domain/installment-calendar.ts` | What today makes of the fee calendar, and the per-notice date guard. Pure, **no `server-only`** |
+| `src/modules/whatsapp/domain/delivery-report.ts` | Reading the AiSensy CSV, and matching it onto sends. Pure |
+| `src/modules/whatsapp/data/delivery-store.ts` | Delivery writes, stuck-row reconciliation, seen-but-not-paid |
+| `src/app/protected/reminders/runs/[runId]/run-delivery-panel.tsx` | Retry, reconcile and import. Colocated with the route because it imports its actions |
+| `src/app/api/webhooks/aisensy/route.ts` | A no-op 404 until `AISENSY_WEBHOOK_SECRET` is set |
+| `supabase/migrations/20260903173025_whatsapp_delivery_status.sql` | Delivery columns, attempts, and the widened outcomes view |
 | `src/modules/whatsapp/domain/campaign-schedule.ts` | When a saved campaign is due, and how that reads on screen. Pure |
 | `src/modules/whatsapp/domain/send-guards.ts` | **The one list** of reasons a run may not send. Pure; read by the action AND the cron |
 | `src/modules/whatsapp/data/run-sender.ts` | **The one executor.** Opens the run, groups families, sends, closes, logs |
@@ -563,3 +568,73 @@ Two details that are easy to get wrong:
 - **A missed slot expires after a week.** Past that it is history, not a
   backlog: a T-10 notice sent three weeks late would quote a deadline that has
   gone, and the date guard would refuse it anyway.
+
+## Did it arrive?
+
+`submitted_message_id` is an acceptance receipt from AiSensy, not proof a
+parent's phone lit up. The Basic plan has no delivery webhooks — that is the Pro
+"Project API" — so the run page has an **Import delivery report** upload that
+takes the campaign report CSV straight from the AiSensy dashboard.
+
+Four things in that path are easy to get wrong, and three of them are silent:
+
+- **`undelivered` contains `delivered`.** Checked in the obvious order, every
+  undelivered message in the file imports as delivered, and the office reads a
+  run as having worked when it did not. `failed` is matched BEFORE `delivered`
+  in `STATUS_WORDS`, and `tests/unit/whatsapp-delivery-report.test.ts` pins it.
+- **Siblings share one `provider_message_id`.** Matching on the id alone would
+  write one delivery result onto every child in a family and report a family of
+  three as three delivered messages. Only rows with `status = 'sent'` are
+  eligible, and every count in `v_whatsapp_run_outcomes` is
+  `count(distinct provider_message_id)`.
+- **A status never moves backwards.** Reports arrive out of order and get
+  re-uploaded; `STATUS_RANK` stops a `submitted` row overwriting a `read` one.
+  `failed` sits above `submitted` and below `delivered`, so a failure can correct
+  a bare acceptance but a delivered message is never retracted by one.
+- **Columns are found by what they contain.** AiSensy has renamed its headings
+  at least once, and an exact-header match turns a whole import into zero rows
+  with no error. A file with nothing recognisable is reported as such.
+
+The fallback match — destination plus day — is used only when it is
+**unambiguous**. A phone that received two messages that day is left alone,
+because guessing would attach a delivery result to the wrong notice.
+
+## Retrying and reconciling
+
+**A retry updates the row in place.** A second row would break the unique index
+that stops a family being messaged twice in a day, and would make the history
+claim a family was messaged twice when they were messaged once and re-tried.
+`attempts` records the retry; `last_error` holds the most recent failure while
+`error_message` keeps the first.
+
+**A stuck row is a judgement, not a fact.** A row still `pending` fifteen minutes
+after a run did not fail slowly — the request died between claiming the row and
+hearing back, so nobody knows whether the message went. An admin marks it sent or
+failed with a reason, and both write an `audit_logs` row naming who decided.
+`covered_by_sibling` rows are never swept: no provider call is made for one, so
+there is nothing to reconcile.
+
+## Seen but not paid
+
+The strongest signal this system produces. A family who never saw the message has
+an excuse; a family who READ it three days ago and still has not paid has made a
+decision, and that is who a collector should ring first.
+
+It feeds `heatScore` through `SEEN_BUT_NOT_PAID_WEIGHT` (15, capped, reached at
+seven days), deliberately smaller than the money and age weights: it is evidence
+about intent, not about how much is owed.
+
+It is empty until a delivery report has been imported, and `readAndUnpaidDays` is
+**absent rather than zero** in that state, so the score does not quietly change
+meaning the day the office starts uploading.
+
+## The webhook
+
+`/api/webhooks/aisensy` is a **no-op 404 unless `AISENSY_WEBHOOK_SECRET` is
+set**, and it is not set — webhooks are a Pro-plan feature. 404 rather than 401
+when unconfigured, deliberately: an endpoint that answers "unauthorised" confirms
+it exists.
+
+It writes exactly what the CSV import writes, through the same pure rules: the
+same status vocabulary, the same never-backwards ranking, and the same refusal to
+touch a `covered_by_sibling` row.

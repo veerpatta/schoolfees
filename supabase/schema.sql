@@ -13,7 +13,7 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260903172053
+-- Schema version: 20260903173025
 -- Objects: 88 tables/views, 60 functions
 
 
@@ -1188,7 +1188,13 @@ create table if not exists public.whatsapp_reminder_sends (
   run_id uuid,
   language text,
   destination_role text default 'primary'::text not null,
-  receipt_id uuid
+  receipt_id uuid,
+  delivery_status text,
+  delivered_at timestamp with time zone,
+  read_at timestamp with time zone,
+  attempts integer default 1 not null,
+  last_error text,
+  last_attempt_at timestamp with time zone
 );
 
 -- public.whatsapp_templates
@@ -1521,6 +1527,7 @@ alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_language
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_amount_check CHECK ((late_fee_amount >= 0));
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_basis_check CHECK ((late_fee_basis = ANY (ARRAY['per_installment'::text, 'per_day'::text, 'flat'::text, 'none'::text])));
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_situation_check CHECK ((situation = ANY (ARRAY['fee_due'::text, 'balance'::text, 'prevyear'::text, 'upcoming'::text, 'upcoming_final'::text, 'late_fee_applied'::text, 'promise_lapsed'::text])));
+alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_delivery_status_check CHECK (((delivery_status IS NULL) OR (delivery_status = ANY (ARRAY['submitted'::text, 'delivered'::text, 'read'::text, 'failed'::text]))));
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_destination_role_check CHECK ((destination_role = ANY (ARRAY['primary'::text, 'secondary'::text])));
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text, 'covered_by_sibling'::text])));
 alter table public.whatsapp_templates add constraint whatsapp_templates_category_check CHECK ((category = ANY (ARRAY['reminder'::text, 'final_reminder'::text, 'receipt'::text, 'custom'::text])));
@@ -1892,7 +1899,9 @@ create index if not exists whatsapp_campaign_runs_session_idx ON public.whatsapp
 create index if not exists whatsapp_campaigns_scheduled_idx ON public.whatsapp_campaigns USING btree (session_label) WHERE ((schedule IS NOT NULL) AND (archived_at IS NULL));
 create index if not exists whatsapp_campaigns_session_idx ON public.whatsapp_campaigns USING btree (session_label, archived_at NULLS FIRST, name);
 create index if not exists whatsapp_reminder_sends_day_status_idx ON public.whatsapp_reminder_sends USING btree (sent_on DESC, status);
+create index if not exists whatsapp_reminder_sends_delivery_idx ON public.whatsapp_reminder_sends USING btree (run_id, delivery_status) WHERE (delivery_status IS NOT NULL);
 create index if not exists whatsapp_reminder_sends_provider_message_idx ON public.whatsapp_reminder_sends USING btree (provider_message_id) WHERE (provider_message_id IS NOT NULL);
+create index if not exists whatsapp_reminder_sends_read_idx ON public.whatsapp_reminder_sends USING btree (read_at) WHERE (read_at IS NOT NULL);
 create UNIQUE index if not exists whatsapp_reminder_sends_receipt_idx ON public.whatsapp_reminder_sends USING btree (receipt_id) WHERE (receipt_id IS NOT NULL);
 create index if not exists whatsapp_reminder_sends_run_idx ON public.whatsapp_reminder_sends USING btree (run_id);
 create UNIQUE index if not exists whatsapp_reminder_sends_student_day_campaign_role_idx ON public.whatsapp_reminder_sends USING btree (student_id, session_label, sent_on, campaign_name, destination_role);
@@ -7030,10 +7039,18 @@ create or replace view public.v_whatsapp_run_outcomes as
     count(*) FILTER (WHERE s.status = 'failed'::text) AS failed,
     COALESCE(sum(s.due_amount) FILTER (WHERE s.status = 'sent'::text), 0::bigint) AS money_quoted,
     count(*) FILTER (WHERE s.status = 'sent'::text AND COALESCE(paid.amount_paid, 0::bigint) > 0) AS families_paid,
-    COALESCE(sum(paid.amount_paid) FILTER (WHERE s.status = 'sent'::text), 0::numeric) AS money_collected
+    COALESCE(sum(paid.amount_paid) FILTER (WHERE s.status = 'sent'::text), 0::numeric) AS money_collected,
+    run.source,
+    run.scheduled_for,
+    count(*) FILTER (WHERE s.status = 'covered_by_sibling'::text) AS covered_by_sibling,
+    count(DISTINCT s.provider_message_id) FILTER (WHERE s.status = 'sent'::text AND s.delivery_status = 'delivered'::text) AS delivered,
+    count(DISTINCT s.provider_message_id) FILTER (WHERE s.status = 'sent'::text AND s.delivery_status = 'read'::text) AS read_count,
+    count(DISTINCT s.provider_message_id) FILTER (WHERE s.status = 'sent'::text AND s.delivery_status = 'failed'::text) AS delivery_failed,
+    array_remove(array_agg(paid.days_to_pay) FILTER (WHERE s.status = 'sent'::text), NULL::integer) AS days_to_pay
    FROM public.whatsapp_campaign_runs run
      LEFT JOIN public.whatsapp_reminder_sends s ON s.run_id = run.id
-     LEFT JOIN LATERAL ( SELECT sum(r.total_amount) AS amount_paid
+     LEFT JOIN LATERAL ( SELECT sum(r.total_amount) AS amount_paid,
+            min(r.payment_date - s.sent_on) AS days_to_pay
            FROM public.receipts r
           WHERE r.student_id = s.student_id AND r.payment_date >= s.sent_on AND (run.last_date IS NULL OR r.payment_date <= run.last_date) AND r.payment_mode <> 'discount'::public.payment_mode AND NOT (EXISTS ( SELECT 1
                    FROM public.v_receipt_reversal_totals rr

@@ -67,6 +67,14 @@ export type DefaulterContactSummary = {
    * from past `reached` outcomes. Null until there's a clear pattern.
    */
   bestCallWindow?: CallWindow | null;
+  /**
+   * Days since this family READ a reminder they have still not paid, or null.
+   *
+   * Only ever set from imported AiSensy delivery data. Absent — not zero —
+   * until a campaign report has been uploaded, so the heat score does not
+   * quietly change meaning the day the office starts importing.
+   */
+  readAndUnpaidDays?: number | null;
 };
 
 /** Coarse time-of-day bands (Asia/Kolkata) for the best-time-to-call hint. */
@@ -203,6 +211,19 @@ export type HeatInput = {
  *
  * Result is clamped to 0–100.
  */
+/**
+ * How much a read-and-ignored notice adds to the heat score, at most.
+ *
+ * Tunable, and deliberately smaller than the money and age weights: it is strong
+ * evidence about intent, not about how much is owed. Fifteen puts a family who
+ * read a reminder a week ago above an identical family who did not, without
+ * letting it outrank a much larger debt.
+ */
+export const SEEN_BUT_NOT_PAID_WEIGHT = 15;
+
+/** Days since the read at which the boost reaches its full weight. */
+export const SEEN_BUT_NOT_PAID_FULL_WEIGHT_DAYS = 7;
+
 export function heatScore(input: HeatInput): number {
   const today = input.today ?? new Date();
   const contact = input.contact;
@@ -253,15 +274,35 @@ export function heatScore(input: HeatInput): number {
   //    received one would push exactly the families the office is chasing
   //    hardest to the bottom of the collectors' list.
   let freshness = 0;
-  if (contact?.lastContactedAt) {
-    const hoursSince =
-      (today.getTime() - new Date(contact.lastContactedAt).getTime()) /
-      (1000 * 60 * 60);
+  const lastPersonal =
+    contact?.lastPersonalContactedAt !== undefined
+      ? contact.lastPersonalContactedAt
+      : (contact?.lastContactedAt ?? null);
+  if (lastPersonal) {
+    const hoursSince = (today.getTime() - new Date(lastPersonal).getTime()) / (1000 * 60 * 60);
     if (hoursSince < 6) freshness = -20;
     else if (hoursSince < 24) freshness = -10;
   }
 
-  const score = moneyWeight + ageWeight + promiseWeight + responsivenessAdj + freshness;
+  // 6) Seen and ignored.
+  //
+  // The strongest signal this system produces. A family who never saw the
+  // message has an excuse; a family who READ it days ago and has still not paid
+  // has made a decision, and that is who a collector should ring first.
+  //
+  // Only ever set from imported delivery data, so it is simply absent until a
+  // campaign report has been uploaded — the score does not quietly change
+  // meaning when the office starts importing.
+  const seenAdj = contact?.readAndUnpaidDays !== undefined && contact.readAndUnpaidDays !== null
+    ? clamp(
+        Math.round((contact.readAndUnpaidDays / SEEN_BUT_NOT_PAID_FULL_WEIGHT_DAYS) * SEEN_BUT_NOT_PAID_WEIGHT),
+        0,
+        SEEN_BUT_NOT_PAID_WEIGHT,
+      )
+    : 0;
+
+  const score =
+    moneyWeight + ageWeight + promiseWeight + responsivenessAdj + freshness + seenAdj;
   return clamp(score, 0, 100);
 }
 

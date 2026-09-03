@@ -80,6 +80,16 @@ const PUBLIC_BY_DESIGN = new Map([
     "src/app/auth/login/actions.ts",
     "Sign-in. Guarding it would require the session it exists to create.",
   ],
+  [
+    "src/app/api/webhooks/aisensy/route.ts",
+    "AiSensy delivery webhook. There is no staff session to require — the caller "
+      + "is a provider, not a person. It is guarded by AISENSY_WEBHOOK_SECRET and "
+      + "is a no-op 404 until that is set, which it is not (webhooks are a "
+      + "Pro-plan feature). It writes only delivery_status/delivered_at/read_at "
+      + "onto a row matched by provider_message_id, and returns no student data "
+      + "in any response. Widening what it writes is the change that needs "
+      + "review, not the absence of a staff guard.",
+  ],
 ]);
 
 /**

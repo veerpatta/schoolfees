@@ -10,6 +10,8 @@ import { MobileEmptyRows, MobileRecordCard, MobileStatStrip } from "@/ui/mobile/
 import { createAdminClient } from "@/platform/supabase/admin";
 import { requireAnyStaffPermission } from "@/platform/supabase/session";
 import { listRunOutcomes, loadRunRecipients } from "@/modules/whatsapp/data/campaign-store";
+import { loadStuckSends } from "@/modules/whatsapp/data/delivery-store";
+import { RunDeliveryPanel } from "./run-delivery-panel";
 import { resolveCurrentSessionLabel } from "@/modules/whatsapp/domain/fee-reminders";
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { formatInr } from "@/platform/helpers/currency";
@@ -40,6 +42,16 @@ export default async function ReminderRunPage({ params }: Props) {
     NOTICE_SITUATIONS.find((entry) => entry.value === run.situation)?.label ?? run.situation;
 
   const failedRows = recipients.filter((row) => row.status === "failed");
+
+  // Rows the provider never answered about. Best-effort: a run page that cannot
+  // load this is still worth showing.
+  const stuck = await loadStuckSends({ supabase, runId }).catch(() => []);
+
+  // Null, not zero, when no delivery report has ever been imported. Zero would
+  // read as "nothing arrived", which is a very different thing from "we have not
+  // been told".
+  const hasDeliveryData =
+    run.delivered !== null && run.delivered !== undefined && (run.delivered > 0 || run.readCount > 0 || run.deliveryFailed > 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -169,6 +181,14 @@ export default async function ReminderRunPage({ params }: Props) {
           </table>
         </div>
       </SectionCard>
+      <RunDeliveryPanel
+        runId={runId}
+        failedCount={failedRows.length}
+        stuckCount={stuck.length}
+        deliveredCount={hasDeliveryData ? run.delivered : null}
+        readCount={hasDeliveryData ? run.readCount : null}
+      />
+
     </div>
   );
 }
