@@ -1,5 +1,6 @@
 import { formatRupeesPlain } from "@/platform/helpers/currency";
 import {
+  shortClassLabel,
   LATE_FEE_APPLIED_SKELETON,
   lateFeeAppliedParams,
   promiseLapsedParams,
@@ -765,4 +766,153 @@ export function describeFamilyCampaign(
       (entry) => entry.situation === situation && entry.language === language,
     ) ?? null
   );
+}
+
+
+/* ------------------------------------------------------ receipt notice (v3) */
+
+/**
+ * "Your payment reached us."
+ *
+ * The only message in this system a family is pleased to receive, and the answer
+ * to the office's most common inbound WhatsApp: did the money arrive. Sent after
+ * a posting, never in a batch.
+ *
+ * Seven slots, and the last one is the REMAINING balance rather than a late-fee
+ * phrase — a receipt is not a threat, and a parent who has just paid should be
+ * told where that leaves them rather than what happens if they are late.
+ */
+export const RECEIPT_SLOT_SKELETON = [
+  "parentName",
+  "studentName",
+  "studentClass",
+  "receiptNumber",
+  "amountPaid",
+  "paymentDate",
+  "remainingBalance",
+] as const;
+
+export type ReceiptNoticeValues = {
+  parentName: string;
+  studentName: string;
+  studentClass: string;
+  receiptNumber: string;
+  amountPaid: number;
+  /** DD-MM-YYYY. */
+  paymentDate: string;
+  /** What is still owed AFTER this payment, read from the ledger. */
+  remainingBalance: number;
+};
+
+function receiptParams(v: ReceiptNoticeValues): string[] {
+  return [
+    v.parentName,
+    v.studentName,
+    shortClassLabel(v.studentClass),
+    v.receiptNumber,
+    formatRupeesPlain(Math.max(0, Math.round(Number(v.amountPaid) || 0))),
+    v.paymentDate,
+    // Zero is a real and welcome answer here — "nothing further is due" — so it
+    // is printed rather than suppressed. The body words the line so 0 reads
+    // correctly.
+    formatRupeesPlain(Math.max(0, Math.round(Number(v.remainingBalance) || 0))),
+  ];
+}
+
+function receiptBodyEn(v: ReceiptNoticeValues): string {
+  const [p, s, c, receipt, amount, date, remaining] = receiptParams(v);
+  return [
+    "*Payment Received — Shri Veer Patta Sr. Sec. School*",
+    "",
+    `Dear ${p},`,
+    "",
+    `Student: ${s}`,
+    `Class: ${c}`,
+    `Receipt number: ${receipt}`,
+    `Amount received: Rs. ${amount}`, // @allow-raw-money-format: verbatim from the English body submitted to Meta
+    `Date: ${date}`,
+    `Balance remaining: Rs. ${remaining}`, // @allow-raw-money-format: verbatim from the English body submitted to Meta
+    "",
+    "Thank you. Your payment has been recorded against the student named above. Please keep the printed receipt for your records.",
+    "",
+    "If any detail above does not match your receipt, call the office on 9352205884.",
+  ].join("\n");
+}
+
+function receiptBodyHi(v: ReceiptNoticeValues): string {
+  const [p, s, c, receipt, amount, date, remaining] = receiptParams(v);
+  return [
+    "*भुगतान प्राप्त — श्री वीर पत्ता सी. सै. स्कूल*",
+    "",
+    `प्रिय ${p},`,
+    "",
+    `विद्यार्थी: ${s}`,
+    `कक्षा: ${c}`,
+    `रसीद संख्या: ${receipt}`,
+    `प्राप्त राशि: रु. ${amount}`,
+    `दिनांक: ${date}`,
+    `शेष राशि: रु. ${remaining}`,
+    "",
+    "धन्यवाद। आपका भुगतान उपरोक्त विद्यार्थी के खाते में दर्ज कर लिया गया है। कृपया मुद्रित रसीद सुरक्षित रखें।",
+    "",
+    "यदि उपरोक्त विवरण आपकी रसीद से भिन्न है तो कार्यालय 9352205884 पर संपर्क करें।",
+  ].join("\n");
+}
+
+const RECEIPT_SAMPLE_EN: ReceiptNoticeValues = {
+  parentName: "Ramesh Lal Gurjar",
+  studentName: "Aaradhya Gurjar",
+  studentClass: "Class 2",
+  receiptNumber: "SVP-2026-27-1042",
+  amountPaid: 9125,
+  paymentDate: "03-09-2026",
+  remainingBalance: 9125,
+};
+
+const RECEIPT_SAMPLE_HI: ReceiptNoticeValues = {
+  ...RECEIPT_SAMPLE_EN,
+  parentName: "रमेश लाल गुर्जर",
+  studentName: "आराध्या गुर्जर",
+};
+
+export type ReceiptCampaignDescriptor = {
+  language: NoticeLanguage;
+  campaignName: string;
+  slotOrder: readonly string[];
+  buildParams(values: ReceiptNoticeValues): string[];
+  renderPreview(values: ReceiptNoticeValues): string;
+  sample: ReceiptNoticeValues;
+  approved: boolean;
+  audience: "student";
+};
+
+/** Two receipt notices, neither approved. */
+export const RECEIPT_CAMPAIGNS: readonly ReceiptCampaignDescriptor[] = [
+  {
+    language: "hi",
+    campaignName: "vpps_app_receipt_hi_v3",
+    slotOrder: RECEIPT_SLOT_SKELETON,
+    buildParams: receiptParams,
+    renderPreview: receiptBodyHi,
+    sample: RECEIPT_SAMPLE_HI,
+    approved: false,
+    audience: "student",
+  },
+  {
+    language: "en",
+    campaignName: "vpps_app_receipt_en_v3",
+    slotOrder: RECEIPT_SLOT_SKELETON,
+    buildParams: receiptParams,
+    renderPreview: receiptBodyEn,
+    sample: RECEIPT_SAMPLE_EN,
+    approved: false,
+    audience: "student",
+  },
+];
+
+/** The receipt notice for a language, approved or not. */
+export function describeReceiptCampaign(
+  language: NoticeLanguage,
+): ReceiptCampaignDescriptor | null {
+  return RECEIPT_CAMPAIGNS.find((entry) => entry.language === language) ?? null;
 }

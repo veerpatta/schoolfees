@@ -573,11 +573,19 @@ Samples: `रमेश लाल गुर्जर` · `आराध्या �
 `approved` is a field on `CampaignDescriptor`, explicit on all fourteen rather
 than defaulted — adding a fifteenth must not inherit approval by omission.
 
-Storage: a **`whatsapp_campaign_approvals` jsonb column on `school_settings`**,
-not a new table. `school_settings` is already the single-row place the office's
-own switches live; a table would need its own RLS policies and a migration to
-hold fourteen booleans; and the set is read on every load of the send screen, so
-a column on a row already being fetched costs nothing.
+Storage: **two rows in `app_settings`**, the key/value table the active session
+already lives in.
+
+That corrects an earlier note here which said "a jsonb column on
+`school_settings`". There is no `school_settings` table in this schema — the
+settings that exist are `app_settings` (key/value), `fee_settings` and
+`fee_policy_configs`. A new table for a list of approved names would need its own
+RLS policies and a migration; a row does not.
+
+| Key | Value |
+|---|---|
+| `whatsapp_campaign_approvals` | JSON array of campaign names an admin has confirmed Live |
+| `whatsapp_receipt_notice_enabled` | `'true'` / `'false'`, default `'false'` |
 
 The registry's `approved: false` is the floor. The column can only turn a
 campaign **on**; it can never approve something the code has not written a body
@@ -828,6 +836,102 @@ upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
 
 जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
 ```
+
+## The receipt notice
+
+Two more templates, `vpps_app_receipt_hi_v3` and `vpps_app_receipt_en_v3`. Not
+approved, and switched off besides.
+
+The office's most common inbound WhatsApp is a parent asking whether the money
+arrived. This answers it before it is asked, and it is the only message in this
+system a family is pleased to receive.
+
+| Slot | Contents |
+|---|---|
+| `{{1}}` | Parent name |
+| `{{2}}` | Student name |
+| `{{3}}` | Class |
+| `{{4}}` | Receipt number |
+| `{{5}}` | Amount received |
+| `{{6}}` | Date |
+| `{{7}}` | **Balance remaining** |
+
+Slot 7 is the remaining balance rather than a late-fee phrase, which is the whole
+difference between this and every other notice here: a receipt is not a demand,
+and a parent who has just paid should be told where that leaves them rather than
+what happens if they are late. Zero is a real and welcome value — "nothing
+further is due" — so it prints rather than being suppressed.
+
+The balance is read from the ledger AFTER the posting, not computed from the
+amount, so a discount or adjustment applied in the same posting is reflected and
+the figure agrees with the printed receipt the parent is holding.
+
+### It cannot fail a posting
+
+Sent strictly after `post_student_payment_with_adjustments` returns success,
+outside every transaction, inside a `try/catch` that swallows everything. The
+money is in the drawer and the receipt is printed whatever happens; a WhatsApp
+hiccup must never read as a failed posting at the counter.
+
+It also honours `no_call` and a `whatsapp_cadence` of `never`, because a family
+who asked not to be contacted did not ask only about reminders.
+
+### One notice per receipt
+
+`whatsapp_reminder_sends.receipt_id` with a **partial unique index**, claimed
+before the provider call exactly as a reminder claims its day. A retried posting
+of the same receipt cannot send twice; a second posting for the same family on
+the same day is a different receipt and rightly gets its own message. That is why
+the receipt index is separate from the day/campaign one rather than folded into
+it.
+
+### Bodies to submit
+
+#### `vpps_app_receipt_en_v3`
+
+```
+*Payment Received — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Student: {{2}}
+Class: {{3}}
+Receipt number: {{4}}
+Amount received: Rs. {{5}}
+Date: {{6}}
+Balance remaining: Rs. {{7}}
+
+Thank you. Your payment has been recorded against the student named above. Please keep the printed receipt for your records.
+
+If any detail above does not match your receipt, call the office on 9352205884.
+```
+
+Samples: `Ramesh Lal Gurjar` · `Aaradhya Gurjar` · `2` · `SVP-2026-27-1042` ·
+`9,125` · `03-09-2026` · `9,125`
+
+#### `vpps_app_receipt_hi_v3`
+
+```
+*भुगतान प्राप्त — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कक्षा: {{3}}
+रसीद संख्या: {{4}}
+प्राप्त राशि: रु. {{5}}
+दिनांक: {{6}}
+शेष राशि: रु. {{7}}
+
+धन्यवाद। आपका भुगतान उपरोक्त विद्यार्थी के खाते में दर्ज कर लिया गया है। कृपया मुद्रित रसीद सुरक्षित रखें।
+
+यदि उपरोक्त विवरण आपकी रसीद से भिन्न है तो कार्यालय 9352205884 पर संपर्क करें।
+```
+
+Samples: `रमेश लाल गुर्जर` · `आराध्या गुर्जर` · `2` · `SVP-2026-27-1042` ·
+`9,125` · `03-09-2026` · `9,125`
+
+Note this body has no UPI link. Nothing is being asked for.
 
 ## Authoring notes, for whoever adds the eighth
 

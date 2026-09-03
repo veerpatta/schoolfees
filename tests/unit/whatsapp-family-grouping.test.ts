@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   describeFamilyCampaign,
+  describeReceiptCampaign,
   FAMILY_CAMPAIGNS,
+  RECEIPT_CAMPAIGNS,
 } from "@/modules/whatsapp/domain/campaign-bodies-v3";
 
 import {
@@ -336,6 +338,73 @@ describe("the family campaigns", () => {
     );
     const named = new Set(doc.match(/vpps_app_[a-z0-9_]+/g) ?? []);
     for (const campaign of FAMILY_CAMPAIGNS) {
+      expect([...named]).toContain(campaign.campaignName);
+    }
+  });
+});
+
+describe("the receipt notice", () => {
+  it("declares two, neither approved", () => {
+    // Off twice over: the template is unapproved AND
+    // `app_settings.whatsapp_receipt_notice_enabled` is 'false'. A feature that
+    // starts messaging parents the moment it deploys is an incident.
+    expect(RECEIPT_CAMPAIGNS).toHaveLength(2);
+    expect(RECEIPT_CAMPAIGNS.every((entry) => entry.approved === false)).toBe(true);
+  });
+
+  it("ends on the remaining balance, not a late-fee threat", () => {
+    // A receipt is not a demand. A parent who has just paid should be told where
+    // that leaves them, not what happens if they are late.
+    const campaign = describeReceiptCampaign("en")!;
+    expect([...campaign.slotOrder]).toEqual([
+      "parentName",
+      "studentName",
+      "studentClass",
+      "receiptNumber",
+      "amountPaid",
+      "paymentDate",
+      "remainingBalance",
+    ]);
+
+    expect(campaign.buildParams(campaign.sample)).toEqual([
+      "Ramesh Lal Gurjar",
+      "Aaradhya Gurjar",
+      "2",
+      "SVP-2026-27-1042",
+      "9,125",
+      "03-09-2026",
+      "9,125",
+    ]);
+  });
+
+  it("prints a cleared balance as 0 rather than hiding it", () => {
+    // Zero is the welcome answer here — "nothing further is due" — so it is a
+    // real value, not an empty slot. WhatsApp would reject an empty one anyway.
+    const params = describeReceiptCampaign("hi")!.buildParams({
+      ...describeReceiptCampaign("hi")!.sample,
+      remainingBalance: 0,
+    });
+    expect(params[6]).toBe("0");
+  });
+
+  it("never puts a rupee glyph in a money slot", () => {
+    for (const campaign of RECEIPT_CAMPAIGNS) {
+      for (const index of [4, 6]) {
+        const value = campaign.buildParams(campaign.sample)[index]!;
+        expect(value).not.toContain("₹");
+        expect(value).not.toContain("Rs.");
+        expect(value).not.toContain("रु");
+      }
+    }
+  });
+
+  it("agrees with the registry document about campaign names", () => {
+    const doc = readFileSync(
+      join(process.cwd(), "docs/modules/whatsapp-campaign-registry.md"),
+      "utf8",
+    );
+    const named = new Set(doc.match(/vpps_app_[a-z0-9_]+/g) ?? []);
+    for (const campaign of RECEIPT_CAMPAIGNS) {
       expect([...named]).toContain(campaign.campaignName);
     }
   });

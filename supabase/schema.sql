@@ -13,7 +13,7 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260903165853
+-- Schema version: 20260903172053
 -- Objects: 88 tables/views, 60 functions
 
 
@@ -1187,7 +1187,8 @@ create table if not exists public.whatsapp_reminder_sends (
   updated_at timestamp with time zone default now() not null,
   run_id uuid,
   language text,
-  destination_role text default 'primary'::text not null
+  destination_role text default 'primary'::text not null,
+  receipt_id uuid
 );
 
 -- public.whatsapp_templates
@@ -1687,6 +1688,7 @@ alter table public.users add constraint users_created_by_fkey FOREIGN KEY (creat
 alter table public.users add constraint users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
 alter table public.users add constraint users_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 alter table public.whatsapp_campaign_runs add constraint whatsapp_campaign_runs_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES public.whatsapp_campaigns(id) ON DELETE SET NULL;
+alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_receipt_id_fkey FOREIGN KEY (receipt_id) REFERENCES public.receipts(id) ON DELETE SET NULL;
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.whatsapp_campaign_runs(id) ON DELETE SET NULL;
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
 alter table public.whatsapp_templates add constraint whatsapp_templates_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
@@ -1891,6 +1893,7 @@ create index if not exists whatsapp_campaigns_scheduled_idx ON public.whatsapp_c
 create index if not exists whatsapp_campaigns_session_idx ON public.whatsapp_campaigns USING btree (session_label, archived_at NULLS FIRST, name);
 create index if not exists whatsapp_reminder_sends_day_status_idx ON public.whatsapp_reminder_sends USING btree (sent_on DESC, status);
 create index if not exists whatsapp_reminder_sends_provider_message_idx ON public.whatsapp_reminder_sends USING btree (provider_message_id) WHERE (provider_message_id IS NOT NULL);
+create UNIQUE index if not exists whatsapp_reminder_sends_receipt_idx ON public.whatsapp_reminder_sends USING btree (receipt_id) WHERE (receipt_id IS NOT NULL);
 create index if not exists whatsapp_reminder_sends_run_idx ON public.whatsapp_reminder_sends USING btree (run_id);
 create UNIQUE index if not exists whatsapp_reminder_sends_student_day_campaign_role_idx ON public.whatsapp_reminder_sends USING btree (student_id, session_label, sent_on, campaign_name, destination_role);
 create index if not exists whatsapp_templates_active_idx ON public.whatsapp_templates USING btree (is_active, category, name);
