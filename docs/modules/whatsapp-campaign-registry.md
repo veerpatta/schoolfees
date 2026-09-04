@@ -1,20 +1,22 @@
 # WhatsApp campaign registry
 
-Six Meta-approved templates and six Live AiSensy API campaigns covering three
-fee situations in Hindi and English. Every one of them carries a **settable late
-fee**, because the late fee is what actually moves a family from "next week" to
-today.
+Twenty-four Meta-approved templates, each with a Live AiSensy API campaign of
+the same name: fourteen per-student notices covering seven fee situations in
+Hindi and English, eight family notices, and two receipt notices. Every reminder
+carries a **settable late fee**, because the late fee is what actually moves a
+family from "next week" to today.
 
-This document is the contract `src/modules/whatsapp/domain/campaigns.ts` honours:
-campaign name, slot order, and what each slot must contain. If the two disagree,
-this one wins, and `tests/unit/whatsapp-campaigns.test.ts` fails until they
-agree again.
+This document is the contract `src/modules/whatsapp/domain/campaigns.ts` and
+`src/modules/whatsapp/domain/campaign-bodies-v3.ts` honour: campaign name, slot
+order, and what each slot must contain. If the two disagree, this one wins, and
+`tests/unit/whatsapp-campaigns.test.ts` fails until they agree again.
 
-**Two sets live here.** The `_v2` six below are approved and Live. The `_v3`
-eight further down are **written and not yet submitted** — they carry
-`approved: false` in the registry, `campaignFor()` refuses them, and the notice
-picker shows their chips disabled. Read that section before submitting anything
-to Meta.
+**Two sets live here.** The `_v2` six below went Live on 22 Aug 2026. The `_v3`
+eighteen further down — eight per-student, eight family, two receipt — were
+approved by Meta and set Live in AiSensy on **2026-09-04**. All fourteen
+per-student descriptors carry `approved: true` in `campaigns.ts`; the family and
+receipt descriptors carry it in `campaign-bodies-v3.ts`. `campaignFor()` hands
+out every per-student notice and the picker shows every chip enabled.
 
 ## The current set is `_v2`
 
@@ -274,16 +276,15 @@ Note the prev-year label is a bare `विलंब शुल्क:` / `Late fe
 "after this date", so the same line reads correctly whether the value is an
 amount or "not applicable".
 
-## The `_v3` set — written, not yet approved
+## The `_v3` set — approved 2026-09-04
 
-Eight templates covering four new situations in Hindi and English. **None of
-these exists in AiSensy yet.** They are in `campaigns.ts` with
-`approved: false`, `campaignFor()` refuses them, and the notice picker renders
-the chip disabled with "awaiting Meta approval". An admin flips a campaign to
-approved from `/protected/admin-tools/whatsapp-templates` after seeing it Live.
+Eight templates covering four new situations in Hindi and English. Submitted to
+Meta through AiSensy on 2026-09-04 as category UTILITY, approved the same day,
+and each given an API campaign of the same name and set Live. They are in
+`campaigns.ts` with `approved: true`, `campaignFor()` hands them out, and the
+notice picker renders their chips enabled with an audience count.
 
-The bodies below are what to submit. Nothing here is a claim that Meta accepted
-them.
+The bodies below are what was submitted and approved, verbatim.
 
 | Campaign | Language | Situation | Slots | Skeleton |
 |---|---|---|---|---|
@@ -573,30 +574,31 @@ Samples: `रमेश लाल गुर्जर` · `आराध्या �
 `approved` is a field on `CampaignDescriptor`, explicit on all fourteen rather
 than defaulted — adding a fifteenth must not inherit approval by omission.
 
-Storage: **two rows in `app_settings`**, the key/value table the active session
-already lives in.
+**There is no switch on screen, and no switch in the database.** Approval is
+the `approved` flag on the descriptor — in `campaigns.ts` for the fourteen
+per-student notices, in `campaign-bodies-v3.ts` for the family and receipt ones
+— changed in code, pinned by `tests/unit/whatsapp-campaigns.test.ts`
+(`APPROVED_NAMES`) and `tests/unit/whatsapp-family-grouping.test.ts`, and
+deployed. The two "awaiting Meta approval" messages in `campaignFor` and
+`send-guards.ts` say exactly that.
 
-That corrects an earlier note here which said "a jsonb column on
-`school_settings`". There is no `school_settings` table in this schema — the
-settings that exist are `app_settings` (key/value), `fee_settings` and
-`fee_policy_configs`. A new table for a list of approved names would need its own
-RLS policies and a migration; a row does not.
+An earlier version of this section described a
+`whatsapp_campaign_approvals` row in `app_settings` holding a JSON array of
+names an admin had confirmed Live. Migration `20260903172053` seeded that row as
+`'[]'` and **nothing reads it** — the design was never built, and with all
+eighteen `_v3` campaigns approved on 2026-09-04 there is nothing left for it to
+switch. The row is harmless and stays.
 
-| Key | Value |
-|---|---|
-| `whatsapp_campaign_approvals` | JSON array of campaign names an admin has confirmed Live |
-| `whatsapp_receipt_notice_enabled` | `'true'` / `'false'`, default `'false'` |
-
-The registry's `approved: false` is the floor. The column can only turn a
-campaign **on**; it can never approve something the code has not written a body
-for, because a name absent from `campaigns.ts` has no descriptor to enable.
+The one real setting is `whatsapp_receipt_notice_enabled` (`'true'` /
+`'false'`, seeded `'false'`), read by `data/receipt-notice.ts`. See "The
+receipt notice" below.
 
 ## The family notices — one phone, one message
 
-Eight more templates, also `_v3` and also **not yet submitted**. A parent with
-three children at the school was receiving three messages within a few seconds,
-each quoting one child's balance: three times the cost, and three times the
-nagging, for one family who owes one total.
+Eight more templates, also `_v3`, **approved and Live since 2026-09-04**. A
+parent with three children at the school was receiving three messages within a
+few seconds, each quoting one child's balance: three times the cost, and three
+times the nagging, for one family who owes one total.
 
 | Campaign | Language | Situation | Slots |
 |---|---|---|---|
@@ -627,21 +629,35 @@ per-student notices, so the line reads the way the body around it does.
 `{{3}}` goes through `formatRupeesPlain` and the body supplies `रु.` / `Rs.`
 itself, same as every other money slot here.
 
-### What runs until these are approved
+### What runs now (since 2026-09-04)
 
-`sendFamily` groups the audience by destination and sends the **spokesperson's
-ordinary per-child notice, once per phone** — the largest debt on that number.
-The siblings get `whatsapp_reminder_sends` rows with
-`status = 'covered_by_sibling'` carrying the same `provider_message_id`, so:
+`sendFamily` groups the audience by destination, and `domain/family-notice.ts`
+decides what the one message per phone says:
 
-- the per-student unique index still holds and they are not messaged again
-  tomorrow,
-- `v_whatsapp_run_outcomes` still joins their payments to the run,
-- and the screen can say *why* they were not messaged separately, rather than
-  showing them as un-contacted.
+- **Two or more children on `fee_due`, `balance` or `upcoming`** → the family
+  template above, in the family's language. The spokesperson's row carries
+  `campaign_name = vpps_app_family_*`, `due_amount` = the family total and the
+  five params as sent; the siblings get rows with `status = 'covered_by_sibling'`
+  under the **same** campaign name and the same `provider_message_id`.
+- **A one-child phone** → the ordinary per-child notice. "Students: Aaradhya (2)
+  · Total: Rs. 9,125" is the per-child notice with worse wording.
+- **Any family on `late_fee_applied`** → the spokesperson's per-child notice,
+  even though a family template exists. Its `{{4}}` "date passed" would need the
+  latest passed due date from the calendar, which the executor is not handed;
+  its `{{3}}` should be Σ(fees + late fee) per child while the grouped total
+  sums fees only; and its `{{5}}` should be the ledger's summed late fee, not
+  the run's lever. Three changes to the family shape for one notice — deferred,
+  and pinned as a decision in `tests/unit/whatsapp-family-notice.test.ts`.
 
-So the family already gets one message. Approving these templates changes what
-that message SAYS — all the children instead of one — not how many go out.
+Either way the per-student unique index still holds, `v_whatsapp_run_outcomes`
+still joins the siblings' payments to the run, and the screen can say *why* a
+sibling was not messaged separately. Because one notice now logs under two
+names, "already messaged today" is read for both (`campaignNamesForNotice`) and
+the executor skips anyone already logged before grouping.
+
+The `untested_campaign` guard is keyed on the per-child campaign name; the
+family templates were each proven with a real send to the owner's phone before
+this went live, from `scripts/whatsapp-test-send.mjs`.
 
 ### Bodies to submit
 
@@ -839,8 +855,26 @@ upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
 
 ## The receipt notice
 
-Two more templates, `vpps_app_receipt_hi_v3` and `vpps_app_receipt_en_v3`. Not
-approved, and switched off besides.
+Two more templates, `vpps_app_receipt_hi_v3` and `vpps_app_receipt_en_v3`.
+**Approved 2026-09-04, and switched off.** `data/receipt-notice.ts` sends one
+only when `app_settings.whatsapp_receipt_notice_enabled` is `'true'`, and
+migration `20260903172053` seeded it `'false'`; `tests/unit/whatsapp-family-grouping.test.ts`
+pins both the flag and that seed. Turning it on is the owner's call and a
+separate step — from then on **every posted payment messages the parent**:
+
+```sql
+update public.app_settings
+set value = 'true'
+where key = 'whatsapp_receipt_notice_enabled';
+```
+
+Run it in the Supabase SQL editor (or the read-write MCP); `'false'` reverses
+it, no deploy either way. Two things to know before enabling: prove it first on
+`TEST-2026-27` with a posting against a `TEST-` student whose number is the
+owner's; and `loadLastSentOn` counts every `status = 'sent'` row regardless of
+campaign, so a receipt notice pushes that family's next reminder out by their
+cadence gap and counts toward second-number escalation. That is arguably right
+— they were just messaged — but it is a change in when reminders arrive.
 
 The office's most common inbound WhatsApp is a parent asking whether the money
 arrived. This answers it before it is asked, and it is the only message in this

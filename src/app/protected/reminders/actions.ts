@@ -33,8 +33,8 @@ import {
   isNoticeLanguage,
   isNoticeSituation,
   type CampaignDescriptor,
-  type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
+import { noticeValuesFromSlots } from "@/modules/whatsapp/domain/test-send-values";
 import { isoFromDdMmYyyy } from "@/platform/helpers/date";
 import { executeReminderRun } from "@/modules/whatsapp/data/run-sender";
 
@@ -477,50 +477,19 @@ export async function sendTestReminderAction(
     };
   }
 
-  // Fallbacks are the campaign's own Meta-submitted samples, so "leave it blank"
+  // The panel posts the SKELETON slot names, and slots 4-6 mean something
+  // different per notice. ONE mapping — `domain/test-send-values.ts` — turns
+  // those into named values here and in the panel's preview, so the message
+  // staff read and the message they send cannot differ. Fallbacks are the
+  // campaign's own Meta-submitted sample, slot by slot, so "leave it blank"
   // still produces a message with the right shape for that template.
-  const text = (key: string, fallback: string) =>
-    (formData.get(key) as string | null)?.trim() || fallback;
-  const amount = (key: string, fallback: number | undefined) => {
-    const raw = Number(formData.get(key));
-    return Number.isFinite(raw) && raw > 0 ? raw : (fallback ?? 0);
-  };
-  const sample = campaign.sample;
-
-  // The panel posts the SKELETON slot names — one 7-slot shape for all six
-  // campaigns — and slots 4 and 5 mean something different per notice. This
-  // mapping must agree with `asValues()` in the panel and with the per-situation
-  // builders in `campaigns.ts`, or a test would prove the wrong message.
-  const shared = {
-    parentName: text("parentName", sample.parentName),
-    studentName: text("studentName", sample.studentName),
-    studentClass: text("studentClass", sample.studentClass),
-    lastDate: text("date", sample.lastDate ?? ""),
-    // Never empty: WhatsApp rejects an empty parameter, and the registry's
-    // fallback wording is applied downstream if this somehow arrives blank.
-    lateFeePhrase: text("lateFeePhrase", sample.lateFeePhrase ?? ""),
-  };
-  const slotAmount = amount("amount", undefined);
-  const contextLine = formData.get("contextLine") as string | null;
-
-  const values: NoticeValues =
-    campaign.situation === "fee_due"
-      ? {
-          ...shared,
-          installmentPhrase: contextLine?.trim() || (sample.installmentPhrase ?? ""),
-          amountDue: slotAmount || (sample.amountDue ?? 0),
-        }
-      : campaign.situation === "balance"
-        ? {
-            ...shared,
-            receivedSoFar: Number(contextLine) || (sample.receivedSoFar ?? 0),
-            balanceDue: slotAmount || (sample.balanceDue ?? 0),
-          }
-        : {
-            ...shared,
-            prevSessionLabel: contextLine?.trim() || (sample.prevSessionLabel ?? ""),
-            prevYearBalance: slotAmount || (sample.prevYearBalance ?? 0),
-          };
+  const values = noticeValuesFromSlots(
+    campaign.situation,
+    Object.fromEntries(
+      campaign.slotOrder.map((slot) => [slot, formData.get(slot) as string | null]),
+    ),
+    campaign.sample,
+  );
 
   const templateParams = campaign.buildParams(values);
 

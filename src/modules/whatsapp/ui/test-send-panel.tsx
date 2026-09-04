@@ -10,11 +10,19 @@ import {
 import {
   campaignFor,
   NOTICE_SITUATIONS,
+  noticeValuesFrom,
   type NoticeLanguage,
   type NoticeSituation,
+  type NoticeSubject,
   type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
+import { lateFeePhrase, type LateFeeBasis } from "@/modules/whatsapp/domain/late-fee";
 import { toWhatsappDestination } from "@/modules/whatsapp/domain/phone";
+import {
+  isMoneySlot,
+  noticeValuesFromSlots,
+  slotFormFromValues,
+} from "@/modules/whatsapp/domain/test-send-values";
 import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
 import { Button } from "@/ui/primitives/button";
 import { Input } from "@/ui/primitives/input";
@@ -23,26 +31,19 @@ import { Notice } from "@/ui/primitives/notice";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 
 /**
- * Send one message to a number the office controls, for whichever of the six
+ * Send one message to a number the office controls, for whichever of the seven
  * notices is selected.
  *
- * The fields are driven by that campaign's `slotOrder`, so the panel can test a
- * 6-slot notice and a 5-slot one without knowing anything about either. The raw
- * result is the point: a rejected campaign name and a bad number both read as
- * "it didn't work", and only the HTTP status, the campaign echoed back and the
- * provider's own error string tell them apart.
+ * The fields are driven by that campaign's `slotOrder`, so the panel can test
+ * the shared 7-slot skeleton and `late_fee_applied`'s own without knowing
+ * anything about either. The raw result is the point: a rejected campaign name
+ * and a bad number both read as "it didn't work", and only the HTTP status, the
+ * campaign echoed back and the provider's own error string tell them apart.
+ *
+ * Slot fields ↔ named values go through `domain/test-send-values.ts`, the same
+ * function the action uses — so the preview here and the message that is sent
+ * cannot disagree, on any notice.
  */
-
-type SampleCandidate = {
-  parentName: string;
-  studentName: string;
-  studentClass: string;
-  dueAmount: number;
-  totalPaid: number;
-  balanceDue: number;
-  prevYearBalance: number;
-  prevSessionLabel: string | null;
-};
 
 type Props = {
   /** Deliberately NOT gated on the date guard — see the action's comment. */
@@ -50,19 +51,28 @@ type Props = {
   situation: NoticeSituation;
   language: NoticeLanguage;
   lastDate: string;
-  installmentPhrase: string;
-  /** Already composed by `domain/late-fee.ts` from the screen's amount + basis. */
-  lateFeePhrase: string;
-  /** Top row of the current list, for pre-fill. Null when the list is empty. */
-  sample: SampleCandidate | null;
+  /** The screen's installment set; the context line is composed from it per notice. */
+  installments: number[];
+  /** The screen's late-fee lever, composed into slot 7 in the panel's language. */
+  lateFeeAmount: number;
+  lateFeeBasis: LateFeeBasis;
+  /**
+   * Top row of the current list, for pre-fill. Null when the list is empty.
+   *
+   * `NoticeSubject` rather than a local shape: `ReminderCandidate` satisfies it
+   * structurally, and it is what `noticeValuesFrom` — the send's own projection
+   * — reads, so the opening values are exactly what that family would be sent.
+   */
+  sample: NoticeSubject | null;
 };
 
 const IDLE_TEST: TestSendState = { status: "idle" };
 
-/** Human labels for the slot names the registry declares. */
 /**
- * All six campaigns share one 7-slot skeleton, so the labels are per-slot-name
- * and the SITUATION decides what slots 4-6 are called.
+ * Human labels for the slot names the registry declares.
+ *
+ * Every notice but `late_fee_applied` shares one 7-slot skeleton, so the labels
+ * are per-slot-name and the SITUATION decides what slots 4-6 are called.
  */
 const SLOT_LABELS: Record<string, string> = {
   parentName: "Name on the message",
@@ -90,60 +100,31 @@ const SITUATION_SLOT_LABELS: Record<NoticeSituation, Record<string, string>> = {
   prevyear: { contextLine: "Session", amount: "Balance", date: "Settle by (DD-MM-YYYY)" },
 };
 
-/** Slot 4 is money on `balance` only; on the other two it is text. */
-const MONEY_SLOT_BY_SITUATION: Record<NoticeSituation, ReadonlySet<string>> = {
-  upcoming: new Set(["amount"]),
-  upcoming_final: new Set(["amount"]),
-  fee_due: new Set(["amount"]),
-  balance: new Set(["contextLine", "amount"]),
-  // All three of its money slots, and its context line is the installment text.
-  late_fee_applied: new Set(["feesPending", "lateFeeApplied", "totalToPay"]),
-  // Slot 4 is the promised DATE here, not money.
-  promise_lapsed: new Set(["amount"]),
-  prevyear: new Set(["amount"]),
+type OpeningSettings = {
+  situation: NoticeSituation;
+  language: NoticeLanguage;
+  lastDate: string;
+  installments: number[];
+  lateFeeAmount: number;
+  lateFeeBasis: LateFeeBasis;
 };
 
 /**
- * Opening values: the real top row where we have one, the campaign's own
- * Meta-submitted sample where we do not. Both are true-shaped for that template.
+ * Opening values: the real top row where we have one, projected through the
+ * SAME `noticeValuesFrom` the send uses; the campaign's own Meta-submitted
+ * sample where we do not, with the screen's date and late-fee phrase laid over
+ * it. Both are true-shaped for that template.
  */
-function valuesFrom(
-  situation: NoticeSituation,
-  language: NoticeLanguage,
-  sample: SampleCandidate | null,
-  lastDate: string,
-  installmentPhrase: string,
-  lateFeePhrase: string,
-): Record<string, string> {
-  const fallback = campaignFor(situation, language).sample;
-  const pick = (real: string | number | null | undefined, spare: string | number | undefined) =>
-    String(real ?? "").trim() !== "" && real !== 0 ? String(real) : String(spare ?? "");
-
-  // Slots 4 and 5 mean different things per notice, so they are filled per
-  // notice; 1-3, 6 and 7 are the same everywhere.
-  const contextLine =
-    situation === "fee_due"
-      ? installmentPhrase || (fallback.installmentPhrase ?? "")
-      : situation === "balance"
-        ? pick(sample?.totalPaid, fallback.receivedSoFar)
-        : pick(sample?.prevSessionLabel, fallback.prevSessionLabel);
-
-  const amount =
-    situation === "fee_due"
-      ? pick(sample?.dueAmount, fallback.amountDue)
-      : situation === "balance"
-        ? pick(sample?.balanceDue, fallback.balanceDue)
-        : pick(sample?.prevYearBalance, fallback.prevYearBalance);
-
-  return {
-    parentName: pick(sample?.parentName, fallback.parentName),
-    studentName: pick(sample?.studentName, fallback.studentName),
-    studentClass: pick(sample?.studentClass, fallback.studentClass),
-    contextLine,
-    amount,
-    date: lastDate || (fallback.lastDate ?? ""),
-    lateFeePhrase: lateFeePhrase || (fallback.lateFeePhrase ?? ""),
-  };
+function valuesFrom(settings: OpeningSettings, sample: NoticeSubject | null): Record<string, string> {
+  const { situation, language } = settings;
+  const values: NoticeValues = sample
+    ? noticeValuesFrom(sample, settings)
+    : {
+        ...campaignFor(situation, language).sample,
+        lastDate: settings.lastDate || campaignFor(situation, language).sample.lastDate,
+        lateFeePhrase: lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, language),
+      };
+  return slotFormFromValues(situation, values);
 }
 
 export function TestSendPanel({
@@ -151,15 +132,22 @@ export function TestSendPanel({
   situation,
   language,
   lastDate,
-  installmentPhrase,
-  lateFeePhrase,
+  installments,
+  lateFeeAmount,
+  lateFeeBasis,
   sample,
 }: Props) {
   const campaign = campaignFor(situation, language);
+  const settings: OpeningSettings = {
+    situation,
+    language,
+    lastDate,
+    installments,
+    lateFeeAmount,
+    lateFeeBasis,
+  };
   const [testPhone, setTestPhone] = useState("");
-  const [form, setForm] = useState<Record<string, string>>(() =>
-    valuesFrom(situation, language, sample, lastDate, installmentPhrase, lateFeePhrase),
-  );
+  const [form, setForm] = useState<Record<string, string>>(() => valuesFrom(settings, sample));
   const [testState, testFormAction] = useActionState(sendTestReminderAction, IDLE_TEST);
 
   // No `refreshOnSuccess`: a test writes nothing, so re-running the audience
@@ -174,30 +162,10 @@ export function TestSendPanel({
   const set = (slot: string) => (event: ChangeEvent<HTMLInputElement>) =>
     setForm((previous) => ({ ...previous, [slot]: event.target.value }));
 
-  /**
-   * The skeleton is positional; `NoticeValues` is named. This is the one place
-   * the two meet, and it must agree with the per-situation builders in
-   * `campaigns.ts` or the preview and the send would disagree.
-   */
-  const asValues = (): NoticeValues => {
-    const shared = {
-      parentName: form.parentName,
-      studentName: form.studentName,
-      studentClass: form.studentClass,
-      lastDate: form.date,
-      lateFeePhrase: form.lateFeePhrase,
-    };
-    const amount = Number(form.amount) || 0;
-    if (situation === "fee_due") {
-      return { ...shared, installmentPhrase: form.contextLine, amountDue: amount };
-    }
-    if (situation === "balance") {
-      return { ...shared, receivedSoFar: Number(form.contextLine) || 0, balanceDue: amount };
-    }
-    return { ...shared, prevSessionLabel: form.contextLine, prevYearBalance: amount };
-  };
-
-  const preview = campaign.renderPreview(asValues());
+  // The skeleton is positional; `NoticeValues` is named. The one function that
+  // joins them is shared with the action, so what is previewed here is what is
+  // sent — on every notice, not just the three the first version covered.
+  const preview = campaign.renderPreview(noticeValuesFromSlots(situation, form, campaign.sample));
   const destination = toWhatsappDestination(testPhone);
   const situationLabel =
     NOTICE_SITUATIONS.find((entry) => entry.value === situation)?.label ?? situation;
@@ -250,8 +218,8 @@ export function TestSendPanel({
             <Input
               id={`slot-${slot}`}
               name={slot}
-              type={MONEY_SLOT_BY_SITUATION[situation].has(slot) ? "number" : "text"}
-              min={MONEY_SLOT_BY_SITUATION[situation].has(slot) ? 0 : undefined}
+              type={isMoneySlot(situation, slot) ? "number" : "text"}
+              min={isMoneySlot(situation, slot) ? 0 : undefined}
               value={form[slot] ?? ""}
               onChange={set(slot)}
             />
@@ -287,11 +255,7 @@ export function TestSendPanel({
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() =>
-            setForm(
-              valuesFrom(situation, language, sample, lastDate, installmentPhrase, lateFeePhrase),
-            )
-          }
+          onClick={() => setForm(valuesFrom(settings, sample))}
         >
           Fill from top row
         </Button>

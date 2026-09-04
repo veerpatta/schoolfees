@@ -260,11 +260,13 @@ describe("describeFamilyRun", () => {
 });
 
 describe("the family campaigns", () => {
-  it("declares eight, none of them approved", () => {
-    // Written and ready to submit. Until Meta says otherwise, `sendFamily`
-    // falls back to the spokesperson's per-child notice once per phone.
+  it("declares eight, all approved on 2026-09-04", () => {
+    // Meta approved them and their AiSensy campaigns went Live that day.
+    // `sendFamily` now sends these for a phone with siblings on fee_due,
+    // balance and upcoming — `domain/family-notice.ts` decides which, and
+    // tests/unit/whatsapp-family-notice.test.ts pins it.
     expect(FAMILY_CAMPAIGNS).toHaveLength(8);
-    expect(FAMILY_CAMPAIGNS.every((entry) => entry.approved === false)).toBe(true);
+    expect(FAMILY_CAMPAIGNS.every((entry) => entry.approved === true)).toBe(true);
     expect(FAMILY_CAMPAIGNS.every((entry) => entry.audience === "family")).toBe(true);
   });
 
@@ -344,12 +346,21 @@ describe("the family campaigns", () => {
 });
 
 describe("the receipt notice", () => {
-  it("declares two, neither approved", () => {
-    // Off twice over: the template is unapproved AND
-    // `app_settings.whatsapp_receipt_notice_enabled` is 'false'. A feature that
-    // starts messaging parents the moment it deploys is an incident.
+  it("declares two, both approved on 2026-09-04, and the switch is still off", () => {
+    // Approval was one of two gates. The other — the ONLY one left — is
+    // `app_settings.whatsapp_receipt_notice_enabled`, and the migration that
+    // created it seeds 'false'. A feature that starts messaging every paying
+    // parent the moment it deploys is an incident, so the shipped default is
+    // pinned here alongside the flag: migrations are append-only, so this is
+    // the value a fresh database gets.
     expect(RECEIPT_CAMPAIGNS).toHaveLength(2);
-    expect(RECEIPT_CAMPAIGNS.every((entry) => entry.approved === false)).toBe(true);
+    expect(RECEIPT_CAMPAIGNS.every((entry) => entry.approved === true)).toBe(true);
+
+    const migration = readFileSync(
+      join(process.cwd(), "supabase/migrations/20260903172053_whatsapp_receipt_notices.sql"),
+      "utf8",
+    );
+    expect(migration).toMatch(/\('whatsapp_receipt_notice_enabled',\s*'false'\)/);
   });
 
   it("ends on the remaining balance, not a late-fee threat", () => {

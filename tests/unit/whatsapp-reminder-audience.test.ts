@@ -52,6 +52,10 @@ function stubClient(tables: Tables) {
           state.eqs.push([column, value]);
           return builder;
         },
+        // Today's send log is read for BOTH names a notice can log under
+        // (per-child and family) since 2026-09-04. Fixtures are written
+        // already-filtered, so this is a pass-through.
+        in: () => builder,
         order: () => {
           state.ordered = true;
           return builder;

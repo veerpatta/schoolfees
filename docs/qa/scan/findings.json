@@ -1,5 +1,5 @@
 {
-  "runId": "202608220554",
+  "runId": "202609040319",
   "verdict": {
     "pass": true,
     "reasons": [],
@@ -10,7 +10,7 @@
   "counts": {
     "P0": 0,
     "P1": 0,
-    "P2": 41,
+    "P2": 44,
     "P3": 11
   },
   "findings": [
@@ -40,19 +40,75 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.771Z"
+      "firstSeenAt": "2026-09-04T03:20:01.159Z"
     },
     {
-      "id": "375a7e603237",
+      "id": "0a404a50035c",
+      "rule": "scan.config-risk",
+      "severity": "P2",
+      "confidence": "deterministic",
+      "target": "static",
+      "surface": "package.json:87",
+      "role": null,
+      "device": null,
+      "session": "n/a",
+      "title": "xlsx is installed from a URL, so npm audit cannot see it",
+      "expected": "Every dependency resolves to a registry version, so `npm audit` can match it against advisory ranges and the dependency check above covers the whole tree.",
+      "actual": "dependencies.xlsx is \"https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz\". There is no registry entry and no semver version for npm to compare, so this package and anything it depends on are absent from every audit report — including a clean one.",
+      "fingerprint": "dependencies.xlsx is \"https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz\". There is no registry entry and no semver version for npm to compare, so this package and anything it depends on are absent from every audit report — including a clean one.",
+      "evidence": {
+        "consoleTail": [
+          "\"xlsx\": \"https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz\","
+        ],
+        "reproCommand": "npm run scan -- --only scan.config-risk --file package.json"
+      },
+      "suspectedFile": "package.json",
+      "why": "This is not a claim that the package is vulnerable; it is that nothing here would ever tell you if it were. A green audit reads as \"the tree is clear\" and silently excludes whatever this specifier installs — and in this repo that specifier is the spreadsheet library every XLSX export and both bulk-upload paths run untrusted uploaded files through, which is the one place a parser advisory would matter most.",
+      "fix": "If a registry release exists at the version you want, depend on it by version and let audit see it. If the URL is deliberate — vendors do publish outside npm — pin the exact version, record who watches that vendor's advisories and where, and note it here so the next reader knows this is a decision rather than an oversight.",
+      "variants": [],
+      "variantsTruncated": false,
+      "seenCount": 1,
+      "firstSeenAt": "2026-09-04T03:20:01.164Z"
+    },
+    {
+      "id": "4228d0bad9e4",
+      "rule": "scan.config-risk",
+      "severity": "P2",
+      "confidence": "deterministic",
+      "target": "static",
+      "surface": "src/app/api/cron/whatsapp-scheduled-runs/route.ts:1",
+      "role": null,
+      "device": null,
+      "session": "n/a",
+      "title": "src/app/api/cron/whatsapp-scheduled-runs/route.ts is a cron handler that nothing schedules",
+      "expected": "A handler under app/api/cron has a matching entry in the vercel.json crons array — that array is the only thing that ever calls it.",
+      "actual": "No vercel.json cron entry names /api/cron/whatsapp-scheduled-runs. Scheduled paths are: /api/cron/nightly-backup, /api/cron/auto-day-close.",
+      "fingerprint": "No vercel.json cron entry names /api/cron/whatsapp-scheduled-runs. Scheduled paths are: /api/cron/nightly-backup, /api/cron/auto-day-close.",
+      "evidence": {
+        "consoleTail": [
+          "import { NextResponse } from \"next/server\";"
+        ],
+        "reproCommand": "npm run scan -- --only scan.config-risk --file src/app/api/cron/whatsapp-scheduled-runs/route.ts"
+      },
+      "suspectedFile": "src/app/api/cron/whatsapp-scheduled-runs/route.ts",
+      "why": "Nothing else in the app calls a cron route. Unscheduled, it is dead code that reads like an operational guarantee — and it will keep passing every test, because the tests call it directly.",
+      "fix": "Add the schedule to vercel.json, or delete the handler if the job was retired.",
+      "variants": [],
+      "variantsTruncated": false,
+      "seenCount": 1,
+      "firstSeenAt": "2026-09-04T03:20:01.157Z"
+    },
+    {
+      "id": "dca108a42982",
       "rule": "scan.money-format-raw",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "src/app/protected/dashboard/page.tsx:538",
+      "surface": "src/app/protected/dashboard/page.tsx:548",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "src/app/protected/dashboard/page.tsx:538 formats a rupee figure without lib/helpers/currency.ts",
+      "title": "src/app/protected/dashboard/page.tsx:548 formats a rupee figure without lib/helpers/currency.ts",
       "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.",
       "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
       "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
@@ -68,19 +124,19 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.968Z"
+      "firstSeenAt": "2026-09-04T03:19:56.003Z"
     },
     {
-      "id": "5b53e048e64c",
+      "id": "e8b7b4a41e83",
       "rule": "scan.money-format-raw",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "src/app/protected/dashboard/page.tsx:540",
+      "surface": "src/app/protected/dashboard/page.tsx:550",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "src/app/protected/dashboard/page.tsx:540 formats a rupee figure without lib/helpers/currency.ts",
+      "title": "src/app/protected/dashboard/page.tsx:550 formats a rupee figure without lib/helpers/currency.ts",
       "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.",
       "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
       "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
@@ -96,19 +152,19 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.969Z"
+      "firstSeenAt": "2026-09-04T03:19:56.004Z"
     },
     {
-      "id": "0cfcbaed2c10",
+      "id": "50fcd8d5b9a2",
       "rule": "scan.money-format-raw",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "src/app/protected/dashboard/page.tsx:541",
+      "surface": "src/app/protected/dashboard/page.tsx:551",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "src/app/protected/dashboard/page.tsx:541 formats a rupee figure without lib/helpers/currency.ts",
+      "title": "src/app/protected/dashboard/page.tsx:551 formats a rupee figure without lib/helpers/currency.ts",
       "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.",
       "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
       "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
@@ -124,7 +180,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.969Z"
+      "firstSeenAt": "2026-09-04T03:19:56.005Z"
     },
     {
       "id": "91eed7adfb0b",
@@ -152,19 +208,19 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.979Z"
+      "firstSeenAt": "2026-09-04T03:19:56.038Z"
     },
     {
-      "id": "fefef37143f6",
+      "id": "715ab5a699da",
       "rule": "scan.money-format-raw",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "src/app/protected/students/[studentId]/edit/page.tsx:198",
+      "surface": "src/app/protected/students/[studentId]/edit/page.tsx:302",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "src/app/protected/students/[studentId]/edit/page.tsx:198 formats a rupee figure without lib/helpers/currency.ts",
+      "title": "src/app/protected/students/[studentId]/edit/page.tsx:302 formats a rupee figure without lib/helpers/currency.ts",
       "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.",
       "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
       "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
@@ -180,7 +236,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.980Z"
+      "firstSeenAt": "2026-09-04T03:19:56.044Z"
     },
     {
       "id": "9f24c0980791",
@@ -208,7 +264,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.983Z"
+      "firstSeenAt": "2026-09-04T03:19:56.050Z"
     },
     {
       "id": "c88e75488491",
@@ -236,7 +292,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.985Z"
+      "firstSeenAt": "2026-09-04T03:19:56.056Z"
     },
     {
       "id": "309dda17d75a",
@@ -264,7 +320,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.995Z"
+      "firstSeenAt": "2026-09-04T03:19:56.080Z"
     },
     {
       "id": "5a2b495e75c5",
@@ -292,7 +348,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.996Z"
+      "firstSeenAt": "2026-09-04T03:19:56.081Z"
     },
     {
       "id": "df8320e8ef22",
@@ -320,7 +376,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.996Z"
+      "firstSeenAt": "2026-09-04T03:19:56.081Z"
     },
     {
       "id": "f5a600033ff0",
@@ -348,7 +404,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.996Z"
+      "firstSeenAt": "2026-09-04T03:19:56.082Z"
     },
     {
       "id": "e3f675784bca",
@@ -376,7 +432,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.997Z"
+      "firstSeenAt": "2026-09-04T03:19:56.082Z"
     },
     {
       "id": "0efdc8dc1fc5",
@@ -404,7 +460,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.998Z"
+      "firstSeenAt": "2026-09-04T03:19:56.084Z"
     },
     {
       "id": "f6e6fd9e6267",
@@ -432,7 +488,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.005Z"
+      "firstSeenAt": "2026-09-04T03:19:56.088Z"
     },
     {
       "id": "c60f73d8101e",
@@ -460,7 +516,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.005Z"
+      "firstSeenAt": "2026-09-04T03:19:56.088Z"
     },
     {
       "id": "888b89aaa30f",
@@ -488,7 +544,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.009Z"
+      "firstSeenAt": "2026-09-04T03:19:56.091Z"
     },
     {
       "id": "e2ff8558d0ae",
@@ -516,7 +572,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.011Z"
+      "firstSeenAt": "2026-09-04T03:19:56.092Z"
     },
     {
       "id": "76d42cfda804",
@@ -544,7 +600,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.012Z"
+      "firstSeenAt": "2026-09-04T03:19:56.093Z"
     },
     {
       "id": "d4bec263f674",
@@ -572,7 +628,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.018Z"
+      "firstSeenAt": "2026-09-04T03:19:56.099Z"
     },
     {
       "id": "c97831de28c9",
@@ -600,7 +656,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.018Z"
+      "firstSeenAt": "2026-09-04T03:19:56.099Z"
     },
     {
       "id": "2c00e47f6a64",
@@ -628,19 +684,19 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.021Z"
+      "firstSeenAt": "2026-09-04T03:19:56.103Z"
     },
     {
-      "id": "fa4421e4091f",
+      "id": "e66e23084c91",
       "rule": "scan.money-format-raw",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "src/modules/students/ui/student-form.tsx:597",
+      "surface": "src/modules/students/ui/student-form.tsx:609",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "src/modules/students/ui/student-form.tsx:597 formats a rupee figure without lib/helpers/currency.ts",
+      "title": "src/modules/students/ui/student-form.tsx:609 formats a rupee figure without lib/helpers/currency.ts",
       "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.",
       "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
       "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
@@ -656,19 +712,19 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.030Z"
+      "firstSeenAt": "2026-09-04T03:19:56.112Z"
     },
     {
-      "id": "2b088d7895ad",
+      "id": "92eed16efc7c",
       "rule": "scan.money-format-raw",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "src/modules/students/ui/student-form.tsx:600",
+      "surface": "src/modules/students/ui/student-form.tsx:612",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "src/modules/students/ui/student-form.tsx:600 formats a rupee figure without lib/helpers/currency.ts",
+      "title": "src/modules/students/ui/student-form.tsx:612 formats a rupee figure without lib/helpers/currency.ts",
       "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.",
       "actual": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
       "fingerprint": "This line uses a hand-written \"Rs\" literal with no period directly. scripts/audit-money-formatting.mjs matches only \"Rs.\" with the period (/[\"'`]Rs\\.\\s*\\d|>\\s*Rs\\.\\s/), so this spelling passes CI today.",
@@ -684,35 +740,35 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.030Z"
+      "firstSeenAt": "2026-09-04T03:19:56.112Z"
     },
     {
-      "id": "60f66d16cc4a",
+      "id": "8d04057b8c25",
       "rule": "scan.dead-export",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "src/modules/whatsapp/data/campaign-store.ts:120",
+      "surface": "src/modules/whatsapp/data/delivery-store.ts:223",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "src/modules/whatsapp/data/campaign-store.ts:120 exports getCampaign, which nothing uses",
+      "title": "src/modules/whatsapp/data/delivery-store.ts:223 exports loadSeenButNotPaid, which nothing uses",
       "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`getCampaign` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/modules/whatsapp/data/campaign-store.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
-      "fingerprint": "`getCampaign` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/modules/whatsapp/data/campaign-store.ts, at its own declaration. 6 module(s) import this file, none of them for this name.",
+      "actual": "`loadSeenButNotPaid` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/modules/whatsapp/data/delivery-store.ts, at its own declaration. 2 module(s) import this file, none of them for this name.",
+      "fingerprint": "`loadSeenButNotPaid` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/modules/whatsapp/data/delivery-store.ts, at its own declaration. 2 module(s) import this file, none of them for this name.",
       "evidence": {
         "consoleTail": [
-          "export async function getCampaign(supabase: any, id: string): Promise<SavedCampaign | null> {"
+          "export async function loadSeenButNotPaid(args: {"
         ],
-        "reproCommand": "npm run scan -- --only scan.dead-export --file src/modules/whatsapp/data/campaign-store.ts"
+        "reproCommand": "npm run scan -- --only scan.dead-export --file src/modules/whatsapp/data/delivery-store.ts"
       },
-      "suspectedFile": "src/modules/whatsapp/data/campaign-store.ts",
+      "suspectedFile": "src/modules/whatsapp/data/delivery-store.ts",
       "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
       "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.755Z"
+      "firstSeenAt": "2026-09-04T03:20:01.133Z"
     },
     {
       "id": "8fbc39394e1b",
@@ -740,7 +796,35 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.038Z"
+      "firstSeenAt": "2026-09-04T03:19:56.120Z"
+    },
+    {
+      "id": "25ce81898384",
+      "rule": "scan.dead-export",
+      "severity": "P2",
+      "confidence": "deterministic",
+      "target": "static",
+      "surface": "src/platform/helpers/date.ts:246",
+      "role": null,
+      "device": null,
+      "session": "n/a",
+      "title": "src/platform/helpers/date.ts:246 exports istTodayIso, which nothing uses",
+      "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
+      "actual": "`istTodayIso` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/platform/helpers/date.ts, at its own declaration. 68 module(s) import this file, none of them for this name.",
+      "fingerprint": "`istTodayIso` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/platform/helpers/date.ts, at its own declaration. 68 module(s) import this file, none of them for this name.",
+      "evidence": {
+        "consoleTail": [
+          "export function istTodayIso(now: Date = new Date()): string {"
+        ],
+        "reproCommand": "npm run scan -- --only scan.dead-export --file src/platform/helpers/date.ts"
+      },
+      "suspectedFile": "src/platform/helpers/date.ts",
+      "why": "Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.",
+      "fix": "Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.",
+      "variants": [],
+      "variantsTruncated": false,
+      "seenCount": 1,
+      "firstSeenAt": "2026-09-04T03:20:01.147Z"
     },
     {
       "id": "f36caaafe374",
@@ -768,7 +852,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.040Z"
+      "firstSeenAt": "2026-09-04T03:19:56.122Z"
     },
     {
       "id": "dba4a7b5967c",
@@ -796,7 +880,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.050Z"
+      "firstSeenAt": "2026-09-04T03:19:56.130Z"
     },
     {
       "id": "1507266ec39f",
@@ -824,7 +908,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.050Z"
+      "firstSeenAt": "2026-09-04T03:19:56.131Z"
     },
     {
       "id": "a4d229dbf12d",
@@ -852,7 +936,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.050Z"
+      "firstSeenAt": "2026-09-04T03:19:56.131Z"
     },
     {
       "id": "518230cb1c38",
@@ -880,7 +964,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:08.050Z"
+      "firstSeenAt": "2026-09-04T03:19:56.131Z"
     },
     {
       "id": "e1f9dd8286ee",
@@ -908,7 +992,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.471Z"
+      "firstSeenAt": "2026-09-04T03:20:00.761Z"
     },
     {
       "id": "d0ed42f13c3a",
@@ -936,7 +1020,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.472Z"
+      "firstSeenAt": "2026-09-04T03:20:00.762Z"
     },
     {
       "id": "03d2d34f1092",
@@ -964,7 +1048,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.472Z"
+      "firstSeenAt": "2026-09-04T03:20:00.761Z"
     },
     {
       "id": "5fad48a7287b",
@@ -992,7 +1076,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.472Z"
+      "firstSeenAt": "2026-09-04T03:20:00.761Z"
     },
     {
       "id": "ef43cda43d2b",
@@ -1020,7 +1104,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.471Z"
+      "firstSeenAt": "2026-09-04T03:20:00.761Z"
     },
     {
       "id": "1d4c0f440e4f",
@@ -1048,7 +1132,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.472Z"
+      "firstSeenAt": "2026-09-04T03:20:00.763Z"
     },
     {
       "id": "d89b1bb2ecf4",
@@ -1076,7 +1160,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.472Z"
+      "firstSeenAt": "2026-09-04T03:20:00.762Z"
     },
     {
       "id": "fe4b790a9ade",
@@ -1104,7 +1188,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.473Z"
+      "firstSeenAt": "2026-09-04T03:20:00.763Z"
     },
     {
       "id": "553a7439553c",
@@ -1132,7 +1216,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.472Z"
+      "firstSeenAt": "2026-09-04T03:20:00.763Z"
     },
     {
       "id": "66b34a387be6",
@@ -1160,7 +1244,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.472Z"
+      "firstSeenAt": "2026-09-04T03:20:00.763Z"
     },
     {
       "id": "29e73ec10600",
@@ -1188,7 +1272,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.833Z"
+      "firstSeenAt": "2026-09-04T03:19:55.880Z"
     },
     {
       "id": "274e90575771",
@@ -1216,7 +1300,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.770Z"
+      "firstSeenAt": "2026-09-04T03:20:01.158Z"
     },
     {
       "id": "83bf35a40105",
@@ -1244,15 +1328,15 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:12.770Z"
+      "firstSeenAt": "2026-09-04T03:20:01.158Z"
     },
     {
-      "id": "47c54957c6e2",
+      "id": "0f7afa960698",
       "rule": "scan.observation",
       "severity": "P3",
       "confidence": "heuristic",
       "target": "static",
-      "surface": "src/app/protected/students/[studentId]/page.tsx:1214",
+      "surface": "src/app/protected/students/[studentId]/page.tsx:1270",
       "role": null,
       "device": null,
       "session": "n/a",
@@ -1272,15 +1356,15 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.846Z"
+      "firstSeenAt": "2026-09-04T03:19:55.892Z"
     },
     {
-      "id": "64c2f2cbce10",
+      "id": "ad3e1c783097",
       "rule": "scan.observation",
       "severity": "P3",
       "confidence": "heuristic",
       "target": "static",
-      "surface": "src/app/protected/students/[studentId]/page.tsx:1353",
+      "surface": "src/app/protected/students/[studentId]/page.tsx:1410",
       "role": null,
       "device": null,
       "session": "n/a",
@@ -1300,7 +1384,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.847Z"
+      "firstSeenAt": "2026-09-04T03:19:55.893Z"
     },
     {
       "id": "84e55bc7a515",
@@ -1328,7 +1412,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.924Z"
+      "firstSeenAt": "2026-09-04T03:19:55.948Z"
     },
     {
       "id": "f338f189ce40",
@@ -1356,7 +1440,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.924Z"
+      "firstSeenAt": "2026-09-04T03:19:55.949Z"
     },
     {
       "id": "6a4ef1318b79",
@@ -1384,7 +1468,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.933Z"
+      "firstSeenAt": "2026-09-04T03:19:55.955Z"
     },
     {
       "id": "2548978eeea8",
@@ -1412,7 +1496,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.935Z"
+      "firstSeenAt": "2026-09-04T03:19:55.957Z"
     },
     {
       "id": "71c5eebdf8dc",
@@ -1440,7 +1524,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.937Z"
+      "firstSeenAt": "2026-09-04T03:19:55.958Z"
     },
     {
       "id": "474b40f71cd8",
@@ -1468,7 +1552,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-08-22T05:54:07.940Z"
+      "firstSeenAt": "2026-09-04T03:19:55.960Z"
     }
   ]
 }

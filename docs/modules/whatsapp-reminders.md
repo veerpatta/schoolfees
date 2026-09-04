@@ -13,16 +13,19 @@ Three screens:
 | `/protected/reminders/campaigns` | Saved settings you can apply again, and what each has collected. |
 | `/protected/reminders/runs/[runId]` | One press of Send: who it reached, and what came in after. |
 
-There are **seven notices in two languages**. Six templates are approved and
-Live, all `_v2`, covering three of them: fee due (nothing received), balance
-(part paid, still owing) and previous session (a carry-forward balance).
-Measured live on 22 Aug: 146, 171 and 51 families.
+There are **seven notices in two languages, and all fourteen templates are
+approved and Live**. Six `_v2` since 22 Aug — fee due (nothing received),
+balance (part paid, still owing) and previous session (a carry-forward
+balance); measured live that day: 146, 171 and 51 families. Eight `_v3` since
+2026-09-04 — **due soon, final call, late fee applied, promise lapsed** — the
+four the calendar drives.
 
-The other four — **due soon, final call, late fee applied, promise lapsed** —
-are written, in the registry, and marked `approved: false`. Their chips render
-disabled with "awaiting Meta approval" and `campaignFor` refuses them, until an
-admin turns them on having seen the template Live in AiSensy. The bodies to
-submit are in `docs/modules/whatsapp-campaign-registry.md`.
+Every chip is enabled and `campaignFor` hands out every notice. The mechanism
+for a notice that is NOT approved is still there and still tested: a descriptor
+with `approved: false` renders its chip disabled with "awaiting Meta approval",
+`campaignFor` refuses it, and the `campaign_unapproved` guard blocks it —
+approval is changed in code and deployed, there is no switch on screen. The
+bodies as approved are in `docs/modules/whatsapp-campaign-registry.md`.
 
 **The calendar decides which installments a notice is about.** It used to be a
 hardcoded `[1, 2]`, which was true in August and silently wrong from October:
@@ -80,7 +83,7 @@ fee balance on it.
 | `src/app/api/cron/whatsapp-scheduled-runs/route.ts` | The scheduled runner. `CRON_SECRET`, `?dryRun=1` |
 | `supabase/migrations/20260903165853_whatsapp_campaign_schedules.sql` | `schedule`, `scheduled_for`, `source` |
 | `src/modules/whatsapp/domain/family-grouping.ts` | One phone, one message: grouping, the children line, the family's language, the second number. Pure |
-| `src/modules/whatsapp/domain/campaign-bodies-v3.ts` | The sixteen unapproved bodies. **No `ui/` or `src/app` file may import it** — a test enforces it |
+| `src/modules/whatsapp/domain/campaign-bodies-v3.ts` | The family and receipt bodies, sent only from the server. **No `ui/` or `src/app` file may import it** — a test enforces it |
 | `src/platform/helpers/phone-responsiveness.ts` | `suggestPhoneLabel`, shared with defaulters. Moved out of that module to avoid a cycle |
 | `supabase/migrations/20260903130517_whatsapp_family_language_and_numbers.sql` | Family language, sibling coverage, second numbers |
 | `supabase/migrations/20260820140000_whatsapp_reminder_sends.sql` | The send log |
@@ -103,7 +106,11 @@ fee balance on it.
   index decides races. The role joined it in 20260903130517 so a family who has
   stopped answering on one number can be reached on the other — and no further,
   because a role has exactly two values. Already-sent families render greyed and unselectable — for *that notice*
-  only, which is the point of `campaign_name` being in the index.
+  only, which is the point of `campaign_name` being in the index. Since
+  2026-09-04 one notice logs under TWO names — per-child for a one-child phone,
+  family for siblings — so `loadSentToday` reads both
+  (`campaignNamesForNotice`), and `executeReminderRun` skips anyone already
+  logged today before grouping, because the index only ever sees one name.
 - **The notice, the language and the date live in the query string**, never in
   client state. The notice changes the audience, and `sendRemindersAction`
   re-derives that audience from the very same parser — a choice the action could
@@ -129,10 +136,15 @@ fee balance on it.
   `v_whatsapp_run_outcomes` still joins their payments to the run. Without the
   row they would look un-contacted tomorrow and be messaged again.
 
-  The family templates are not approved yet, so what goes today is the
-  **spokesperson's** ordinary per-child notice — the largest debt on the phone.
-  Approving `vpps_app_family_*` changes what that one message SAYS, not how many
-  go out.
+  Since 2026-09-04 the family templates are Live, and `domain/family-notice.ts`
+  decides what that one message SAYS. A phone with two or more children on
+  **fee due, balance or due soon** gets `vpps_app_family_*` — every child named,
+  one total — and the send row carries the family campaign's name with
+  `due_amount` = the family total, siblings under the same name. A one-child
+  phone, and every family on **late fee applied**, still gets the
+  **spokesperson's** per-child notice: that family template needs a "date
+  passed" and a fees-plus-late-fee total the run does not carry yet, and the
+  file says so. Approval changed what goes out, not how many.
 - **Language belongs to the family, not the run.** The run's language is a
   DEFAULT; `student_collection_flags.whatsapp_language` overrides it, and
   `whatsapp_reminder_sends.language` records what actually went out. Answering
@@ -343,11 +355,20 @@ that way.
 ## The test panel
 
 Its own name and number fields, plus **one field per slot the selected campaign
-declares, in its order** — so the same panel tests a 6-slot notice and a 5-slot
-one without knowing anything about either. Fields are pre-filled from the top row
-of the current list, falling back to that campaign's own Meta-submitted sample
+declares, in its order** — so the same panel tests the shared 7-slot skeleton
+and `late_fee_applied`'s own without knowing anything about either. Fields are
+pre-filled from the top row of the current list through `noticeValuesFrom` —
+**the send's own projection**, so the opening values are exactly what that
+family would be sent — falling back to that campaign's Meta-submitted sample
 when the list is empty. The preview re-renders on every keystroke, and the number
 field resolves live to the exact `+91…` string that will be posted.
+
+Slot fields ↔ named values go through ONE function,
+`domain/test-send-values.ts`, used by both the panel's preview and the action's
+send. Until 2026-09-04 each side carried its own copy covering three of the
+seven notices; the other four fell into the previous-session branch and would
+have posted a session label where the installment should be.
+`tests/unit/whatsapp-test-send-values.test.ts` round-trips every situation.
 
 The result is shown raw — HTTP status, the campaign echoed back, the destination,
 `submitted_message_id`, the params as sent, and on failure AiSensy's own error
@@ -697,11 +718,17 @@ worth making.
 
 ## The pay link
 
-`/pay/[code]` is the target of the **Pay now** button on every `_v3` template.
-It builds the UPI intent with `buildStudentFeeUpiPayment` and shows the UPI id as
-selectable text underneath, because the button does nothing on a phone with no
-app registered to the `upi://` scheme and a parent can still type the id into the
-one they have.
+`/pay/[code]` is the page a per-send pay code resolves to. The `_v3` templates
+were submitted on 2026-09-04 with a **Call office** button only — the owner's
+call — so today no template links to it; the code is still minted and stored on
+every send, and the page is ready for a template that does. It builds the UPI
+intent with `buildStudentFeeUpiPayment` and shows the UPI id as selectable text
+underneath, because the button does nothing on a phone with no app registered to
+the `upi://` scheme and a parent can still type the id into the one they have.
+
+A family send's code belongs to the spokesperson's row, so the page shows the
+family total (`due_amount`) with that one child's admission number as the UPI
+reference. The office allocates on payment, as it does at the counter.
 
 **It is a payment link, not a portal.** An amount, a UPI id, a reference and a
 date — no name, no class, no admission number, no history. Stricter than

@@ -5,14 +5,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   ALL_CAMPAIGNS,
-  describeCampaign,
-} from "@/modules/whatsapp/domain/campaign-bodies-v3";
-import {
   APPROVED_CAMPAIGNS,
   campaignFor,
+  campaignNameFor,
+  describeCampaign,
   installmentPhrase,
   isCampaignApproved,
+  noticeValuesFrom,
   shortClassLabel,
+  type NoticeSettings,
+  type NoticeSubject,
   type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
 
@@ -67,19 +69,28 @@ const EXPECTED_SLOTS: Record<string, number> = {
 };
 
 /**
- * The six that may actually be posted today.
+ * The fourteen that may actually be posted.
  *
  * Pinned as a LIST rather than a count, so approving a template is a visible
  * one-line diff in this file and never something that happens by a descriptor
- * being added with the wrong default.
+ * being added with the wrong default. The eight `_v3` names joined on
+ * 2026-09-04, the day Meta approved them and their AiSensy campaigns went Live.
  */
 const APPROVED_NAMES = [
   "vpps_app_balance_en_v2",
   "vpps_app_balance_hi_v2",
   "vpps_app_fee_due_en_v2",
   "vpps_app_fee_due_hi_v2",
+  "vpps_app_late_fee_applied_en_v3",
+  "vpps_app_late_fee_applied_hi_v3",
   "vpps_app_prevyear_en_v2",
   "vpps_app_prevyear_hi_v2",
+  "vpps_app_promise_lapsed_en_v3",
+  "vpps_app_promise_lapsed_hi_v3",
+  "vpps_app_upcoming_en_v3",
+  "vpps_app_upcoming_final_en_v3",
+  "vpps_app_upcoming_final_hi_v3",
+  "vpps_app_upcoming_hi_v3",
 ];
 
 describe("the registered campaigns", () => {
@@ -99,21 +110,72 @@ describe("the registered campaigns", () => {
     }
   });
 
-  it("keeps exactly the six live campaigns sendable", () => {
+  it("keeps exactly the fourteen live campaigns sendable", () => {
     expect(APPROVED_CAMPAIGNS.map((c) => c.campaignName).sort()).toEqual(APPROVED_NAMES);
   });
 
-  it("refuses to hand out a campaign Meta has not approved", () => {
-    // The v3 eight are written and disabled. `campaignFor` is the only door to
-    // a send, so this is what stops one reaching AiSensy as
-    // `400 Campaign does not exist.` with a run recording an attempt.
-    expect(isCampaignApproved("upcoming", "hi")).toBe(false);
-    expect(() => campaignFor("upcoming", "hi")).toThrow(/awaiting Meta approval/i);
-    expect(() => campaignFor("late_fee_applied", "en")).toThrow(/awaiting Meta approval/i);
+  it("hands out every registered campaign now that all fourteen are Live", () => {
+    // Until 2026-09-04 the eight `_v3` were written and disabled, and this test
+    // proved `campaignFor` refused them. It now proves the opposite for every
+    // name, through every door the screen and the send path use — so a notice
+    // cannot be approved on one and pending on another.
+    //
+    // The refusal itself is still exercised: the guard that stops an unapproved
+    // notice reaching AiSensy is pinned in tests/unit/whatsapp-send-guards.test.ts
+    // ("blocks a notice Meta has not approved"), and the unregistered case is
+    // just below.
+    for (const campaign of ALL_CAMPAIGNS) {
+      expect(campaign.approved).toBe(true);
+      expect(isCampaignApproved(campaign.situation, campaign.language)).toBe(true);
+      expect(campaignFor(campaign.situation, campaign.language).campaignName).toBe(
+        campaign.campaignName,
+      );
+      expect(campaignNameFor(campaign.situation, campaign.language)).toBe(campaign.campaignName);
+      expect(describeCampaign(campaign.situation, campaign.language)).toBe(campaign);
+    }
+  });
 
-    // But the descriptor is still reachable, so the screen can show the notice,
-    // preview its body and count its audience while refusing to send it.
-    expect(describeCampaign("upcoming", "hi")?.campaignName).toBe("vpps_app_upcoming_hi_v3");
+  it("names the installments carrying the late fee, not the run's active set", () => {
+    // The calendar's active pair on 2026-09-04 was [1, 2]. A family late only on
+    // installment 2 was reading "Installment 1 and 2 / Fees pending: Rs. 9,125",
+    // which is the one line a parent checks against their receipt book.
+    const subject: NoticeSubject = {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      dueAmount: 9125,
+      totalPaid: 9125,
+      balanceDue: 9125,
+      prevYearBalance: 0,
+      prevSessionLabel: null,
+      lateFeeApplied: 1000,
+      lateFeeInstallments: [2],
+    };
+    const settings = (situation: NoticeSettings["situation"]): NoticeSettings => ({
+      situation,
+      language: "en",
+      installments: [1, 2],
+      lastDate: "20-10-2026",
+      lateFeeAmount: 1000,
+      lateFeeBasis: "per_installment",
+    });
+
+    expect(noticeValuesFrom(subject, settings("late_fee_applied")).installmentPhrase).toBe(
+      "Installment 2",
+    );
+    // Every other notice is about the installments the OFFICE chose.
+    expect(noticeValuesFrom(subject, settings("fee_due")).installmentPhrase).toBe(
+      "Installment 1 and 2",
+    );
+    expect(noticeValuesFrom(subject, settings("upcoming")).installmentPhrase).toBe(
+      "Installment 1 and 2",
+    );
+    // And a late fee with no installments recorded falls back rather than
+    // printing an empty slot.
+    expect(
+      noticeValuesFrom({ ...subject, lateFeeInstallments: [] }, settings("late_fee_applied"))
+        .installmentPhrase,
+    ).toBe("Installment 1 and 2");
   });
 
   it.each(Object.entries(EXPECTED_SLOTS))("%s sends exactly %i params", (name, slots) => {

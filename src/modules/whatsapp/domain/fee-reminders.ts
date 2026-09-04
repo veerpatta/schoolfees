@@ -30,6 +30,7 @@ import {
   type NoticeSituation,
   type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
+import { campaignNamesForNotice } from "@/modules/whatsapp/domain/family-notice";
 
 /**
  * Who is eligible for a WhatsApp fee reminder, and what the message says.
@@ -477,7 +478,12 @@ export async function loadReminderAudience(
       .select(SELECT_COLUMNS)
       .eq("session_label", filters.sessionLabel),
     loadNoCallStudentIds(supabase, filters.sessionLabel),
-    loadSentToday(supabase, filters.sessionLabel, campaignName),
+    // Both names this notice can log under today — see `campaignNamesForNotice`.
+    loadSentToday(
+      supabase,
+      filters.sessionLabel,
+      campaignName ? campaignNamesForNotice(filters.situation, filters.language) : [],
+    ),
     loadReminderFlags(supabase, filters.sessionLabel),
     loadLastSentOn(supabase, filters.sessionLabel),
     loadCarryForward(supabase, filters.sessionLabel),
@@ -1097,17 +1103,24 @@ async function loadSentToday(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   sessionLabel: string,
-  campaignName: string,
+  campaignNames: readonly string[],
 ): Promise<Map<string, { status: string; at: string }>> {
-  // Scoped to THIS campaign since 20260821170000 widened the unique index. A
+  // Scoped to THIS notice since 20260821170000 widened the unique index. A
   // family who got the fee-due notice this morning is still eligible for the
   // previous-session one this afternoon, and the checkbox has to say so.
+  //
+  // A notice, not a campaign: since 2026-09-04 one notice logs under TWO names
+  // — the per-child campaign for a one-child phone, the family campaign for a
+  // phone with siblings — and a family messaged under one must not read as
+  // un-contacted under the other. The unique index only ever sees one name;
+  // this read is what sees both.
+  if (campaignNames.length === 0) return new Map();
   const { data, error } = await supabase
     .from("whatsapp_reminder_sends")
     .select("student_id, status, created_at")
     .eq("session_label", sessionLabel)
     .eq("sent_on", istToday())
-    .eq("campaign_name", campaignName);
+    .in("campaign_name", campaignNames);
 
   // A missing send history is not a reason to refuse to show the list — but it
   // does mean the screen cannot promise nobody was messaged today, so say so

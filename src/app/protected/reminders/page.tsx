@@ -42,7 +42,7 @@ import {
   loadRanScheduleSlots,
   type SavedCampaign,
 } from "@/modules/whatsapp/data/campaign-store";
-import { describeLateFeeDrift, lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
+import { describeLateFeeDrift } from "@/modules/whatsapp/domain/late-fee";
 import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
 
 // The list is only ever as good as the ledger it was read from, and staff will
@@ -330,12 +330,12 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           language={filters.language}
           lastDate={filters.lastDate}
           sample={audience.candidates[0] ?? null}
-          installmentPhrase={installmentPhrase(filters.installments, filters.language)}
-          lateFeePhrase={lateFeePhrase(
-            filters.lateFeeAmount,
-            filters.lateFeeBasis,
-            filters.language,
-          )}
+          // The raw settings, not composed phrases: the panel runs the SAME
+          // `noticeValuesFrom` projection the send does, so its opening values
+          // are exactly what the top family would be sent.
+          installments={filters.installments}
+          lateFeeAmount={filters.lateFeeAmount}
+          lateFeeBasis={filters.lateFeeBasis}
         />
       </CollapsibleSection>
 

@@ -12,6 +12,10 @@ import {
   type ReminderFamily,
 } from "@/modules/whatsapp/domain/family-grouping";
 import {
+  chooseFamilyCampaign,
+  familyNoticeValuesFor,
+} from "@/modules/whatsapp/domain/family-notice";
+import {
   noticeValuesFor,
   type ReminderCandidate,
   type ReminderFilters,
@@ -142,11 +146,23 @@ export async function executeReminderRun(
     overrideReason = null,
   } = args;
 
+  // Anyone already logged today is counted and never grouped.
+  //
+  // Since 2026-09-04 one notice logs under TWO campaign names — per-child for a
+  // one-child phone, family for siblings — and the unique index that stops a
+  // second message only knows one name at a time. A sibling who paid at noon
+  // leaves a two-child family as a one-child one, and a second run would claim
+  // a fresh per-child row for a parent who read the family message this
+  // morning. `sentToday` is read against both names, so this is what sees it.
+  // A true same-second race between two staff still lands on the index.
+  const fresh = candidates.filter((candidate) => !candidate.sentToday);
+  const alreadyLoggedToday = candidates.length - fresh.length;
+
   // Split BEFORE grouping into families, so a held-out student cannot arrive as
   // a sibling on somebody else's message. Splitting after would mean a "held
   // out" family still got messaged, which is worse than not running the
   // experiment at all.
-  const { messaged: toMessage, heldOut } = splitHoldout(candidates, holdoutPercent);
+  const { messaged: toMessage, heldOut } = splitHoldout(fresh, holdoutPercent);
 
   // One phone, one message. Grouping happens here rather than in the audience so
   // the screen keeps showing, ticking and skipping per child.
@@ -175,7 +191,7 @@ export async function executeReminderRun(
       runId: null,
       sent: 0,
       failed: 0,
-      alreadySentToday: 0,
+      alreadySentToday: alreadyLoggedToday,
       moneyQuoted: families.reduce((total, family) => total + family.totalAmount, 0),
       failures: [],
       messagesAttempted,
@@ -227,7 +243,7 @@ export async function executeReminderRun(
 
   let sent = 0;
   let failed = 0;
-  let alreadySentToday = 0;
+  let alreadySentToday = alreadyLoggedToday;
   let moneyQuoted = 0;
   const failures: ReminderRunOutcome["failures"] = [];
   const sentStudentIds: string[] = [];
@@ -316,6 +332,17 @@ export async function executeReminderRun(
   };
 }
 
+/**
+ * A message ready to go: which campaign, the values in slot order, and the
+ * figure it quotes. Built once per family by `sendFamily`, so a second handset
+ * gets the same message and the send log records exactly what went.
+ */
+type PreparedMessage = {
+  campaignName: string;
+  templateParams: string[];
+  dueAmount: number;
+};
+
 type SendOutcome =
   // The provider id travels back so the siblings' `covered_by_sibling` rows can
   // carry the id of the message that actually reached their family.
@@ -355,10 +382,12 @@ const EMPTY_FAMILY_OUTCOME = (): FamilyOutcome => ({
  * made for them, they cost nothing, and the screen can say why they were not
  * messaged separately.
  *
- * The family template is not approved yet, so today the message that goes is the
- * spokesperson's ordinary per-child notice: the largest debt on the phone. Once
- * `vpps_app_family_*` is Live this is where it swaps in, and the sibling rows
- * are already shaped for it.
+ * Which message goes is decided by `chooseFamilyCampaign`: the family template
+ * (`vpps_app_family_*`, Live since 2026-09-04) for a phone with two or more
+ * children on a notice it can be filled for, otherwise the spokesperson's
+ * ordinary per-child notice — the largest debt on the phone. Either way the
+ * rows below carry the name of the message that actually went, so the bill can
+ * be reconciled per campaign and "already messaged today" reads true.
  */
 async function sendFamily(args: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -397,11 +426,34 @@ async function sendFamily(args: {
   // read a Hindi late-fee line inside an English message.
   const familyFilters: ReminderFilters = { ...filters, language: family.language };
 
+  // Built ONCE per family, before any number is dialled: both handsets get the
+  // same message, and the send log's `template_params` is what went, not what
+  // would have gone had the amounts moved between the two.
+  const familyCampaign = chooseFamilyCampaign(family, filters.situation);
+  const message: PreparedMessage = familyCampaign
+    ? {
+        campaignName: familyCampaign.campaignName,
+        templateParams: familyCampaign.buildParams(
+          familyNoticeValuesFor(family, {
+            lastDate: filters.lastDate,
+            lateFeeAmount: filters.lateFeeAmount,
+            lateFeeBasis: filters.lateFeeBasis,
+          }),
+        ),
+        // The figure the message quotes: everyone on the phone, summed.
+        dueAmount: family.totalAmount,
+      }
+    : {
+        campaignName: campaign.campaignName,
+        templateParams: campaign.buildParams(noticeValuesFor(spokesperson, familyFilters)),
+        dueAmount: spokesperson.dueAmount,
+      };
+
   for (const target of family.destinations) {
     const result = await sendOne({
       supabase,
       candidate: spokesperson,
-      campaign,
+      message,
       filters: familyFilters,
       sessionLabel,
       today,
@@ -438,7 +490,7 @@ async function sendFamily(args: {
         supabase,
         family,
         byStudentId,
-        campaignName: campaign.campaignName,
+        campaignName: message.campaignName,
         providerMessageId: result.providerMessageId,
         sessionLabel,
         today,
@@ -505,7 +557,8 @@ async function sendOne(args: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any;
   candidate: ReminderCandidate;
-  campaign: CampaignDescriptor;
+  /** Already built by `sendFamily`: the campaign that is going, and its params. */
+  message: PreparedMessage;
   filters: ReminderFilters;
   sessionLabel: string;
   today: string;
@@ -521,14 +574,14 @@ async function sendOne(args: {
   /** The family's language, which the run's default only sometimes matches. */
   language?: string;
 }): Promise<SendOutcome> {
-  const { supabase, candidate, campaign, filters, sessionLabel, today, staffId, runId } = args;
+  const { supabase, candidate, message, filters, sessionLabel, today, staffId, runId } = args;
   const destination = args.destination ?? candidate.destination;
   const destinationRole = args.destinationRole ?? "primary";
-  const campaignName = campaign.campaignName;
-  // Per-situation: 6 slots for fee_due and balance, 5 for prevyear. A count that
-  // does not match is refused by AiSensy with "Template params does not match
-  // the campaign", which is why the registry owns both the count and the order.
-  const templateParams = campaign.buildParams(noticeValuesFor(candidate, filters));
+  // Seven slots on a per-child notice, five on a family one. A count that does
+  // not match is refused by AiSensy with "Template params does not match the
+  // campaign", which is why the registry owns both the count and the order and
+  // `sendFamily` built these before this was called.
+  const { campaignName, templateParams } = message;
 
   // The opaque code behind this message's pay link.
   //
@@ -550,7 +603,8 @@ async function sendOne(args: {
       sent_on: today,
       campaign_name: campaignName,
       destination,
-      due_amount: candidate.dueAmount,
+      // What the MESSAGE quotes: one child's figure, or the family's total.
+      due_amount: message.dueAmount,
       template_params: templateParams,
       status: "pending",
       // What actually went out, not the run default. Answering "which language

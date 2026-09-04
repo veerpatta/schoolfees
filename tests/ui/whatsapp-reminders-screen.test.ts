@@ -134,12 +134,13 @@ describe("WhatsApp reminders on a phone", () => {
     }
   });
 
-  it("keeps the unapproved template bodies out of the browser", () => {
-    // `campaign-bodies-v3.ts` holds eight Hindi and English bodies for notices
-    // Meta has not approved. A preview is only ever rendered for a campaign
-    // `campaignFor` returned, and that returns approved campaigns only — so
-    // every byte of them in the client bundle is provably unreachable text, and
-    // it measured 1084 gzip bytes against a ceiling that only ratchets down.
+  it("keeps the family and receipt template bodies out of the browser", () => {
+    // `campaign-bodies-v3.ts` holds the family and receipt bodies, which only
+    // the server sends and no screen previews — so every byte of them in the
+    // client bundle is provably unreachable text against a ceiling that only
+    // ratchets down. (It held the eight pending per-student bodies too until
+    // 2026-09-04, when they were approved and moved into campaigns.ts, and the
+    // 1084 gzip bytes this once saved were paid back on purpose.)
     //
     // The module header says "nothing in src/app or src/modules/**/ui may
     // import this file". A comment is not a guard; this is.
