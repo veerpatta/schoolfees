@@ -33,12 +33,8 @@ export function MobileScreen({
   children: ReactNode;
   className?: string;
 }) {
-  // No mount animation of its own any more: the shell cross-fades one screen
-  // into the next (ShellViewTransition), and a slide-up playing inside that
-  // cross-fade was two motions for one tap. The design's `scr-in` entrance is
-  // now that cross-fade.
   return (
-    <div className={cn("flex flex-col gap-2.5 pb-2", className)}>
+    <div className={cn("anim-slide-up flex flex-col gap-2.5 pb-2", className)}>
       {children}
     </div>
   );

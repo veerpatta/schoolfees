@@ -45,7 +45,7 @@ Import direction, enforced by `npm run quality:architecture`:
 |---|---|---:|---:|---:|
 | [`activity`](../../src/modules/activity/README.md) | /protected/admin-tools/activity | 0 | 1 | 0 |
 | [`dashboard`](../../src/modules/dashboard/README.md) | `/protected/dashboard?view=overview\|collection\|recovery\|classes\|latefee` | 7 | 3 | 14 |
-| [`defaulters`](../../src/modules/defaulters/README.md) | /protected/defaulters | 9 | 3 | 17 |
+| [`defaulters`](../../src/modules/defaulters/README.md) | /protected/defaulters | 9 | 3 | 18 |
 | [`exports`](../../src/modules/exports/README.md) | `/protected/exports` · `/protected/exports/[exportType]` | 1 | 2 | 0 |
 | [`fees`](../../src/modules/fees/README.md) | /protected/fee-setup · /protected/fee-structure | 20 | 11 | 7 |
 | [`finance-controls`](../../src/modules/finance-controls/README.md) | /protected/finance-controls | 3 | 2 | 1 |
@@ -54,12 +54,12 @@ Import direction, enforced by `npm run quality:architecture`:
 | [`payments`](../../src/modules/payments/README.md) | /protected/payments · /protected/payments/bulk | 17 | 2 | 25 |
 | [`prev-year-dues`](../../src/modules/prev-year-dues/README.md) | /protected/admin-tools/prev-year-dues | 6 | 1 | 0 |
 | [`promotion`](../../src/modules/promotion/README.md) | /protected/admin-tools/promotion | 0 | 1 | 0 |
-| [`receipts`](../../src/modules/receipts/README.md) | /protected/receipts · /r/[code] | 10 | 2 | 15 |
+| [`receipts`](../../src/modules/receipts/README.md) | /protected/receipts · /r/[code] | 10 | 2 | 16 |
 | [`recovery`](../../src/modules/recovery/README.md) | /protected/admin-tools/recovery | 1 | 1 | 0 |
 | [`repayment-plans`](../../src/modules/repayment-plans/README.md) | Student detail → repayment plan card | 3 | 1 | 0 |
 | [`reports`](../../src/modules/reports/README.md) | /protected/reports · /protected/ledger | 2 | 2 | 2 |
 | [`staff`](../../src/modules/staff/README.md) | /protected/staff · /protected/password | 0 | 1 | 2 |
-| [`students`](../../src/modules/students/README.md) | /protected/students | 19 | 5 | 60 |
+| [`students`](../../src/modules/students/README.md) | /protected/students | 19 | 5 | 61 |
 | [`system-sync`](../../src/modules/system-sync/README.md) | — | 5 | 3 | 0 |
 | [`transactions`](../../src/modules/transactions/README.md) | /protected/transactions | 2 | 1 | 3 |
 | [`whatsapp`](../../src/modules/whatsapp/README.md) | /protected/reminders (+ campaigns, runs) · /protected/admin-tools/whatsapp-templates | 16 | 7 | 11 |

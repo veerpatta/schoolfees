@@ -66,21 +66,15 @@ describe("mobile v2 animation spec", () => {
 
   it("animates every phone screen and hero card on mount", () => {
     // The design opens 23 of its 24 screens with `scr-in` and lands the hero
-    // card behind it. That entrance is now the shell's cross-fade between
-    // screens (a View Transition around the page body), applied once in the
-    // shell rather than per screen — and MobileScreen must not stack a second
-    // mount animation on top of it.
-    const shell = readFileSync(
-      join(process.cwd(), "src/ui/shell/dashboard-shell.tsx"),
-      "utf8",
-    );
-    expect(shell).toContain("<ShellViewTransition>{children}</ShellViewTransition>");
+    // card behind it. Doing that once in the kit — rather than per screen —
+    // is what keeps it from being applied to two screens and forgotten on
+    // the rest, which is the state this replaced.
     const kit = readFileSync(
       join(process.cwd(), "src/ui/mobile/mobile-kit.tsx"),
       "utf8",
     );
     const screen = kit.slice(kit.indexOf("export function MobileScreen"));
-    expect(screen.slice(0, 600)).not.toContain("anim-slide-up");
+    expect(screen.slice(0, 400)).toContain("anim-slide-up");
 
     const ink = kit.slice(kit.indexOf("export function InkCard"));
     expect(ink.slice(0, 700)).toContain("anim-settle-in");

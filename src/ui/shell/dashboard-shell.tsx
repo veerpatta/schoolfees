@@ -11,7 +11,6 @@ import {
   ShellSessionPillSkeleton,
 } from "@/ui/shell/shell-session-pill";
 import { SessionSwitchOverlayMount } from "@/ui/shell/session-switch-overlay";
-import { ShellViewTransition } from "@/ui/shell/shell-view-transition";
 import { getDefaultProtectedHref } from "@/platform/config/navigation";
 import { EMPTY_SHELL_PULSE, getShellPulse } from "@/modules/dashboard/data/shell-metrics";
 import { getFeePolicyForSession } from "@/modules/fees/domain/queries";
@@ -182,12 +181,14 @@ export function DashboardShell({
         >
           {/* Phone padding lives inside the scroll region, not on main —
               main is the 100dvh viewport and must not be inset. The fade
-              plays once per hard load (this layout persists across
-              navigations); ShellViewTransition is what cross-fades one
-              screen into the next. */}
-          <div className="anim-fade-in px-4 py-4 md:px-0 md:py-0">
-            <ShellViewTransition>{children}</ShellViewTransition>
-          </div>
+              plays once per hard load: this layout persists across
+              navigations. Do NOT wrap children in React's ViewTransition
+              here: on a streamed navigation React holds the transition's
+              update callback until the route's data lands, the browser
+              freezes rendering while it waits, Chrome gives up after four
+              seconds, and the navigation then falls back to a full page
+              load. It made every tab switch feel like a reload. */}
+          <div className="anim-fade-in px-4 py-4 md:px-0 md:py-0">{children}</div>
         </ScrollRestoringMain>
         {/* Phone bar badges: only the follow-up count. A badge on Collect
             would read as "3 payments waiting", which is not a thing. */}
