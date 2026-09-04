@@ -74,9 +74,18 @@ node scripts/audit-test-data-in-public.mjs # TEST- data leaking into live (read-
 # own framing. No automatic check can tell a good crop from a headless one here
 # (three were tried and all mislabelled dozens), so review --contact-sheet
 # before --apply.
+#
+# --confirm-name-mismatch takes the refusal off named admission numbers ONLY,
+# and only once a person has looked at the photo and said which child it is.
+# There is no blanket override, an SR that did not need one is reported as a
+# likely typo, and the confirmation is written into the audit row. It never
+# renames the student: when the app is right and the export is wrong, the
+# export is the thing to correct.
 node scripts/import-student-photos.mjs --file <export.xlsx>
 node scripts/import-student-photos.mjs --file <export.xlsx> --contact-sheet crops.jpg
 node scripts/import-student-photos.mjs --file <export.xlsx> --apply --overwrite
+node scripts/import-student-photos.mjs --file <export.xlsx> --apply \
+  --confirm-name-mismatch PENDING-SR-0003,PENDING-SR-0011
 node scripts/prev-year-dues-dry-run.mjs   # Carry-forward matching, no writes
 
 # Students whose ledger disagrees with their resolved fee policy. Read-only by

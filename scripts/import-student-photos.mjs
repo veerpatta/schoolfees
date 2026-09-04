@@ -63,6 +63,28 @@ const noCrop = process.argv.includes("--no-crop");
 const contactSheetPath = readFlag("contact-sheet");
 const actor = readFlag("actor", process.env.BULK_APPLY_ACTOR ?? "agent");
 
+/**
+ * Admission numbers whose sheet name may disagree with the app's, because a
+ * person has looked at the photo and confirmed it is that child.
+ *
+ * Deliberately NOT a blanket --force. The name check is the only thing standing
+ * between a reused PENDING-SR-* slot and a photo landing on the wrong child, so
+ * the override names each child individually: an SR that turns out not to need
+ * one is reported as a likely typo rather than passed over in silence. Each
+ * override is written into the audit row, so the trail records that a person
+ * vouched for this photo — not that the guard was switched off.
+ *
+ * The student's name in the app is never touched. When the app is right and the
+ * export is wrong, the export is the thing to correct; this flag only says the
+ * photo belongs to the child the app already names.
+ */
+const confirmedMismatches = new Set(
+  String(readFlag("confirm-name-mismatch", "") ?? "")
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean),
+);
+
 const BUCKET = "student-photos";
 const UPLOAD_CONCURRENCY = 6;
 
@@ -88,6 +110,13 @@ Import student photos from a Sampark export — dry run by default.
                 write every crop as one reviewable image. Worth doing before
                 --apply: no automatic check separates a good crop from a bad one
                 here (see below), but a person can see 80 of them at a glance.
+  --confirm-name-mismatch <SR,SR>
+                accept the export's photo for these admission numbers even
+                though the sheet name disagrees with the app's, because a person
+                looked at the photo and confirmed it is that child. Each SR is
+                named individually — there is no blanket override — and the
+                confirmation is recorded in the audit row. The student's name in
+                the app is never changed.
   --actor       recorded in the audit trail (default "agent")
 `);
   process.exit(filePath ? 0 : 1);
@@ -356,6 +385,7 @@ async function main() {
   const unmatched = [];
   const nameDisagrees = [];
   const alreadyHavePhoto = [];
+  const confirmedUsed = new Set();
 
   for (const candidate of candidates) {
     const student = candidate.admissionNo ? byAdmissionNo.get(candidate.admissionNo) : null;
@@ -364,8 +394,16 @@ async function main() {
       continue;
     }
     if (!namesAgree(candidate.name, student.full_name)) {
-      nameDisagrees.push({ ...candidate, student });
-      continue;
+      if (!confirmedMismatches.has(String(candidate.admissionNo))) {
+        nameDisagrees.push({ ...candidate, student });
+        continue;
+      }
+      candidate.nameMismatchConfirmed = {
+        sheetName: candidate.name,
+        appName: student.full_name,
+        confirmedBy: actor,
+      };
+      confirmedUsed.add(String(candidate.admissionNo));
     }
     if (student.photo_path && !overwrite) {
       alreadyHavePhoto.push({ ...candidate, student });
@@ -378,7 +416,25 @@ async function main() {
   console.log(`  will be uploaded     : ${toUpload.length}`);
   console.log(`  already has a photo  : ${alreadyHavePhoto.length}${overwrite ? " (overwriting)" : " (skipped; pass --overwrite to replace)"}`);
   console.log(`  name disagrees       : ${nameDisagrees.length} (refused — see below)`);
+  if (confirmedMismatches.size) {
+    console.log(`  name mismatch OK'd   : ${confirmedUsed.size} (a person confirmed the photo — see below)`);
+  }
   console.log(`  no matching student  : ${unmatched.length}`);
+
+  if (confirmedUsed.size) {
+    console.log("\n  NAME MISMATCH OVERRIDDEN — accepted on a person's say-so, not the guard's:");
+    for (const row of toUpload.filter((entry) => entry.nameMismatchConfirmed)) {
+      console.log(`    SR ${String(row.admissionNo).padEnd(16)} sheet="${row.nameMismatchConfirmed.sheetName}"  app="${row.nameMismatchConfirmed.appName}"  confirmed by ${row.nameMismatchConfirmed.confirmedBy}`);
+    }
+  }
+
+  const confirmedUnused = [...confirmedMismatches].filter((sr) => !confirmedUsed.has(sr));
+  if (confirmedUnused.length) {
+    console.log(`\n  WARNING — --confirm-name-mismatch named ${confirmedUnused.length} admission number(s) that did not need it:`);
+    for (const sr of confirmedUnused) {
+      console.log(`    ${sr}  (no name disagreement for this SR — check for a typo)`);
+    }
+  }
 
   if (nameDisagrees.length) {
     console.log("\n  REFUSED — the SR No matched a student with a different name.");
@@ -490,6 +546,7 @@ async function main() {
           sheet: row.sheet,
           sheetRow: row.sheetRow,
           bytes: row.bytes.length,
+          ...(row.nameMismatchConfirmed ? { nameMismatchConfirmed: row.nameMismatchConfirmed } : {}),
         },
       },
       changed_by: null,
