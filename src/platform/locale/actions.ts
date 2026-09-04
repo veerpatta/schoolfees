@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidateTag } from "next/cache";
 import { cookies } from "next/headers";
 
 import {
@@ -9,6 +10,7 @@ import {
   type AppLocale,
 } from "@/platform/i18n/locales";
 import { createClient } from "@/platform/supabase/server";
+import { staffProfileTag } from "@/platform/supabase/session";
 
 /**
  * Persists the staff's chosen app locale in two places.
@@ -46,6 +48,14 @@ export async function setLocaleAction(locale: AppLocale | string) {
   try {
     const supabase = await createClient();
     await supabase.rpc("set_my_preferred_locale", { p_locale: locale });
+    // The profile row is served from the data cache for a minute; a device
+    // without the cookie reconciles its language from that row, so the new
+    // choice has to be visible there straight away.
+    const { data } = await supabase.auth.getClaims();
+    const userId = data?.claims?.sub;
+    if (typeof userId === "string") {
+      revalidateTag(staffProfileTag(userId), "max");
+    }
   } catch {
     // A signed-out user, or a transient database blip, must never break the
     // language switch. The cookie above already carries the choice for this

@@ -390,11 +390,12 @@ describe("office performance guardrails", () => {
     // app "in full" is a complete server render because every route is
     // force-dynamic (docs/design/design-system.md §5.6 and §5.9).
     //
-    // 30s is safe for money: a posting is a Server Action, and revalidatePath
+    // 60s is safe for money: a posting is a Server Action, and revalidatePath
     // purges this cache outright, so the cashier who posted never sees a
-    // pre-receipt figure.
+    // pre-receipt figure; a colleague's posting invalidates it through
+    // OfficeSyncListener's router.refresh() within seconds.
     expect(config).toContain("staleTimes: {");
-    expect(config).toContain("dynamic: 30");
+    expect(config).toContain("dynamic: 60");
   });
 
   it("keeps payment posting revalidation focused", () => {

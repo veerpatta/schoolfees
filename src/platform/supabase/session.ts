@@ -11,7 +11,9 @@ import {
   type StaffPermission,
   type StaffRole,
 } from "@/platform/auth/roles";
-import { hasRequiredEnvVars } from "@/platform/env";
+import { getOptionalEnvVar, hasRequiredEnvVars } from "@/platform/env";
+import { createAdminClient } from "@/platform/supabase/admin";
+import { cacheSafeUnstableCache } from "@/platform/supabase/cache-safe";
 import { createClient } from "@/platform/supabase/server";
 
 export type StaffAuthClaims = Record<string, unknown> & {
@@ -39,6 +41,55 @@ type StaffProfileRow = {
   preferred_locale: string | null;
 };
 
+// preferred_locale rides along on the profile read the session already does.
+// Resolving the account language must not cost a second round trip on every
+// protected page.
+const STAFF_PROFILE_COLUMNS = "full_name, role, is_active, last_login_at, preferred_locale";
+
+/**
+ * How long a staff profile may be served from the data cache before the
+ * `users` row is read again. This bounds how long a deactivation or a role
+ * change takes to reach every request; the JWT alone would take up to an hour.
+ */
+export const STAFF_PROFILE_REVALIDATE_SECONDS = 60;
+
+/** Busting this evicts every cached staff profile at once. */
+export const STAFF_PROFILES_TAG = "staff-profiles";
+
+/** The per-account tag, for writes that know which staffer they touched. */
+export function staffProfileTag(userId: string) {
+  return `staff:${userId}`;
+}
+
+async function readStaffProfileAsAdmin(userId: string): Promise<StaffProfileRow | null> {
+  const { data } = await createAdminClient()
+    .from("users")
+    .select(STAFF_PROFILE_COLUMNS)
+    .eq("id", userId)
+    .maybeSingle();
+
+  return (data as StaffProfileRow | null) ?? null;
+}
+
+/**
+ * One cached reader per account, because `unstable_cache` takes its tags up
+ * front and the per-account tag needs the id. The map is bounded by the size
+ * of the staff table, which is a couple of dozen rows.
+ */
+const staffProfileReaders = new Map<string, (userId: string) => Promise<StaffProfileRow | null>>();
+
+function getStaffProfileReader(userId: string) {
+  let reader = staffProfileReaders.get(userId);
+  if (!reader) {
+    reader = cacheSafeUnstableCache(readStaffProfileAsAdmin, ["staff-profile"], {
+      tags: [STAFF_PROFILES_TAG, staffProfileTag(userId)],
+      revalidate: STAFF_PROFILE_REVALIDATE_SECONDS,
+    });
+    staffProfileReaders.set(userId, reader);
+  }
+  return reader;
+}
+
 const _getAuthenticatedStaffOnce = cache(async () => {
   if (!hasRequiredEnvVars) {
     return null;
@@ -57,16 +108,26 @@ const _getAuthenticatedStaffOnce = cache(async () => {
     return null;
   }
 
-  const { data: profileData } = await supabase
-    .from("users")
-    // preferred_locale rides along on the profile read the session already
-    // does. Resolving the account language must not cost a second round trip
-    // on every protected page.
-    .select("full_name, role, is_active, last_login_at, preferred_locale")
-    .eq("id", userId)
-    .maybeSingle();
-
-  const profile = (profileData as StaffProfileRow | null) ?? null;
+  // The profile row used to be read on every request -- every page, every
+  // route handler, every avatar thumbnail, every command-palette keystroke --
+  // which made it the one database round trip nothing could skip. It is now
+  // served from the data cache for STAFF_PROFILE_REVALIDATE_SECONDS, keyed by
+  // account, and busted by the staff-management actions. The read has to go
+  // through the service-role client: `unstable_cache` may not touch cookies(),
+  // and the row is looked up by the id the verified JWT just gave us, so RLS
+  // is not what protects it here. Without a service-role key (local setups,
+  // tests) it falls back to the per-request read.
+  let profile: StaffProfileRow | null;
+  if (getOptionalEnvVar("SUPABASE_SERVICE_ROLE_KEY")) {
+    profile = await getStaffProfileReader(userId)(userId);
+  } else {
+    const { data: profileData } = await supabase
+      .from("users")
+      .select(STAFF_PROFILE_COLUMNS)
+      .eq("id", userId)
+      .maybeSingle();
+    profile = (profileData as StaffProfileRow | null) ?? null;
+  }
   const appRole = resolveStaffRole(profile?.role);
 
   return {

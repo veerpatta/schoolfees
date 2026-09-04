@@ -1,8 +1,20 @@
 import React from "react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToReadableStream } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * The page streams: the roll sits in an async component behind a Suspense
+ * boundary. The legacy static renderer stops at the boundary and emits only
+ * the skeleton, so this waits for every boundary to resolve and reads the
+ * whole document back.
+ */
+async function renderFully(element: React.ReactElement) {
+  const stream = await renderToReadableStream(element);
+  await stream.allReady;
+  return new Response(stream).text();
+}
 
 const getStudentFormOptions = vi.fn();
 const getStudentsPage = vi.fn();
@@ -115,7 +127,7 @@ describe("students page resilience", () => {
     const element = await StudentsPage({
       searchParams: Promise.resolve({ sessionLabel: "2026-27" }),
     });
-    const html = renderToStaticMarkup(element as React.ReactElement);
+    const html = await renderFully(element as React.ReactElement);
 
     expect(html).toContain("Students could not be loaded safely");
     expect(html).toContain("Load warning");

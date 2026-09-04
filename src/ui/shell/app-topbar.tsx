@@ -21,7 +21,6 @@ import {
 } from "@/ui/primitives/dropdown-menu";
 import { ThemeToggle } from "@/ui/primitives/theme-toggle";
 import { CommandTrigger } from "@/ui/command/command-trigger";
-import { SchoolBrand } from "@/ui/branding/school-brand";
 
 import { SidebarNav } from "./sidebar-nav";
 import { StatusBadge } from "./status-badge";
@@ -145,89 +144,6 @@ export function AppTopBar({
       {/* Tablet (md) compact nav — sidebar hidden, bottom-nav also hidden here. */}
       <div className="hidden border-t border-border bg-background/60 px-4 py-2 sm:px-6 md:block lg:hidden">
         <SidebarNav staffRole={staffRole} mode="topbar" />
-      </div>
-    </header>
-  );
-}
-
-export function MobileHeader({
-  staffEmail,
-  staffRole,
-  schoolHour,
-  sessionPill,
-  localeSwitcher,
-  homeHref,
-}: AppTopBarProps & {
-  homeHref: string;
-}) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const sessionAwareHomeHref = appendCurrentSessionParam(homeHref, searchParams);
-  const passwordHref = appendCurrentSessionParam("/protected/password", searchParams);
-  // Same rule as the desktop topbar: on Home the route label says nothing the
-  // screen doesn't, so greet the person instead. School-time hour comes from
-  // the server, so it is right on first paint.
-  const isDashboard = pathname.startsWith("/protected/dashboard");
-  const routeTitle = isDashboard
-    ? `${greetingForHour(schoolHour)}, ${firstNameOf(staffEmail)}`
-    : getProtectedRouteMeta(pathname).label;
-  const tRoles = useTranslations("Roles");
-  const roleLabel = tRoles.has(staffRole) ? tRoles(staffRole) : roleLabels[staffRole];
-
-  return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur print:hidden md:hidden">
-      <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
-        <Link href={sessionAwareHomeHref} aria-label="Open home" className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1 py-1 transition-colors hover:bg-surface-2">
-          <SchoolBrand variant="icon" priority />
-          <span className="hidden xs:block text-[11px] font-bold uppercase tracking-wide text-accent leading-tight">
-            VPPS
-          </span>
-        </Link>
-        <span className="text-muted-foreground text-xs font-semibold shrink-0">/</span>
-        <h1 className="text-sm font-semibold text-foreground truncate">
-          {routeTitle}
-        </h1>
-      </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        {sessionPill}
-        {localeSwitcher}
-        <ThemeToggle />
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className="grid size-9 place-items-center rounded-full border border-border bg-surface-2 text-[11px] font-semibold uppercase text-foreground focus-ring"
-            aria-label="Account menu"
-          >
-            {initialsOf(staffEmail)}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-60">
-            <DropdownMenuLabel className="flex items-center gap-2 py-2">
-              <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {staffEmail}
-                </p>
-                <p className="text-xs font-normal text-muted-foreground">
-                  {roleLabel}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href={passwordHref} className="flex items-center gap-2">
-                <KeyRound className="size-4 text-muted-foreground" aria-hidden="true" />
-                Change password
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <form action={logoutAction}>
-              <DropdownMenuItem asChild>
-                <SignOutSubmit className="flex w-full items-center gap-2 text-destructive focus:text-destructive">
-                  Sign out
-                </SignOutSubmit>
-              </DropdownMenuItem>
-            </form>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </header>
   );

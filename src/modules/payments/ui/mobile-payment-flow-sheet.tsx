@@ -241,6 +241,10 @@ export function MobilePaymentFlowSheet({
   onUseLastAmount,
   isLastAmountArmed,
 }: MobilePaymentFlowSheetProps) {
+  // React Compiler opt-in (next.config.ts reactCompiler.compilationMode is
+  // "annotation"): this component and its hooks are auto-memoised. Remove the
+  // directive to fall back to the hand-written memoisation.
+  "use memo";
   const tMobile = useTranslations("MobileApp");
   const [pendingHeadsExpanded, setPendingHeadsExpanded] = React.useState(false);
   const [overdueHeadsExpanded, setOverdueHeadsExpanded] = React.useState(false);

@@ -401,7 +401,7 @@ function MobileStudentCard({
         event.preventDefault();
         navigate();
       }}
-      className="cursor-pointer px-4 py-3.5 transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="cv-row cursor-pointer px-4 py-3.5 transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <div className="flex items-start justify-between gap-3">
         <StudentHeader row={row} />

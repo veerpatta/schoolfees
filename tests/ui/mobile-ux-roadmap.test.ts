@@ -24,8 +24,8 @@ describe("mobile UX roadmap implementation", () => {
     expect(layout).toContain('href="/api/manifest"');
     expect(layout).toContain('crossOrigin="use-credentials"');
     expect(layout).not.toContain('manifest: "/api/manifest"');
-    expect(staticManifest).toContain('"theme_color": "#c0521a"');
-    expect(staticManifest).toContain('"background_color": "#faf9f6"');
+    expect(staticManifest).toContain('"theme_color": "#FAFAF7"');
+    expect(staticManifest).toContain('"background_color": "#FAFAF7"');
     expect(apiManifest).toContain("getAuthenticatedStaff");
     expect(apiManifest).toContain("hasRolePermission(role, \"payments:write\")");
     expect(apiManifest).toContain("Payment Desk");
@@ -88,11 +88,14 @@ describe("mobile UX roadmap implementation", () => {
     const serviceWorker = readRepoFile("public/service-worker.js");
 
     expect(serviceWorker).toContain("RUNTIME_CACHE_VERSION");
-    // v2, not v1. Renaming every bucket is what actually evicts the leak
+    // v3, not v2 or v1. Renaming every bucket is what actually evicts the leak
     // described below from devices already in the field — the activate handler
-    // deletes any cache not on KEEPABLE_CACHES.
-    expect(serviceWorker).toContain("vpps-navigation-data-v2");
-    expect(serviceWorker).toContain("vpps-student-index-v2");
+    // deletes any cache not on KEEPABLE_CACHES. v3 also caps the build-output
+    // bucket, so old deploys' chunks stop accumulating on phones.
+    expect(serviceWorker).toContain("vpps-navigation-data-v3");
+    expect(serviceWorker).toContain("vpps-student-index-v3");
+    expect(serviceWorker).toContain("STATIC_CACHE_MAX_ENTRIES");
+    expect(serviceWorker).toContain("trimCache(CACHE_VERSION, STATIC_CACHE_MAX_ENTRIES)");
     expect(serviceWorker).toContain("STALE_WHILE_REVALIDATE_TTL_MS");
     expect(serviceWorker).toContain("isRuntimeCacheRequest");
     expect(serviceWorker).toContain("cache.put(new Request(request.url), cachedResponse)");

@@ -527,9 +527,15 @@ async function generatePendingAdmissionNo() {
   throw new Error("Unable to generate a temporary SR no. Please enter SR no manually.");
 }
 
-export async function getStudentFormOptions(payload?: {
-  sessionLabel?: string | null;
-}) {
+/**
+ * Once per request per session label. Defaulters and Transactions each reach
+ * this two or three times in one render (directly for their filters, and again
+ * through getWorkbookClassOptions), and every call re-read the conventional
+ * discount policies. Keyed by the normalised label string, because React's
+ * cache() compares arguments by identity and a fresh payload object would
+ * never hit.
+ */
+const getStudentFormOptionsForRequest = cache(async (requestedSessionLabel: string) => {
   const [options, policy] = await Promise.all([
     getMasterDataOptions(),
     getFeePolicySummary(),
@@ -543,7 +549,6 @@ export async function getStudentFormOptions(payload?: {
     label: row.label,
     sessionLabel: row.sessionLabel,
   }));
-  const requestedSessionLabel = payload?.sessionLabel?.trim() ?? "";
   const resolvedSessionLabel = requestedSessionLabel || policySessionLabel || currentSessionLabel || "";
   const classOptions = getClassOptionsForSession(
     allClassOptions,
@@ -591,6 +596,12 @@ export async function getStudentFormOptions(payload?: {
     routeOptions,
     conventionalDiscountPolicies,
   };
+});
+
+export async function getStudentFormOptions(payload?: {
+  sessionLabel?: string | null;
+}) {
+  return getStudentFormOptionsForRequest(payload?.sessionLabel?.trim() ?? "");
 }
 
 /**

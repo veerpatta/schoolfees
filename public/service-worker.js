@@ -15,10 +15,21 @@
 // counter device one staffer's manifest was served to the next for up to half
 // an hour. Bumping every name is what actually evicts that from devices already
 // in the field -- the activate handler below deletes anything not on the list.
-const RUNTIME_CACHE_VERSION = "v2";
+//
+// v3 (was v2): the build-output bucket is trimmed. Every deploy ships a fresh
+// set of content-hashed chunks and the old ones never left, so a phone that
+// had used the app across a few months of deploys carried every chunk it had
+// ever loaded. The bump evicts that backlog once; the cap keeps it from
+// growing back.
+const RUNTIME_CACHE_VERSION = "v3";
 const CACHE_VERSION = `vpps-fee-admin-${RUNTIME_CACHE_VERSION}`;
-const NAVIGATION_DATA_CACHE = "vpps-navigation-data-v2";
-const STUDENT_INDEX_CACHE = "vpps-student-index-v2";
+const NAVIGATION_DATA_CACHE = "vpps-navigation-data-v3";
+const STUDENT_INDEX_CACHE = "vpps-student-index-v3";
+// Roughly two deploys' worth of chunks for the routes the office visits.
+const STATIC_CACHE_MAX_ENTRIES = 200;
+// Trimming lists every key, so it runs every so many writes, not on each one.
+const STATIC_CACHE_TRIM_EVERY = 25;
+let staticCachePuts = 0;
 const STALE_WHILE_REVALIDATE_TTL_MS = 30 * 60 * 1000;
 const OFFLINE_FALLBACK_URL = "/offline.html";
 const PRECACHE_URLS = [
@@ -69,6 +80,20 @@ function isRuntimeCacheRequest(request) {
   // no-store, and this cache cannot tell one signed-in staffer from the next.
 
   return null;
+}
+
+/**
+ * Drops the oldest entries once a cache is over its cap. cache.keys() returns
+ * entries in insertion order, so the front of the list is what was fetched
+ * longest ago -- the chunks of a build that is no longer deployed.
+ */
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length <= maxEntries) {
+    return;
+  }
+  await Promise.all(keys.slice(0, keys.length - maxEntries).map((key) => cache.delete(key)));
 }
 
 async function offlineFallback() {
@@ -131,6 +156,7 @@ self.addEventListener("activate", (event) => {
       await Promise.all(
         keys.filter((key) => !KEEPABLE_CACHES.includes(key)).map((key) => caches.delete(key)),
       );
+      await trimCache(CACHE_VERSION, STATIC_CACHE_MAX_ENTRIES);
 
       await self.clients.claim();
     })(),
@@ -184,9 +210,17 @@ self.addEventListener("fetch", (event) => {
         }
 
         const responseCopy = response.clone();
+        const cacheName = staticCacheFor(request);
         caches
-          .open(staticCacheFor(request))
-          .then((cache) => cache.put(new Request(request.url), responseCopy));
+          .open(cacheName)
+          .then((cache) => cache.put(new Request(request.url), responseCopy))
+          .then(() => {
+            if (cacheName === CACHE_VERSION && ++staticCachePuts % STATIC_CACHE_TRIM_EVERY === 0) {
+              return trimCache(CACHE_VERSION, STATIC_CACHE_MAX_ENTRIES);
+            }
+            return undefined;
+          })
+          .catch(() => undefined);
         return response;
       });
     }),

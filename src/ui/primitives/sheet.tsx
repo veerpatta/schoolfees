@@ -84,6 +84,10 @@ export function acquireSheetScrollLock() {
     previousHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
+    // Read by the shell's office-sync listener, which holds back a page
+    // refresh while a sheet is open. An attribute, so it can be read without
+    // importing this file into every route.
+    document.documentElement.setAttribute("data-sheet-open", "");
 
     const main = getPhoneScroller();
     if (main) {
@@ -110,6 +114,7 @@ function restoreScrollLock() {
   }
   isLocked = false;
 
+  document.documentElement.removeAttribute("data-sheet-open");
   document.body.style.overflow = previousBodyOverflow;
   document.documentElement.style.overflow = previousHtmlOverflow;
   previousBodyOverflow = "";

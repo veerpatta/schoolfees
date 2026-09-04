@@ -23,6 +23,14 @@ const nextConfig: NextConfig = {
   // Marking it external makes Next require it from node_modules so Vercel traces
   // the whole package, including its data files.
   serverExternalPackages: ["@react-pdf/renderer"],
+  // React Compiler, opt-in only. `annotation` compiles nothing unless a
+  // component says `"use memo"`, so the Babel pass it adds to the webpack
+  // build touches only the files that ask for it. The Payment Desk screens
+  // do: a 3,500-line component with ~96 hooks re-rendered every ancestor on
+  // each keystroke of the amount and the student search, which is what the
+  // phone's input lag was made of. Everything else keeps its hand-written
+  // memoisation and is compiled by nothing.
+  reactCompiler: { compilationMode: "annotation" },
   // The fee-statement PDF registers a Devanagari TTF (public/fonts) at runtime
   // for the Hindi half of every bilingual label. Vercel's serverless tracer
   // does not see the file path passed to Font.register, so include the fonts
@@ -97,24 +105,42 @@ const nextConfig: NextConfig = {
     ],
     optimizeCss: true,
     scrollRestoration: true,
+    // Lets a Link opt in (`unstable_dynamicOnHover`) to fetching the FULL
+    // page -- data included -- on hover or touchstart, instead of only its
+    // loading skeleton. The phone's tab bar uses it: the 50-100ms between a
+    // thumb landing and the click firing is spent rendering the destination,
+    // and the entry then lives for staleTimes.dynamic. Only the four tabs
+    // opt in; a desktop sidebar hovered in passing would be a server render
+    // per pass.
+    dynamicOnHover: true,
     // The client Router Cache. `dynamic` ships as 0, which means a page you
     // were looking at ten seconds ago is refetched in full when you come back
     // to it -- and because every route here is force-dynamic (see
     // docs/design/design-system.md §5.6), "in full" is a complete server
-    // render: auth, users lookup, fee policy, shell pulse, page data.
+    // render: auth, fee policy, shell pulse, page data.
     //
-    // 30s is safe for money because a posting is a Server Action and
+    // In Next 16 this number does two things. It is how long a page you have
+    // already seen is kept for an instant return (the router's back/forward
+    // cache), and it is the stale header on every dynamic response, so a
+    // prefetched loading skeleton lives this long too. It is the single
+    // biggest lever for "switching tabs feels instant" on a phone.
+    //
+    // 60s is safe for money because a posting is a Server Action and
     // revalidatePath purges this cache outright -- the cashier who posted
-    // never sees a pre-receipt figure. What 30s buys is a colleague's posting
-    // taking up to half a minute to appear on a re-visit, against a
-    // server-side ceiling of 300s that the dashboard already runs on
+    // never sees a pre-receipt figure -- and because a colleague's posting
+    // reaches every open screen through OfficeSyncListener, whose
+    // router.refresh() invalidates this cache within about two seconds. The
+    // number bounds the worst case only: a screen nobody is looking at, on a
+    // device the realtime channel has dropped, against a server-side ceiling
+    // of 300s that the dashboard already runs on
     // (DASHBOARD_STALENESS_CEILING_SECONDS).
     //
     // `static` is the Next default restated, so a future default change is a
-    // visible edit here rather than a silent behaviour swing. It governs
-    // router.prefetch() results, which is what the sidebar warms on idle.
+    // visible edit here rather than a silent behaviour swing. Note that a
+    // default prefetch (Link without `prefetch`, and router.prefetch) fetches
+    // only the route tree and loading.tsx of a dynamic route, never its data.
     staleTimes: {
-      dynamic: 30,
+      dynamic: 60,
       static: 300,
     },
   },

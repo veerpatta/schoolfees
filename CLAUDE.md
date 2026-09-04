@@ -423,7 +423,7 @@ Routes are embedded in their respective modules (not centralized under `/api/`):
 | `/pay/[code]` | Public UPI pay link from a WhatsApp reminder. Amount and reference only |
 | `/api/webhooks/aisensy` | AiSensy delivery webhook. 404 unless `AISENSY_WEBHOOK_SECRET` is set |
 | `/api/cron/whatsapp-scheduled-runs` | Scheduled WhatsApp campaign runner (`CRON_SECRET`, `?dryRun=1`) |
-| `/api/manifest` | PWA manifest (role-aware runtime caching) |
+| `/api/manifest` | PWA manifest, role-aware and `private, no-store`. The service worker never caches it (v2 removed that: Cache Storage cannot tell one staffer from the next) |
 | `/auth/confirm` | Email confirmation callback |
 | `/protected/students/index` | Student search/index |
 | `/protected/payments/student-summary` | Payment summary lookup |

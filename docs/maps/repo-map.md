@@ -107,7 +107,7 @@ Surfaced because size is the thing a map can measure and a reader cannot.
 | 2082 | `src/modules/fees/ui/fee-setup-client.tsx` |
 | 2058 | `src/app/protected/dashboard/page.tsx` |
 | 2007 | `src/modules/imports/data/queries.ts` |
-| 1894 | `src/modules/students/data/queries.ts` |
+| 1905 | `src/modules/students/data/queries.ts` |
 | 1888 | `src/modules/transactions/ui/transactions-client-shell.tsx` |
 | 1726 | `src/modules/reports/data/queries.ts` |
 

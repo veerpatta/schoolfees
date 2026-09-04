@@ -53,7 +53,17 @@ function LinkPending({ children }: { children: ReactNode }) {
  * client component, and the fallback in RouteProgress still covers everything
  * else.
  */
-export function NavLink({ children, ...props }: ComponentProps<typeof Link>) {
+type NavLinkProps = ComponentProps<typeof Link> & {
+  /**
+   * Fetch the full page -- data included -- on hover or touchstart, not only
+   * its loading skeleton. Needs `experimental.dynamicOnHover` in
+   * next.config.ts. The App Router's Link accepts it at runtime; it is only
+   * missing from the `next/link` export's types.
+   */
+  unstable_dynamicOnHover?: boolean;
+};
+
+export function NavLink({ children, ...props }: NavLinkProps) {
   return (
     <Link {...props}>
       <LinkPending>{children}</LinkPending>

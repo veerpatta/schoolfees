@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavCount, type NavCounts } from "@/ui/shell/nav-count";
-import { NavLink } from "@/ui/shell/nav-link";
+import { NAV_EVENT, NavLink, type NavPendingDetail } from "@/ui/shell/nav-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ChevronRight, Ellipsis, X } from "lucide-react";
@@ -55,6 +55,14 @@ export function MobileBottomNav({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [overflowOpen, setOverflowOpen] = useState(false);
+  // The tab the thumb just tapped, remembered together with the pathname it
+  // was tapped from. The highlight used to follow usePathname(), which only
+  // changes once the navigation commits -- so on a slow network the bar sat on
+  // the old tab for the whole wait, and the tap read as ignored. Deriving
+  // "pending" from the pathname it was tapped from means it clears itself the
+  // moment the route changes, with no effect and no extra render.
+  const [tapped, setTapped] = useState<{ href: string; from: string } | null>(null);
+  const pendingHref = tapped && tapped.from === pathname ? tapped.href : null;
   const t = useTranslations("Navigation");
   const tMobile = useTranslations("MobileApp");
   const tRoles = useTranslations("Roles");
@@ -102,6 +110,20 @@ export function MobileBottomNav({
       isOverflow: true,
     },
   ];
+
+  // A navigation that ends without the pathname changing (aborted, or thrown
+  // back by a guard) must not leave the highlight on a tab we never reached.
+  // NavLink broadcasts every pending change on this event.
+  useEffect(() => {
+    function handleNav(event: Event) {
+      const detail = (event as CustomEvent<NavPendingDetail>).detail;
+      if (detail && !detail.pending) {
+        setTapped(null);
+      }
+    }
+    window.addEventListener(NAV_EVENT, handleNav);
+    return () => window.removeEventListener(NAV_EVENT, handleNav);
+  }, []);
 
   useEffect(() => {
     if (!overflowOpen) return;
@@ -250,9 +272,15 @@ export function MobileBottomNav({
           {items.map((item) => {
             const Icon = item.icon;
             const isOverflow = "isOverflow" in item && item.isOverflow;
-            const active = isOverflow
+            // `isHere` is where the router actually is (and what aria-current
+            // reports); `active` is what the bar paints, which moves to the
+            // tapped tab straight away while the navigation is in flight.
+            const isHere = isOverflow
               ? overflowOpen || overflowIsActive
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active = pendingHref
+              ? !isOverflow && pendingHref === item.href
+              : isHere;
             const href = isOverflow
               ? undefined
               : appendCurrentSessionParam(item.href, searchParams);
@@ -329,8 +357,17 @@ export function MobileBottomNav({
               <NavLink
                 key={item.href}
                 href={href ?? item.href}
-                aria-current={active ? "page" : undefined}
+                aria-current={isHere ? "page" : undefined}
+                /* Full prefetch on touchstart, not just the skeleton: see
+                   experimental.dynamicOnHover in next.config.ts. */
+                unstable_dynamicOnHover
                 className="focus-ring relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1 transition-colors"
+                onClick={(event) => {
+                  // A modified click opens a new tab; nothing moves here.
+                  if (!isHere && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
+                    setTapped({ href: item.href, from: pathname });
+                  }
+                }}
               >
                 {content}
               </NavLink>

@@ -82,8 +82,9 @@ export async function updateSession(request: NextRequest) {
   // only the legacy symmetric secret is set, so this is safe either way. The
   // cookie-refresh machinery (the setAll callback above) still runs, keeping
   // auth cookies fresh for SSR. The page-level requireAuthenticatedStaff()
-  // still calls getUser() (cached via React.cache) once per request where a
-  // verified user is actually needed.
+  // verifies the same claims once per request (cached via React.cache) and
+  // reads the staff profile from the data cache where a verified user is
+  // actually needed.
   const { data: claimsData } = await supabase.auth.getClaims();
   const hasUser = Boolean(claimsData?.claims?.sub);
 

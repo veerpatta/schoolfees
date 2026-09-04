@@ -236,6 +236,7 @@ export function PaymentDeskClient({
   repairPaymentDeskStudentDuesAction,
   formId = "payment-entry-form",
 }: PaymentDeskMobileProps) {
+  "use memo"; // React Compiler opt-in (annotation mode, next.config.ts). Remove to fall back to the hand-written memoisation.
   const tToasts = useTranslations("Toasts");
   const [state, formAction, pending] = useActionState(
     submitPaymentEntryAction,
@@ -495,7 +496,6 @@ export function PaymentDeskClient({
   const hasSelectedStudentForEntry = studentSelectedFromIndex || Boolean(selectedStudent);
   const todayCollectionAmount = (data.todayCollection?.totalAmount ?? 0) + optimisticCollectionAdd;
   const todayReceiptCount = (data.todayCollection?.receiptCount ?? 0) + optimisticReceiptAdd;
-
 
   const buildStudentSummaryCacheKey = useCallback((studentId: string, requestedPaymentDate: string) => {
     return `${data.sessionLabel}:${studentId}:${requestedPaymentDate}`;

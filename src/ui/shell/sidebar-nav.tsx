@@ -44,10 +44,11 @@ type SidebarNavProps = {
 //
 // They are warmed on idle rather than during render. `prefetch={true}` on a
 // `force-dynamic` route makes Link fetch the fully rendered page, so these
-// three were three complete server renders — auth, users lookup, fee policy,
-// shell pulse, page data — fired while the page the staffer was looking at was
-// still waiting on the same database. Handing them to useIdlePrefetch keeps the
-// warm cache and stops it competing with the visible page.
+// three were three complete server renders — auth, fee policy, shell pulse,
+// page data — fired while the page the staffer was looking at was still
+// waiting on the same database. Handing them to useIdlePrefetch keeps a warm
+// cache (router.prefetch renders only as far as loading.tsx) and stops it
+// competing with the visible page.
 const EAGER_PREFETCH_HREFS = [
   "/protected/payments",
   "/protected/dashboard",

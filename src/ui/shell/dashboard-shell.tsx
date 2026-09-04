@@ -11,6 +11,7 @@ import {
   ShellSessionPillSkeleton,
 } from "@/ui/shell/shell-session-pill";
 import { SessionSwitchOverlayMount } from "@/ui/shell/session-switch-overlay";
+import { ShellViewTransition } from "@/ui/shell/shell-view-transition";
 import { getDefaultProtectedHref } from "@/platform/config/navigation";
 import { EMPTY_SHELL_PULSE, getShellPulse } from "@/modules/dashboard/data/shell-metrics";
 import { getFeePolicyForSession } from "@/modules/fees/domain/queries";
@@ -180,8 +181,13 @@ export function DashboardShell({
           className="mx-auto max-w-7xl md:px-6 md:py-5 lg:px-8 lg:py-7 2xl:max-w-[88rem] md:pb-6 lg:pb-8 print:max-w-none print:px-0 print:py-0"
         >
           {/* Phone padding lives inside the scroll region, not on main —
-              main is the 100dvh viewport and must not be inset. */}
-          <div className="anim-fade-in px-4 py-4 md:px-0 md:py-0">{children}</div>
+              main is the 100dvh viewport and must not be inset. The fade
+              plays once per hard load (this layout persists across
+              navigations); ShellViewTransition is what cross-fades one
+              screen into the next. */}
+          <div className="anim-fade-in px-4 py-4 md:px-0 md:py-0">
+            <ShellViewTransition>{children}</ShellViewTransition>
+          </div>
         </ScrollRestoringMain>
         {/* Phone bar badges: only the follow-up count. A badge on Collect
             would read as "3 payments waiting", which is not a thing. */}

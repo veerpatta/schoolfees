@@ -72,8 +72,13 @@ export async function GET() {
       // half-way through entering an amount must not have the form navigated
       // out from under them because someone tapped the icon on the taskbar.
       launch_handler: { client_mode: "focus-existing" },
-      background_color: "#faf9f6",
-      theme_color: "#c0521a",
+      // Paper, matching `viewport.themeColor` in src/app/layout.tsx. The
+      // manifest colour paints the installed app's title bar and splash for
+      // the launch instant, then the page's own theme-color takes over; when
+      // the two disagreed the bar flipped from saffron to paper on every
+      // launch, which read as the app still loading.
+      background_color: "#FAFAF7",
+      theme_color: "#FAFAF7",
       description: "Internal fee management workspace for VPPS office/accounts staff.",
       icons: [
         {

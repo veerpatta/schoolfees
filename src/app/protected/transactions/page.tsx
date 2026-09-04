@@ -63,20 +63,25 @@ function normalizePage(value: SearchParamValue) {
 }
 
 export default async function TransactionsPage({ searchParams }: TransactionsPageProps) {
-  const t = await getTranslations("Transactions");
-  const staff = await requireAnyStaffPermission(
-    ["receipts:view", "defaulters:view", "reports:view", "finance:view"],
-    { onDenied: "redirect" },
-  );
+  // Translations, auth, the URL and the session cookie depend on nothing, so
+  // they are one round of waiting rather than four in a row.
+  const [t, staff, resolvedSearchParams, cookieSession] = await Promise.all([
+    getTranslations("Transactions"),
+    requireAnyStaffPermission(
+      ["receipts:view", "defaulters:view", "reports:view", "finance:view"],
+      { onDenied: "redirect" },
+    ),
+    searchParams ? searchParams : Promise.resolve(undefined),
+    getViewSessionCookie(),
+  ]);
 
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const resolvedView = resolveOfficeWorkbookView(resolvedSearchParams?.view);
   const activeView = resolvedView.view;
   const classId = normalizeClassId(resolvedSearchParams?.classId);
   const routeId = normalizeClassId(resolvedSearchParams?.routeId);
   const viewSession = await resolveViewSession({
     searchParamSession: resolvedSearchParams?.session ?? resolvedSearchParams?.sessionLabel,
-    cookieSession: await getViewSessionCookie(),
+    cookieSession,
   });
   const sessionLabel = viewSession.sessionLabel;
   const searchQuery = searchParamString(resolvedSearchParams?.query);

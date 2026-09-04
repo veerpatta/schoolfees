@@ -64,5 +64,11 @@ export async function GET(request: NextRequest) {
     primaryPhone: null,
   }));
 
-  return NextResponse.json({ items });
+  // Backspacing through a query re-hits identical URLs; let the browser answer
+  // those itself for a moment. `private`, because the result is scoped to the
+  // signed-in staffer's session cookie.
+  return NextResponse.json(
+    { items },
+    { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=120" } },
+  );
 }

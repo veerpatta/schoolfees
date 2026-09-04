@@ -1,87 +1,99 @@
 {
   "generatedAt": "2026-07-18",
   "currentGeneratedAt": "2026-09-04T00:00:00.000Z",
-  "generatedFrom": "2026-09-04, the eighteen _v3 WhatsApp templates approved and Live. ONE ceiling raised, /protected/reminders, from 134500 to 136300; nothing else moved. See that entry's note. 2026-09-03, fee-reminder upgrade Phase 1. ONE ceiling raised, /protected/reminders, from 133300 to 134500; nothing else moved. See that entry's note for what was cut before raising it and what was tried and rejected. The rule stands: ceilings ratchet down, and a raise is a decision with a name on it rather than a number that drifted. 2026-08-21, WhatsApp reminder cadence. One ceiling raised and eight lowered. The raise needs saying out loud, because the rule here is that ceilings ratchet down. /protected/receipts was ALREADY over its ceiling at 4028da4 \u2014 144858 against 144700 \u2014 before any of this work; the hand-off's own verification list omitted quality:bundles:check, so CI had been red on it since. Its heavy dialogs are already behind next/dynamic, so the remaining bytes would mean refactoring receipts-quick-load on a live money screen to chase a threshold. It is raised to 145200: current plus 300, deliberately the tightest headroom in the file, so it cannot absorb anything further without being noticed. Everything else is lowered to what each route actually costs plus 1000 bytes, which is stricter than the ~1.5% the previous pass left. The reminders feature itself contributes almost nothing to any route: its collapsible section lives in components/ui/collapsible-section.tsx rather than on the shared Section, because adding it there cost /protected/receipts 188 gzip bytes for a disclosure that route never renders.",
+  "generatedFrom": "2026-09-04, the eighteen _v3 WhatsApp templates approved and Live. ONE ceiling raised, /protected/reminders, from 134500 to 136300; nothing else moved. See that entry's note. 2026-09-03, fee-reminder upgrade Phase 1. ONE ceiling raised, /protected/reminders, from 133300 to 134500; nothing else moved. See that entry's note for what was cut before raising it and what was tried and rejected. The rule stands: ceilings ratchet down, and a raise is a decision with a name on it rather than a number that drifted. 2026-08-21, WhatsApp reminder cadence. One ceiling raised and eight lowered. The raise needs saying out loud, because the rule here is that ceilings ratchet down. /protected/receipts was ALREADY over its ceiling at 4028da4 — 144858 against 144700 — before any of this work; the hand-off's own verification list omitted quality:bundles:check, so CI had been red on it since. Its heavy dialogs are already behind next/dynamic, so the remaining bytes would mean refactoring receipts-quick-load on a live money screen to chase a threshold. It is raised to 145200: current plus 300, deliberately the tightest headroom in the file, so it cannot absorb anything further without being noticed. Everything else is lowered to what each route actually costs plus 1000 bytes, which is stricter than the ~1.5% the previous pass left. The reminders feature itself contributes almost nothing to any route: its collapsible section lives in components/ui/collapsible-section.tsx rather than on the shared Section, because adding it there cost /protected/receipts 188 gzip bytes for a disclosure that route never renders.",
   "metric": "initial entry JS, unique chunks",
   "shared": {
     "route": "(shared) rootMainFiles",
     "note": "Loaded by every route before its own entry JS. Was invisible to --check until 2026-08-13.",
     "chunks": 4,
-    "rawBytes": 436880,
+    "rawBytes": 437756,
     "gzipBytes": 130400,
-    "currentGzipBytes": 129363
+    "currentGzipBytes": 129574
   },
   "measurements": [
     {
       "route": "/protected/dashboard",
       "chunks": 17,
-      "rawBytes": 367280,
+      "rawBytes": 369648,
       "gzipBytes": 126700,
-      "currentGzipBytes": 125617
+      "currentGzipBytes": 125429
     },
     {
       "route": "/protected/students",
       "chunks": 19,
-      "rawBytes": 426689,
+      "rawBytes": 431145,
       "gzipBytes": 142600,
-      "currentGzipBytes": 142168
+      "currentGzipBytes": 141781
     },
     {
       "route": "/protected/fee-setup",
-      "chunks": 18,
-      "rawBytes": 399717,
+      "chunks": 17,
+      "rawBytes": 401960,
       "gzipBytes": 128900,
-      "currentGzipBytes": 127803
+      "currentGzipBytes": 127807
     },
     {
       "route": "/protected/payments",
       "chunks": 15,
-      "rawBytes": 337240,
+      "rawBytes": 338432,
       "gzipBytes": 115400,
-      "currentGzipBytes": 114376
+      "currentGzipBytes": 113859
     },
     {
       "route": "/protected/transactions",
-      "chunks": 21,
-      "rawBytes": 448943,
+      "chunks": 22,
+      "rawBytes": 453003,
       "gzipBytes": 151000,
-      "currentGzipBytes": 150676
+      "currentGzipBytes": 150274
     },
     {
       "route": "/protected/defaulters",
       "chunks": 19,
-      "rawBytes": 435850,
+      "rawBytes": 438931,
       "gzipBytes": 145300,
-      "currentGzipBytes": 144203
+      "currentGzipBytes": 143548
     },
     {
       "route": "/protected/reminders",
       "chunks": 18,
-      "rawBytes": 416112,
+      "rawBytes": 416230,
       "gzipBytes": 136300,
-      "currentGzipBytes": 135777,
+      "currentGzipBytes": 135495,
       "note": "RAISED from 134500 on 2026-09-04, and it needs saying out loud, because the rule here is that ceilings ratchet down. Meta approved the eight _v3 per-student notices and their AiSensy campaigns went Live, so their bodies and samples moved back from campaign-bodies-v3.ts into campaigns.ts - the same text the 2026-09-03 note records cutting, now genuinely reachable: campaignFor hands these out and the test panel previews them as staff type. Measured 135777 locally, +1771 on the 134006 below: the 1084 the bodies cost on the way out, plus their four sample blocks and domain/test-send-values.ts, the ONE slot mapping the panel and the action now share (the previous copies covered three of the seven notices and would have posted a session label where an installment belonged on the other four). Nothing else grew on purpose. next/dynamic was measured worse on 2026-09-03 and was not re-tried. 136300 is a round number ~500 above the local measurement, matching this file's convention. The family and receipt bodies are still in campaign-bodies-v3.ts and still barred from ui/ and app/, because nothing on screen previews them. --- Previous note, kept for the record: RAISED from 133300 on 2026-09-03, and it needs saying out loud, because the rule here is that ceilings ratchet down. Phase 1 of the fee-reminder upgrade put four new notices on this screen - Due soon, Final call, Late fee applied, Promise lapsed - and their chip labels, hints, rule sentences and skip wording are ~700 gzip bytes of copy the office actually reads. Two structural cuts were made first rather than raising it on the feature's word: the eight unapproved template bodies moved to campaign-bodies-v3.ts, which no ui/ or app/ file may import (1084 bytes of text that was provably unreachable from the browser, since a preview is only ever rendered for a campaign campaignFor returned and that returns approved campaigns only), and the message preview moved to a server-rendered prop (201 bytes, and it fixed a crash - campaignFor throws for an unapproved notice, so a hand-edited ?situation= blanked the screen inside a client render). Deferring the test-send panel behind next/dynamic was tried and REJECTED: it measured 479 bytes worse, because this script sums every chunk in the route's RSC manifest and a lazy chunk is still one of them. 134500 is a round number ~500 above the 134006 measured locally, matching the convention in this file and leaving the headroom CI needs - a zero-headroom ceiling is a coin flip, as the previous note records."
     },
     {
       "route": "/protected/exports",
       "chunks": 16,
-      "rawBytes": 339996,
+      "rawBytes": 341189,
       "gzipBytes": 116600,
-      "currentGzipBytes": 115548
+      "currentGzipBytes": 115027
     },
     {
       "route": "/protected/admin-tools",
       "chunks": 16,
-      "rawBytes": 342925,
+      "rawBytes": 344119,
       "gzipBytes": 118100,
-      "currentGzipBytes": 117055
+      "currentGzipBytes": 116538
     },
     {
       "route": "/protected/receipts",
-      "chunks": 19,
-      "rawBytes": 447282,
+      "chunks": 20,
+      "rawBytes": 453002,
       "gzipBytes": 145200,
-      "currentGzipBytes": 144878
+      "currentGzipBytes": 144621
     }
-  ]
+  ],
+  "firstLoadGzipBytes": {
+    "/protected/dashboard": 255003,
+    "/protected/students": 271355,
+    "/protected/fee-setup": 257381,
+    "/protected/payments": 243433,
+    "/protected/transactions": 279848,
+    "/protected/defaulters": 273122,
+    "/protected/reminders": 265069,
+    "/protected/exports": 244601,
+    "/protected/admin-tools": 246112,
+    "/protected/receipts": 274195
+  }
 }

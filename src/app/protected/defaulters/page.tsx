@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -6,13 +7,17 @@ import { SectionCard } from "@/ui/shell/section-card";
 import { StatusBadge } from "@/ui/shell/status-badge";
 import { OfficeNotice } from "@/ui/office/office-ui";
 import { Button } from "@/ui/primitives/button";
+import { Skeleton } from "@/ui/primitives/loading-skeleton";
 import { DefaulterFilters } from "@/modules/defaulters/ui/defaulter-filters";
 import { DefaulterFilterRehydrator } from "@/modules/defaulters/ui/defaulter-filter-rehydrator";
+import { DefaultersQueueSkeleton } from "@/modules/defaulters/ui/defaulters-queue-skeleton";
 import { MissingDuesBanner } from "@/ui/shared/missing-dues-banner";
 import { BulkWhatsappProvider } from "@/modules/defaulters/ui/bulk-whatsapp-provider";
 import { DefaultersWorkspace } from "@/modules/defaulters/ui/defaulters-workspace";
 import { getDefaultersPageData } from "@/modules/defaulters/data/queries";
 import { type DefaulterContactSummary } from "@/modules/defaulters/domain/cadence";
+import { getWorkbookClassOptions } from "@/modules/fees/data/queries";
+import { getStudentFormOptions } from "@/modules/students/data/queries";
 import { listWhatsappTemplates } from "@/modules/whatsapp/data/queries";
 import {
   EMPTY_DEFAULTER_FILTERS,
@@ -37,6 +42,10 @@ type DefaultersPageProps = {
     session?: string | string[];
   }>;
 };
+
+type Translator = Awaited<ReturnType<typeof getTranslations<"Defaulters">>>;
+type QueueData = Awaited<ReturnType<typeof getDefaultersPageData>>;
+type Templates = Awaited<ReturnType<typeof listWhatsappTemplates>>;
 
 function asString(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[value.length - 1] ?? "";
@@ -71,33 +80,60 @@ function normalizeFilters(
   };
 }
 
-export default async function DefaultersPage({
-  searchParams,
-}: DefaultersPageProps) {
-  const staff = await requireStaffPermission("defaulters:view", { onDenied: "redirect" });
-  const t = await getTranslations("Defaulters");
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const filters = normalizeFilters(resolvedSearchParams);
-  const viewSession = await resolveViewSession({
-    searchParamSession: asString(resolvedSearchParams?.session),
-    cookieSession: await getViewSessionCookie(),
-  });
-  const canPostPayments = hasStaffPermission(staff, "payments:write");
-  const canViewPaymentHistory = hasStaffPermission(staff, "payments:view");
-  const canManageNoCall = hasStaffPermission(staff, "students:write");
+/**
+ * The "12-40 of 485 listed" badge in the desktop header. It needs the queue,
+ * so it streams in beside the title rather than holding the title back.
+ */
+async function QueueCountBadge({
+  t,
+  dataPromise,
+}: {
+  t: Translator;
+  dataPromise: Promise<QueueData>;
+}) {
+  const data = await dataPromise;
 
-  const [data, whatsappTemplates] = await Promise.all([
-    getDefaultersPageData(
-      filters,
-      viewSession.sessionLabel,
-      undefined,
-      { redactPaymentHistory: !canViewPaymentHistory },
-    ),
-    listWhatsappTemplates({ onlyActive: true }),
-  ]);
+  return (
+    <StatusBadge
+      label={t("listedCount", {
+        visibleStart: data.pagination.visibleStart,
+        visibleEnd: data.pagination.visibleEnd,
+        totalRows: data.pagination.totalRows,
+      })}
+      tone="accent"
+    />
+  );
+}
+
+/**
+ * Everything on the page that needs the queue itself: the missing-dues
+ * banner, the workspace, the missing-dues drill-down and the route summary.
+ * The page awaits none of it, so the chrome above paints on the first flush
+ * and this section fills in when the installment scan lands.
+ */
+async function DefaultersQueue({
+  t,
+  dataPromise,
+  templatesPromise,
+  filters,
+  sessionLabel,
+  canPostPayments,
+  canViewPaymentHistory,
+  canManageNoCall,
+}: {
+  t: Translator;
+  dataPromise: Promise<QueueData>;
+  templatesPromise: Promise<Templates>;
+  filters: DefaulterFiltersType;
+  sessionLabel: string;
+  canPostPayments: boolean;
+  canViewPaymentHistory: boolean;
+  canManageNoCall: boolean;
+}) {
+  const [data, whatsappTemplates] = await Promise.all([dataPromise, templatesPromise]);
   const contactSummaries = data.contactSummaries;
 
-  const withSession = (href: string) => appendSessionParam(href, viewSession.sessionLabel);
+  const withSession = (href: string) => appendSessionParam(href, sessionLabel);
 
   const contactSummariesObj: Record<string, DefaulterContactSummary> = {};
   for (const [id, summary] of contactSummaries.entries()) {
@@ -106,7 +142,7 @@ export default async function DefaultersPage({
 
   const buildExportHref = (format: "xlsx" | "pdf") => {
     const search = new URLSearchParams();
-    search.set("session", viewSession.sessionLabel);
+    search.set("session", sessionLabel);
     search.set("format", format);
     if (filters.classId) {
       search.set("classId", filters.classId);
@@ -129,67 +165,9 @@ export default async function DefaultersPage({
     return `/protected/exports/defaulters?${search.toString()}`;
   };
 
-  const activeFilterCount = [
-    filters.searchQuery,
-    filters.classId,
-    filters.transportRouteId,
-    filters.overdue,
-    filters.prevYearDues,
-    filters.minPendingAmount,
-  ].filter(Boolean).length;
-
   return (
-    // Flex + order, not space-y: the phone opens on the family being called,
-    // so the filters and the route summary move below the workspace. `space-y`
-    // also spaces around `display:none` children, which the hidden desktop
-    // header would otherwise leave as a band above the phone header.
-    <div className="flex flex-col gap-5">
-      <DefaulterFilterRehydrator filters={filters} sessionLabel={viewSession.sessionLabel} />
-      <PageHeader
-        /* The workspace carries the phone header: title, sub, calls-logged
-           count and the progress bar, per the design's Calls screen. */
-        hideOnMobile
-        eyebrow={t("eyebrow")}
-        title={t("callQueueTitle")}
-        description={t("callQueueDescription", { session: viewSession.sessionLabel })}
-        actions={
-          <StatusBadge
-            label={t("listedCount", {
-              visibleStart: data.pagination.visibleStart,
-              visibleEnd: data.pagination.visibleEnd,
-              totalRows: data.pagination.totalRows,
-            })}
-            tone="accent"
-          />
-        }
-      />
-
-      {/* Standing explanation of how the queue is ordered — desk reading, and
-          a screenful on a phone before the first family. The missing-dues
-          banner stays: it is actionable. */}
-      <div className="hidden md:block">
-        <OfficeNotice tone="info">{t("officeNotice")}</OfficeNotice>
-      </div>
+    <>
       <MissingDuesBanner missingCount={data.missingDuesRows.length} />
-
-      <details className="rounded-xl border border-border bg-card shadow-sm max-md:order-3">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground">
-          <span>{t("callQueueFilterTitle")}</span>
-          <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-            {activeFilterCount > 0
-              ? t("filtersMobileToggleCount", { count: activeFilterCount })
-              : t("callQueueFilterClosed")}
-          </span>
-        </summary>
-        <div className="border-t border-border px-4 py-4">
-          <DefaulterFilters
-            filters={filters}
-            classOptions={data.classOptions}
-            routeOptions={data.routeOptions}
-            sessionLabel={viewSession.sessionLabel}
-          />
-        </div>
-      </details>
 
       <div className="max-md:order-2">
       {/* The same array reference both components receive, deliberately.
@@ -203,11 +181,11 @@ export default async function DefaultersPage({
       <BulkWhatsappProvider
         rows={data.rows}
         templates={whatsappTemplates}
-        sessionLabel={viewSession.sessionLabel}
+        sessionLabel={sessionLabel}
       >
         <DefaultersWorkspace
           rows={data.rows}
-          sessionLabel={viewSession.sessionLabel}
+          sessionLabel={sessionLabel}
           contactSummaries={contactSummariesObj}
           canPostPayments={canPostPayments}
           canViewPaymentHistory={canViewPaymentHistory}
@@ -311,6 +289,119 @@ export default async function DefaultersPage({
           </details>
         )}
       </SectionCard>
+    </>
+  );
+}
+
+export default async function DefaultersPage({
+  searchParams,
+}: DefaultersPageProps) {
+  // Nothing here depends on anything else, so it is one round of waiting
+  // rather than four in a row.
+  const [staff, t, resolvedSearchParams, cookieSession] = await Promise.all([
+    requireStaffPermission("defaulters:view", { onDenied: "redirect" }),
+    getTranslations("Defaulters"),
+    searchParams ? searchParams : Promise.resolve(undefined),
+    getViewSessionCookie(),
+  ]);
+  const filters = normalizeFilters(resolvedSearchParams);
+  const viewSession = await resolveViewSession({
+    searchParamSession: asString(resolvedSearchParams?.session),
+    cookieSession,
+  });
+  const sessionLabel = viewSession.sessionLabel;
+  const canPostPayments = hasStaffPermission(staff, "payments:write");
+  const canViewPaymentHistory = hasStaffPermission(staff, "payments:view");
+  const canManageNoCall = hasStaffPermission(staff, "students:write");
+
+  // The queue is the heavy read on this page: two full installment scans plus
+  // the roll. It starts now and is awaited inside the Suspense boundary below,
+  // so the header, notice and filters go out on the first flush instead of
+  // waiting ten-odd round trips behind it. The no-op catch stops a rejection
+  // from surfacing as an unhandled promise before the boundary awaits it; the
+  // boundary still sees the error.
+  const dataPromise = getDefaultersPageData(filters, sessionLabel, undefined, {
+    redactPaymentHistory: !canViewPaymentHistory,
+  });
+  dataPromise.catch(() => undefined);
+  const templatesPromise = listWhatsappTemplates({ onlyActive: true });
+  templatesPromise.catch(() => undefined);
+
+  // The filters only need the class and route lists. Both are request-cached
+  // reads the queue makes anyway, so this costs no extra query.
+  const [{ routeOptions }, classOptions] = await Promise.all([
+    getStudentFormOptions({ sessionLabel }),
+    getWorkbookClassOptions(sessionLabel),
+  ]);
+
+  const activeFilterCount = [
+    filters.searchQuery,
+    filters.classId,
+    filters.transportRouteId,
+    filters.overdue,
+    filters.prevYearDues,
+    filters.minPendingAmount,
+  ].filter(Boolean).length;
+
+  return (
+    // Flex + order, not space-y: the phone opens on the family being called,
+    // so the filters and the route summary move below the workspace. `space-y`
+    // also spaces around `display:none` children, which the hidden desktop
+    // header would otherwise leave as a band above the phone header.
+    <div className="flex flex-col gap-5">
+      <DefaulterFilterRehydrator filters={filters} sessionLabel={viewSession.sessionLabel} />
+      <PageHeader
+        /* The workspace carries the phone header: title, sub, calls-logged
+           count and the progress bar, per the design's Calls screen. */
+        hideOnMobile
+        eyebrow={t("eyebrow")}
+        title={t("callQueueTitle")}
+        description={t("callQueueDescription", { session: sessionLabel })}
+        actions={
+          <Suspense fallback={<Skeleton className="h-6 w-32 rounded-full" />}>
+            <QueueCountBadge t={t} dataPromise={dataPromise} />
+          </Suspense>
+        }
+      />
+
+      {/* Standing explanation of how the queue is ordered — desk reading, and
+          a screenful on a phone before the first family. The missing-dues
+          banner stays: it is actionable. */}
+      <div className="hidden md:block">
+        <OfficeNotice tone="info">{t("officeNotice")}</OfficeNotice>
+      </div>
+
+      <details className="rounded-xl border border-border bg-card shadow-sm max-md:order-3">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground">
+          <span>{t("callQueueFilterTitle")}</span>
+          <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+            {activeFilterCount > 0
+              ? t("filtersMobileToggleCount", { count: activeFilterCount })
+              : t("callQueueFilterClosed")}
+          </span>
+        </summary>
+        <div className="border-t border-border px-4 py-4">
+          <DefaulterFilters
+            filters={filters}
+            classOptions={classOptions}
+            routeOptions={routeOptions}
+            sessionLabel={sessionLabel}
+          />
+        </div>
+      </details>
+
+      <Suspense fallback={<DefaultersQueueSkeleton />}>
+        <DefaultersQueue
+          t={t}
+          dataPromise={dataPromise}
+          templatesPromise={templatesPromise}
+          filters={filters}
+          sessionLabel={sessionLabel}
+          canPostPayments={canPostPayments}
+          canViewPaymentHistory={canViewPaymentHistory}
+          canManageNoCall={canManageNoCall}
+        />
+      </Suspense>
     </div>
   );
 }

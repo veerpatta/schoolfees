@@ -8,8 +8,9 @@ import {
   updateStaffAccount,
   type StaffFormActionState,
 } from "@/modules/staff/data/queries";
+import { revalidateTagAfterWrite } from "@/modules/system-sync/domain/finance-revalidation";
 import { isStaffRole } from "@/platform/auth/roles";
-import { requireStaffPermission } from "@/platform/supabase/session";
+import { STAFF_PROFILES_TAG, requireStaffPermission } from "@/platform/supabase/session";
 
 function getRequiredString(
   value: FormDataEntryValue | null,
@@ -57,6 +58,10 @@ function toActionError(error: unknown): StaffFormActionState {
 function revalidateStaffRoutes() {
   revalidatePath("/protected/staff");
   revalidatePath("/protected/settings");
+  // Every request reads the signed-in staffer's profile from the data cache
+  // (src/platform/supabase/session.ts). A role change or a deactivation must
+  // reach the next request, not wait for the entry to expire.
+  revalidateTagAfterWrite(STAFF_PROFILES_TAG);
 }
 
 export async function createStaffAccountAction(
