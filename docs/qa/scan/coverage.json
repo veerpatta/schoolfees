@@ -15,8 +15,8 @@
       "skipped": [],
       "check": "client-boundary",
       "dimension": "source modules crossed against the client bundle import graph",
-      "domainSize": 756,
-      "examined": 756,
+      "domainSize": 757,
+      "examined": 757,
       "note": "Reachability is recomputed here rather than taken from project.clientReachable, which closes over type-only imports and across the \"use server\" boundary and would report nine correct modules as service-role leaks. The narrower closure follows value imports only — including import(), require() and side-effect imports — and stops at every \"use server\" module, because a client component importing a server action gets a server reference and not that module's code. Consequences of the narrowing, both unseen: an import specifier built at runtime, and a secret read as process.env[name] through a variable. Secret names come from .env.example, minus NEXT_PUBLIC_* and minus any name with a value already committed beside it — a value in git is not a secret — plus a floor of CRON_SECRET, POSTGRES_URL, DATABASE_URL, which code uses and that file never declares. .env.example was read.",
       "gap": 0
     },
@@ -25,8 +25,8 @@
       "skipped": [],
       "check": "session-safety",
       "dimension": "product source modules scanned for hardcoded academic-session labels",
-      "domainSize": 756,
-      "examined": 756,
+      "domainSize": 757,
+      "examined": 757,
       "note": "Two populations are excluded from the P0 on purpose. scripts/** names the live session legitimately and often — scripts/bulk-apply.mjs holds it precisely so it can refuse --session 2026-27 without --live, and the verify-live-* scripts exist to check live health — so a P0 there would fire on the guard rather than the hazard. supabase/migrations/** is applied history: the write already happened, editing the file does not undo it, and ~20 historical hits would bury the one finding about code that can still be changed. Neither is reachable from project.product, so both are excluded structurally rather than by allowlist. Within what is scanned, the check sees only labels written as a complete quoted literal: one assembled at runtime (`${year}-${suffix}`, a value read from a column, a label pasted into a plan file) is invisible here and is the reason scripts/bulk-apply.mjs and the Payment Desk still need their own runtime refusals. Placeholders and other user-facing attribute strings are skipped, as are comments; the end-year arithmetic from parseAcademicSessionLabel() is applied so a month bucket like \"2026-04\" is not mistaken for a session.",
       "gap": 0
     },
@@ -35,8 +35,8 @@
       "skipped": [],
       "check": "money",
       "dimension": "product source files (app, components, lib, workers, hooks, i18n; no tests, no scripts)",
-      "domainSize": 756,
-      "examined": 756,
+      "domainSize": 757,
+      "examined": 757,
       "note": "Every product file is read, but the money rules are deliberately narrow inside it. (1) The split rule fires only when the divisor is literally installmentCount, count, parts, or an installment-/part-named `.length`, and only when the numerator carries a money word. Dividing money by a *population* — receiptCount, series.length, studentsWithGeneratedDues — is how this repo computes displayed averages, there are eight of them and they are correct; separating them by divisor name is the only rule that reliably keeps them out. A split written with a divisor named something else is invisible to this check. (2) The same money-word gate keeps all four rules off the roughly forty Math.round calls in the tree that count percentages, days, pixels, milliseconds and animation frames — and it means a money variable named neutrally (`v`, `x`, `n`) is not seen either. (3) A division is treated as safe when remainder handling appears within six lines above or eight below, which is how the three real splitters are written; a splitter that keeps its remainder logic further away reads as a finding. (4) scan.money-format-raw runs the audit script's own four patterns only over lib/, workers/, hooks/, utils/ and i18n/, which that script never walks; across the whole tree it adds the no-period \"Rs \" spelling its regex misses. Intl.DateTimeFormat is not reported at all — it is a date, not money, and src/platform/helpers/date.ts is its canonical home. (5) scan.rounding-policy-mixed is heuristic by registration: it matches on the coerced value's base name, so it sees Math.round(value) against Math.trunc(value) and cannot see the same quantity coerced under two different names. Comments are blanked before any rule reads a line, which also blanks `//` inside string literals — a false negative, never a false positive.",
       "gap": 0
     },
@@ -45,8 +45,8 @@
       "skipped": [],
       "check": "async-safety",
       "dimension": "product .ts/.tsx modules parsed by the TypeScript checker",
-      "domainSize": 723,
-      "examined": 723,
+      "domainSize": 724,
+      "examined": 724,
       "note": "Both rules skip tests and scripts. scan.error-swallowed sweeps the whole product surface; scan.floating-promise is narrowed to app/ and lib/ modules no client bundle can reach, because the rule is about a rejection arriving after the response — in the browser there is no response and the console still shows it. Widening to components/ produced eleven hits and eleven of them were calls into helpers whose bodies are wholly try/caught. Neither rule sees .mjs or .js: they are outside the program. Not modelled, and real gaps: an async callback handed to a sync API (forEach, setTimeout), a `.then` chain with no `.catch` on the end, and a catch block whose comment is present but says nothing — a comment is accepted as a decision without being read.",
       "gap": 0
     },
@@ -55,9 +55,9 @@
       "skipped": [],
       "check": "mirror-drift",
       "dimension": "declared TS/SQL mirror sides, plus migrations added since the last reconcile",
-      "domainSize": 227,
-      "examined": 227,
-      "note": "8 pairs (16 sides) are pinned in tests/scan/baseline/mirrors.json; 17 migration(s) postdate lastReconciledMigration (supabase/migrations/20260819120000_restore_view_hardening_lost_to_cascade.sql) and were swept for a one-sided late-fee edit. Three limits are worth stating. (1) The pairs are the ones the source declares in a comment — \"mirrors X\", \"byte-identical\", \"edit both or neither\". An undeclared duplication is invisible here, and the honest fix is a comment in the code, not a cleverer scanner. (2) A pin proves movement, never agreement: two sides pinned while already disagreeing stay silent, which is why pending-late-fee carries an explicit `diverged` note reported as scan.observation. (3) The Worker's RBAC copy (workers/schoolfees-mcp/src/permissions.mjs, declared a mirror of lib/auth/roles.ts) is deliberately NOT pinned here — tests/unit/mcp-permissions.test.ts already asserts the two are equivalent at runtime, which is strictly stronger than a text hash, and a second mechanism would only be a second place to forget.",
+      "domainSize": 231,
+      "examined": 231,
+      "note": "9 pairs (18 sides) are pinned in tests/scan/baseline/mirrors.json; 0 migration(s) postdate lastReconciledMigration (supabase/migrations/20260905064925_transport_override_is_transport.sql) and were swept for a one-sided late-fee edit. Three limits are worth stating. (1) The pairs are the ones the source declares in a comment — \"mirrors X\", \"byte-identical\", \"edit both or neither\". An undeclared duplication is invisible here, and the honest fix is a comment in the code, not a cleverer scanner. (2) A pin proves movement, never agreement: two sides pinned while already disagreeing stay silent, which is why pending-late-fee carries an explicit `diverged` note reported as scan.observation. (3) The Worker's RBAC copy (workers/schoolfees-mcp/src/permissions.mjs, declared a mirror of lib/auth/roles.ts) is deliberately NOT pinned here — tests/unit/mcp-permissions.test.ts already asserts the two are equivalent at runtime, which is strictly stronger than a text hash, and a second mechanism would only be a second place to forget.",
       "gap": 0
     },
     {
@@ -65,9 +65,9 @@
       "skipped": [],
       "check": "sql-safety",
       "dimension": "supabase migrations, plus the source files that build SQL text",
-      "domainSize": 1411,
-      "examined": 1411,
-      "note": "All 211 migrations were lexed (comments and dollar-quoted bodies blanked) to build a live catalogue of 64 functions and 33 views, and 1200 source files were read for SQL built as text. Four limits. (1) The two convention rules judge only the LIVE definition — the last migration in filename order that defines each object — because a finding against an applied migration cannot be acted on without desynchronising schema_migrations. A function created by a later `execute format(…)` inside a DO block is invisible to that catalogue, and so is anything created outside migrations. (2) The money-DDL rule fires on nothing in the tree today: there is no `drop column` anywhere and every `drop table` targets a scratch table. It is retained as a tripwire, not as evidence of a clean history. (3) SQL injection is NOT checked. Every template literal in those source files that is a SQL statement AND interpolates a value was examined; there are 1, and both are safe — `postgres` tagged templates in the notion-sync Edge Function, and a never-executed rollback hint string in lib/prev-year-dues. The app reaches Postgres through supabase-js, which is PostgREST, so there is no concatenation surface to guard and a rule here would have reported those two forever. (4) `security definer`/`security invoker` on functions is not checked either: 31 of the 64 live functions state neither, so there is no convention to hold anyone to. Nor is grant/revoke drift — grants are re-applied in ACL-restore loops and follow-up migrations, and every text rule attempted flagged 18 of 21 live views, which measured the regex rather than the schema.",
+      "domainSize": 1416,
+      "examined": 1416,
+      "note": "All 213 migrations were lexed (comments and dollar-quoted bodies blanked) to build a live catalogue of 64 functions and 33 views, and 1203 source files were read for SQL built as text. Four limits. (1) The two convention rules judge only the LIVE definition — the last migration in filename order that defines each object — because a finding against an applied migration cannot be acted on without desynchronising schema_migrations. A function created by a later `execute format(…)` inside a DO block is invisible to that catalogue, and so is anything created outside migrations. (2) The money-DDL rule fires on nothing in the tree today: there is no `drop column` anywhere and every `drop table` targets a scratch table. It is retained as a tripwire, not as evidence of a clean history. (3) SQL injection is NOT checked. Every template literal in those source files that is a SQL statement AND interpolates a value was examined; there are 1, and both are safe — `postgres` tagged templates in the notion-sync Edge Function, and a never-executed rollback hint string in lib/prev-year-dues. The app reaches Postgres through supabase-js, which is PostgREST, so there is no concatenation surface to guard and a rule here would have reported those two forever. (4) `security definer`/`security invoker` on functions is not checked either: 31 of the 64 live functions state neither, so there is no convention to hold anyone to. Nor is grant/revoke drift — grants are re-applied in ACL-restore loops and follow-up migrations, and every text rule attempted flagged 18 of 21 live views, which measured the regex rather than the schema.",
       "gap": 0
     },
     {
@@ -75,9 +75,9 @@
       "skipped": [],
       "check": "i18n",
       "dimension": "locale catalogue keys (union x locale) and t() call sites in product source",
-      "domainSize": 7696,
-      "examined": 7696,
-      "note": "Locales come from supportedLocales in src/platform/i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2083 keys in all 3 catalogues. The reference half is not: it read 723 product .ts/.tsx files, resolved a namespace in 88 of them, and inspected 1447 calls on those translators — of which 63 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 10 file(s) call t(\"…\") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.",
+      "domainSize": 7713,
+      "examined": 7713,
+      "note": "Locales come from supportedLocales in src/platform/i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2087 keys in all 3 catalogues. The reference half is not: it read 724 product .ts/.tsx files, resolved a namespace in 88 of them, and inspected 1452 calls on those translators — of which 63 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 10 file(s) call t(\"…\") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.",
       "gap": 0
     },
     {
@@ -85,9 +85,9 @@
       "skipped": [],
       "check": "dead-code",
       "dimension": "export declarations in app/, components/, lib/, hooks/ and i18n/",
-      "domainSize": 2377,
-      "examined": 2377,
-      "note": "Every export in 715 non-test, non-script source files was parsed; 2 were reported. The gap between those numbers is deliberate and is where this rule's precision comes from. (1) 672 type / interface / enum exports were skipped outright: a prop type named only by its own component's signature is the house style, it costs nothing at runtime, and reporting it would quadruple this rule. Type-only usage of a *value* export is still tracked, because the identifier index does not care why a name appears. (2) 93 exports are used inside their own module and nowhere else — exported too widely rather than dead. They are counted here and not reported; the finding a reader can act on is \"this code runs nowhere\", not \"this could be a module-private const\". (3) 122 exports are referenced only by files under tests/. Those are not dead, they are tested, and deleting them would delete a test — but a value whose only caller is its own test is worth knowing about, so the count is stated rather than hidden. (4) Reachability is decided by an identifier index over all source files, comments and string literals included. A name that appears in a doc comment counts as used: false negatives, never false positives. It also means an export whose name collides with any common identifier is invisible to this rule. (5) Excluded by construction: default exports of Next.js convention files, route segment config and HTTP verb exports under app/, the root config and instrumentation files, index barrels, any module a barrel star-re-exports, and workers/ — a separate Cloudflare bundle whose entry point is wrangler's, not an import. (6) Not seen at all: a symbol reached only through a runtime-built import specifier, and dead code *inside* a live export.",
+      "domainSize": 2383,
+      "examined": 2383,
+      "note": "Every export in 716 non-test, non-script source files was parsed; 2 were reported. The gap between those numbers is deliberate and is where this rule's precision comes from. (1) 672 type / interface / enum exports were skipped outright: a prop type named only by its own component's signature is the house style, it costs nothing at runtime, and reporting it would quadruple this rule. Type-only usage of a *value* export is still tracked, because the identifier index does not care why a name appears. (2) 93 exports are used inside their own module and nowhere else — exported too widely rather than dead. They are counted here and not reported; the finding a reader can act on is \"this code runs nowhere\", not \"this could be a module-private const\". (3) 123 exports are referenced only by files under tests/. Those are not dead, they are tested, and deleting them would delete a test — but a value whose only caller is its own test is worth knowing about, so the count is stated rather than hidden. (4) Reachability is decided by an identifier index over all source files, comments and string literals included. A name that appears in a doc comment counts as used: false negatives, never false positives. It also means an export whose name collides with any common identifier is invisible to this rule. (5) Excluded by construction: default exports of Next.js convention files, route segment config and HTTP verb exports under app/, the root config and instrumentation files, index barrels, any module a barrel star-re-exports, and workers/ — a separate Cloudflare bundle whose entry point is wrangler's, not an import. (6) Not seen at all: a symbol reached only through a runtime-built import specifier, and dead code *inside* a live export.",
       "gap": 0
     },
     {
@@ -101,5 +101,5 @@
       "gap": 0
     }
   ],
-  "statement": "10 check(s) swept 14833 of 14833 enumerated members."
+  "statement": "10 check(s) swept 14869 of 14869 enumerated members."
 }
