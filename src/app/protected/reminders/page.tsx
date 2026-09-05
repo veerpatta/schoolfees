@@ -43,6 +43,7 @@ import {
   type SavedCampaign,
 } from "@/modules/whatsapp/data/campaign-store";
 import { describeLateFeeDrift } from "@/modules/whatsapp/domain/late-fee";
+import { loadLastUsedNoticeSettings } from "@/modules/whatsapp/data/reminder-settings";
 import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
 
 // The list is only ever as good as the ledger it was read from, and staff will
@@ -106,6 +107,10 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       .sort()[0];
     // What the ledger really charges, so slot 7 opens agreeing with the receipt.
     ledgerLateFee = Number(policy?.lateFeeFlatAmount ?? 0);
+    // What the office last put on a message wins over both defaults. They pick
+    // a settle-by date and a late fee and keep them for days; opening on the
+    // calendar's date every morning meant retyping both before every send.
+    const remembered = await loadLastUsedNoticeSettings(supabase, sessionLabel);
     // The window is an audience setting like any other, so it is read off the
     // query string BEFORE the calendar that depends on it. A cheap second parse
     // rather than a calendar built on the wrong window.
@@ -118,11 +123,12 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     filters = parseReminderFilters(
       reader(params),
       sessionLabel,
-      formatDdMmYyyy(upcoming ?? null),
-      ledgerLateFee,
+      remembered?.lastDate || formatDdMmYyyy(upcoming ?? null),
+      remembered?.lateFeeAmount ?? ledgerLateFee,
       // The calendar's answer becomes the default installment set. An explicit
       // choice in the URL still wins.
       calendar.active,
+      remembered?.lateFeeBasis ?? null,
     );
     // The calendar is what `upcoming`, `upcoming_final` and `late_fee_applied`
     // are derived from. Passing it is not optional in spirit: without it those
@@ -323,6 +329,9 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
         className="max-md:order-3"
       >
         <TestSendPanel
+          // Remount when the screen's notice changes, so the panel's own picker
+          // follows it rather than keeping yesterday's choice in client state.
+          key={`${filters.situation}-${filters.language}`}
           // No date guard here: testing a template whose date has slipped, on a
           // staff phone, is exactly when you need to.
           canTest={canSend && providerReady}

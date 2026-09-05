@@ -37,6 +37,11 @@ import {
 import { noticeValuesFromSlots } from "@/modules/whatsapp/domain/test-send-values";
 import { isoFromDdMmYyyy } from "@/platform/helpers/date";
 import { executeReminderRun } from "@/modules/whatsapp/data/run-sender";
+import {
+  oneMessagePerFamilyEnabled,
+  rememberLastUsedNoticeSettings,
+} from "@/modules/whatsapp/data/reminder-settings";
+import { redirect } from "next/navigation";
 
 export type SendRemindersState = {
   /**
@@ -124,13 +129,13 @@ export async function sendRemindersAction(
   // `late_fee_applied` needs none at all because it prints none.
   const lastDateIso = isoFromDdMmYyyy(filters.lastDate);
   // The facts only the database can answer — quiet hours, the holiday list, the
-  // budget, whether this campaign was tested today. Best-effort throughout: a
+  // budget, whether this campaign has ever gone out. Best-effort throughout: a
   // guard that cannot load its data falls back to the value that permits.
   const facts = await loadGuardFacts({
     supabase,
     lastDateIso,
     campaignName: campaignNameFor(filters.situation, filters.language) ?? "",
-    requireRecentTest: true,
+    requireProvenCampaign: true,
   });
 
   const guards = evaluateSendGuards({
@@ -211,9 +216,18 @@ export async function sendRemindersAction(
     overrideReason: resolved.overridden.length > 0 ? overrideReason : null,
     logContacts: insertDefaulterContacts,
     scheduledFor: null,
+    oneMessagePerFamily: await oneMessagePerFamilyEnabled(supabase),
   });
 
   const { sent, failed, alreadySentToday, failures, heldOut } = outcome;
+
+  // What went on this message is what tomorrow's screen opens on. Best-effort,
+  // after the send: the messages have gone whatever happens here.
+  await rememberLastUsedNoticeSettings(supabase, sessionLabel, {
+    lastDate: filters.lastDate,
+    lateFeeAmount: filters.lateFeeAmount,
+    lateFeeBasis: filters.lateFeeBasis,
+  });
 
   // Deliberately NO revalidatePath here.
   //
@@ -245,6 +259,63 @@ export async function sendRemindersAction(
     alreadySentToday,
     failures: failures.slice(0, 20),
   };
+}
+
+/**
+ * Every filter the reminders screen reads off its query string, in one place,
+ * so the Apply below can rebuild the URL from a posted form without knowing
+ * which card each field lives on.
+ */
+const REMINDER_QUERY_KEYS = [
+  "situation",
+  "language",
+  "maxTotalPaid",
+  "minDueAmount",
+  "installments",
+  "classId",
+  "includeRte",
+  "lastDate",
+  "lateFeeAmount",
+  "lateFeeBasis",
+  "preDueWindowDays",
+  "campaignId",
+] as const;
+
+/**
+ * Apply on the notice card: remember the date and the late fee, then land on
+ * the same URL a GET would have.
+ *
+ * A plain GET form could not remember anything, and the office was retyping
+ * "pay by Saturday, Rs. 2,000 per installment" every morning because the screen
+ * opened on the calendar's default. The redirect keeps the notice linkable and
+ * the back button honest — the same rule the picker's chips follow.
+ */
+export async function applyNoticeSettingsAction(formData: FormData): Promise<void> {
+  const params = new URLSearchParams();
+  for (const key of REMINDER_QUERY_KEYS) {
+    const value = formData.get(key);
+    if (typeof value === "string" && value.trim() !== "") params.set(key, value.trim());
+  }
+
+  // Remembering is a write, so it needs the sending permission; viewing staff
+  // still get their filtered list, just not a saved default.
+  try {
+    await requireStaffPermission("settings:write");
+    const supabase = createAdminClient();
+    const sessionLabel = await resolveCurrentSessionLabel(supabase);
+    const filters = filtersFromForm(formData, sessionLabel);
+    if (filters.lastDate) {
+      await rememberLastUsedNoticeSettings(supabase, sessionLabel, {
+        lastDate: filters.lastDate,
+        lateFeeAmount: filters.lateFeeAmount,
+        lateFeeBasis: filters.lateFeeBasis,
+      });
+    }
+  } catch {
+    // Best-effort: the list still applies.
+  }
+
+  redirect(`/protected/reminders?${params.toString()}`);
 }
 
 export type CadenceState = {

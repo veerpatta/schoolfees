@@ -117,10 +117,19 @@ fee balance on it.
   not see would message a different set of families than the office ticked. It
   also makes each notice linkable and the back button work, the same rule the
   Dashboard boards follow.
-- **Every GET form on the screen carries all three.** The picker owns the date
+- **Every form on the screen carries all three.** The picker owns the date
   field but the filters are a separate `<form>`; without hidden copies, pressing
   Apply would drop the notice, the language and the deadline out of the URL and
   silently reset them mid-task.
+- **The date and the late fee are remembered.** The picker's Apply is a server
+  action (`applyNoticeSettingsAction`) that writes
+  `app_settings.whatsapp_last_used_notice_settings:<session>` and then redirects
+  to the same query string a GET would have built; every send writes the same
+  row. The page reads it back as the DEFAULT for both fields, so tomorrow opens
+  on "pay by Saturday, Rs. 2,000 per installment" rather than on the
+  calendar's next due date and the policy's amount. An explicit `?lastDate=`
+  still wins, and `prevyear` still opens on "not charged". Before this the
+  office retyped both every morning (`data/reminder-settings.ts`).
 - Exclusions reuse `student_collection_flags.no_call` — do not invent a second
   do-not-contact list.
 - **One phone gets one message.** The audience is still derived per STUDENT,
@@ -145,6 +154,15 @@ fee balance on it.
   **spokesperson's** per-child notice: that family template needs a "date
   passed" and a fees-plus-late-fee total the run does not carry yet, and the
   file says so. Approval changed what goes out, not how many.
+
+  The grouping has a switch: `app_settings.whatsapp_one_message_per_family`
+  (`data/reminder-settings.ts`). On with no row; `'false'` sends every child
+  their own message again, the way every run before 2026-09-05 went. Both the
+  Send button and the cron read it, so the two cannot disagree. The first run
+  under grouping — 93 children ticked, 75 phones messaged, 18 children named
+  inside a sibling's message — read to the office as 18 families missed, which
+  is why the TODAY column now says "In sibling's message" rather than the raw
+  status, and why the switch exists.
 - **Language belongs to the family, not the run.** The run's language is a
   DEFAULT; `student_collection_flags.whatsapp_language` overrides it, and
   `whatsapp_reminder_sends.language` records what actually went out. Answering
@@ -354,9 +372,13 @@ that way.
 
 ## The test panel
 
-Its own name and number fields, plus **one field per slot the selected campaign
-declares, in its order** — so the same panel tests the shared 7-slot skeleton
-and `late_fee_applied`'s own without knowing anything about either. Fields are
+Its own **notice and language pickers** (opening on the screen's, and reset by
+the page's `key` when the screen's notice changes), a number field, plus **one
+field per slot the selected campaign declares, in its order** — so the same
+panel tests the shared 7-slot skeleton and `late_fee_applied`'s own without
+knowing anything about either. Testing a different template used to mean
+changing the notice above, which rebuilt the whole audience for a message
+nobody was about to send. Fields are
 pre-filled from the top row of the current list through `noticeValuesFrom` —
 **the send's own projection**, so the opening values are exactly what that
 family would be sent — falling back to that campaign's Meta-submitted sample
@@ -674,7 +696,7 @@ guard that can be overridden silently teaches nothing.
 | `quiet_hours` | Outside 08:00-20:00 IST | `app_settings` |
 | `counter_closed` | The fee counter is shut on the date the notice names, or it is Sunday | `school_holidays` |
 | `budget_exceeded` | Over 250 messages in a run, or 4000 in a month | `app_settings` |
-| `untested_campaign` | No successful test send in the last 24 hours | — |
+| `untested_campaign` | The campaign has never gone out — no `sent` row and no successful test, ever. Asked once per campaign, not daily: until 2026-09-05 it demanded a fresh test every 24 hours for campaigns sent to a hundred families the morning before | — |
 
 The blocking guards above them — no API key, an unapproved template, a date
 already gone, an empty list — are never overridable, because they are "this

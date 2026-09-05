@@ -24,7 +24,7 @@ export type GuardFacts = {
   runMessageCap: number | null;
   monthMessageCap: number | null;
   messagesSentThisMonth: number | null;
-  testedRecently: boolean | null;
+  campaignProven: boolean | null;
 };
 
 /** IST hour and weekday, from the school's clock rather than the server's. */
@@ -66,8 +66,8 @@ export async function loadGuardFacts(args: {
   /** The date the notice names, ISO. Null when it prints none. */
   lastDateIso: string | null;
   campaignName: string;
-  /** Null skips the test-send guard — an established campaign is not re-tested daily. */
-  requireRecentTest: boolean;
+  /** False skips the first-use guard entirely (the cron sends only saved, already-run campaigns). */
+  requireProvenCampaign: boolean;
   now?: Date;
 }): Promise<GuardFacts> {
   const now = args.now ?? new Date();
@@ -119,23 +119,37 @@ export async function loadGuardFacts(args: {
     messagesSentThisMonth = null;
   }
 
-  // A successful test in the last 24 hours.
-  let testedRecently: boolean | null = null;
-  if (args.requireRecentTest) {
+  // Has this campaign EVER gone out cleanly — to a family, or as a test?
+  //
+  // This used to ask for a successful test in the last 24 hours, every day,
+  // for a campaign the office had sent to a hundred families the morning
+  // before. The slot-order mistake it exists to catch is caught the first time
+  // a campaign is used, not the hundredth, so one clean send of either kind
+  // proves it for good.
+  let campaignProven: boolean | null = null;
+  if (args.requireProvenCampaign) {
     try {
-      const cutoff = new Date(now.getTime() - 24 * 60 * 60_000).toISOString();
-      const { data } = await args.supabase
-        .from("whatsapp_test_sends")
-        .select("id")
-        .eq("campaign_name", args.campaignName)
-        .eq("succeeded", true)
-        .gte("created_at", cutoff)
-        .limit(1);
-      testedRecently = Array.isArray(data) && data.length > 0;
+      const [tested, sent] = await Promise.all([
+        args.supabase
+          .from("whatsapp_test_sends")
+          .select("id")
+          .eq("campaign_name", args.campaignName)
+          .eq("succeeded", true)
+          .limit(1),
+        args.supabase
+          .from("whatsapp_reminder_sends")
+          .select("id")
+          .eq("campaign_name", args.campaignName)
+          .eq("status", "sent")
+          .limit(1),
+      ]);
+      campaignProven =
+        (Array.isArray(tested.data) && tested.data.length > 0) ||
+        (Array.isArray(sent.data) && sent.data.length > 0);
     } catch {
       // Unreadable means "do not nag". The guard is a safety net, not a gate,
       // and failing it closed on a query error would block a legitimate run.
-      testedRecently = null;
+      campaignProven = null;
     }
   }
 
@@ -151,7 +165,7 @@ export async function loadGuardFacts(args: {
     runMessageCap: runCap,
     monthMessageCap: monthCap,
     messagesSentThisMonth,
-    testedRecently,
+    campaignProven,
   };
 }
 

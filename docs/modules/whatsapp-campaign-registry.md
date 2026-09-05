@@ -655,9 +655,14 @@ sibling was not messaged separately. Because one notice now logs under two
 names, "already messaged today" is read for both (`campaignNamesForNotice`) and
 the executor skips anyone already logged before grouping.
 
-The `untested_campaign` guard is keyed on the per-child campaign name; the
-family templates were each proven with a real send to the owner's phone before
-this went live, from `scripts/whatsapp-test-send.mjs`.
+The `untested_campaign` guard is keyed on the per-child campaign name and asks
+once per campaign — a campaign with any `sent` row or any successful test, ever,
+is proven. The family templates were each proven with a real send to the
+owner's phone before this went live, from `scripts/whatsapp-test-send.mjs`.
+
+The grouping itself is a switch: `app_settings.whatsapp_one_message_per_family`
+(on with no row, `'false'` to send every child their own message again). Both
+callers of `executeReminderRun` read it — `data/reminder-settings.ts`.
 
 ### Bodies to submit
 

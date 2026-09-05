@@ -99,7 +99,11 @@ function filters(overrides: Partial<ReminderFilters> = {}): ReminderFilters {
   };
 }
 
-async function run(candidates: ReminderCandidate[], overrides: Partial<ReminderFilters> = {}) {
+async function run(
+  candidates: ReminderCandidate[],
+  overrides: Partial<ReminderFilters> = {},
+  oneMessagePerFamily?: boolean,
+) {
   const inserts: Insert[] = [];
   const outcome = await executeReminderRun({
     supabase: stubClient(inserts),
@@ -113,6 +117,7 @@ async function run(candidates: ReminderCandidate[], overrides: Partial<ReminderF
     staffId: "staff-1",
     source: "manual",
     scheduledFor: null,
+    oneMessagePerFamily,
   });
   const sendRows = inserts
     .filter((entry) => entry.table === "whatsapp_reminder_sends")
@@ -206,6 +211,31 @@ describe("executeReminderRun with the family templates Live", () => {
     const posted = send.mock.calls[0]![0] as { campaignName: string; templateParams: string[] };
     expect(posted.campaignName).toBe("vpps_app_family_fee_due_en_v3");
     expect(posted.templateParams[4]).toBe("Rs. 1,000 per installment");
+  });
+
+  it("sends every child their own message when the office switches grouping off", async () => {
+    // `app_settings.whatsapp_one_message_per_family = 'false'` — the way every
+    // run before 2026-09-05 went. Two siblings on one phone: two per-child
+    // messages, two claims, nobody `covered_by_sibling`.
+    const { outcome, sendRows } = await run(
+      [
+        candidate({ studentId: "a", dueAmount: 13250 }),
+        candidate({ studentId: "b", studentName: "Bhavya Gurjar", dueAmount: 9125 }),
+      ],
+      {},
+      false,
+    );
+
+    expect(send).toHaveBeenCalledTimes(2);
+    for (const call of send.mock.calls) {
+      const posted = call[0] as { campaignName: string; templateParams: string[] };
+      expect(posted.campaignName).toBe("vpps_app_fee_due_hi_v2");
+      expect(posted.templateParams).toHaveLength(7);
+    }
+    expect(sendRows.filter((row) => row.status === "covered_by_sibling")).toHaveLength(0);
+    expect(sendRows.map((row) => row.due_amount).sort()).toEqual([13250, 9125].sort());
+    expect(outcome.sent).toBe(2);
+    expect(outcome.moneyQuoted).toBe(22375);
   });
 
   it("never re-messages a family already logged today, under either name", async () => {

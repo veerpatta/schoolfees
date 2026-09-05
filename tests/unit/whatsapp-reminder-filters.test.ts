@@ -75,6 +75,37 @@ describe("parseReminderFilters", () => {
     expect(filters.lateFeeBasis).toBe("none");
   });
 
+  it("opens on the basis the office last used, except for the previous-session notice", () => {
+    // The screen remembers the last message's late fee. A remembered "flat"
+    // wins over the policy default for every current-year notice — and never
+    // reaches `prevyear`, which opens on "not charged" whatever was last used.
+    expect(
+      parseReminderFilters(fromQuery({}), "2026-27", "20-10-2026", 1000, [1, 2], "flat")
+        .lateFeeBasis,
+    ).toBe("flat");
+    expect(
+      parseReminderFilters(
+        fromQuery({ situation: "prevyear" }),
+        "2026-27",
+        "20-10-2026",
+        1000,
+        [1, 2],
+        "flat",
+      ).lateFeeBasis,
+    ).toBe("none");
+    // An explicit choice in the URL still beats the remembered one.
+    expect(
+      parseReminderFilters(
+        fromQuery({ lateFeeBasis: "per_day" }),
+        "2026-27",
+        "20-10-2026",
+        1000,
+        [1, 2],
+        "flat",
+      ).lateFeeBasis,
+    ).toBe("per_day");
+  });
+
   it("keeps an explicit basis over the per-notice fallback", () => {
     const filters = parseReminderFilters(
       fromQuery({ situation: "prevyear", lateFeeBasis: "per_day", lateFeeAmount: "50" }),

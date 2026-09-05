@@ -77,12 +77,15 @@ export type SendGuardContext = {
   monthMessageCap?: number | null;
   messagesSentThisMonth?: number | null;
   /**
-   * Has this campaign had a SUCCESSFUL test send in the last 24 hours?
+   * Has this campaign EVER gone out cleanly — to a family, or as a test?
    *
-   * Null means the question does not apply — an established campaign that has
-   * already gone out to families does not need re-testing every day.
+   * Null means the question was not asked (the cron only runs saved campaigns
+   * that have already gone out). False is a campaign on its first use, which
+   * is the only time a wrong slot order can still be caught on a staff phone.
+   * It used to demand a fresh test every 24 hours, for campaigns the office
+   * had sent to a hundred families the day before.
    */
-  testedRecently?: boolean | null;
+  campaignProven?: boolean | null;
 };
 
 /**
@@ -180,14 +183,14 @@ export function evaluateSendGuards(context: SendGuardContext): SendGuardResult {
     });
   }
 
-  // An untested campaign. A wrong slot order sends cleanly and a parent reads
-  // their child's class where the amount should be — the one failure that costs
-  // money AND is invisible.
-  if (context.testedRecently === false) {
+  // A campaign on its first use. A wrong slot order sends cleanly and a parent
+  // reads their child's class where the amount should be — the one failure that
+  // costs money AND is invisible. Once — not every day.
+  if (context.campaignProven === false) {
     overridable.push({
       code: "untested_campaign",
       message:
-        "This campaign has not had a successful test send in the last 24 hours. A wrong slot order sends cleanly and a parent reads the wrong figure.",
+        "This campaign has never gone out — not to a family, and not as a test. Send yourself one test first, so a wrong slot order is caught on a staff phone rather than a parent's. You will not be asked again for this campaign.",
     });
   }
 

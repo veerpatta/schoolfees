@@ -6,6 +6,7 @@ import { useActionState, useMemo, useState } from "react";
 import { AlertTriangle, MessageCircle, Send } from "lucide-react";
 
 import {
+  applyNoticeSettingsAction,
   sendRemindersAction,
   type SendRemindersState,
 } from "@/app/protected/reminders/actions";
@@ -213,6 +214,17 @@ function ReminderFilterFields({
   );
 }
 
+/**
+ * What the TODAY column says. A sibling named inside the family's one message
+ * was reminded — the raw `covered_by_sibling` read as "not sent" to the office,
+ * on the first morning under family grouping.
+ */
+function sentTodayLabel(status: string | undefined, sentLabel: string): string {
+  if (status === "sent") return sentLabel;
+  if (status === "covered_by_sibling") return "In sibling's message";
+  return status ?? "";
+}
+
 export function RemindersWorkspace({
   filters,
   audience,
@@ -319,8 +331,12 @@ export function RemindersWorkspace({
         </div>
       ) : null}
 
+      {/* A server action rather than a GET: Apply here also REMEMBERS the date
+          and the late fee, so tomorrow's screen opens on them. It redirects to
+          the same query string a GET would have built, so the notice stays
+          linkable and the back button honest. */}
       <form
-        method="get"
+        action={applyNoticeSettingsAction}
         className="rounded-xl border border-border bg-card p-3.5 shadow-sm max-md:order-1 md:rounded-lg md:p-4"
       >
         {savedCampaign ? (
@@ -630,9 +646,7 @@ export function RemindersWorkspace({
                 status={
                   already ? (
                     <span className="rounded bg-surface-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                      {candidate.sentToday?.status === "sent"
-                        ? "Sent today"
-                        : candidate.sentToday?.status}
+                      {sentTodayLabel(candidate.sentToday?.status, "Sent today")}
                     </span>
                   ) : null
                 }
@@ -739,7 +753,7 @@ export function RemindersWorkspace({
                     <td className="px-3 py-2 text-xs">
                       {already ? (
                         <span className="rounded bg-surface-2 px-2 py-0.5">
-                          {candidate.sentToday?.status === "sent" ? "Sent" : candidate.sentToday?.status}
+                          {sentTodayLabel(candidate.sentToday?.status, "Sent")}
                         </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>

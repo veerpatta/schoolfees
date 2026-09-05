@@ -9,6 +9,10 @@ import {
 } from "@/app/protected/reminders/actions";
 import {
   campaignFor,
+  isCampaignApproved,
+  isNoticeLanguage,
+  isNoticeSituation,
+  NOTICE_LANGUAGES,
   NOTICE_SITUATIONS,
   noticeValuesFrom,
   type NoticeLanguage,
@@ -28,11 +32,17 @@ import { Button } from "@/ui/primitives/button";
 import { Input } from "@/ui/primitives/input";
 import { Label } from "@/ui/primitives/label";
 import { Notice } from "@/ui/primitives/notice";
+import { SelectNative } from "@/ui/primitives/select-native";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 
 /**
- * Send one message to a number the office controls, for whichever of the seven
- * notices is selected.
+ * Send one message to a number the office controls, for any of the seven
+ * notices in either language.
+ *
+ * The panel has its own notice and language pickers, opening on the screen's.
+ * Testing another template used to mean changing the notice ABOVE — which
+ * rebuilt the whole audience for a message nobody was about to send — and the
+ * office read that as "I can't test the other templates".
  *
  * The fields are driven by that campaign's `slotOrder`, so the panel can test
  * the shared 7-slot skeleton and `late_fee_applied`'s own without knowing
@@ -137,10 +147,16 @@ export function TestSendPanel({
   lateFeeBasis,
   sample,
 }: Props) {
-  const campaign = campaignFor(situation, language);
-  const settings: OpeningSettings = {
+  // The panel's own choice, opening on the screen's. The page keys this
+  // component on the screen's notice, so a change up there resets it.
+  const [choice, setChoice] = useState<{ situation: NoticeSituation; language: NoticeLanguage }>({
     situation,
     language,
+  });
+  const campaign = campaignFor(choice.situation, choice.language);
+  const settings: OpeningSettings = {
+    situation: choice.situation,
+    language: choice.language,
     lastDate,
     installments,
     lateFeeAmount,
@@ -149,6 +165,15 @@ export function TestSendPanel({
   const [testPhone, setTestPhone] = useState("");
   const [form, setForm] = useState<Record<string, string>>(() => valuesFrom(settings, sample));
   const [testState, testFormAction] = useActionState(sendTestReminderAction, IDLE_TEST);
+
+  // A different template has different slots, so the fields are refilled from
+  // the same top row (or that campaign's sample) rather than carried across.
+  const choose = (next: Partial<typeof choice>) => {
+    const merged = { ...choice, ...next };
+    if (!isCampaignApproved(merged.situation, merged.language)) return;
+    setChoice(merged);
+    setForm(valuesFrom({ ...settings, ...merged }, sample));
+  };
 
   // No `refreshOnSuccess`: a test writes nothing, so re-running the audience
   // query would be churn — and it would wipe the typed-in fields on a screen
@@ -165,23 +190,57 @@ export function TestSendPanel({
   // The skeleton is positional; `NoticeValues` is named. The one function that
   // joins them is shared with the action, so what is previewed here is what is
   // sent — on every notice, not just the three the first version covered.
-  const preview = campaign.renderPreview(noticeValuesFromSlots(situation, form, campaign.sample));
+  const preview = campaign.renderPreview(
+    noticeValuesFromSlots(choice.situation, form, campaign.sample),
+  );
   const destination = toWhatsappDestination(testPhone);
-  const situationLabel =
-    NOTICE_SITUATIONS.find((entry) => entry.value === situation)?.label ?? situation;
 
   return (
     <form action={testFormAction} className="space-y-4">
-      {/* The action re-resolves the campaign from these, so the test goes through
-          exactly the campaign the screen is showing. */}
-      <input type="hidden" name="situation" value={situation} />
-      <input type="hidden" name="language" value={language} />
-
-      <p className="text-xs text-muted-foreground">
-        Testing <strong className="font-mono">{campaign.campaignName}</strong> — the{" "}
-        {situationLabel.toLowerCase()} notice, {campaign.slotOrder.length} slots. Change the notice
-        or language above to test a different one.
-      </p>
+      {/* The action re-resolves the campaign from these two fields, so the test
+          goes through exactly the campaign the panel is showing. */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="testSituation">Notice</Label>
+          <SelectNative
+            id="testSituation"
+            name="situation"
+            value={choice.situation}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (isNoticeSituation(next)) choose({ situation: next });
+            }}
+          >
+            {NOTICE_SITUATIONS.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {entry.label}
+              </option>
+            ))}
+          </SelectNative>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="testLanguage">Language</Label>
+          <SelectNative
+            id="testLanguage"
+            name="language"
+            value={choice.language}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (isNoticeLanguage(next)) choose({ language: next });
+            }}
+          >
+            {NOTICE_LANGUAGES.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {entry.label}
+              </option>
+            ))}
+          </SelectNative>
+        </div>
+        <p className="self-end text-xs text-muted-foreground">
+          <strong className="font-mono">{campaign.campaignName}</strong>, {campaign.slotOrder.length}{" "}
+          slots.
+        </p>
+      </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="testPhone">Send to</Label>
@@ -213,13 +272,13 @@ export function TestSendPanel({
           <div key={slot} className="space-y-1.5">
             <Label htmlFor={`slot-${slot}`}>
               {`{{${index + 1}}} `}
-              {SITUATION_SLOT_LABELS[situation][slot] ?? SLOT_LABELS[slot] ?? slot}
+              {SITUATION_SLOT_LABELS[choice.situation][slot] ?? SLOT_LABELS[slot] ?? slot}
             </Label>
             <Input
               id={`slot-${slot}`}
               name={slot}
-              type={isMoneySlot(situation, slot) ? "number" : "text"}
-              min={isMoneySlot(situation, slot) ? 0 : undefined}
+              type={isMoneySlot(choice.situation, slot) ? "number" : "text"}
+              min={isMoneySlot(choice.situation, slot) ? 0 : undefined}
               value={form[slot] ?? ""}
               onChange={set(slot)}
             />

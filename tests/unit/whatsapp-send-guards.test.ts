@@ -213,12 +213,12 @@ describe("the overridable guards", () => {
     // where the amount should be — the one failure that costs money and is
     // invisible.
     expect(
-      evaluateSendGuards(context({ testedRecently: false })).overridable.map((f) => f.code),
+      evaluateSendGuards(context({ campaignProven: false })).overridable.map((f) => f.code),
     ).toContain("untested_campaign");
   });
 
   it("does not ask an established campaign to be re-tested every day", () => {
-    expect(evaluateSendGuards(context({ testedRecently: null })).overridable).toEqual([]);
+    expect(evaluateSendGuards(context({ campaignProven: null })).overridable).toEqual([]);
   });
 });
 

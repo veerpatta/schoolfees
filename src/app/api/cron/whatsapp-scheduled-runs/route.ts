@@ -11,6 +11,7 @@ import {
   loadRanScheduleSlots,
 } from "@/modules/whatsapp/data/campaign-store";
 import { executeReminderRun } from "@/modules/whatsapp/data/run-sender";
+import { oneMessagePerFamilyEnabled } from "@/modules/whatsapp/data/reminder-settings";
 import { campaignsDueOn } from "@/modules/whatsapp/domain/campaign-schedule";
 import {
   campaignFor,
@@ -237,6 +238,9 @@ export async function GET(request: Request) {
         source: "cron",
         logContacts: insertDefaulterContacts,
         scheduledFor: entry.scheduledFor,
+        // The same switch the manual path reads, so a scheduled run and a
+        // pressed Send never disagree about what a two-child phone gets.
+        oneMessagePerFamily: await oneMessagePerFamilyEnabled(supabase),
       });
 
       reports.push({

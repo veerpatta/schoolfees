@@ -148,6 +148,12 @@ export function parseReminderFilters(
    * been built from is the kind of error a parent finds first.
    */
   defaultInstallments: readonly number[] = TEMPLATE_INSTALLMENTS,
+  /**
+   * The basis the office last put on a message, remembered by the screen. Null
+   * falls back per notice. Never applied to `prevyear`, which opens on "not
+   * charged" whatever was last used, because carry-forward never accrues one.
+   */
+  defaultLateFeeBasis: LateFeeBasis | null = null,
 ): ReminderFilters {
   const number = (key: string, fallback: number) => {
     const raw = read(key);
@@ -194,8 +200,11 @@ export function parseReminderFilters(
     lateFeeBasis: isLateFeeBasis(read("lateFeeBasis"))
       ? (read("lateFeeBasis") as LateFeeBasis)
       // Carry-forward never accrues a late fee in the ledger, so that notice
-      // opens on "not charged" and quoting one is a deliberate act.
-      : situationFallbackBasis(read("situation")),
+      // opens on "not charged" and quoting one is a deliberate act. Every other
+      // notice opens on what the office last used, then on the policy.
+      : read("situation") === "prevyear"
+        ? situationFallbackBasis("prevyear")
+        : (defaultLateFeeBasis ?? situationFallbackBasis(read("situation"))),
   };
 }
 

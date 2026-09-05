@@ -122,6 +122,17 @@ export type ExecuteReminderRunArgs = {
    * production and read before it is trusted with it.
    */
   dryRun?: boolean;
+  /**
+   * Fold siblings on one phone into ONE message.
+   *
+   * On by default; the callers read `app_settings.whatsapp_one_message_per_family`
+   * (`data/reminder-settings.ts`) so the office can switch it off without a
+   * deploy. On means the family template where one exists
+   * (`domain/family-notice.ts`) and the spokesperson's notice otherwise, with
+   * `covered_by_sibling` rows for the rest. Off means one message per child,
+   * each child's own figure — how every run before 2026-09-05 went.
+   */
+  oneMessagePerFamily?: boolean;
 };
 
 export async function executeReminderRun(
@@ -144,6 +155,7 @@ export async function executeReminderRun(
     holdoutPercent = 0,
     overriddenGuards = [],
     overrideReason = null,
+    oneMessagePerFamily = true,
   } = args;
 
   // Anyone already logged today is counted and never grouped.
@@ -164,22 +176,27 @@ export async function executeReminderRun(
   // experiment at all.
   const { messaged: toMessage, heldOut } = splitHoldout(fresh, holdoutPercent);
 
-  // One phone, one message. Grouping happens here rather than in the audience so
-  // the screen keeps showing, ticking and skipping per child.
-  const families = groupIntoFamilies(
-    toMessage.map((candidate) => ({
-      studentId: candidate.studentId,
-      studentName: candidate.studentName,
-      studentClass: candidate.studentClass,
-      parentName: candidate.parentName,
-      destination: candidate.destination,
-      dueAmount: candidate.dueAmount,
-      preferredLanguage: candidate.preferredLanguage,
-      sentCount: candidate.sentCount,
-      secondaryDestination: candidate.secondaryDestination,
-    })),
-    filters.language,
-  );
+  // One phone, one message. Grouping happens here rather than in the audience
+  // so the screen keeps showing, ticking and skipping per child.
+  //
+  // With `oneMessagePerFamily` off every child is a "family" of one: their own
+  // message, their own figure, their own row. The family shape is still used
+  // because it is what carries the language rule and the second-number
+  // escalation.
+  const members = toMessage.map((candidate) => ({
+    studentId: candidate.studentId,
+    studentName: candidate.studentName,
+    studentClass: candidate.studentClass,
+    parentName: candidate.parentName,
+    destination: candidate.destination,
+    dueAmount: candidate.dueAmount,
+    preferredLanguage: candidate.preferredLanguage,
+    sentCount: candidate.sentCount,
+    secondaryDestination: candidate.secondaryDestination,
+  }));
+  const families = oneMessagePerFamily
+    ? groupIntoFamilies(members, filters.language)
+    : members.flatMap((member) => groupIntoFamilies([member], filters.language));
 
   const messagesAttempted = families.reduce(
     (total, family) => total + family.destinations.length,
@@ -388,6 +405,9 @@ const EMPTY_FAMILY_OUTCOME = (): FamilyOutcome => ({
  * ordinary per-child notice — the largest debt on the phone. Either way the
  * rows below carry the name of the message that actually went, so the bill can
  * be reconciled per campaign and "already messaged today" reads true.
+ *
+ * With `oneMessagePerFamily` switched off every family arriving here has
+ * exactly one member, so this is simply "one child, one message".
  */
 async function sendFamily(args: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

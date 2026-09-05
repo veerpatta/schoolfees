@@ -1,4 +1,4 @@
-# Source scan 202609050703
+# Source scan 202609051138
 
 **PASS** · 54 finding(s) · P0 0 · P1 0 · P2 43 · P3 11
 
@@ -6,13 +6,13 @@
 
 | | |
 |---|---|
-| Run id | `202609050703` |
+| Run id | `202609051138` |
 | Layers | static |
-| Git | `3609ab975b2b` on claude/installment-fee-override-wy98cn (dirty) |
-| Node | v24.19.0 |
-| Files read | 1564 |
-| Started | 2026-09-05T07:03:20.960Z |
-| Duration | 6000 ms |
+| Git | `ea1be208cfa8` on main (dirty) |
+| Node | v26.7.0 |
+| Files read | 1607 |
+| Started | 2026-09-05T11:38:29.975Z |
+| Duration | 9642 ms |
 | Strict gate | no |
 
 ## Verdict
@@ -21,19 +21,19 @@ The gate passed. P0 always fails; deterministic P1 fails; P2/P3 fail only on cou
 
 ## What this scan did NOT look at
 
-10 check(s) swept 14851 of 14851 enumerated members.
+10 check(s) swept 14833 of 14833 enumerated members.
 
 | Check | Dimension | Domain | Examined | Strategy |
 |---|---|---:|---:|---|
 | `guards` | app route handlers, pages and server-action modules | 120 | 120 | exhaustive |
-| `client-boundary` | source modules crossed against the client bundle import graph | 755 | 755 | exhaustive |
-| `session-safety` | product source modules scanned for hardcoded academic-session labels | 755 | 755 | exhaustive |
-| `money` | product source files (app, components, lib, workers, hooks, i18n; no tests, no scripts) | 755 | 755 | exhaustive |
+| `client-boundary` | source modules crossed against the client bundle import graph | 756 | 756 | exhaustive |
+| `session-safety` | product source modules scanned for hardcoded academic-session labels | 756 | 756 | exhaustive |
+| `money` | product source files (app, components, lib, workers, hooks, i18n; no tests, no scripts) | 756 | 756 | exhaustive |
 | `async-safety` | product .ts/.tsx modules parsed by the TypeScript checker | 723 | 723 | exhaustive |
-| `mirror-drift` | declared TS/SQL mirror sides, plus migrations added since the last reconcile | 231 | 231 | targeted |
-| `sql-safety` | supabase migrations, plus the source files that build SQL text | 1413 | 1413 | exhaustive |
-| `i18n` | locale catalogue keys (union x locale) and t() call sites in product source | 7713 | 7713 | exhaustive |
-| `dead-code` | export declarations in app/, components/, lib/, hooks/ and i18n/ | 2375 | 2375 | exhaustive |
+| `mirror-drift` | declared TS/SQL mirror sides, plus migrations added since the last reconcile | 227 | 227 | targeted |
+| `sql-safety` | supabase migrations, plus the source files that build SQL text | 1411 | 1411 | exhaustive |
+| `i18n` | locale catalogue keys (union x locale) and t() call sites in product source | 7696 | 7696 | exhaustive |
+| `dead-code` | export declarations in app/, components/, lib/, hooks/ and i18n/ | 2377 | 2377 | exhaustive |
 | `config-risk` | deployment and build configuration candidates | 11 | 11 | exhaustive |
 
 - **guards** — Sees a guard only where it is named in the file or one import hop away. A guard behind two hops, or inside a helper this check does not follow, reports as a finding — which is the safer direction to be wrong in. In-page conditional rendering is not authorisation and is deliberately not counted.
@@ -41,10 +41,10 @@ The gate passed. P0 always fails; deterministic P1 fails; P2/P3 fail only on cou
 - **session-safety** — Two populations are excluded from the P0 on purpose. scripts/** names the live session legitimately and often — scripts/bulk-apply.mjs holds it precisely so it can refuse --session 2026-27 without --live, and the verify-live-* scripts exist to check live health — so a P0 there would fire on the guard rather than the hazard. supabase/migrations/** is applied history: the write already happened, editing the file does not undo it, and ~20 historical hits would bury the one finding about code that can still be changed. Neither is reachable from project.product, so both are excluded structurally rather than by allowlist. Within what is scanned, the check sees only labels written as a complete quoted literal: one assembled at runtime (`${year}-${suffix}`, a value read from a column, a label pasted into a plan file) is invisible here and is the reason scripts/bulk-apply.mjs and the Payment Desk still need their own runtime refusals. Placeholders and other user-facing attribute strings are skipped, as are comments; the end-year arithmetic from parseAcademicSessionLabel() is applied so a month bucket like "2026-04" is not mistaken for a session.
 - **money** — Every product file is read, but the money rules are deliberately narrow inside it. (1) The split rule fires only when the divisor is literally installmentCount, count, parts, or an installment-/part-named `.length`, and only when the numerator carries a money word. Dividing money by a *population* — receiptCount, series.length, studentsWithGeneratedDues — is how this repo computes displayed averages, there are eight of them and they are correct; separating them by divisor name is the only rule that reliably keeps them out. A split written with a divisor named something else is invisible to this check. (2) The same money-word gate keeps all four rules off the roughly forty Math.round calls in the tree that count percentages, days, pixels, milliseconds and animation frames — and it means a money variable named neutrally (`v`, `x`, `n`) is not seen either. (3) A division is treated as safe when remainder handling appears within six lines above or eight below, which is how the three real splitters are written; a splitter that keeps its remainder logic further away reads as a finding. (4) scan.money-format-raw runs the audit script's own four patterns only over lib/, workers/, hooks/, utils/ and i18n/, which that script never walks; across the whole tree it adds the no-period "Rs " spelling its regex misses. Intl.DateTimeFormat is not reported at all — it is a date, not money, and src/platform/helpers/date.ts is its canonical home. (5) scan.rounding-policy-mixed is heuristic by registration: it matches on the coerced value's base name, so it sees Math.round(value) against Math.trunc(value) and cannot see the same quantity coerced under two different names. Comments are blanked before any rule reads a line, which also blanks `//` inside string literals — a false negative, never a false positive.
 - **async-safety** — Both rules skip tests and scripts. scan.error-swallowed sweeps the whole product surface; scan.floating-promise is narrowed to app/ and lib/ modules no client bundle can reach, because the rule is about a rejection arriving after the response — in the browser there is no response and the console still shows it. Widening to components/ produced eleven hits and eleven of them were calls into helpers whose bodies are wholly try/caught. Neither rule sees .mjs or .js: they are outside the program. Not modelled, and real gaps: an async callback handed to a sync API (forEach, setTimeout), a `.then` chain with no `.catch` on the end, and a catch block whose comment is present but says nothing — a comment is accepted as a decision without being read.
-- **mirror-drift** — 9 pairs (18 sides) are pinned in tests/scan/baseline/mirrors.json; 0 migration(s) postdate lastReconciledMigration (supabase/migrations/20260905064925_transport_override_is_transport.sql) and were swept for a one-sided late-fee edit. Three limits are worth stating. (1) The pairs are the ones the source declares in a comment — "mirrors X", "byte-identical", "edit both or neither". An undeclared duplication is invisible here, and the honest fix is a comment in the code, not a cleverer scanner. (2) A pin proves movement, never agreement: two sides pinned while already disagreeing stay silent, which is why pending-late-fee carries an explicit `diverged` note reported as scan.observation. (3) The Worker's RBAC copy (workers/schoolfees-mcp/src/permissions.mjs, declared a mirror of lib/auth/roles.ts) is deliberately NOT pinned here — tests/unit/mcp-permissions.test.ts already asserts the two are equivalent at runtime, which is strictly stronger than a text hash, and a second mechanism would only be a second place to forget.
-- **sql-safety** — All 213 migrations were lexed (comments and dollar-quoted bodies blanked) to build a live catalogue of 64 functions and 33 views, and 1200 source files were read for SQL built as text. Four limits. (1) The two convention rules judge only the LIVE definition — the last migration in filename order that defines each object — because a finding against an applied migration cannot be acted on without desynchronising schema_migrations. A function created by a later `execute format(…)` inside a DO block is invisible to that catalogue, and so is anything created outside migrations. (2) The money-DDL rule fires on nothing in the tree today: there is no `drop column` anywhere and every `drop table` targets a scratch table. It is retained as a tripwire, not as evidence of a clean history. (3) SQL injection is NOT checked. Every template literal in those source files that is a SQL statement AND interpolates a value was examined; there are 1, and both are safe — `postgres` tagged templates in the notion-sync Edge Function, and a never-executed rollback hint string in lib/prev-year-dues. The app reaches Postgres through supabase-js, which is PostgREST, so there is no concatenation surface to guard and a rule here would have reported those two forever. (4) `security definer`/`security invoker` on functions is not checked either: 31 of the 64 live functions state neither, so there is no convention to hold anyone to. Nor is grant/revoke drift — grants are re-applied in ACL-restore loops and follow-up migrations, and every text rule attempted flagged 18 of 21 live views, which measured the regex rather than the schema.
-- **i18n** — Locales come from supportedLocales in src/platform/i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2087 keys in all 3 catalogues. The reference half is not: it read 723 product .ts/.tsx files, resolved a namespace in 88 of them, and inspected 1452 calls on those translators — of which 63 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 10 file(s) call t("…") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.
-- **dead-code** — Every export in 714 non-test, non-script source files was parsed; 2 were reported. The gap between those numbers is deliberate and is where this rule's precision comes from. (1) 671 type / interface / enum exports were skipped outright: a prop type named only by its own component's signature is the house style, it costs nothing at runtime, and reporting it would quadruple this rule. Type-only usage of a *value* export is still tracked, because the identifier index does not care why a name appears. (2) 93 exports are used inside their own module and nowhere else — exported too widely rather than dead. They are counted here and not reported; the finding a reader can act on is "this code runs nowhere", not "this could be a module-private const". (3) 120 exports are referenced only by files under tests/. Those are not dead, they are tested, and deleting them would delete a test — but a value whose only caller is its own test is worth knowing about, so the count is stated rather than hidden. (4) Reachability is decided by an identifier index over all source files, comments and string literals included. A name that appears in a doc comment counts as used: false negatives, never false positives. It also means an export whose name collides with any common identifier is invisible to this rule. (5) Excluded by construction: default exports of Next.js convention files, route segment config and HTTP verb exports under app/, the root config and instrumentation files, index barrels, any module a barrel star-re-exports, and workers/ — a separate Cloudflare bundle whose entry point is wrangler's, not an import. (6) Not seen at all: a symbol reached only through a runtime-built import specifier, and dead code *inside* a live export.
+- **mirror-drift** — 8 pairs (16 sides) are pinned in tests/scan/baseline/mirrors.json; 17 migration(s) postdate lastReconciledMigration (supabase/migrations/20260819120000_restore_view_hardening_lost_to_cascade.sql) and were swept for a one-sided late-fee edit. Three limits are worth stating. (1) The pairs are the ones the source declares in a comment — "mirrors X", "byte-identical", "edit both or neither". An undeclared duplication is invisible here, and the honest fix is a comment in the code, not a cleverer scanner. (2) A pin proves movement, never agreement: two sides pinned while already disagreeing stay silent, which is why pending-late-fee carries an explicit `diverged` note reported as scan.observation. (3) The Worker's RBAC copy (workers/schoolfees-mcp/src/permissions.mjs, declared a mirror of lib/auth/roles.ts) is deliberately NOT pinned here — tests/unit/mcp-permissions.test.ts already asserts the two are equivalent at runtime, which is strictly stronger than a text hash, and a second mechanism would only be a second place to forget.
+- **sql-safety** — All 211 migrations were lexed (comments and dollar-quoted bodies blanked) to build a live catalogue of 64 functions and 33 views, and 1200 source files were read for SQL built as text. Four limits. (1) The two convention rules judge only the LIVE definition — the last migration in filename order that defines each object — because a finding against an applied migration cannot be acted on without desynchronising schema_migrations. A function created by a later `execute format(…)` inside a DO block is invisible to that catalogue, and so is anything created outside migrations. (2) The money-DDL rule fires on nothing in the tree today: there is no `drop column` anywhere and every `drop table` targets a scratch table. It is retained as a tripwire, not as evidence of a clean history. (3) SQL injection is NOT checked. Every template literal in those source files that is a SQL statement AND interpolates a value was examined; there are 1, and both are safe — `postgres` tagged templates in the notion-sync Edge Function, and a never-executed rollback hint string in lib/prev-year-dues. The app reaches Postgres through supabase-js, which is PostgREST, so there is no concatenation surface to guard and a rule here would have reported those two forever. (4) `security definer`/`security invoker` on functions is not checked either: 31 of the 64 live functions state neither, so there is no convention to hold anyone to. Nor is grant/revoke drift — grants are re-applied in ACL-restore loops and follow-up migrations, and every text rule attempted flagged 18 of 21 live views, which measured the regex rather than the schema.
+- **i18n** — Locales come from supportedLocales in src/platform/i18n/locales.ts (read: en, hi, hi-en), not from a glob over messages/ — messages/receipts-bilingual.json is a fixed en+hi pair printed on receipts, is loaded without next-intl, and comparing it against en.json would report every key in it. Parity is exhaustive over all 2083 keys in all 3 catalogues. The reference half is not: it read 723 product .ts/.tsx files, resolved a namespace in 88 of them, and inspected 1447 calls on those translators — of which 63 could not be resolved and were skipped rather than guessed. Those are the indirect idiom this repo uses heavily: t(item.i18nKey), t(MODE_KEYS[mode]), t(ACTIVITY_KIND_I18N[kind]), t(`${key}Desc`) — the key travels in a const map or a template, several of them are already guarded by t.has(...), and resolving them means evaluating the map. A namespace is trusted only when it is a string literal in the same file, so a translator received as a prop (the AdminToolsTranslator idiom) is invisible; 10 file(s) call t("…") with no local binding and were skipped entirely. Value-level problems are out of scope by design and belong to scripts/translate-placeholders.mjs: a key present but empty, a leftover [HI] marker, a Hindi string still identical to the English one, and ICU argument drift between catalogues are none of them reported here.
+- **dead-code** — Every export in 715 non-test, non-script source files was parsed; 2 were reported. The gap between those numbers is deliberate and is where this rule's precision comes from. (1) 672 type / interface / enum exports were skipped outright: a prop type named only by its own component's signature is the house style, it costs nothing at runtime, and reporting it would quadruple this rule. Type-only usage of a *value* export is still tracked, because the identifier index does not care why a name appears. (2) 93 exports are used inside their own module and nowhere else — exported too widely rather than dead. They are counted here and not reported; the finding a reader can act on is "this code runs nowhere", not "this could be a module-private const". (3) 122 exports are referenced only by files under tests/. Those are not dead, they are tested, and deleting them would delete a test — but a value whose only caller is its own test is worth knowing about, so the count is stated rather than hidden. (4) Reachability is decided by an identifier index over all source files, comments and string literals included. A name that appears in a doc comment counts as used: false negatives, never false positives. It also means an export whose name collides with any common identifier is invisible to this rule. (5) Excluded by construction: default exports of Next.js convention files, route segment config and HTTP verb exports under app/, the root config and instrumentation files, index barrels, any module a barrel star-re-exports, and workers/ — a separate Cloudflare bundle whose entry point is wrangler's, not an import. (6) Not seen at all: a symbol reached only through a runtime-built import specifier, and dead code *inside* a live export.
 - **config-risk** — Each candidate is answered against the real file, and the verdicts are listed here so an empty findings list is legible as checked rather than as skipped. build-error-suppression: clean — neither typescript.ignoreBuildErrors nor eslint.ignoreDuringBuilds is set; function-duration-ceiling: clean — 38 route handler(s) checked, the highest declared maxDuration is 300s; unattended-handler-duration: clean — every cron and admin handler doing bulk work declares a maxDuration; cron-schedule-and-route-agreement: 1 mismatch(es) reported; protected-cache-directive: 2 inert directive(s) reported as P3 — the root layout forces dynamic rendering; security-response-headers: reported — no security header configured anywhere; sentry-dsn-and-sampling: clean — 1 init file(s), each reading the DSN from the environment and each sampling traces at less than 1.0 outside development; typescript-strictness: clean — strict is on and strictNullChecks is not disabled; remote-image-patterns: clean — no remotePatterns, so next/image optimises no remote host at all; serverless-file-tracing: clean — 4 route(s) reach a module that reads from process.cwd(), and all 4 are named in outputFileTracingIncludes; deployment-region: clean — pinned ("regions": ["bom1"],). Deliberately not reported: src/app/api/cron/auto-day-close/route.ts, src/app/api/cron/whatsapp-scheduled-runs/route.ts — unattended and without a maxDuration, but the handler shows neither a bulk row cap nor a storage upload, so its work is bounded and the platform default is enough. skipLibCheck is true in tsconfig.json and is not reported: it is the Next.js default and it suppresses diagnostics in other people's .d.ts files, not in this repo's code. What this check cannot see at all: anything configured in the Vercel dashboard rather than in a file — environment variables and their values, deployment protection, the plan's real function-duration ceiling, and whether the cron secret is actually set. It also reads outputFileTracingIncludes with a regex rather than by evaluating next.config.ts, so a route key assembled from a variable would read as absent.
 
 ## Findings
@@ -270,12 +270,12 @@ why:        The point of the rule is grep-ability, not aesthetics: null, zero, s
 fix:        Use formatInr() (or <Money /> in JSX). If the divergence is deliberate — react-pdf's Helvetica genuinely has no ₹ glyph — put the reason on the line with `// @allow-raw-money-format`, which both this check and the audit script honour.
 ```
 
-### P2-018 src/modules/payments/data/queries.ts:241 formats a rupee figure without lib/helpers/currency.ts
+### P2-018 src/modules/payments/data/queries.ts:239 formats a rupee figure without lib/helpers/currency.ts
 
 ```
-id:         c0f6eb57c126
+id:         888b89aaa30f
 rule:       scan.money-format-raw  [deterministic]  layer: static
-surface:    src/modules/payments/data/queries.ts:241
+surface:    src/modules/payments/data/queries.ts:239
 expected:   Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.
 actual:     This line uses toLocaleString("en-IN") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.
 source:     ? `A payment of ₹${(options.amount ?? 0).toLocaleString("en-IN")} was already posted for this student on ${options.paymentDate ?? "the same date"}. Continue anyway only if this is genuinely a separate payment.`
@@ -403,11 +403,11 @@ fix:        Use formatInr() (or <Money /> in JSX). If the divergence is delibera
 ### P2-028 src/platform/helpers/date.ts:246 exports istTodayIso, which nothing uses
 
 ```
-id:         6e8145766782
+id:         25ce81898384
 rule:       scan.dead-export  [deterministic]  layer: static
 surface:    src/platform/helpers/date.ts:246
 expected:   Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.
-actual:     `istTodayIso` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/platform/helpers/date.ts, at its own declaration. 69 module(s) import this file, none of them for this name.
+actual:     `istTodayIso` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/platform/helpers/date.ts, at its own declaration. 68 module(s) import this file, none of them for this name.
 source:     export function istTodayIso(now: Date = new Date()): string {
 why:        Dead code is not neutral here. It compiles, it is type-checked, it is counted against the source-line budgets in quality/office-quality-budgets.json, and the next reader takes it for something that runs — so a half-finished extraction reads as a finished one, and a retired module reads as a live one.
 fix:        Delete it, or wire up the caller it was written for. If it is deliberately kept as an entry point for something outside this repo's import graph, say so in a comment beside the export — this rule reads the whole tree and will keep reporting it otherwise.
@@ -429,11 +429,11 @@ fix:        Use formatInr() (or <Money /> in JSX). If the divergence is delibera
 ### P2-030 src/app/protected/students/close-due-actions.ts:47 rounds `value` where the domain core truncates it
 
 ```
-id:         655997ddd6ab
+id:         dba4a7b5967c
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/app/protected/students/close-due-actions.ts:47
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     return Math.round(value);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -442,11 +442,11 @@ fix:        Use Math.trunc here too, or state in a comment why this surface deli
 ### P2-031 src/platform/helpers/amount-in-words-hi.ts:73 rounds `value` where the domain core truncates it
 
 ```
-id:         2a08b49125ea
+id:         1507266ec39f
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/platform/helpers/amount-in-words-hi.ts:73
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     const amount = Math.max(Math.round(value || 0), 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -455,11 +455,11 @@ fix:        Use Math.trunc here too, or state in a comment why this surface deli
 ### P2-032 src/platform/helpers/amount-in-words.ts:84 rounds `value` where the domain core truncates it
 
 ```
-id:         81dce775ba9b
+id:         a4d229dbf12d
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/platform/helpers/amount-in-words.ts:84
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     const amount = Math.max(Math.round(value || 0), 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -468,11 +468,11 @@ fix:        Use Math.trunc here too, or state in a comment why this surface deli
 ### P2-033 src/platform/pdf/document-kit.tsx:51 rounds `value` where the domain core truncates it
 
 ```
-id:         aa211862e2c8
+id:         518230cb1c38
 rule:       scan.rounding-policy-mixed  [heuristic]  layer: static
 surface:    src/platform/pdf/document-kit.tsx:51
 expected:   One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.
-actual:     This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.
+actual:     This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.
 source:     const rounded = Math.round(value || 0);
 why:        Latent today and not later: every money column in supabase/migrations is `integer`, so both policies agree on everything currently in the database. The first fractional value that reaches one of these — an imported spreadsheet, a percentage discount, a future decimal column — makes the receipt and the ledger differ by a rupee, with nothing in either to say which is right.
 fix:        Use Math.trunc here too, or state in a comment why this surface deliberately rounds up and the ledger does not.
@@ -650,9 +650,9 @@ fix:        Delete the directive, or keep it with a comment saying it is aspirat
 ### P3-047 src/app/protected/students/[studentId]/page.tsx hardcodes the live session 2026-27
 
 ```
-id:         54d456feb4d8
+id:         0f7afa960698
 rule:       scan.observation  [heuristic]  layer: static
-surface:    src/app/protected/students/[studentId]/page.tsx:1275
+surface:    src/app/protected/students/[studentId]/page.tsx:1270
 expected:   The live session label is written down in as few places as possible, so that the next rollover is a data change rather than a code change.
 actual:     "2026-27" appears as a fallback for a value read at runtime. Nothing in this module writes through a Supabase client and it is not a "use server" action, so no ledger is at risk — this is inventory of where the live year is baked in, not a defect.
 source:     sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
@@ -663,9 +663,9 @@ fix:        Prefer the resolved session — getActiveSessionLabel(), the switche
 ### P3-048 src/app/protected/students/[studentId]/page.tsx hardcodes the live session 2026-27
 
 ```
-id:         150c7194e84c
+id:         ad3e1c783097
 rule:       scan.observation  [heuristic]  layer: static
-surface:    src/app/protected/students/[studentId]/page.tsx:1415
+surface:    src/app/protected/students/[studentId]/page.tsx:1410
 expected:   The live session label is written down in as few places as possible, so that the next rollover is a data change rather than a code change.
 actual:     "2026-27" appears as a fallback for a value read at runtime. Nothing in this module writes through a Supabase client and it is not a "use server" action, so no ledger is at risk — this is inventory of where the live year is baked in, not a defect.
 source:     sessionLabel={financialSnapshot?.policy.academicSessionLabel || "2026-27"}
