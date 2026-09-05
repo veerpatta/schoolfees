@@ -6,7 +6,6 @@ import { generateSessionLedgersAction } from "@/modules/fees/data/generator";
 import { getFeeSetupPageData } from "@/modules/fees/data/policy";
 import { resolveStudentPolicyBreakdown } from "@/modules/fees/data/policy";
 import { buildWorkbookInstallmentCharges } from "@/modules/fees/domain/workbook";
-import { allocateChargesRespectingPaidFloors } from "@/modules/fees/domain/paid-floor-allocation";
 import type { LedgerRegenerationPreview, LedgerRegenerationReviewRow } from "@/modules/fees/domain/types";
 import { createClient } from "@/platform/supabase/server";
 
@@ -60,6 +59,18 @@ type InstallmentAdjustmentRow = {
   amount_delta: number;
 };
 
+/**
+ * What the engine says about a row today. Money settles the installments
+ * oldest-first at read time (20260905090000), so the preview reads the
+ * engine's figures rather than re-deriving them from the receipt pin.
+ */
+type EngineBalanceRow = {
+  installment_id: string;
+  pending_amount: number;
+  settled_amount: number | null;
+  fee_settled_amount: number | null;
+};
+
 type PlannedInstallment = {
   student_id: string;
   class_id: string;
@@ -104,7 +115,13 @@ type RegenerationRowPlan = PlannedInstallment & {
     // threw on exactly the rows the discount fix was written to handle —
     // migration 20260814090000 fixes both.
     | "discount_reduces_unpaid"
-    | "charge_rise_on_unsettled";
+    | "charge_rise_on_unsettled"
+    // The two reasons a row carrying money is still held for a person, since
+    // money settles oldest-first at read time and a repriced row no longer
+    // contradicts any receipt. Both are in
+    // ledger_regeneration_rows_reason_code_check as of 20260905090000.
+    | "in_repayment_plan"
+    | "due_date_changed";
   reason_label: string;
 };
 
@@ -241,6 +258,8 @@ function toCurrentBalanceStatus(payload: {
   amountDue: number;
   paidAmount: number;
   adjustmentAmount: number;
+  /** The engine's own reading of the row, when it has one. */
+  engine?: EngineBalanceRow | null;
 }) {
   if (payload.installmentStatus === "waived") {
     return "waived" as const;
@@ -252,6 +271,21 @@ function toCurrentBalanceStatus(payload: {
 
   if (payload.amountDue <= 0) {
     return "paid" as const;
+  }
+
+  // Money settles oldest-first at read time, so the engine's pending on this
+  // row is the truth and the pin is only a fallback for a row the matview has
+  // not seen yet.
+  if (payload.engine) {
+    if (payload.engine.pending_amount <= 0) {
+      return "paid" as const;
+    }
+
+    if ((payload.engine.settled_amount ?? 0) > 0) {
+      return "partial" as const;
+    }
+
+    return payload.dueDate > getSchoolDateStamp() ? "future" : "unpaid";
   }
 
   const appliedAmount = Math.max(payload.paidAmount + payload.adjustmentAmount, 0);
@@ -338,6 +372,8 @@ async function loadPlan(): Promise<RegenerationPlan> {
   let existingInstallments: ExistingInstallmentRow[] = [];
   const paymentTotalsByInstallment = new Map<string, number>();
   const adjustmentTotalsByInstallment = new Map<string, number>();
+  const engineByInstallment = new Map<string, EngineBalanceRow>();
+  const repaymentPlanInstallmentIds = new Set<string>();
 
   if (studentIds.length > 0) {
     const { data: installmentsRaw, error: installmentsError } = await supabase
@@ -399,6 +435,34 @@ async function loadPlan(): Promise<RegenerationPlan> {
           row.installment_id,
           (adjustmentTotalsByInstallment.get(row.installment_id) ?? 0) + row.amount_delta,
         );
+      });
+
+      for (let i = 0; i < installmentIds.length; i += CHUNK) {
+        const slice = installmentIds.slice(i, i + CHUNK);
+        const { data: engineRaw, error: engineError } = await supabase
+          .from("v_workbook_installment_balances")
+          .select("installment_id, pending_amount, settled_amount, fee_settled_amount")
+          .in("installment_id", slice);
+
+        if (engineError) {
+          throw new Error(engineError.message);
+        }
+
+        ((engineRaw ?? []) as EngineBalanceRow[]).forEach((row) => {
+          engineByInstallment.set(row.installment_id, row);
+        });
+      }
+
+      // The same rows the generator holds for an EMI plan, so the preview
+      // promises exactly what the apply step does.
+      const { data: planItemsRaw } = await supabase
+        .from("student_repayment_plan_items")
+        .select("installment_id, student_repayment_plans!inner(lifecycle)")
+        .eq("student_repayment_plans.lifecycle", "active")
+        .in("student_id", studentIds);
+
+      (planItemsRaw ?? []).forEach((row) => {
+        repaymentPlanInstallmentIds.add(String(row.installment_id));
       });
     }
   }
@@ -518,34 +582,10 @@ async function loadPlan(): Promise<RegenerationPlan> {
           setupData.globalPolicy.installmentCount,
         );
 
-    // Same re-split the generator does, so the Fee Setup preview does not refuse
-    // a reduction the student form now performs. See
-    // lib/fees/paid-floor-allocation.ts.
-    const plannedNetCharges = baseAmounts.map(
-      (base, index) => (base ?? 0) + (transportAmounts[index] ?? 0) - (discountAmounts[index] ?? 0),
-    );
-    const allocation = allocateChargesRespectingPaidFloors({
-      plannedCharges: plannedNetCharges,
-      plannedTotal: plannedNetCharges.reduce((total, value) => total + value, 0),
-      rows: Array.from({ length: setupData.globalPolicy.installmentCount }, (_, index) => {
-        const existingRow = existingInstallmentMap.get(`${student.id}::${index + 1}`);
-
-        return {
-          index,
-          existingAmountDue: existingRow?.amount_due ?? 0,
-          appliedAmount: existingRow
-            ? Math.max(
-                (paymentTotalsByInstallment.get(existingRow.id) ?? 0) +
-                  (adjustmentTotalsByInstallment.get(existingRow.id) ?? 0),
-                0,
-              )
-            : 0,
-        };
-      }),
-    });
-
+    // The policy's own split, exactly as the generator writes it. Money
+    // settles the installments oldest-first at read time (20260905090000), so
+    // a row carrying a payment is repriced like any other.
     setupData.globalPolicy.installmentSchedule.forEach((schedule, index) => {
-      const allocationDelta = (allocation.charges[index] ?? 0) - (plannedNetCharges[index] ?? 0);
       const plannedInstallment = {
         student_id: student.id,
         class_id: student.class_id,
@@ -554,7 +594,7 @@ async function loadPlan(): Promise<RegenerationPlan> {
         installment_no: index + 1,
         installment_label: `${schedule.label} (${schedule.dueDateLabel})`,
         due_date: schedule.dueDate,
-        base_amount: Math.max((baseAmounts[index] ?? 0) + allocationDelta, 0),
+        base_amount: Math.max(baseAmounts[index] ?? 0, 0),
         transport_amount: transportAmounts[index] ?? 0,
         discount_amount: discountAmounts[index] ?? 0,
         late_fee_flat_amount: resolved.lateFeeFlatAmount,
@@ -594,18 +634,37 @@ async function loadPlan(): Promise<RegenerationPlan> {
       const paidAmount = paymentTotalsByInstallment.get(existingInstallment.id) ?? 0;
       const adjustmentAmount = adjustmentTotalsByInstallment.get(existingInstallment.id) ?? 0;
       const amountDue = existingInstallment.amount_due;
+      const engine = engineByInstallment.get(existingInstallment.id) ?? null;
       const balanceStatus = toCurrentBalanceStatus({
         installmentStatus: existingInstallment.status,
         dueDate: existingInstallment.due_date,
         amountDue,
         paidAmount,
         adjustmentAmount,
+        engine,
       });
       const appliedAmount = Math.max(paidAmount + adjustmentAmount, 0);
+      // What the pool has placed on this row's fees, or the pin if the engine
+      // has not seen the row yet.
+      const feeSettledAmount = engine
+        ? (engine.fee_settled_amount ?? Math.min(engine.settled_amount ?? appliedAmount, amountDue))
+        : appliedAmount;
       const outstandingAmount =
         balanceStatus === "waived" || balanceStatus === "cancelled"
           ? 0
-          : Math.max(amountDue - appliedAmount, 0);
+          : engine
+            ? Math.max(engine.pending_amount, 0)
+            : Math.max(amountDue - appliedAmount, 0);
+      const isDifferent =
+        existingInstallment.fee_setting_id !== plannedInstallment.fee_setting_id ||
+        existingInstallment.student_fee_override_id !== plannedInstallment.student_fee_override_id ||
+        existingInstallment.installment_label !== plannedInstallment.installment_label ||
+        existingInstallment.due_date !== plannedInstallment.due_date ||
+        existingInstallment.base_amount !== plannedInstallment.base_amount ||
+        existingInstallment.transport_amount !== plannedInstallment.transport_amount ||
+        existingInstallment.discount_amount !== plannedInstallment.discount_amount ||
+        existingInstallment.late_fee_flat_amount !== plannedInstallment.late_fee_flat_amount ||
+        existingInstallment.status !== "scheduled";
 
       if (existingInstallment.status === "waived" || existingInstallment.status === "cancelled") {
         rows.push({
@@ -630,31 +689,43 @@ async function loadPlan(): Promise<RegenerationPlan> {
       }
 
       if (paidAmount > 0 || adjustmentAmount !== 0) {
-        // A REDUCTION down to (never below) what has already been applied is
-        // safe: no receipt changes, the row just stops asking for money the
-        // school has forgone.
-        //
-        // An INCREASE is safe on the same terms whenever the row is NOT yet
-        // settled — the receipt keeps saying what it said, only the remaining
-        // balance moves. Raising a settled row is the re-bill, and that alone
-        // is held for review. Mirrors classifyInstallmentLock in the generator;
-        // the two must agree or the preview promises something else.
+        // A row carrying money is repriced like any other: money settles the
+        // installments oldest-first at read time, so the write contradicts no
+        // receipt. The two holds mirror classifyInstallmentLock in the
+        // generator -- the preview must promise exactly what the apply does.
         const plannedNet =
           plannedInstallment.base_amount +
           plannedInstallment.transport_amount -
           plannedInstallment.discount_amount;
-        const structurallyDiffers =
-          existingInstallment.installment_label !== plannedInstallment.installment_label ||
-          existingInstallment.due_date !== plannedInstallment.due_date ||
-          existingInstallment.late_fee_flat_amount !== plannedInstallment.late_fee_flat_amount ||
-          existingInstallment.status !== "scheduled";
-        const isSafeMove =
-          !structurallyDiffers &&
-          (plannedNet <= amountDue || appliedAmount < amountDue);
 
-        if (!isSafeMove) {
-          const reason = toReviewReason(balanceStatus as Exclude<RegenerationBalanceStatus, "waived" | "cancelled">);
+        if (!isDifferent) {
+          rows.push({
+            ...plannedInstallment,
+            installment_id: existingInstallment.id,
+            student_label: studentLabel,
+            class_label: classLabel,
+            amount_due: amountDue,
+            paid_amount: paidAmount,
+            adjustment_amount: adjustmentAmount,
+            outstanding_amount: outstandingAmount,
+            balance_status: balanceStatus,
+            action_needed: "skip",
+            reason_code: "already_in_sync",
+            reason_label: "Already aligned with the current policy",
+          });
+          return;
+        }
 
+        const hold = repaymentPlanInstallmentIds.has(existingInstallment.id)
+          ? { code: "in_repayment_plan" as const, label: "Covered by an active EMI plan" }
+          : existingInstallment.due_date !== plannedInstallment.due_date
+            ? {
+                code: "due_date_changed" as const,
+                label: "Due date would move on an installment carrying money",
+              }
+            : null;
+
+        if (hold) {
           rows.push({
             ...plannedInstallment,
             installment_id: existingInstallment.id,
@@ -666,8 +737,8 @@ async function loadPlan(): Promise<RegenerationPlan> {
             outstanding_amount: outstandingAmount,
             balance_status: balanceStatus,
             action_needed: "review",
-            reason_code: reason.code,
-            reason_label: reason.label,
+            reason_code: hold.code,
+            reason_label: hold.label,
           });
           affectedStudentIds.add(student.id);
           return;
@@ -681,33 +752,27 @@ async function loadPlan(): Promise<RegenerationPlan> {
           amount_due: plannedNet,
           paid_amount: paidAmount,
           adjustment_amount: adjustmentAmount,
-          outstanding_amount: Math.max(plannedNet - appliedAmount, 0),
+          outstanding_amount: Math.max(plannedNet - feeSettledAmount, 0),
           balance_status: balanceStatus,
           action_needed: "update",
           ...(plannedNet > amountDue
             ? {
                 reason_code: "charge_rise_on_unsettled" as const,
-                reason_label: "Higher charge applied to the unpaid balance",
+                reason_label: "Higher charge written; money already paid settles oldest-first",
               }
-            : {
-                reason_code: "discount_reduces_unpaid" as const,
-                reason_label: "Discount applied to the unpaid balance",
-              }),
+            : plannedNet < amountDue
+              ? {
+                  reason_code: "discount_reduces_unpaid" as const,
+                  reason_label: "Lower charge written; money already paid settles oldest-first",
+                }
+              : {
+                  reason_code: "missing_installment" as const,
+                  reason_label: "Installment terms updated to the current policy",
+                }),
         });
         affectedStudentIds.add(student.id);
         return;
       }
-
-      const isDifferent =
-        existingInstallment.fee_setting_id !== plannedInstallment.fee_setting_id ||
-        existingInstallment.student_fee_override_id !== plannedInstallment.student_fee_override_id ||
-        existingInstallment.installment_label !== plannedInstallment.installment_label ||
-        existingInstallment.due_date !== plannedInstallment.due_date ||
-        existingInstallment.base_amount !== plannedInstallment.base_amount ||
-        existingInstallment.transport_amount !== plannedInstallment.transport_amount ||
-        existingInstallment.discount_amount !== plannedInstallment.discount_amount ||
-        existingInstallment.late_fee_flat_amount !== plannedInstallment.late_fee_flat_amount ||
-        existingInstallment.status !== "scheduled";
 
       if (!isDifferent) {
         rows.push({
@@ -788,15 +853,19 @@ async function loadPlan(): Promise<RegenerationPlan> {
 
         const paidAmount = paymentTotalsByInstallment.get(row.id) ?? 0;
         const adjustmentAmount = adjustmentTotalsByInstallment.get(row.id) ?? 0;
+        const engine = engineByInstallment.get(row.id) ?? null;
         const balanceStatus = toCurrentBalanceStatus({
           installmentStatus: row.status,
           dueDate: row.due_date,
           amountDue: row.amount_due,
           paidAmount,
           adjustmentAmount,
+          engine,
         });
         const appliedAmount = Math.max(paidAmount + adjustmentAmount, 0);
-        const outstandingAmount = Math.max(row.amount_due - appliedAmount, 0);
+        const outstandingAmount = engine
+          ? Math.max(engine.pending_amount, 0)
+          : Math.max(row.amount_due - appliedAmount, 0);
 
         if (paidAmount > 0 || adjustmentAmount !== 0) {
           const reason = toReviewReason(balanceStatus as Exclude<RegenerationBalanceStatus, "waived" | "cancelled">);
@@ -1142,7 +1211,7 @@ export async function applyLedgerRegenerationBatch(batchId: string) {
       status: "applied",
       apply_summary: applySummary,
       applied_at: new Date().toISOString(),
-      apply_notes: `Applied. Rows with prior payments were preserved automatically. Locked installments held for review: ${ledgerResult.lockedInstallments}.`,
+      apply_notes: `Applied. The policy split was written to every unprotected row; money already paid settles the installments oldest-first. Held for review (EMI plan or due-date move): ${ledgerResult.lockedInstallments}.`,
     })
     .eq("id", batch.id)
     .eq("status", "preview_ready");
@@ -1154,6 +1223,6 @@ export async function applyLedgerRegenerationBatch(batchId: string) {
   return {
     preview: previewSummary,
     applied: applySummary,
-    message: `Applied ${batch.policy_revision_label}: ${ledgerResult.installmentsToInsert} inserts, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations. Rows with prior payments were preserved.`,
+    message: `Applied ${batch.policy_revision_label}: ${ledgerResult.installmentsToInsert} inserts, ${ledgerResult.installmentsToUpdate} updates, ${ledgerResult.installmentsToCancel} cancellations. Money already paid settles the installments oldest-first.`,
   };
 }

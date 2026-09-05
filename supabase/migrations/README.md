@@ -493,6 +493,56 @@ express the school's rule and never fired once:
   new `manual_collected` — so `student_late_fee_waivers_request_idx` gains
   `source`. Nothing is written to `payments` or `receipts`.
 
+### WhatsApp campaigns, part 2 (2026-09-03)
+
+- `20260903131911_whatsapp_campaigns_accept_new_notices` — a saved campaign may name any
+  notice the registry knows about, not just the original three.
+- `20260903165436_defaulter_contacts_bulk_marker` — a broadcast is not a conversation:
+  bulk reminder sends are marked as such in `defaulter_contacts`.
+- `20260903165853_whatsapp_campaign_schedules` — when a saved campaign should run, and
+  which slot a run satisfied.
+- `20260903172053_whatsapp_receipt_notices` — tell a parent their payment landed.
+- `20260903173025_whatsapp_delivery_status` — did the message actually arrive: delivery
+  status from the AiSensy webhook.
+- `20260903175116_whatsapp_run_holdouts` — holdout families per run, the only way to know
+  whether a reminder caused a payment.
+- `20260903175928_whatsapp_send_guardrails` — the four things that should stop a send,
+  and the tables behind them.
+- `20260903181330_whatsapp_pay_codes` — a pay link a parent can tap: `/pay/[code]`.
+
+### Money settles the installments oldest-first (2026-09-05)
+
+- `20260905090000_settlement_pools_oldest_first` — a receipt's `installment_id` is history,
+  not position. Both engines (`v_workbook_installment_balances`,
+  `private.workbook_installment_snapshot`) now pool every rupee a family paid in a session
+  and settle the rows in the counter's order — `plan_priority`, `due_date`,
+  `installment_no` — fees first, then the late fee, per row. The late fee is pooled the same
+  way, which makes the block a `with recursive` walk (row 2's late fee depends on whether
+  row 1 charged one); the block carries a `>>> SHARED POOLED SETTLEMENT RULE <<<` marker
+  and replaces the forward-only surplus spill of `20260826115000`. Five columns are added
+  at the end of both engines and of `preview_workbook_payment_allocation`:
+  `settled_amount`, `fee_settled_amount`, `late_fee_settled_amount`, `plan_priority`,
+  `settlement_rank`. `applied_amount`, `base_charge` and `total_charge` keep their
+  definitions so `total_paid`, `total_due` and `credit_balance` do not move — the
+  migration asserts that. `v_workbook_student_financials` is replayed with one asserted
+  substitution so its per-installment pendings, counts and next-due read the pool instead
+  of recomputing from the pin. `public.settlement_pool_change_snapshot` records every row
+  the moment before; every late fee the re-pooling RAISED is cancelled with a
+  `source='grandfather'` waiver (the 2026-08-08 precedent) and the migration asserts nobody
+  charges more than before, that per-student dues still equal charge minus settled, and
+  that no row reads settled behind a row that still owes. Moved students are listed with
+  `raise notice`. Also widens the two reason-code constraints with `due_date_changed` (and
+  `in_repayment_plan` for regeneration rows) and adds a financial-view refresh trigger on
+  `student_repayment_plans`, since activating a plan re-orders settlement. Live case:
+  SR 660, Rs 7,600 paid before installment 1 was due, reading installment 3 "Paid" and
+  installments 1 and 2 "Overdue" after a fee edit. Apply BEFORE `20260905093000`.
+- `20260905093000_transport_override_is_transport` — `get_dashboard_analytics`' route
+  board gains a `'Custom amount (no route)'` bucket (`routeKey = 'custom'`) for students
+  charged transport through `student_fee_overrides.custom_transport_fee_amount` with no
+  route, instead of filing them under "No transport"; patched by asserted string
+  replacement of its own definition. Drops the dead `v_transport_route_outstanding`
+  (no caller in `src/`, `workers/` or `scripts/`).
+
 ## When you add a new migration
 
 1. Create the file via `supabase migration new <name>` so the timestamp is

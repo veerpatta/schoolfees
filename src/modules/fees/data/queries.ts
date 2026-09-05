@@ -22,7 +22,7 @@ import { describeError } from "@/platform/observability/log";
 import { getDisplayInstallmentLabel } from "@/modules/prev-year-dues/domain/display";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/modules/receipts/data/reversals";
 import { loadSessionScopedReceiptIds } from "@/platform/session/installment-scope";
-import { buildTransportRouteLabel } from "@/modules/fees/domain/label";
+import { buildTransportRouteLabel, matchesTransportRouteFilter } from "@/modules/fees/domain/label";
 import { createClient } from "@/platform/supabase/server";
 import { getStudentFormOptions } from "@/modules/students/data/queries";
 
@@ -120,6 +120,12 @@ type WorkbookInstallmentBalanceRow = {
   transport_route_id: string | null;
   transport_route_name: string | null;
   transport_route_code: string | null;
+  /** Pooled settlement, since 20260905090000. Optional so an older select still maps. */
+  settled_amount?: number | null;
+  fee_settled_amount?: number | null;
+  late_fee_settled_amount?: number | null;
+  plan_priority?: number | null;
+  settlement_rank?: number | null;
 };
 
 type ReceiptClassRow = {
@@ -294,6 +300,12 @@ function mapFinancialRow(row: WorkbookStudentFinancialRow): WorkbookStudentFinan
 function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallmentBalance {
   const isCarryForward = row.is_carry_forward === true;
   const feeBucket = row.carry_forward_fee_head ? `previous_year_${row.carry_forward_fee_head}` : null;
+  // The pooled figure. A caller that selected the view before 20260905090000
+  // added the column gets the pin back, which is what it used to read anyway.
+  const appliedAmount = row.applied_amount ?? row.paid_amount;
+  const settledAmount = row.settled_amount ?? appliedAmount + (row.discount_closeout_amount ?? 0);
+  const feeSettledAmount =
+    row.fee_settled_amount ?? Math.min(settledAmount, Math.max(row.base_charge, 0));
   return {
     installmentId: row.installment_id,
     studentId: row.student_id,
@@ -326,7 +338,7 @@ function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallm
     lastPaymentDate: row.last_payment_date,
     baseCharge: row.base_charge,
     paidAmount: row.paid_amount,
-    appliedAmount: row.applied_amount ?? row.paid_amount,
+    appliedAmount,
     discountCloseoutAmount: row.discount_closeout_amount ?? 0,
     adjustmentAmount: row.adjustment_amount,
     rawLateFee: row.raw_late_fee,
@@ -340,6 +352,11 @@ function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallm
     totalPending: row.total_pending ?? row.pending_amount + (row.late_fee_pending ?? 0),
     balanceStatus: row.balance_status,
     lateFeeStatus: row.late_fee_status ?? "none",
+    settledAmount,
+    feeSettledAmount,
+    lateFeeSettledAmount: row.late_fee_settled_amount ?? settledAmount - feeSettledAmount,
+    planPriority: row.plan_priority ?? 1,
+    settlementRank: row.settlement_rank ?? row.installment_no,
   };
 }
 
@@ -1026,7 +1043,7 @@ export async function getWorkbookTransactions(filters?: {
         classId: classRef?.id ?? null,
         classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
         transportRouteId: studentRef?.transport_route_id ?? null,
-        transportRouteLabel: buildRouteLabel(routeRef),
+        transportRouteLabel: buildRouteLabel(routeRef, financial?.transportFee ?? null),
         sessionLabel: classRef?.session_label ?? null,
         currentOutstanding: financial?.outstandingAmount ?? 0,
         currentTotalPaid: financial?.totalPaid ?? 0,
@@ -1036,7 +1053,13 @@ export async function getWorkbookTransactions(filters?: {
       } satisfies WorkbookTransaction;
     })
     .filter((row) => (filters?.classId ? row.classId === filters.classId : true))
-    .filter((row) => (filters?.routeId ? row.transportRouteId === filters.routeId : true))
+    .filter((row) =>
+      matchesTransportRouteFilter(filters?.routeId, {
+        transportRouteId: row.transportRouteId,
+        routeName: row.transportRouteLabel,
+        transportFeeAmount: financialMap.get(row.studentId)?.transportFee ?? null,
+      }),
+    )
     // Session scoping is enforced upstream via installment-frozen receipt ids
     // (.in("id", sessionReceiptIds)); the current-class post-filter that used to
     // sit here would have dropped promoted students' prior-year receipts.

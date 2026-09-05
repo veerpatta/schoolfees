@@ -750,21 +750,15 @@ function buildWorkbookImpactPreview(payload: {
   plan: WorkbookSetupPlan;
   detailedPreview: Awaited<ReturnType<typeof previewLedgerGenerationDetailed>>;
 }): ConfigChangeImpactPreview {
-  const blockedFullyPaidInstallments = payload.detailedPreview.blockedInstallmentsForReview.filter(
-    (item) => item.reasonCode === "fully_paid",
-  ).length;
-  const blockedPartiallyPaidInstallments =
-    payload.detailedPreview.blockedInstallmentsForReview.filter(
-      (item) => item.reasonCode === "partially_paid",
-    ).length;
-  const blockedAdjustedInstallments = payload.detailedPreview.blockedInstallmentsForReview.filter(
-    (item) => item.reasonCode === "adjustment_posted",
-  ).length;
   const blockedRepaymentPlanInstallments =
     payload.detailedPreview.blockedInstallmentsForReview.filter(
       (item) => item.reasonCode === "in_repayment_plan",
     ).length;
-  const underBilled = payload.detailedPreview.underBilledStudents;
+  const blockedDueDateChangedInstallments =
+    payload.detailedPreview.blockedInstallmentsForReview.filter(
+      (item) => item.reasonCode === "due_date_changed",
+    ).length;
+  const endingInCredit = payload.detailedPreview.studentsEndingInCredit;
 
   return {
     scope: "workbook_setup",
@@ -777,16 +771,12 @@ function buildWorkbookImpactPreview(payload: {
     installmentsToUpdate: payload.detailedPreview.installmentsToUpdate,
     installmentsToCancel: payload.detailedPreview.installmentsToCancel,
     blockedInstallments: payload.detailedPreview.lockedInstallments,
-    blockedFullyPaidInstallments,
-    blockedPartiallyPaidInstallments,
-    blockedAdjustedInstallments,
     blockedRepaymentPlanInstallments,
-    studentsLeftBelowPolicy: underBilled.length,
-    amountLeftBelowPolicy: underBilled.reduce(
-      (total, row) => total + row.unbilledIncreaseAmount,
-      0,
-    ),
-    updatesLimitedToFutureUnpaid: true,
+    blockedDueDateChangedInstallments,
+    studentsEndingInCredit: endingInCredit.length,
+    creditTotal: endingInCredit.reduce((total, row) => total + row.creditAmount, 0),
+    feeDeltaTotal: payload.detailedPreview.feeDeltaTotal,
+    updatesLimitedToFutureUnpaid: false,
     rowsMarkedForReview: payload.detailedPreview.lockedInstallments,
     classRowsUpdated: payload.plan.classRows.filter(
       (row) => row.needsDefaultSave && row.hasClassRecord,
@@ -948,7 +938,7 @@ export async function applyWorkbookFeeSetupBatch(
         apply_summary: applySummary,
         applied_at: new Date().toISOString(),
         apply_notes:
-          "Applied from workbook-style Fee Setup. Only future or unpaid rows were updated; rows with prior payments were preserved automatically.",
+          "Applied from workbook-style Fee Setup. The policy split was written to every unprotected row; money already paid settles the installments oldest-first.",
       })
       .eq("id", batch.id)
       .eq("status", "preview_ready");

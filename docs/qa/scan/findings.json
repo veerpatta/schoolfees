@@ -1,5 +1,5 @@
 {
-  "runId": "202609040319",
+  "runId": "202609050614",
   "verdict": {
     "pass": true,
     "reasons": [],
@@ -10,17 +10,17 @@
   "counts": {
     "P0": 0,
     "P1": 0,
-    "P2": 44,
+    "P2": 43,
     "P3": 11
   },
   "findings": [
     {
-      "id": "551d361caa71",
+      "id": "ffb8953c7c2b",
       "rule": "scan.config-risk",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "next.config.ts:58",
+      "surface": "next.config.ts:66",
       "role": null,
       "device": null,
       "session": "n/a",
@@ -40,35 +40,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:01.159Z"
-    },
-    {
-      "id": "0a404a50035c",
-      "rule": "scan.config-risk",
-      "severity": "P2",
-      "confidence": "deterministic",
-      "target": "static",
-      "surface": "package.json:87",
-      "role": null,
-      "device": null,
-      "session": "n/a",
-      "title": "xlsx is installed from a URL, so npm audit cannot see it",
-      "expected": "Every dependency resolves to a registry version, so `npm audit` can match it against advisory ranges and the dependency check above covers the whole tree.",
-      "actual": "dependencies.xlsx is \"https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz\". There is no registry entry and no semver version for npm to compare, so this package and anything it depends on are absent from every audit report — including a clean one.",
-      "fingerprint": "dependencies.xlsx is \"https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz\". There is no registry entry and no semver version for npm to compare, so this package and anything it depends on are absent from every audit report — including a clean one.",
-      "evidence": {
-        "consoleTail": [
-          "\"xlsx\": \"https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz\","
-        ],
-        "reproCommand": "npm run scan -- --only scan.config-risk --file package.json"
-      },
-      "suspectedFile": "package.json",
-      "why": "This is not a claim that the package is vulnerable; it is that nothing here would ever tell you if it were. A green audit reads as \"the tree is clear\" and silently excludes whatever this specifier installs — and in this repo that specifier is the spreadsheet library every XLSX export and both bulk-upload paths run untrusted uploaded files through, which is the one place a parser advisory would matter most.",
-      "fix": "If a registry release exists at the version you want, depend on it by version and let audit see it. If the URL is deliberate — vendors do publish outside npm — pin the exact version, record who watches that vendor's advisories and where, and note it here so the next reader knows this is a decision rather than an oversight.",
-      "variants": [],
-      "variantsTruncated": false,
-      "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:01.164Z"
+      "firstSeenAt": "2026-09-05T06:14:46.059Z"
     },
     {
       "id": "4228d0bad9e4",
@@ -96,7 +68,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:01.157Z"
+      "firstSeenAt": "2026-09-05T06:14:46.056Z"
     },
     {
       "id": "dca108a42982",
@@ -124,7 +96,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.003Z"
+      "firstSeenAt": "2026-09-05T06:14:38.611Z"
     },
     {
       "id": "e8b7b4a41e83",
@@ -152,7 +124,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.004Z"
+      "firstSeenAt": "2026-09-05T06:14:38.612Z"
     },
     {
       "id": "50fcd8d5b9a2",
@@ -180,7 +152,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.005Z"
+      "firstSeenAt": "2026-09-05T06:14:38.612Z"
     },
     {
       "id": "91eed7adfb0b",
@@ -208,7 +180,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.038Z"
+      "firstSeenAt": "2026-09-05T06:14:38.630Z"
     },
     {
       "id": "715ab5a699da",
@@ -236,7 +208,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.044Z"
+      "firstSeenAt": "2026-09-05T06:14:38.631Z"
     },
     {
       "id": "9f24c0980791",
@@ -264,7 +236,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.050Z"
+      "firstSeenAt": "2026-09-05T06:14:38.635Z"
     },
     {
       "id": "c88e75488491",
@@ -292,7 +264,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.056Z"
+      "firstSeenAt": "2026-09-05T06:14:38.639Z"
     },
     {
       "id": "309dda17d75a",
@@ -320,7 +292,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.080Z"
+      "firstSeenAt": "2026-09-05T06:14:38.654Z"
     },
     {
       "id": "5a2b495e75c5",
@@ -348,7 +320,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.081Z"
+      "firstSeenAt": "2026-09-05T06:14:38.655Z"
     },
     {
       "id": "df8320e8ef22",
@@ -376,7 +348,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.081Z"
+      "firstSeenAt": "2026-09-05T06:14:38.655Z"
     },
     {
       "id": "f5a600033ff0",
@@ -404,7 +376,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.082Z"
+      "firstSeenAt": "2026-09-05T06:14:38.656Z"
     },
     {
       "id": "e3f675784bca",
@@ -432,7 +404,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.082Z"
+      "firstSeenAt": "2026-09-05T06:14:38.656Z"
     },
     {
       "id": "0efdc8dc1fc5",
@@ -460,7 +432,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.084Z"
+      "firstSeenAt": "2026-09-05T06:14:38.658Z"
     },
     {
       "id": "f6e6fd9e6267",
@@ -488,7 +460,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.088Z"
+      "firstSeenAt": "2026-09-05T06:14:38.669Z"
     },
     {
       "id": "c60f73d8101e",
@@ -516,19 +488,19 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.088Z"
+      "firstSeenAt": "2026-09-05T06:14:38.669Z"
     },
     {
-      "id": "888b89aaa30f",
+      "id": "c0f6eb57c126",
       "rule": "scan.money-format-raw",
       "severity": "P2",
       "confidence": "deterministic",
       "target": "static",
-      "surface": "src/modules/payments/data/queries.ts:239",
+      "surface": "src/modules/payments/data/queries.ts:241",
       "role": null,
       "device": null,
       "session": "n/a",
-      "title": "src/modules/payments/data/queries.ts:239 formats a rupee figure without lib/helpers/currency.ts",
+      "title": "src/modules/payments/data/queries.ts:241 formats a rupee figure without lib/helpers/currency.ts",
       "expected": "Every rupee a person reads is produced by formatInr() or <Money />, and every other en-IN grouped number by the plain formatter beside it, so a find-references on src/platform/helpers/currency.ts reaches every one of them.",
       "actual": "This line uses toLocaleString(\"en-IN\") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.",
       "fingerprint": "This line uses toLocaleString(\"en-IN\") directly. scripts/audit-money-formatting.mjs enforces the same rule, but only walks app/ and components/ — it never reads src/.",
@@ -544,7 +516,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.091Z"
+      "firstSeenAt": "2026-09-05T06:14:38.675Z"
     },
     {
       "id": "e2ff8558d0ae",
@@ -572,7 +544,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.092Z"
+      "firstSeenAt": "2026-09-05T06:14:38.677Z"
     },
     {
       "id": "76d42cfda804",
@@ -600,7 +572,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.093Z"
+      "firstSeenAt": "2026-09-05T06:14:38.678Z"
     },
     {
       "id": "d4bec263f674",
@@ -628,7 +600,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.099Z"
+      "firstSeenAt": "2026-09-05T06:14:38.689Z"
     },
     {
       "id": "c97831de28c9",
@@ -656,7 +628,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.099Z"
+      "firstSeenAt": "2026-09-05T06:14:38.689Z"
     },
     {
       "id": "2c00e47f6a64",
@@ -684,7 +656,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.103Z"
+      "firstSeenAt": "2026-09-05T06:14:38.696Z"
     },
     {
       "id": "e66e23084c91",
@@ -712,7 +684,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.112Z"
+      "firstSeenAt": "2026-09-05T06:14:38.713Z"
     },
     {
       "id": "92eed16efc7c",
@@ -740,7 +712,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.112Z"
+      "firstSeenAt": "2026-09-05T06:14:38.713Z"
     },
     {
       "id": "8d04057b8c25",
@@ -768,7 +740,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:01.133Z"
+      "firstSeenAt": "2026-09-05T06:14:46.014Z"
     },
     {
       "id": "8fbc39394e1b",
@@ -796,7 +768,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.120Z"
+      "firstSeenAt": "2026-09-05T06:14:38.731Z"
     },
     {
       "id": "25ce81898384",
@@ -824,7 +796,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:01.147Z"
+      "firstSeenAt": "2026-09-05T06:14:46.035Z"
     },
     {
       "id": "f36caaafe374",
@@ -852,10 +824,10 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.122Z"
+      "firstSeenAt": "2026-09-05T06:14:38.735Z"
     },
     {
-      "id": "dba4a7b5967c",
+      "id": "655997ddd6ab",
       "rule": "scan.rounding-policy-mixed",
       "severity": "P2",
       "confidence": "heuristic",
@@ -866,8 +838,8 @@
       "session": "n/a",
       "title": "src/app/protected/students/close-due-actions.ts:47 rounds `value` where the domain core truncates it",
       "expected": "One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.",
-      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
-      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
+      "actual": "This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.",
+      "fingerprint": "This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.",
       "evidence": {
         "consoleTail": [
           "return Math.round(value);"
@@ -880,10 +852,10 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.130Z"
+      "firstSeenAt": "2026-09-05T06:14:38.749Z"
     },
     {
-      "id": "1507266ec39f",
+      "id": "2a08b49125ea",
       "rule": "scan.rounding-policy-mixed",
       "severity": "P2",
       "confidence": "heuristic",
@@ -894,8 +866,8 @@
       "session": "n/a",
       "title": "src/platform/helpers/amount-in-words-hi.ts:73 rounds `value` where the domain core truncates it",
       "expected": "One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.",
-      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
-      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
+      "actual": "This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.",
+      "fingerprint": "This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.",
       "evidence": {
         "consoleTail": [
           "const amount = Math.max(Math.round(value || 0), 0);"
@@ -908,10 +880,10 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.131Z"
+      "firstSeenAt": "2026-09-05T06:14:38.749Z"
     },
     {
-      "id": "a4d229dbf12d",
+      "id": "81dce775ba9b",
       "rule": "scan.rounding-policy-mixed",
       "severity": "P2",
       "confidence": "heuristic",
@@ -922,8 +894,8 @@
       "session": "n/a",
       "title": "src/platform/helpers/amount-in-words.ts:84 rounds `value` where the domain core truncates it",
       "expected": "One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.",
-      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
-      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
+      "actual": "This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.",
+      "fingerprint": "This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.",
       "evidence": {
         "consoleTail": [
           "const amount = Math.max(Math.round(value || 0), 0);"
@@ -936,10 +908,10 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.131Z"
+      "firstSeenAt": "2026-09-05T06:14:38.749Z"
     },
     {
-      "id": "518230cb1c38",
+      "id": "aa211862e2c8",
       "rule": "scan.rounding-policy-mixed",
       "severity": "P2",
       "confidence": "heuristic",
@@ -950,8 +922,8 @@
       "session": "n/a",
       "title": "src/platform/pdf/document-kit.tsx:51 rounds `value` where the domain core truncates it",
       "expected": "One rounding policy per rupee. The domain core coerces a money value to whole rupees with Math.trunc — lib/fees/due-amounts.ts, lib/receipts/amounts.ts, src/lib/finance/financial-state.ts and lib/payments/allocation.ts all do — so a figure reaches the ledger, the receipt and the export with the same value.",
-      "actual": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
-      "fingerprint": "This coerces `value` with Math.round, while 9 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:28). For 1500.6 one answers 1501 and the other 1500.",
+      "actual": "This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.",
+      "fingerprint": "This coerces `value` with Math.round, while 10 other sites coerce the same-named quantity with Math.trunc (src/modules/fees/data/conventional-discounts.ts:167, src/modules/fees/domain/conventional-discount-rules.ts:16, src/modules/fees/domain/due-amounts.ts:36). For 1500.6 one answers 1501 and the other 1500.",
       "evidence": {
         "consoleTail": [
           "const rounded = Math.round(value || 0);"
@@ -964,7 +936,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:56.131Z"
+      "firstSeenAt": "2026-09-05T06:14:38.749Z"
     },
     {
       "id": "e1f9dd8286ee",
@@ -992,7 +964,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.761Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "d0ed42f13c3a",
@@ -1020,7 +992,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.762Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "03d2d34f1092",
@@ -1048,7 +1020,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.761Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "5fad48a7287b",
@@ -1076,7 +1048,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.761Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "ef43cda43d2b",
@@ -1104,7 +1076,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.761Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "1d4c0f440e4f",
@@ -1132,7 +1104,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.763Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "d89b1bb2ecf4",
@@ -1160,7 +1132,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.762Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "fe4b790a9ade",
@@ -1188,7 +1160,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.763Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "553a7439553c",
@@ -1216,7 +1188,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.763Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "66b34a387be6",
@@ -1244,7 +1216,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:00.763Z"
+      "firstSeenAt": "2026-09-05T06:14:45.438Z"
     },
     {
       "id": "29e73ec10600",
@@ -1272,7 +1244,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:55.880Z"
+      "firstSeenAt": "2026-09-05T06:14:38.356Z"
     },
     {
       "id": "274e90575771",
@@ -1300,7 +1272,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:01.158Z"
+      "firstSeenAt": "2026-09-05T06:14:46.058Z"
     },
     {
       "id": "83bf35a40105",
@@ -1328,15 +1300,15 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:20:01.158Z"
+      "firstSeenAt": "2026-09-05T06:14:46.058Z"
     },
     {
-      "id": "0f7afa960698",
+      "id": "54d456feb4d8",
       "rule": "scan.observation",
       "severity": "P3",
       "confidence": "heuristic",
       "target": "static",
-      "surface": "src/app/protected/students/[studentId]/page.tsx:1270",
+      "surface": "src/app/protected/students/[studentId]/page.tsx:1275",
       "role": null,
       "device": null,
       "session": "n/a",
@@ -1356,15 +1328,15 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:55.892Z"
+      "firstSeenAt": "2026-09-05T06:14:38.384Z"
     },
     {
-      "id": "ad3e1c783097",
+      "id": "150c7194e84c",
       "rule": "scan.observation",
       "severity": "P3",
       "confidence": "heuristic",
       "target": "static",
-      "surface": "src/app/protected/students/[studentId]/page.tsx:1410",
+      "surface": "src/app/protected/students/[studentId]/page.tsx:1415",
       "role": null,
       "device": null,
       "session": "n/a",
@@ -1384,7 +1356,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:55.893Z"
+      "firstSeenAt": "2026-09-05T06:14:38.384Z"
     },
     {
       "id": "84e55bc7a515",
@@ -1412,7 +1384,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:55.948Z"
+      "firstSeenAt": "2026-09-05T06:14:38.541Z"
     },
     {
       "id": "f338f189ce40",
@@ -1440,7 +1412,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:55.949Z"
+      "firstSeenAt": "2026-09-05T06:14:38.542Z"
     },
     {
       "id": "6a4ef1318b79",
@@ -1468,7 +1440,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:55.955Z"
+      "firstSeenAt": "2026-09-05T06:14:38.559Z"
     },
     {
       "id": "2548978eeea8",
@@ -1496,7 +1468,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:55.957Z"
+      "firstSeenAt": "2026-09-05T06:14:38.562Z"
     },
     {
       "id": "71c5eebdf8dc",
@@ -1524,7 +1496,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:55.958Z"
+      "firstSeenAt": "2026-09-05T06:14:38.565Z"
     },
     {
       "id": "474b40f71cd8",
@@ -1552,7 +1524,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-04T03:19:55.960Z"
+      "firstSeenAt": "2026-09-05T06:14:38.570Z"
     }
   ]
 }

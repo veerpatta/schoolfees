@@ -19,7 +19,13 @@ import {
   calculateOverdueBaseAmount,
   calculatePendingLateFeeAmount,
 } from "@/modules/fees/domain/due-amounts";
-import { buildTransportRouteLabel, isSentinelNoTransportRoute } from "@/modules/fees/domain/label";
+import {
+  buildTransportRouteLabel,
+  CUSTOM_TRANSPORT_ROUTE_KEY,
+  isSentinelNoTransportRoute,
+  NO_TRANSPORT_LABEL,
+  readActiveCustomTransportAmount,
+} from "@/modules/fees/domain/label";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { createClient } from "@/platform/supabase/server";
 import { getCacheSafeClient } from "@/platform/supabase/cache-safe";
@@ -73,6 +79,10 @@ type StudentListRow = {
   photo_path: string | null;
   class_ref: StudentJoinClass | StudentJoinClass[] | null;
   route_ref: StudentJoinRoute | StudentJoinRoute[] | null;
+  fee_override?:
+    | Array<{ custom_transport_fee_amount: number | null; is_active: boolean }>
+    | { custom_transport_fee_amount: number | null; is_active: boolean }
+    | null;
 };
 
 type StudentDetailRow = {
@@ -661,7 +671,9 @@ async function getStudentsPageUncached(
     query = query.eq("class_id", filters.classId);
   }
 
-  if (filters.transportRouteId) {
+  if (filters.transportRouteId === CUSTOM_TRANSPORT_ROUTE_KEY) {
+    query = query.is("transport_route_id", null);
+  } else if (filters.transportRouteId) {
     query = query.eq("transport_route_id", filters.transportRouteId);
   }
 
@@ -976,8 +988,16 @@ async function getStudentsPageUncached(
     } satisfies StudentListItem;
   });
 
+  // "Custom amount (no route)" is a filter on a charge, not on an id: the query
+  // above narrowed to students with no route, and this keeps the ones who are
+  // charged transport all the same.
+  const filteredStudents =
+    filters.transportRouteId === CUSTOM_TRANSPORT_ROUTE_KEY
+      ? students.filter((student) => student.transportRouteLabel !== NO_TRANSPORT_LABEL)
+      : students;
+
   return {
-    students,
+    students: filteredStudents,
     totalCount: count ?? 0,
     page,
     pageSize,
@@ -1032,7 +1052,7 @@ export async function getStudentsIdentityPage(
     supabase
       .from("students")
       .select(
-        "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, photo_path, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)",
+        "id, admission_no, full_name, date_of_birth, status, primary_phone, secondary_phone, updated_at, photo_path, class_ref:classes!inner(id, session_label, status, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code), fee_override:student_fee_overrides(custom_transport_fee_amount, is_active)",
         { count: "exact" },
       )
       .eq("class_ref.status", "active"),
@@ -1041,7 +1061,11 @@ export async function getStudentsIdentityPage(
 
   if (filters.sessionLabel) query = query.eq("class_ref.session_label", filters.sessionLabel);
   if (filters.classId) query = query.eq("class_id", filters.classId);
-  if (filters.transportRouteId) query = query.eq("transport_route_id", filters.transportRouteId);
+  if (filters.transportRouteId === CUSTOM_TRANSPORT_ROUTE_KEY) {
+    query = query.is("transport_route_id", null);
+  } else if (filters.transportRouteId) {
+    query = query.eq("transport_route_id", filters.transportRouteId);
+  }
   // Same enrolment-chip precedence as getStudentsPage above.
   if (filters.status && !segmentsImplyEnrolment(filters.segments)) {
     query = query.eq("status", filters.status);
@@ -1069,10 +1093,12 @@ export async function getStudentsIdentityPage(
       status: row.status,
       studentStatusLabel: "Old",
       classLabel: classRef ? buildClassLabel(classRef) : "Unknown class",
-      // Degraded fallback path: no financial projection is loaded here, so a
-      // custom transport amount cannot be detected. The sentinel-route handling
-      // still applies.
-      transportRouteLabel: buildTransportRouteLabel({ route: routeRef }),
+      // Degraded path: no financial projection is loaded here, so the custom
+      // transport amount comes straight off the active override instead.
+      transportRouteLabel: buildTransportRouteLabel({
+        route: routeRef,
+        customTransportFeeAmount: readActiveCustomTransportAmount(row.fee_override),
+      }),
       tuitionFee: 0,
       transportFee: 0,
       academicFee: 0,

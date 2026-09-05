@@ -1,6 +1,6 @@
 {
   "note": "Pinned hashes for the TS/SQL pairs the source declares must move together. Each hash is sha1 of the excerpt with comments removed, whitespace collapsed and case folded — a reformat does not move it, an operator or a literal does. Regenerate with `node tests/scan/checks/mirror-drift.mjs --write-baseline`, and only after confirming by hand that both sides of every changed pair agree again.",
-  "lastReconciledMigration": "supabase/migrations/20260819120000_restore_view_hardening_lost_to_cascade.sql",
+  "lastReconciledMigration": "supabase/migrations/20260905093000_transport_override_is_transport.sql",
   "pairs": [
     {
       "id": "late-fee-rule",
@@ -22,6 +22,29 @@
           "endLine": 578,
           "chars": 433,
           "hash": "1ae89b2439c345b5"
+        }
+      ]
+    },
+    {
+      "id": "pooled-settlement-rule",
+      "rule": "Every rupee the family paid in the session is one pool that settles the rows in the counter's order (plan_priority, due_date, installment_no), covering each row's fees and then its late fee before moving on; a row was settled on time if everything paid by its due date, minus what the rows ahead of it absorb, covers its base.",
+      "declaredAt": "supabase/migrations/20260905090000_settlement_pools_oldest_first.sql (\">>> SHARED POOLED SETTLEMENT RULE <<< Byte-identical to ... Edit both or neither\")",
+      "sides": [
+        {
+          "name": "v_workbook_installment_balances pooled block",
+          "file": "supabase/migrations/20260905090000_settlement_pools_oldest_first.sql",
+          "startLine": 293,
+          "endLine": 420,
+          "chars": 3589,
+          "hash": "d67282983e53b821"
+        },
+        {
+          "name": "private.workbook_installment_snapshot pooled block",
+          "file": "supabase/migrations/20260905090000_settlement_pools_oldest_first.sql",
+          "startLine": 696,
+          "endLine": 813,
+          "chars": 3589,
+          "hash": "d67282983e53b821"
         }
       ]
     },
@@ -79,8 +102,8 @@
         {
           "name": "plannedAmountDue",
           "file": "src/modules/fees/data/generator.ts",
-          "startLine": 362,
-          "endLine": 364,
+          "startLine": 352,
+          "endLine": 354,
           "chars": 127,
           "hash": "57c34beaf38cc3a6"
         },
@@ -102,8 +125,8 @@
         {
           "name": "calculatePendingLateFeeAmount",
           "file": "src/modules/fees/domain/due-amounts.ts",
-          "startLine": 68,
-          "endLine": 72,
+          "startLine": 84,
+          "endLine": 88,
           "chars": 232,
           "hash": "cda6d8bb23d129ca"
         },
@@ -148,8 +171,8 @@
         {
           "name": "hasFeeException",
           "file": "src/modules/students/data/queries.ts",
-          "startLine": 894,
-          "endLine": 901,
+          "startLine": 917,
+          "endLine": 924,
           "chars": 307,
           "hash": "61dc9977f5962d46"
         },
@@ -166,7 +189,7 @@
     {
       "id": "collectable-scope",
       "rule": "Money counts `record_status = 'active' OR total_paid > 0`. A student who left owing money still owes it -- and headcount, which is active-only, must never borrow this predicate.",
-      "declaredAt": "workers/schoolfees-mcp/src/scope.mjs:23-24 (\"Mirrors lib/workbook/data.ts:680, lib/defaulters/data.ts:133 and lib/recovery/types.ts:11\")",
+      "declaredAt": "workers/schoolfees-mcp/src/scope.mjs:23-24 (\"Mirrors lib/workbook/data.ts:680, src/lib/defaulters/data.ts:133 and lib/recovery/types.ts:11\")",
       "sides": [
         {
           "name": "STUDENT_SCOPES.collectable",
@@ -179,8 +202,8 @@
         {
           "name": "workbook activeOnly filter",
           "file": "src/modules/fees/data/queries.ts",
-          "startLine": 692,
-          "endLine": 692,
+          "startLine": 566,
+          "endLine": 566,
           "chars": 60,
           "hash": "7d93e8db1a2b2d75"
         }

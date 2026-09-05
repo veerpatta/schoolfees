@@ -44,6 +44,9 @@ export const INSTALLMENT_FIELDS = [
   "balance_status",
   "late_fee_status",
   "last_payment_date",
+  "settled_amount",
+  "fee_settled_amount",
+  "late_fee_settled_amount",
 ].join(", ");
 
 export function mapInstallmentRow(row) {
@@ -67,6 +70,10 @@ export function mapInstallmentRow(row) {
     baseCharge: number(row.base_charge),
     paidAmount: number(row.paid_amount),
     appliedAmount: number(row.applied_amount ?? row.paid_amount),
+    // Where the money sits once it has settled the installments oldest-first,
+    // whatever row the receipt was written against. appliedAmount is that pin.
+    settledAmount: number(row.settled_amount ?? row.applied_amount ?? row.paid_amount),
+    feeSettledAmount: number(row.fee_settled_amount ?? Math.min(number(row.settled_amount ?? row.applied_amount ?? row.paid_amount), number(row.base_charge))),
     discountCloseoutAmount: number(row.discount_closeout_amount),
     adjustmentAmount: number(row.adjustment_amount),
     lateFeeRawAmount: number(row.raw_late_fee),

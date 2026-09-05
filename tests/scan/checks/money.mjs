@@ -13,10 +13,9 @@
  *      with `Math.round`, so `n x round(a/n) != a` and the parts no longer sum
  *      to the whole. The repo already knows this and has three remainder-
  *      preserving splitters for it: `splitAmountWithRemainderLast`
- *      (lib/fees/workbook.ts, remainder to the last part),
+ *      (lib/fees/workbook.ts, remainder to the last part) and
  *      `splitAcrossInstallments` (lib/fees/generator.ts and
- *      lib/fees/regeneration.ts, remainder to the first) and
- *      `allocateChargesRespectingPaidFloors`. Anywhere the split is written by
+ *      lib/fees/regeneration.ts, remainder to the first). Anywhere the split is written by
  *      hand instead, a family is shown a per-installment breakdown whose rows
  *      do not add to the figure printed above them.
  *

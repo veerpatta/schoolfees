@@ -71,8 +71,23 @@ intent.
 
 Two engines compute this — `v_workbook_installment_balances` and
 `private.workbook_installment_snapshot` — and they carry the same rule verbatim, along with
-the surplus-spill rule that puts a released late fee onto the next installments. They must
-be changed together.
+the pooled-settlement rule below. They must be changed together.
+
+## Money settles the installments oldest-first
+
+Every rupee a family pays in a session is one pool. It clears installment 1, then 2, then
+3, then 4 — each installment's fees first, then its late fee — whatever installment the
+receipt was written against. The receipt keeps its own record of where it was posted; the
+ledger reads where the money now sits. A later installment can never show as paid while an
+earlier one is owed. An installment was settled on time if everything paid by its due date,
+after the installments ahead of it are covered, covers its fees.
+
+Rescheduling a due date on an installment the family has paid against re-runs that
+on-time test retroactively, so a fee edit never does it on its own; it is held for a person.
+
+When the rule changed on 05-09-2026 the school approved the correction but, as on
+08-08-2026, **not** back-charging families: every late fee the re-pooling raised was
+cancelled with a `source='grandfather'` waiver.
 
 When the rule itself changed on 08-08-2026, the school approved the correction but **not**
 back-charging families, so the increase was cancelled with `source='grandfather'` waivers
@@ -170,9 +185,13 @@ These are non-negotiable safety rules:
 Fee Setup publish and regeneration behavior should:
 
 1. preview impact first
-2. apply changes to unpaid/future rows in scope
-3. protect paid/partial/adjusted rows from silent rewrite
-4. keep review trail for protected rows and change batches
+2. write the policy's split to every row in scope, paid or not — money already paid
+   settles the installments oldest-first, so a repriced row contradicts no receipt
+3. leave alone: cancelled and waived rows, carry-forward rows, rows covered by an active
+   EMI plan, and a paid row whose due date would move
+4. never rewrite a posted payment or receipt; report families the new charge leaves in
+   credit
+5. keep review trail for held rows and change batches
 
 ## Historical SOP (Not Active)
 

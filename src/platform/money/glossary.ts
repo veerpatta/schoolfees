@@ -239,9 +239,9 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
   amountPaidOnInstallment: {
     key: "amountPaidOnInstallment",
     label: "Paid on this installment",
-    summary: "Sum of all payments allocated to this specific installment.",
+    summary: "What the family's money has settled on this installment, oldest installment first.",
     detail:
-      "Includes payments across multiple receipts that were applied to this installment. Does not include adjustments — those appear as separate entries.",
+      "Every rupee the family has paid this session is one pool that clears installment 1, then 2, then 3, then 4 — each row's fees first, then its late fee — whatever installment a receipt was originally written against. The receipt keeps its own record of where it was posted (\"receipted against\"); this figure is where the money now sits. Reversals come out of the pool, so a reversed receipt frees the last installments first.",
   },
   pendingOnInstallment: {
     key: "pendingOnInstallment",

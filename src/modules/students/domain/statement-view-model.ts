@@ -12,8 +12,11 @@ import type { WorkbookInstallmentBalance } from "@/modules/fees/domain/workbook-
  *
  * Three rules this file exists to hold in one place:
  *
- * 1. **Paid means `appliedAmount`, never `paidAmount`.** `paidAmount` is raw
- *    cash receipted and still counts a receipt that was later reversed.
+ * 1. **Paid on a row means `settledAmount`, never `paidAmount`.** `paidAmount`
+ *    is raw cash receipted and still counts a receipt that was later reversed;
+ *    `appliedAmount` is the receipt pin, which is history rather than position
+ *    since money settles the installments oldest-first. The cash TOTAL is still
+ *    the sum of `appliedAmount`, because that is what was actually received.
  * 2. **A late fee is not a fee.** `feesPending` and `lateFeePending` are carried
  *    separately all the way to the component, so the document can say which is
  *    which. `stillPayable` is their sum — what the counter can actually collect.
@@ -227,7 +230,7 @@ export function buildStatementStudentView(input: {
     label: item.installmentLabel,
     dueDate: item.dueDate,
     charged: item.totalCharge,
-    paid: item.appliedAmount,
+    paid: item.settledAmount,
     writtenOff: item.discountCloseoutAmount,
     payable: item.totalPending,
     lateFee: item.finalLateFee,

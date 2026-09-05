@@ -33,7 +33,7 @@ Configure academic-year fee defaults safely with preview/publish controls.
 2. Select/confirm session.
 3. Update fee values.
 4. Run **Preview Changes**.
-5. Review impact summary and protected rows.
+5. Review impact summary, held rows and families ending in credit.
 6. **Publish Fee Setup**.
 
 ## Conventional Discounts in Fee Setup Context
@@ -44,9 +44,11 @@ auditable.
 
 ## Impact Rules
 
-- unpaid/future rows update in scope
-- paid/partial/adjusted rows are protected
-- protected rows stay visible for manual review decisions
+- every row in scope is rewritten to the policy split, paid or not — money already paid
+  settles the installments oldest-first, so nothing a receipt said changes
+- rows covered by an active EMI plan, and paid rows whose due date would move, are held
+- held rows stay visible for manual review decisions; families the new charge leaves in
+  credit are listed for Finance Controls
 
 ## Post-Publish Financial Meaning
 

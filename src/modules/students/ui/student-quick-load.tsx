@@ -43,6 +43,7 @@ import type {
 } from "@/modules/students/domain/types";
 
 import { Search, GraduationCap, Bus, UserCheck, Plus, ChevronDown } from "lucide-react";
+import { CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/transport-route-key";
 
 const selectClassName =
   "appearance-none flex w-full rounded-md border border-input bg-card px-3 py-1 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:ring-ring focus:border-ring cursor-pointer hover:border-border-strong";
@@ -490,7 +491,11 @@ export function StudentQuickLoad({
     if (filters.transportRouteId) {
       pills.push({
         key: "route",
-        label: routeOptions.find((option) => option.id === filters.transportRouteId)?.label ?? filters.transportRouteId,
+        label:
+          filters.transportRouteId === CUSTOM_TRANSPORT_ROUTE_KEY
+            ? t("transportRouteCustom")
+            : (routeOptions.find((option) => option.id === filters.transportRouteId)?.label ??
+              filters.transportRouteId),
         onRemove: () => setFilters((previous) => ({ ...previous, transportRouteId: "" })),
       });
     }
@@ -654,6 +659,7 @@ export function StudentQuickLoad({
               className={`${selectClassName} h-9 w-auto min-w-[9rem] pl-9`}
             >
               <option value="">{t("transportRouteAll")}</option>
+              <option value={CUSTOM_TRANSPORT_ROUTE_KEY}>{t("transportRouteCustom")}</option>
               {routeOptions.map((route) => (
                 <option key={route.id} value={route.id}>
                   {route.routeCode

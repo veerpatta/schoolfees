@@ -44,14 +44,17 @@ describe("fee setup publish gate", () => {
     expect(client).toContain("setSaveState(INITIAL_FEE_SETUP_ACTION_STATE)");
   });
 
-  it("shows the protected-row guarantee, not just the change count", () => {
-    // The whole point for the office: money already posted is never rewritten.
+  it("shows what is held and who ends up in credit, not just the change count", () => {
+    // The whole point for the office: money already posted is never rewritten,
+    // and since it settles the installments oldest-first the only rows held
+    // are EMI-covered ones and paid rows whose due date would move.
     expect(gate).toContain("previewFrozenRows");
     expect(gate).toContain("blockedInstallments");
     expect(gate).toContain("previewNeverEditsMoney");
-    expect(gate).toContain("blockedFullyPaidInstallments");
-    expect(gate).toContain("blockedPartiallyPaidInstallments");
-    expect(gate).toContain("blockedAdjustedInstallments");
+    expect(gate).toContain("blockedRepaymentPlanInstallments");
+    expect(gate).toContain("blockedDueDateChangedInstallments");
+    expect(gate).toContain("studentsEndingInCredit");
+    expect(gate).not.toContain("blockedFullyPaidInstallments");
   });
 
   it("keeps the server-side single-shot save available for other callers", () => {

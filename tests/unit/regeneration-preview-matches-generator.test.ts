@@ -61,16 +61,24 @@ describe("the Fee Setup preview resolves policy the same way the apply does", ()
     }
   });
 
-  it("the preview allows a rise on an unsettled row, exactly as the generator does", () => {
-    // classifyInstallmentLock returns `safe_increase` when
-    // `appliedAmount < existing.amount_due`. The preview mirrors that with
-    // `appliedAmount < amountDue` inside its own safe-move test. If one side
-    // relaxes and the other does not, the office is shown "held for review" for
-    // a row that then silently changes, or the reverse.
+  it("the preview holds exactly the two rows the generator holds, and nothing else", () => {
+    // Money settles the installments oldest-first at read time, so a row
+    // carrying a payment is repriced like any other. Only an active EMI plan
+    // or a due date moving on paid money still holds a row -- and the preview
+    // must say so for exactly the rows the apply step will hold, or the office
+    // is shown "held for review" for a row that then silently changes, or the
+    // reverse.
     const preview = read("src/modules/fees/data/regeneration.ts");
+    const apply = read("src/modules/fees/data/generator.ts");
 
-    expect(preview).toContain("appliedAmount < amountDue");
+    for (const file of [preview, apply]) {
+      expect(file).toContain("in_repayment_plan");
+      expect(file).toContain("due_date_changed");
+      expect(file).not.toContain("paid-floor-allocation");
+      expect(file).toContain("student_repayment_plan_items");
+    }
+    expect(apply).toContain('kind: "write"');
     expect(preview).toContain("charge_rise_on_unsettled");
-    expect(read("src/modules/fees/data/generator.ts")).toContain('kind: "safe_increase"');
+    expect(preview).toContain("discount_reduces_unpaid");
   });
 });

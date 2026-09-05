@@ -88,34 +88,31 @@ export function FeeSetupImpactPreview({
         <p className="mt-3 flex items-start gap-2 rounded-lg bg-card px-3 py-2 text-xs text-muted-foreground">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden="true" />
           <span>
-            {preview.blockedFullyPaidInstallments} paid ·{" "}
-            {preview.blockedPartiallyPaidInstallments} partly paid ·{" "}
-            {preview.blockedAdjustedInstallments} adjusted
-            {preview.blockedRepaymentPlanInstallments > 0
-              ? ` · ${preview.blockedRepaymentPlanInstallments} on an EMI plan`
-              : ""}
+            {t("previewHeldBreakdown", {
+              plan: preview.blockedRepaymentPlanInstallments,
+              dueDate: preview.blockedDueDateChangedInstallments,
+            })}
           </span>
         </p>
       ) : null}
 
       {/*
-        A frozen row is a promise kept; a student left below policy is money the
-        school silently stops asking for. They used to be reported as the same
-        reassuring "rows held for review" count, which is how eight students went
-        Rs 54,225 under-billed for three months without anyone seeing it. This one
-        is not a footnote.
+        Money already paid settles the installments oldest-first, so a repriced
+        paid row is not a problem. A family who has paid MORE than the new
+        charge is: that money is now theirs to have back, and the office should
+        hear it here rather than find it in March.
       */}
-      {preview.studentsLeftBelowPolicy > 0 ? (
+      {preview.studentsEndingInCredit > 0 ? (
         <p
-          data-fee-setup-under-billed
+          data-fee-setup-ending-in-credit
           role="alert"
           className="mt-3 flex items-start gap-2 rounded-lg border border-warning/50 bg-warning-soft px-3 py-2 text-xs font-medium text-warning-soft-foreground"
         >
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           <span>
-            {t("previewLeftBelowPolicy", {
-              count: preview.studentsLeftBelowPolicy,
-              amount: formatInr(preview.amountLeftBelowPolicy),
+            {t("previewEndingInCredit", {
+              count: preview.studentsEndingInCredit,
+              amount: formatInr(preview.creditTotal),
             })}
           </span>
         </p>

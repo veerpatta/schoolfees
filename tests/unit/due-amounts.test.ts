@@ -28,7 +28,8 @@ describe("due amount helpers", () => {
         baseCharge: 5000,
         paidAmount: 2000,
         adjustmentAmount: 500,
-        pendingAmount: 3500,
+        // Fees only, as the engine reports it since the late-fee split.
+        pendingAmount: 2500,
         finalLateFee: 1000,
         balanceStatus: "overdue",
       }),
@@ -101,5 +102,32 @@ describe("due amount helpers", () => {
         },
       ]),
     ).toBe(0);
+  });
+
+  it("prefers the engine's pending over base minus the receipt pin", () => {
+    // Since 20260905090000 money settles the installments oldest-first at read
+    // time. The pin on this row says Rs 1,900 was receipted here; the pool
+    // says the row is untouched because earlier rows were still owed.
+    expect(
+      calculateInstallmentBasePending({
+        baseCharge: 8000,
+        paidAmount: 1900,
+        adjustmentAmount: 0,
+        pendingAmount: 8000,
+      }),
+    ).toBe(8000);
+    // The Payment Desk carries the same figure as feesPending.
+    expect(
+      calculateInstallmentBasePending({
+        amountDue: 9000,
+        finalLateFee: 1000,
+        paymentsTotal: 1900,
+        feesPending: 8000,
+      }),
+    ).toBe(8000);
+    // Without either, the arithmetic fallback still works for older callers.
+    expect(
+      calculateInstallmentBasePending({ baseCharge: 8000, paidAmount: 1900, adjustmentAmount: 0 }),
+    ).toBe(6100);
   });
 });

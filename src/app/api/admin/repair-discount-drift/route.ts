@@ -23,8 +23,8 @@ import { drainFinancialViewRefresh } from "@/modules/system-sync/data/financial-
  *     re-running the generator fixes them.
  *
  * Deliberately a route, not a migration: the repair has to recompute amounts
- * through resolveStudentPolicyBreakdown → buildWorkbookInstallmentCharges →
- * allocateChargesRespectingPaidFloors. Reimplementing that chain in PL/pgSQL
+ * through resolveStudentPolicyBreakdown → buildWorkbookInstallmentCharges and
+ * write the policy split. Reimplementing that chain in PL/pgSQL
  * would create a second fee engine that drifts from the first — the exact class
  * of bug being repaired. A route can also be re-run; a migration cannot.
  *
@@ -227,7 +227,7 @@ export async function POST(request: Request) {
         message: "No drift found in scope. Every targeted student's ledger matches their resolved fee policy.",
         before: [],
         remaining: [],
-        residualCreditStudents: [],
+        studentsEndingInCredit: [],
         skippedIncreases,
       });
     }
@@ -252,9 +252,9 @@ export async function POST(request: Request) {
           installmentsToRepoint: preview.installmentsToRepoint,
           installmentsToCancel: preview.installmentsToCancel,
           lockedInstallments: preview.lockedInstallments,
-          residualCreditTotal: preview.residualCreditTotal,
+          creditTotal: preview.creditTotal,
         },
-        residualCreditStudents: preview.residualCreditStudents,
+        studentsEndingInCredit: preview.studentsEndingInCredit,
         blockedInstallmentsForReview: preview.blockedInstallmentsForReview,
         skippedStudents: preview.skippedStudents,
         skippedIncreases,
@@ -319,9 +319,9 @@ export async function POST(request: Request) {
         installmentsToRepoint: result.installmentsToRepoint,
         installmentsToCancel: result.installmentsToCancel,
         lockedInstallments: result.lockedInstallments,
-        residualCreditTotal: result.residualCreditTotal,
+        creditTotal: result.creditTotal,
       },
-      residualCreditStudents: result.residualCreditStudents,
+      studentsEndingInCredit: result.studentsEndingInCredit,
       blockedInstallmentsForReview: result.blockedInstallmentsForReview,
       skippedStudents: result.skippedStudents,
       skippedIncreases,

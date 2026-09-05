@@ -635,17 +635,22 @@ export default async function StudentDetailPage({
                       </div>
                     ) : null}
                   </td>
-                  {/* `appliedAmount`, so the row adds up on screen: Charged −
-                      Paid = Outstanding, exactly. `paidAmount` is cash
-                      receipted before adjustments, so on a row with a reversal
-                      it left the three figures visibly failing to reconcile.
-                      The adjustment chip explains the gap between what was
-                      handed over and what stuck. */}
+                  {/* `settledAmount`: where the family's money sits once it has
+                      cleared the installments oldest-first, so the row adds up
+                      on screen: Charged − Paid = Outstanding. A receipt written
+                      against a later installment still shows where it was
+                      receipted, in small print, because that is what the
+                      printed copy says. */}
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-success-soft-foreground">
-                    <Money value={item.appliedAmount} size="sm" />
+                    <Money value={item.settledAmount} size="sm" />
                     {item.adjustmentAmount !== 0 ? (
                       <div className="mt-0.5 text-[10px] font-medium text-muted-foreground">
                         {formatInr(item.adjustmentAmount)} adjusted
+                      </div>
+                    ) : null}
+                    {item.appliedAmount + item.discountCloseoutAmount !== item.settledAmount ? (
+                      <div className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+                        {formatInr(item.appliedAmount + item.discountCloseoutAmount)} receipted here
                       </div>
                     ) : null}
                   </td>

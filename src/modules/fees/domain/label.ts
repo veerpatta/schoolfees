@@ -28,6 +28,7 @@
  */
 
 import { formatInr } from "@/platform/helpers/currency";
+import { CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/transport-route-key";
 
 /**
  * A `transport_routes` row named this is a placeholder meaning "not on
@@ -37,6 +38,47 @@ export const SENTINEL_NO_TRANSPORT_ROUTE_NAME = "no transport";
 
 /** Shown when the student genuinely has no transport and is charged nothing. */
 export const NO_TRANSPORT_LABEL = "No transport";
+
+export {
+  CUSTOM_TRANSPORT_BUCKET_LABEL,
+  CUSTOM_TRANSPORT_ROUTE_KEY,
+} from "@/modules/fees/domain/transport-route-key";
+
+/**
+ * Read the active override's custom transport amount out of an embedded
+ * `student_fee_overrides` relation, in either shape PostgREST returns.
+ */
+export function readActiveCustomTransportAmount(
+  overrides:
+    | { custom_transport_fee_amount: number | null; is_active?: boolean | null }
+    | Array<{ custom_transport_fee_amount: number | null; is_active?: boolean | null }>
+    | null
+    | undefined,
+): number | null {
+  const rows = Array.isArray(overrides) ? overrides : overrides ? [overrides] : [];
+  const active = rows.find((row) => row.is_active !== false) ?? null;
+  return active?.custom_transport_fee_amount ?? null;
+}
+
+/**
+ * Does this student match a route filter? `filterValue` is a route id, the
+ * custom bucket key, or empty for "all". Pair with `hasTransport` so a custom
+ * amount with no route lands in its bucket rather than nowhere.
+ */
+export function matchesTransportRouteFilter(
+  filterValue: string | null | undefined,
+  row: TransportLabelInput & { transportRouteId: string | null | undefined },
+): boolean {
+  if (!filterValue) {
+    return true;
+  }
+
+  if (filterValue === CUSTOM_TRANSPORT_ROUTE_KEY) {
+    return !row.transportRouteId && hasTransport(row);
+  }
+
+  return row.transportRouteId === filterValue;
+}
 
 export type TransportRouteLike = {
   route_name?: string | null;

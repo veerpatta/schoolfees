@@ -22,12 +22,14 @@ import { describe, expect, it } from "vitest";
 describe("reversed installments are classified on the net", () => {
   const generator = readFileSync(join(process.cwd(), "src/modules/fees/data/generator.ts"), "utf8");
 
-  it("BOTH paid branches require net applied money, not just gross payments", () => {
-    // Two classifiers carry the same paid/partial vocabulary: the withdrawal
-    // path (classifyCancelLock) and the regeneration path
-    // (classifyInstallmentLock's lockedForMoney). Both must net.
+  it("the paid branch requires net applied money, not just gross payments", () => {
+    // One classifier still carries the paid/partial vocabulary: the withdrawal
+    // path (classifyCancelLock). The regeneration path used to as well, until
+    // 20260905090000 made money settle oldest-first at read time and a row
+    // carrying a payment stopped being a frozen bill -- it no longer classes
+    // rows as paid or partial at all.
     const netted = generator.match(/if \(paidAmount > 0 && appliedAmount > 0\) \{/g);
-    expect(netted).toHaveLength(2);
+    expect(netted).toHaveLength(1);
     // The gross-only form must not come back in either.
     expect(generator).not.toMatch(/if \(paidAmount > 0\) \{\s*\n\s*return appliedAmount >=/);
   });

@@ -114,6 +114,33 @@ const MIRRORS = [
     ],
   },
   {
+    id: "pooled-settlement-rule",
+    rule:
+      "Every rupee the family paid in the session is one pool that settles the rows in the "
+      + "counter's order (plan_priority, due_date, installment_no), covering each row's fees and "
+      + "then its late fee before moving on; a row was settled on time if everything paid by its "
+      + "due date, minus what the rows ahead of it absorb, covers its base.",
+    declaredAt:
+      "supabase/migrations/20260905090000_settlement_pools_oldest_first.sql "
+      + "(\">>> SHARED POOLED SETTLEMENT RULE <<< Byte-identical to ... Edit both or neither\")",
+    sides: [
+      {
+        name: "v_workbook_installment_balances pooled block",
+        file: "supabase/migrations/20260905090000_settlement_pools_oldest_first.sql",
+        from: ">>> SHARED POOLED SETTLEMENT RULE <<<",
+        to: "<<< SHARED POOLED SETTLEMENT RULE >>>",
+        occurrence: 1,
+      },
+      {
+        name: "private.workbook_installment_snapshot pooled block",
+        file: "supabase/migrations/20260905090000_settlement_pools_oldest_first.sql",
+        from: ">>> SHARED POOLED SETTLEMENT RULE <<<",
+        to: "<<< SHARED POOLED SETTLEMENT RULE >>>",
+        occurrence: 2,
+      },
+    ],
+  },
+  {
     id: "repayment-plan-schedule",
     rule:
       "An EMI schedule: term = ceil(opening / monthly) with a floor of 1, one row per month with "
@@ -323,6 +350,14 @@ const SHARED_RULE_MARKER_LINE =
 const SHARED_RULE_MARKER_LINES =
   /^[\t ]*--[\t ]*>>>[\t ]*SHARED LATE FEE RULE[\t ]*<<<[\t ]*$/gm;
 
+/** The pooled-settlement block both engines carry since 20260905090000. */
+const POOLED_RULE_MARKER = "SHARED POOLED SETTLEMENT RULE";
+const POOLED_RULE_OPEN_LINE =
+  /^[\t ]*--[\t ]*>>>[\t ]*SHARED POOLED SETTLEMENT RULE[\t ]*<<<[\t ]*$/m;
+const POOLED_RULE_OPEN_LINES =
+  /^[\t ]*--[\t ]*>>>[\t ]*SHARED POOLED SETTLEMENT RULE[\t ]*<<<[\t ]*$/gm;
+const POOLED_RULE_CLOSE = "<<< SHARED POOLED SETTLEMENT RULE >>>";
+
 /** A late-fee branch in real SQL, not in a comment. Comments are stripped first. */
 const LATE_FEE_BRANCH = /\bwhen\b[^\n]*\blate_fee_flat_amount\b/i;
 
@@ -453,6 +488,29 @@ function extractMarkedRuleCopies(file) {
 
     const lineStart = file.text.lastIndexOf("\n", startAt) + 1;
     const lineEndBreak = file.text.indexOf("\n", endAt + "as raw_late_fee".length);
+    const lineEnd = lineEndBreak === -1 ? file.text.length : lineEndBreak;
+    const body = file.text.slice(lineStart, lineEnd);
+    copies.push({
+      body,
+      language: "sql",
+      normalised: normalise(body, "sql"),
+      startLine: lineOfIndex(file.text, lineStart),
+      endLine: lineOfIndex(file.text, lineEnd),
+    });
+  }
+  return copies;
+}
+
+/** Pull every pooled-settlement block from one migration, open marker to close marker. */
+function extractPooledRuleCopies(file) {
+  const copies = [];
+  for (const marker of file.text.matchAll(POOLED_RULE_OPEN_LINES)) {
+    const startAt = marker.index;
+    const endAt = file.text.indexOf(POOLED_RULE_CLOSE, startAt + marker[0].length);
+    if (endAt === -1) continue;
+
+    const lineStart = file.text.lastIndexOf("\n", startAt) + 1;
+    const lineEndBreak = file.text.indexOf("\n", endAt + POOLED_RULE_CLOSE.length);
     const lineEnd = lineEndBreak === -1 ? file.text.length : lineEndBreak;
     const body = file.text.slice(lineStart, lineEnd);
     copies.push({
@@ -748,6 +806,35 @@ export async function run({ project, sink, coverage }) {
     }
   }
 
+  /* ── 4b: the two pooled-settlement copies inside one migration ─────── */
+
+  const pooledCarriers = migrations.filter((file) => POOLED_RULE_OPEN_LINE.test(file.text));
+  const newestPooled = pooledCarriers[pooledCarriers.length - 1] ?? null;
+
+  if (newestPooled) {
+    const copies = extractPooledRuleCopies(newestPooled);
+    if (copies.length >= 2) {
+      const [first, ...rest] = copies;
+      for (const other of rest) {
+        if (other.normalised === first.normalised) continue;
+        recordDrift(sink, {
+          file: newestPooled.rel,
+          line: other.startLine,
+          pair: MIRRORS.find((pair) => pair.id === "pooled-settlement-rule") ?? MIRRORS[0],
+          title: `${newestPooled.rel} carries two copies of the pooled-settlement rule that differ`,
+          actual:
+            `The copy at line ${first.startLine} and the copy at line ${other.startLine} do not `
+            + "normalise to the same text. Both are marked "
+            + `"${POOLED_RULE_MARKER}" and the file says to edit both or neither.`,
+          evidence: newestPooled.lines[other.startLine - 1],
+          fix:
+            "Diff the two blocks and make them identical, in the same migration. They are the "
+            + "same rule twice; there is no version of this where one is right.",
+        });
+      }
+    }
+  }
+
   /* ── 5: a new migration that touches one engine and not its twin ────── */
 
   const reconciledUpTo = manifest?.lastReconciledMigration ?? null;
@@ -764,7 +851,10 @@ export async function run({ project, sink, coverage }) {
     // reading raw text would report it, and it would be wrong.
     const code = sqlCodeLines(file);
     const body = code.join("\n");
-    const touchesRule = LATE_FEE_BRANCH.test(body) || body.includes(SHARED_RULE_MARKER);
+    const touchesRule =
+      LATE_FEE_BRANCH.test(body)
+      || body.includes(SHARED_RULE_MARKER)
+      || body.includes(POOLED_RULE_MARKER);
     if (!touchesRule) continue;
 
     const named = LATE_FEE_ENGINES.filter((engine) => body.includes(engine));

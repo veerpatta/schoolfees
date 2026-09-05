@@ -8,6 +8,7 @@ import {
   type SegmentId,
 } from "@/modules/students/domain/student-segments";
 import { getCacheSafeClient } from "@/platform/supabase/cache-safe";
+import { CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/label";
 
 /**
  * Reads of `public.v_student_directory`, the one relation Students and
@@ -31,11 +32,20 @@ export type StudentDirectoryFilters = {
 
 type DirectoryQuery = {
   eq: (column: string, value: unknown) => DirectoryQuery;
+  is: (column: string, value: null | boolean) => DirectoryQuery;
   or: (filters: string) => DirectoryQuery;
   like: (column: string, pattern: string) => DirectoryQuery;
   order: (column: string, options: { ascending: boolean }) => DirectoryQuery;
   range: (from: number, to: number) => DirectoryQuery;
 };
+
+function routeIdForRpc(transportRouteId: string | undefined) {
+  if (!transportRouteId || transportRouteId === CUSTOM_TRANSPORT_ROUTE_KEY) {
+    return null;
+  }
+
+  return transportRouteId;
+}
 
 function applyDirectoryFilters(
   query: DirectoryQuery,
@@ -49,7 +59,12 @@ function applyDirectoryFilters(
   if (filters.classId) {
     next = next.eq("class_id", filters.classId);
   }
-  if (filters.transportRouteId) {
+  if (filters.transportRouteId === CUSTOM_TRANSPORT_ROUTE_KEY) {
+    // Charged transport through an override, with no route to key on.
+    // seg_on_transport already reads the charge, so the two together are the
+    // custom bucket.
+    next = next.is("transport_route_id", null).eq("seg_on_transport", true);
+  } else if (filters.transportRouteId) {
     next = next.eq("transport_route_id", filters.transportRouteId);
   }
 
@@ -149,7 +164,9 @@ export async function getStudentSegmentCounts(
   const { data, error } = await supabase.rpc("get_student_segment_counts", {
     p_session_label: filters.sessionLabel,
     p_class_id: filters.classId || null,
-    p_route_id: filters.transportRouteId || null,
+    // The RPCs filter by id; the custom bucket has none, so its counts and
+    // totals are the unfiltered ones. The list itself is filtered above.
+    p_route_id: routeIdForRpc(filters.transportRouteId),
     p_query: filters.query?.trim() || null,
     p_statuses: statusesForSegments(filters.segments ?? []),
     p_active_classes_only: filters.activeClassesOnly !== false,
@@ -190,7 +207,9 @@ export async function getStudentDirectorySummary(
   const { data, error } = await supabase.rpc("get_student_directory_summary", {
     p_session_label: filters.sessionLabel,
     p_class_id: filters.classId || null,
-    p_route_id: filters.transportRouteId || null,
+    // The RPCs filter by id; the custom bucket has none, so its counts and
+    // totals are the unfiltered ones. The list itself is filtered above.
+    p_route_id: routeIdForRpc(filters.transportRouteId),
     p_query: filters.query?.trim() || null,
     p_statuses: statusesForSegments(filters.segments ?? []),
     p_active_classes_only: filters.activeClassesOnly !== false,

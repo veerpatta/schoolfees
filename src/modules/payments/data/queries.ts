@@ -93,6 +93,8 @@ type PaymentPreviewRpcRow = {
   late_fee_pending?: number | null;
   total_pending?: number | null;
   balance_status: InstallmentBalanceItem["balanceStatus"];
+  settled_amount?: number | null;
+  plan_priority?: number | null;
 };
 
 type PaymentStudentBaseRow = {
@@ -2120,6 +2122,7 @@ async function getPaymentDateAwareInstallmentBalancesUncached(payload: {
       outstandingAmount: row.total_pending ?? row.pending_amount + (row.late_fee_pending ?? 0),
       feesPending: row.pending_amount,
       lateFeePending: row.late_fee_pending ?? 0,
+      planPriority: row.plan_priority ?? 1,
       rawLateFee: row.raw_late_fee,
       waiverApplied: row.waiver_applied,
       finalLateFee: row.final_late_fee,

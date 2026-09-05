@@ -8,7 +8,15 @@ type InstallmentLike = {
   adjustmentsTotal?: number | null;
   adjustmentAmount?: number | null;
   outstandingAmount?: number | null;
+  /**
+   * `v_workbook_installment_balances.pending_amount` — fees still owed on this
+   * row after the pool has settled it oldest-first. When present it is the
+   * answer; the arithmetic fallback below reads the receipt PIN, which since
+   * 20260905090000 is history, not position.
+   */
   pendingAmount?: number | null;
+  /** The Payment Desk's name for the same fees-only figure. */
+  feesPending?: number | null;
   finalLateFee?: number | null;
   /**
    * `v_workbook_installment_balances.late_fee_pending` — the late fee still
@@ -41,6 +49,14 @@ export function calculateInstallmentAppliedAmount(row: InstallmentLike) {
 }
 
 export function calculateInstallmentBasePending(row: InstallmentLike) {
+  // The engine's figure wins. Money settles the installments oldest-first at
+  // read time, so `base − what was receipted here` is no longer the pending
+  // on this row — it is only what a receipt happened to be written against.
+  const engineFigure = row.pendingAmount ?? row.feesPending;
+  if (engineFigure !== undefined && engineFigure !== null) {
+    return toAmount(engineFigure);
+  }
+
   return Math.max(calculateInstallmentBaseDue(row) - calculateInstallmentAppliedAmount(row), 0);
 }
 

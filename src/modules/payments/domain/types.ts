@@ -119,6 +119,12 @@ export type InstallmentBalanceItem = {
   outstandingAmount: number;
   /** Fees only. Never contains a late fee. */
   feesPending: number;
+  /**
+   * 0 when an active EMI plan covers the row, else 1. The posting RPC settles
+   * plan rows first; the client preview must sort the same way or the desk
+   * shows a receipt the ledger then writes differently.
+   */
+  planPriority?: number;
   /** Late fee still owed here, after waivers and any payment against it. */
   lateFeePending: number;
   rawLateFee: number;

@@ -329,12 +329,12 @@ Skipped ${payload.skippedIncreases.length} student(s) whose dues would have gone
     );
   }
 
-  if (payload.residualCreditStudents?.length) {
+  if (payload.studentsEndingInCredit?.length) {
     console.log("\n## Now refundable (discount exceeded the balance)\n");
-    printTable(payload.residualCreditStudents, [
+    printTable(payload.studentsEndingInCredit, [
       { header: "SR", get: (row) => row.admissionNo },
       { header: "Name", get: (row) => row.fullName },
-      { header: "Credit", get: (row) => rupees(row.residualCreditAmount) },
+      { header: "Credit", get: (row) => rupees(row.creditAmount) },
     ]);
     console.log("\n  Settle these in Finance Controls → Refunds.");
   }

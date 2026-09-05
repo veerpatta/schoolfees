@@ -29,7 +29,9 @@ Counts below verified against the live catalog on **2026-08-12**: 58 tables, 17 
 ## Fee engine (`workbook_v1`)
 
 Two engines compute the same thing and **must be edited together** — both carry a
-`>>> SHARED LATE FEE RULE <<<` marker:
+`>>> SHARED LATE FEE RULE <<<` marker and, since `20260905090000`, a
+`>>> SHARED POOLED SETTLEMENT RULE <<<` block: money settles the installments oldest-first at
+read time, `applied_amount` is the receipt pin and `settled_amount` is where the money sits.
 
 | Object | Kind | Role |
 |---|---|---|

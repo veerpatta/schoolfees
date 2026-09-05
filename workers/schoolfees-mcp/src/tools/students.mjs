@@ -780,7 +780,14 @@ export function registerStudentTools(server, ctx) {
 function groupDirectoryRows(rows, groupBy) {
   const keyOf = {
     class: (row) => [row.class_id, row.class_label],
-    route: (row) => [row.transport_route_id || "no_transport", row.transport_route_name || "No Transport"],
+    // Transport is charged two ways -- a route, or a custom amount with no
+    // route at all. The second is a real bucket, not "No Transport".
+    route: (row) =>
+      row.transport_route_id
+        ? [row.transport_route_id, row.transport_route_name || "Route"]
+        : number(row.transport_fee) > 0
+          ? ["custom_transport", "Custom amount (no route)"]
+          : ["no_transport", "No Transport"],
     enrollmentStatus: (row) => [row.record_status, row.record_status],
     moneySegment: (row) => {
       const paid = number(row.total_paid);

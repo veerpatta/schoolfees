@@ -35,6 +35,10 @@ import { existsSync, readFileSync } from "node:fs";
  *      settled. This is the check that earns 20260826120000 -- forgiving a
  *      collected late fee is only honest if the money it frees actually lands
  *      on the next installments.
+ *  10. Money settles the installments oldest-first (20260905090000): no row
+ *      carries money while a row ahead of it in the pool's order still owes.
+ *      A later installment reading "Paid" beside an earlier one reading
+ *      "Overdue" is exactly the picture SR 660 showed, and it is never right.
  *
  * Usage:
  *   node scripts/verify-late-fee-health.mjs                # active session
@@ -134,7 +138,7 @@ async function fetchAll(table, columns, apply) {
 // ── The data ───────────────────────────────────────────────────────────────
 const balances = await fetchAll(
   "v_workbook_installment_balances",
-  "installment_id, student_id, installment_no, base_charge, paid_amount, applied_amount, discount_closeout_amount, total_charge, pending_amount, late_fee_pending, total_pending, raw_late_fee, waiver_applied, final_late_fee, balance_status, late_fee_status, is_carry_forward",
+  "installment_id, student_id, session_label, installment_no, base_charge, paid_amount, applied_amount, discount_closeout_amount, settled_amount, total_charge, pending_amount, late_fee_pending, total_pending, raw_late_fee, waiver_applied, final_late_fee, balance_status, late_fee_status, is_carry_forward, settlement_rank",
   (query) => query.eq("session_label", sessionLabel),
 );
 
@@ -244,8 +248,14 @@ const CUT_OVER_DATE = "2026-08-08";
 // ── 5. Grandfathering held ─────────────────────────────────────────────────
 // The rule change in 20260808140000 wrote a 'grandfather' waiver equal to
 // (new raw fee - old raw fee) so that final_late_fee stayed put for everyone who
-// already had a bill. If a later migration moved a raw fee without a matching
-// waiver, somebody's bill changed without anyone deciding to change it.
+// already had a bill. 20260905090000 did the same when settlement became
+// pooled oldest-first, and wrote its own snapshot. If a later migration moved a
+// raw fee without a matching waiver, somebody's bill changed without anyone
+// deciding to change it.
+//
+// The NEWER snapshot is the baseline wherever it has a row: the pooled cut-over
+// may legitimately have LOWERED a late fee (money dated before a due date that
+// a regeneration had pinned to a later row), and that release is not drift.
 {
   // fetchAll, not a bare select: PostgREST caps a plain request at 1000 rows,
   // and the live session has over 2000 snapshot rows. A capped read here would
@@ -253,11 +263,27 @@ const CUT_OVER_DATE = "2026-08-08";
   let data = null;
   let error = null;
   try {
-    data = await fetchAll(
+    const older = await fetchAll(
       "late_fee_rule_change_snapshot",
       "installment_id, final_late_fee, raw_late_fee, due_date, base_charge, applied_amount",
       (query) => query.eq("session_label", sessionLabel),
     );
+    let newer = [];
+    try {
+      newer = await fetchAll(
+        "settlement_pool_change_snapshot",
+        "installment_id, final_late_fee, raw_late_fee, due_date, base_charge, applied_amount",
+        (query) => query.eq("session_label", sessionLabel),
+      );
+    } catch {
+      // Not applied yet: the older snapshot alone is the baseline.
+      newer = [];
+    }
+    const newerById = new Map(newer.map((row) => [row.installment_id, row]));
+    data = [
+      ...older.map((row) => newerById.get(row.installment_id) ?? row),
+      ...newer.filter((row) => !older.some((old) => old.installment_id === row.installment_id)),
+    ];
   } catch (thrown) {
     error = thrown;
   }
@@ -466,6 +492,47 @@ const CUT_OVER_DATE = "2026-08-08";
       ? `0 student(s) diverging; ${collectedWaiverStudents.size} carry a collected-late-fee waiver`
       : `${offenders.length} student(s) where per-installment dues disagree with charge - settled`,
     offenders.slice(0, 5),
+  );
+}
+
+// ── 10. No later installment is settled while an earlier one still owes ────
+// The rule 20260905090000 exists for. Money settles the rows in the pool's
+// order -- settlement_rank -- fees first, then the late fee, before moving on.
+// So within a student and session, a row with settled_amount > 0 can only
+// follow rows with nothing pending at all.
+{
+  const byStudent = new Map();
+  for (const row of balances) {
+    const key = `${row.student_id}::${row.session_label}`;
+    const rows = byStudent.get(key) ?? [];
+    rows.push(row);
+    byStudent.set(key, rows);
+  }
+
+  const offenders = [];
+  let rowsChecked = 0;
+  for (const [key, rows] of byStudent) {
+    rows.sort((left, right) => Number(left.settlement_rank ?? 0) - Number(right.settlement_rank ?? 0));
+    for (let later = 1; later < rows.length; later += 1) {
+      if (Number(rows[later].settled_amount ?? 0) <= 0) continue;
+      rowsChecked += 1;
+      const owedAhead = rows.slice(0, later).find((earlier) => Number(earlier.total_pending ?? 0) > 0);
+      if (owedAhead) {
+        offenders.push(
+          `${key}: installment ${rows[later].installment_no} carries ${rows[later].settled_amount} while installment ${owedAhead.installment_no} still owes ${owedAhead.total_pending}`,
+        );
+        break;
+      }
+    }
+  }
+
+  record(
+    "money settles oldest-first",
+    offenders.length === 0,
+    offenders.length === 0
+      ? `${rowsChecked} settled row(s) checked across ${byStudent.size} student/session pair(s); none sits behind an owed row`
+      : `${offenders.length} student(s) read a later installment as settled while an earlier one is owed`,
+    offenders.slice(0, 10),
   );
 }
 

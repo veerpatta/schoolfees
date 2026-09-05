@@ -114,11 +114,29 @@ export type WorkbookInstallmentBalance = {
    */
   paidAmount: number;
   /**
-   * Cash that actually stuck: `paidAmount` net of cash adjustments, floored at
-   * zero. This is what the ledger treats as collected, and what
-   * `base + late fee − applied − discountCloseout = pending` balances against.
+   * Cash that actually stuck to the PIN: `paidAmount` net of cash adjustments,
+   * floored at zero. Since 20260905090000 this is the historical record of
+   * which installment a receipt was written against — it is what `total_paid`
+   * sums, but it is NOT where the money is read as sitting. For "how much of
+   * this installment is paid" use `settledAmount`.
    */
   appliedAmount: number;
+  /**
+   * What the family's money has settled on this row, oldest row first. Every
+   * rupee paid this session is one pool that clears installment 1, then 2,
+   * then 3, then 4 — each row's fees first, then its late fee — whatever
+   * installment the receipt was pinned to. `pendingAmount`, `lateFeePending`
+   * and `balanceStatus` are derived from this, never from `appliedAmount`.
+   */
+  settledAmount: number;
+  /** The part of `settledAmount` that covers fees. `min(settledAmount, baseCharge)`. */
+  feeSettledAmount: number;
+  /** The part of `settledAmount` that covers the late fee. */
+  lateFeeSettledAmount: number;
+  /** 0 when an active EMI plan covers the row (settled first), else 1. */
+  planPriority: number;
+  /** 1-based position in the pool's settlement order for this student and session. */
+  settlementRank: number;
   /** Balance cleared by a discount-mode write-off. Not cash. */
   discountCloseoutAmount: number;
   /** Every adjustment on the row — cash reversals AND discount write-offs. */

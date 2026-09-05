@@ -24,7 +24,12 @@ import {
 } from "@/modules/repayment-plans/data/queries";
 import { resolvePlanAwareOverdue } from "@/modules/repayment-plans/domain/defaulter-view";
 import { isCarryForwardInstallment } from "@/modules/prev-year-dues/domain/display";
-import { buildTransportRouteLabel } from "@/modules/fees/domain/label";
+import {
+  buildTransportRouteLabel,
+  CUSTOM_TRANSPORT_ROUTE_KEY,
+  matchesTransportRouteFilter,
+  readActiveCustomTransportAmount,
+} from "@/modules/fees/domain/label";
 
 import type {
   DefaulterFilters,
@@ -43,6 +48,10 @@ type BaseDefaulterStudentRow = {
   father_name: string | null;
   primary_phone: string | null;
   transport_route_id: string | null;
+  fee_override?:
+    | Array<{ custom_transport_fee_amount: number | null; is_active: boolean }>
+    | { custom_transport_fee_amount: number | null; is_active: boolean }
+    | null;
   class_ref:
     | {
         session_label: string;
@@ -124,7 +133,7 @@ async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessi
   let query = supabase
     .from("students")
     .select(
-      "id, class_id, admission_no, full_name, father_name, primary_phone, transport_route_id, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
+      "id, class_id, admission_no, full_name, father_name, primary_phone, transport_route_id, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code), fee_override:student_fee_overrides(custom_transport_fee_amount, is_active)",
     )
     // Leavers are included so a student who paid part of the year and then left
     // can still be chased for the rest -- that is the school rule. It does not
@@ -140,7 +149,9 @@ async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessi
     query = query.eq("class_id", filters.classId);
   }
 
-  if (filters.transportRouteId) {
+  if (filters.transportRouteId === CUSTOM_TRANSPORT_ROUTE_KEY) {
+    query = query.is("transport_route_id", null);
+  } else if (filters.transportRouteId) {
     query = query.eq("transport_route_id", filters.transportRouteId);
   }
 
@@ -153,8 +164,19 @@ async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessi
   return ((data ?? []) as BaseDefaulterStudentRow[]).flatMap((row): MissingDuesWarningRow[] => {
     const classRef = toSingleRecord(row.class_ref);
     const routeRef = toSingleRecord(row.route_ref);
+    const customTransportFeeAmount = readActiveCustomTransportAmount(row.fee_override);
 
     if (!classRef) {
+      return [];
+    }
+
+    if (
+      !matchesTransportRouteFilter(filters.transportRouteId, {
+        transportRouteId: row.transport_route_id,
+        route: routeRef,
+        customTransportFeeAmount,
+      })
+    ) {
       return [];
     }
 
@@ -168,7 +190,7 @@ async function getActiveSessionStudentsUncached(filters: DefaulterFilters, sessi
         fatherPhone: row.primary_phone,
         classLabel: buildClassLabel(classRef),
         transportRouteId: row.transport_route_id,
-        transportRouteLabel: buildRouteLabel(routeRef),
+        transportRouteLabel: buildRouteLabel(routeRef, customTransportFeeAmount),
       },
     ];
   });

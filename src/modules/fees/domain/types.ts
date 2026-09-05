@@ -27,27 +27,25 @@ export type ConfigChangeImpactPreview = {
   installmentsToInsert: number;
   installmentsToUpdate: number;
   installmentsToCancel: number;
+  /**
+   * Rows held for a person. Since 20260905090000 money settles the installments
+   * oldest-first at read time, so a row carrying a payment is repriced like any
+   * other and only two things still hold a row: an active EMI plan, or a due
+   * date moving on a row the family has paid against.
+   */
   blockedInstallments: number;
-  blockedFullyPaidInstallments: number;
-  blockedPartiallyPaidInstallments: number;
-  blockedAdjustedInstallments: number;
-  /**
-   * Blocked because an active EMI plan covers the row. Counted in
-   * `blockedInstallments` but in none of the three buckets above, so before
-   * this existed an EMI-blocked row was simply invisible in the breakdown.
-   */
   blockedRepaymentPlanInstallments: number;
+  blockedDueDateChangedInstallments: number;
   /**
-   * Students this change would leave BELOW their own fee policy, because every
-   * installment they have is already settled and the rise has nowhere to go.
-   *
-   * The preview used to report only "rows held for review", which reads as a
-   * safety guarantee. It is the opposite: those students are under-billed the
-   * moment the change is published, and nothing said so until a hand audit
-   * found Rs 54,225 across eight of them three months later.
+   * Students the new charge leaves OVERPAID: they have already settled more
+   * than the year now asks. The excess becomes credit_balance and a Finance
+   * Controls refund, so it is reported up front rather than found in March.
    */
-  studentsLeftBelowPolicy: number;
-  amountLeftBelowPolicy: number;
+  studentsEndingInCredit: number;
+  creditTotal: number;
+  /** Sum over every row written of (planned charge − current charge). */
+  feeDeltaTotal: number;
+  /** Always false now: every unprotected row is rewritten to policy. Kept for stored previews. */
   updatesLimitedToFutureUnpaid: boolean;
   rowsMarkedForReview: number;
   classRowsUpdated?: number;

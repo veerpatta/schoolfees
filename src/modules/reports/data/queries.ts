@@ -13,7 +13,12 @@ import { formatPaymentModeLabel } from "@/platform/config/fee-rules";
 import { getFeePolicySummary } from "@/modules/fees/domain/queries";
 import { calculateInstallmentBasePending } from "@/modules/fees/domain/due-amounts";
 import { getDisplayInstallmentLabel } from "@/modules/prev-year-dues/domain/display";
-import { buildTransportRouteLabel } from "@/modules/fees/domain/label";
+import {
+  buildTransportRouteLabel,
+  CUSTOM_TRANSPORT_ROUTE_KEY,
+  matchesTransportRouteFilter,
+  readActiveCustomTransportAmount,
+} from "@/modules/fees/domain/label";
 
 import type {
   AdjustmentType,
@@ -58,6 +63,10 @@ type StudentRefRow = {
   full_name: string;
   admission_no: string;
   transport_route_id: string | null;
+  fee_override?:
+    | Array<{ custom_transport_fee_amount: number | null; is_active: boolean }>
+    | { custom_transport_fee_amount: number | null; is_active: boolean }
+    | null;
   route_ref:
     | {
         route_name: string;
@@ -127,6 +136,8 @@ type WorkbookInstallmentBalanceReportRow = {
   paid_amount: number;
   adjustment_amount: number;
   applied_amount: number;
+  /** Pooled: what the family's money has settled on this row, oldest row first. */
+  settled_amount?: number | null;
   pending_amount: number;
   balance_status: "paid" | "partial" | "overdue" | "pending" | "waived";
 };
@@ -137,6 +148,10 @@ type BaseReportStudentRow = {
   full_name: string;
   class_id: string;
   transport_route_id: string | null;
+  fee_override?:
+    | Array<{ custom_transport_fee_amount: number | null; is_active: boolean }>
+    | { custom_transport_fee_amount: number | null; is_active: boolean }
+    | null;
   father_name: string | null;
   primary_phone: string | null;
   class_ref: ClassRefRow | ClassRefRow[] | null;
@@ -157,6 +172,10 @@ type LedgerStudentRow = {
   full_name: string;
   admission_no: string;
   transport_route_id: string | null;
+  fee_override?:
+    | Array<{ custom_transport_fee_amount: number | null; is_active: boolean }>
+    | { custom_transport_fee_amount: number | null; is_active: boolean }
+    | null;
   route_ref:
     | {
         route_name: string;
@@ -519,7 +538,7 @@ async function getReceiptSourceRows() {
   const { data, error } = await supabase
     .from("receipts")
     .select(
-      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, received_by, created_at, student_ref:students(id, full_name, admission_no, transport_route_id, route_ref:transport_routes(route_name, route_code), class_ref:classes(session_label, class_name, section, stream_name))",
+      "id, receipt_number, payment_date, payment_mode, total_amount, reference_number, received_by, created_at, student_ref:students(id, full_name, admission_no, transport_route_id, route_ref:transport_routes(route_name, route_code), class_ref:classes(session_label, class_name, section, stream_name), fee_override:student_fee_overrides(custom_transport_fee_amount, is_active))",
     )
     .neq("payment_mode", "discount")
     .order("payment_date", { ascending: false })
@@ -550,7 +569,10 @@ async function getReceiptSourceRows() {
         createdAt: row.created_at,
         studentId: student.id,
         transportRouteId: student.transport_route_id,
-        transportRouteLabel: buildRouteLabel(routeRef),
+        transportRouteLabel: buildRouteLabel(
+          routeRef,
+          readActiveCustomTransportAmount(student.fee_override),
+        ),
         fullName: student.full_name,
         admissionNo: student.admission_no,
         sessionLabel: classRef.session_label,
@@ -602,7 +624,7 @@ async function getActiveSessionBaseReportStudents(filters: ReportFilters) {
   let query = supabase
     .from("students")
     .select(
-      "id, admission_no, full_name, class_id, transport_route_id, father_name, primary_phone, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code)",
+      "id, admission_no, full_name, class_id, transport_route_id, father_name, primary_phone, class_ref:classes!inner(session_label, status, class_name, section, stream_name), route_ref:transport_routes(route_name, route_code), fee_override:student_fee_overrides(custom_transport_fee_amount, is_active)",
     )
     .in("status", [...ON_ROLL_STATUSES])
     .eq("class_ref.session_label", sessionLabel)
@@ -613,7 +635,9 @@ async function getActiveSessionBaseReportStudents(filters: ReportFilters) {
     query = query.eq("class_id", filters.classId);
   }
 
-  if (filters.transportRouteId) {
+  if (filters.transportRouteId === CUSTOM_TRANSPORT_ROUTE_KEY) {
+    query = query.is("transport_route_id", null);
+  } else if (filters.transportRouteId) {
     query = query.eq("transport_route_id", filters.transportRouteId);
   }
 
@@ -626,8 +650,19 @@ async function getActiveSessionBaseReportStudents(filters: ReportFilters) {
   return ((data ?? []) as BaseReportStudentRow[]).flatMap((row) => {
     const classRef = toSingleRecord(row.class_ref);
     const routeRef = toSingleRecord(row.route_ref);
+    const customTransportFeeAmount = readActiveCustomTransportAmount(row.fee_override);
 
     if (!classRef) {
+      return [];
+    }
+
+    if (
+      !matchesTransportRouteFilter(filters.transportRouteId, {
+        transportRouteId: row.transport_route_id,
+        route: routeRef,
+        customTransportFeeAmount,
+      })
+    ) {
       return [];
     }
 
@@ -642,7 +677,7 @@ async function getActiveSessionBaseReportStudents(filters: ReportFilters) {
           section: classRef.section || null,
           stream_name: classRef.stream_name || null,
         }),
-        transportRouteLabel: buildRouteLabel(routeRef),
+        transportRouteLabel: buildRouteLabel(routeRef, customTransportFeeAmount),
         installmentNo: 0,
         installmentLabel: "Dues not prepared",
         dueDate: "",
@@ -678,7 +713,7 @@ async function getOutstandingReportData(
       let query = supabase
         .from("v_workbook_installment_balances")
         .select(
-          "installment_id, student_id, transport_route_id, transport_route_name, transport_route_code, admission_no, student_name, session_label, class_id, class_name, class_label, section, stream_name, installment_no, installment_label, due_date, base_charge, final_late_fee, total_charge, paid_amount, adjustment_amount, applied_amount, pending_amount, balance_status",
+          "installment_id, student_id, transport_route_id, transport_route_name, transport_route_code, admission_no, student_name, session_label, class_id, class_name, class_label, section, stream_name, installment_no, installment_label, due_date, base_charge, final_late_fee, total_charge, paid_amount, adjustment_amount, applied_amount, settled_amount, pending_amount, balance_status",
         )
         .gt("pending_amount", 0)
         .in("balance_status", ["partial", "overdue", "pending"]);
@@ -690,6 +725,35 @@ async function getOutstandingReportData(
       return query.order("installment_id", { ascending: true }).range(from, to);
     },
   );
+
+  // The balances view carries the route but not the override amount, and a
+  // student charged a custom transport amount has no route at all -- so
+  // without this the Outstanding report printed "No transport" beside a
+  // transport charge and the custom bucket could not be filtered.
+  const customTransportByStudent = new Map<string, number>();
+  const outstandingStudentIds = [...new Set((data ?? []).map((row) => row.student_id))];
+  for (let index = 0; index < outstandingStudentIds.length; index += 200) {
+    const slice = outstandingStudentIds.slice(index, index + 200);
+    const { data: overrideRows, error: overrideError } = await supabase
+      .from("student_fee_overrides")
+      .select("student_id, custom_transport_fee_amount")
+      .eq("is_active", true)
+      .not("custom_transport_fee_amount", "is", null)
+      .in("student_id", slice);
+
+    if (overrideError) {
+      throw new Error(`Unable to load transport overrides for the outstanding report: ${overrideError.message}`);
+    }
+
+    for (const overrideRow of (overrideRows ?? []) as Array<{
+      student_id: string;
+      custom_transport_fee_amount: number | null;
+    }>) {
+      if (overrideRow.custom_transport_fee_amount !== null) {
+        customTransportByStudent.set(overrideRow.student_id, overrideRow.custom_transport_fee_amount);
+      }
+    }
+  }
 
   if (error) {
     throw new Error(
@@ -709,7 +773,15 @@ async function getOutstandingReportData(
         return [];
       }
 
-      if (filters.transportRouteId && row.transport_route_id !== filters.transportRouteId) {
+      const customTransportFeeAmount = customTransportByStudent.get(row.student_id) ?? null;
+
+      if (
+        !matchesTransportRouteFilter(filters.transportRouteId, {
+          transportRouteId: row.transport_route_id,
+          routeName: row.transport_route_name,
+          customTransportFeeAmount,
+        })
+      ) {
         return [];
       }
 
@@ -747,6 +819,7 @@ async function getOutstandingReportData(
                   route_code: row.transport_route_code,
                 }
               : null,
+            customTransportFeeAmount,
           ),
           installmentNo: row.installment_no,
           installmentLabel: getDisplayInstallmentLabel({
@@ -761,7 +834,9 @@ async function getOutstandingReportData(
           lateFeeAmount: row.final_late_fee,
           paymentsTotal: row.paid_amount,
           adjustmentsTotal: row.adjustment_amount,
-          collectedAmount: row.applied_amount,
+          // Where the money sits after settling oldest-first, not where the
+          // receipt was pinned. paymentsTotal / adjustmentsTotal keep the pin.
+          collectedAmount: row.settled_amount ?? row.applied_amount,
           outstandingAmount: row.pending_amount,
           overdueAmount,
           balanceStatus: row.balance_status,
@@ -938,7 +1013,7 @@ async function getLedgerStudentOptions(
   const { data, error } = await supabase
     .from("students")
     .select(
-      "id, full_name, admission_no, transport_route_id, route_ref:transport_routes(route_name, route_code), class_ref:classes(session_label, class_name, section, stream_name)",
+      "id, full_name, admission_no, transport_route_id, route_ref:transport_routes(route_name, route_code), class_ref:classes(session_label, class_name, section, stream_name), fee_override:student_fee_overrides(custom_transport_fee_amount, is_active)",
     )
     .in("status", [...FEE_ADMINISTERED_STATUSES])
     .order("full_name", { ascending: true });
@@ -948,13 +1023,13 @@ async function getLedgerStudentOptions(
   }
 
   return ((data ?? []) as LedgerStudentRow[])
-    .filter((row) => {
-      if (!filters.transportRouteId) {
-        return true;
-      }
-
-      return row.transport_route_id === filters.transportRouteId;
-    })
+    .filter((row) =>
+      matchesTransportRouteFilter(filters.transportRouteId, {
+        transportRouteId: row.transport_route_id,
+        route: toSingleRecord(row.route_ref),
+        customTransportFeeAmount: readActiveCustomTransportAmount(row.fee_override),
+      }),
+    )
     .map((row) => {
       const classRef = toSingleRecord(row.class_ref);
       const routeRef = toSingleRecord(row.route_ref);
@@ -970,7 +1045,10 @@ async function getLedgerStudentOptions(
         fullName: row.full_name,
         admissionNo: row.admission_no,
         classLabel,
-        transportRouteLabel: buildRouteLabel(routeRef),
+        transportRouteLabel: buildRouteLabel(
+          routeRef,
+          readActiveCustomTransportAmount(row.fee_override),
+        ),
         sessionLabel: classRef.session_label,
         label: `${row.full_name} (${row.admission_no})`,
       } satisfies ReportStudentOption;

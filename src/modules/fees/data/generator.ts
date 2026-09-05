@@ -7,7 +7,6 @@ import { createClient } from "@/platform/supabase/server";
 import { getFeeSetupPageData } from "@/modules/fees/domain/queries";
 import { resolveStudentPolicyBreakdown } from "@/modules/fees/data/policy";
 import { buildWorkbookInstallmentCharges } from "@/modules/fees/domain/workbook";
-import { allocateChargesRespectingPaidFloors } from "@/modules/fees/domain/paid-floor-allocation";
 import type { FeeSetupPageData } from "@/modules/fees/domain/types";
 
 type GeneratorStudentRow = {
@@ -110,7 +109,13 @@ export type LockedInstallmentReasonCode =
   // underneath them would silently change either what they owe or how long
   // they pay for. Held for a human, who reschedules the plan or collects the
   // difference separately.
-  | "in_repayment_plan";
+  | "in_repayment_plan"
+  // The due date is moving on a row the family has paid against. Since money
+  // settles oldest-first at read time (20260905090000) that is the ONE thing a
+  // fee edit may not do to a paid row on its own: the late fee is decided by
+  // what had been paid by the due date, so moving it re-runs that clock
+  // retroactively and nothing grandfathers the result.
+  | "due_date_changed";
 
 export type BlockedInstallmentForReview = {
   installmentId: string;
@@ -151,33 +156,18 @@ export type LedgerSkippedStudent = {
 };
 
 /**
- * A student whose discount was larger than everything they still owed. The
- * excess makes them genuinely overpaid: it surfaces as
- * `v_student_financial_state.credit_balance` / `refundable_amount` and is
- * settled through the existing Finance Controls refund flow.
+ * A student the planned split leaves OVERPAID: everything the family has
+ * settled exceeds what the year now charges. Money settles the installments
+ * oldest-first at read time, so nothing on the ledger needs a decision — the
+ * excess surfaces as `v_student_financial_state.credit_balance` /
+ * `refundable_amount` and is handed back through Finance Controls. Reported so
+ * the office hears about it now rather than in March.
  */
-export type ResidualCreditStudent = {
+export type StudentEndingInCredit = {
   studentId: string;
   admissionNo: string;
   fullName: string;
-  residualCreditAmount: number;
-};
-
-/**
- * A student the engine could not bill up to their fee policy, because every
- * installment they have is already settled.
- *
- * The mirror of `ResidualCreditStudent`, and the half that used to be missing.
- * There is no safe automatic move here — raising a finished bill is a decision
- * — so the engine reports the amount and leaves the ledger alone. Silence was
- * the bug: SR 2608 and SR 2511 went a whole year under-billed for transport
- * and nothing anywhere said so.
- */
-export type UnderBilledStudent = {
-  studentId: string;
-  admissionNo: string;
-  fullName: string;
-  unbilledIncreaseAmount: number;
+  creditAmount: number;
 };
 
 type LedgerSyncPlan = {
@@ -193,8 +183,12 @@ type LedgerSyncPlan = {
   installmentsToRepoint: InstallmentRepoint[];
   installmentsToCancel: CancelPlan[];
   blockedInstallmentsForReview: BlockedInstallmentForReview[];
-  residualCreditStudents: ResidualCreditStudent[];
-  underBilledStudents: UnderBilledStudent[];
+  studentsEndingInCredit: StudentEndingInCredit[];
+  /**
+   * Sum over every row written or inserted of (planned charge − current
+   * charge). Positive means the change bills more in total; negative less.
+   */
+  feeDeltaTotal: number;
   skippedStudents: LedgerSkippedStudent[];
   warnings: string[];
   errors: string[];
@@ -209,8 +203,7 @@ export type LedgerGenerationPreview = Omit<
   | "installmentsToRepoint"
   | "installmentsToCancel"
   | "blockedInstallmentsForReview"
-  | "residualCreditStudents"
-  | "underBilledStudents"
+  | "studentsEndingInCredit"
   | "skippedStudents"
   | "warnings"
   | "errors"
@@ -221,16 +214,13 @@ export type LedgerGenerationPreview = Omit<
   installmentsToRepoint: number;
   installmentsToCancel: number;
   lockedInstallments: number;
-  /** Total rupees that became refundable because a discount exceeded the balance. */
-  residualCreditTotal: number;
-  /** Total rupees the engine could not bill because every installment was settled. */
-  underBilledTotal: number;
+  /** Total rupees families end up in credit by, because they paid more than the new charge. */
+  creditTotal: number;
 };
 
 export type LedgerGenerationResult = LedgerGenerationPreview & {
   blockedInstallmentsForReview: BlockedInstallmentForReview[];
-  residualCreditStudents: ResidualCreditStudent[];
-  underBilledStudents: UnderBilledStudent[];
+  studentsEndingInCredit: StudentEndingInCredit[];
   skippedStudents: LedgerSkippedStudent[];
   warnings: string[];
   errors: string[];
@@ -388,9 +378,7 @@ function structurallyDiffers(existing: ExistingInstallmentRow, next: PlannedInst
 }
 
 type InstallmentLockDecision =
-  | { kind: "free" }
-  | { kind: "safe_reduction" }
-  | { kind: "safe_increase" }
+  | { kind: "write" }
   | {
       kind: "locked";
       reasonCode: LockedInstallmentReasonCode;
@@ -455,22 +443,25 @@ function classifyCancelLock(payload: {
 /**
  * Decide whether a planned change may be written over an existing installment.
  *
- * This used to be a boolean: any row with a payment or an adjustment on it was
- * frozen outright. That protected receipts, but it also meant a discount
- * applied to a student who had paid anything did NOTHING — the plan was
- * discarded and the office was told "fee records updated" (SR 2261, Rs 2,000
- * discount against installments untouched for two and a half months).
+ * Since 20260905090000 money settles the installments oldest-first at read
+ * time, whatever installment a receipt was pinned to. A row carrying money is
+ * therefore no longer a frozen bill: repricing it moves nothing a receipt said
+ * (the receipt keeps its own record of where it was written), it only changes
+ * what the year charges and lets the pool re-settle. The generator writes the
+ * policy's split to every row it can, which is what makes a fee edit automatic
+ * instead of a Session Health chore. Before this, a row with a payment on it
+ * was frozen at its old charge and the rest of the year was redrawn around it
+ * — SR 660 read installment 3 "Paid" and installments 1 and 2 "Overdue" on
+ * Rs 7,600 paid before installment 1 was due.
  *
- * The distinction that was missing: a REDUCTION down to — never below — what
- * has already been applied is safe. No receipt changes; the row simply stops
- * asking for money the school has decided to forgo.
+ * Two things still need a person:
  *
- * An INCREASE splits the same way, on whether the row is SETTLED rather than
- * on whether it has been touched. A settled row is a finished bill and stays
- * locked. A row still short of its charge may rise: nothing a receipt reported
- * changes, only what remains owed. Treating those two alike is what let a
- * mid-year bus route go unbilled for a whole year on students who had paid
- * every installment in part.
+ *   - An ACTIVE EMI plan covers the row. A family agreed to a specific opening
+ *     balance over a specific number of months; changing the covered charge
+ *     changes the deal, in either direction.
+ *   - The DUE DATE is moving on a row the family has paid against. The late
+ *     fee is decided by what had been paid by the due date, so moving it
+ *     re-runs that clock retroactively, and nothing grandfathers the result.
  */
 function classifyInstallmentLock(payload: {
   existingInstallment: ExistingInstallmentRow;
@@ -480,14 +471,9 @@ function classifyInstallmentLock(payload: {
   isInRepaymentPlan?: boolean;
 }): InstallmentLockDecision {
   const existing = payload.existingInstallment;
-  const paidAmount = payload.paidAmount;
-  const adjustmentAmount = payload.adjustmentAmount;
+  const appliedAmount = Math.max(payload.paidAmount + payload.adjustmentAmount, 0);
+  const outstandingAmount = Math.max(existing.amount_due - appliedAmount, 0);
 
-  // An EMI row is locked in BOTH directions, unlike the paid-row rule below.
-  // A reduction is normally safe because no receipt moves — but here the
-  // family has agreed to clear a specific opening balance over a specific
-  // number of months, and quietly shrinking a covered charge changes the deal.
-  // Unchanged plans stay free: only a real difference is held.
   if (
     payload.isInRepaymentPlan &&
     (plannedAmountDue(payload.plannedInstallment) !== existing.amount_due ||
@@ -497,78 +483,21 @@ function classifyInstallmentLock(payload: {
       kind: "locked",
       reasonCode: "in_repayment_plan",
       reasonLabel: "Covered by an active EMI plan",
-      outstandingAmount: Math.max(
-        existing.amount_due - Math.max(paidAmount + adjustmentAmount, 0),
-        0,
-      ),
+      outstandingAmount,
     };
   }
 
-  if (paidAmount <= 0 && adjustmentAmount === 0) {
-    return { kind: "free" };
+  const carriesMoney = payload.paidAmount > 0 || payload.adjustmentAmount !== 0;
+  if (carriesMoney && existing.due_date !== payload.plannedInstallment.due_date) {
+    return {
+      kind: "locked",
+      reasonCode: "due_date_changed",
+      reasonLabel: "Due date would move on an installment carrying money",
+      outstandingAmount,
+    };
   }
 
-  const appliedAmount = Math.max(paidAmount + adjustmentAmount, 0);
-  const outstandingAmount = Math.max(existing.amount_due - appliedAmount, 0);
-  const locked = (
-    reasonCode: LockedInstallmentReasonCode,
-    reasonLabel: string,
-  ): InstallmentLockDecision => ({ kind: "locked", reasonCode, reasonLabel, outstandingAmount });
-
-  const lockedForMoney = () => {
-    // Net, not gross — same reasoning as classifyCancelLock above. A fully
-    // reversed installment (paid +N, adjustment −N) is not "partially paid";
-    // it has adjustment history, which the fall-through says truthfully.
-    if (paidAmount > 0 && appliedAmount > 0) {
-      return appliedAmount >= existing.amount_due
-        ? locked("fully_paid", "Fully paid installment")
-        : locked("partially_paid", "Partially paid installment");
-    }
-
-    return locked("adjustment_posted", "Installment has adjustment entries");
-  };
-
-  // An increase. Whether it is a re-bill depends on whether the row is
-  // SETTLED, not on whether it has been paid against at all.
-  //
-  // Raising a settled installment asks a family for more against a bill they
-  // have finished — never automatic. Raising one that is still short is a
-  // different thing: the receipt said "Rs 3,100 received" and it goes on
-  // saying exactly that; only the amount still owed moves. Refusing both cases
-  // is what left SR 2608 and SR 2511 with a full year of transport unbilled —
-  // every installment carried money, so the rise had nowhere to go and was
-  // dropped without a word.
-  if (plannedAmountDue(payload.plannedInstallment) > existing.amount_due) {
-    if (appliedAmount >= existing.amount_due) {
-      return lockedForMoney();
-    }
-
-    // The label, due date and late-fee amount still belong to the receipt —
-    // the caller writes only the money, exactly as for a safe reduction.
-    return { kind: "safe_increase" };
-  }
-
-  // Same charge, only the terms differ — a pure rewrite of what a receipt said.
-  // No money moves, so there is nothing worth the risk: hold it for a human.
-  if (
-    plannedAmountDue(payload.plannedInstallment) === existing.amount_due &&
-    structurallyDiffers(existing, payload.plannedInstallment)
-  ) {
-    return lockedForMoney();
-  }
-
-  // A reduction. The allocator has already floored the planned amount at what
-  // was applied to this row, so it is safe to write.
-  //
-  // This is allowed even when the label, due date or late-fee amount have
-  // drifted — the caller writes ONLY the money and preserves those fields.
-  // Refusing the whole row on a stale label was blocking real discounts: three
-  // students carried rows labelled "Installment 1" (the generator now emits
-  // "Installment 1 (20-04-2026)") with late_fee_flat_amount 0 against a policy
-  // of 1000, so every paid row was structurally different and a Rs 2,000
-  // discount had nowhere to land. Moving the money is the safe half; changing
-  // a parent's late-fee exposure is the half that still needs a human.
-  return { kind: "safe_reduction" };
+  return { kind: "write" };
 }
 
 function summarizePlan(plan: LedgerSyncPlan): LedgerGenerationPreview {
@@ -585,14 +514,8 @@ function summarizePlan(plan: LedgerSyncPlan): LedgerGenerationPreview {
     installmentsToRepoint: plan.installmentsToRepoint.length,
     installmentsToCancel: plan.installmentsToCancel.length,
     lockedInstallments: plan.blockedInstallmentsForReview.length,
-    residualCreditTotal: plan.residualCreditStudents.reduce(
-      (total, row) => total + row.residualCreditAmount,
-      0,
-    ),
-    underBilledTotal: plan.underBilledStudents.reduce(
-      (total, row) => total + row.unbilledIncreaseAmount,
-      0,
-    ),
+    creditTotal: plan.studentsEndingInCredit.reduce((total, row) => total + row.creditAmount, 0),
+    feeDeltaTotal: plan.feeDeltaTotal,
     expectedScheduledInstallments: plan.expectedScheduledInstallments,
     affectedStudents: plan.affectedStudents,
   };
@@ -809,8 +732,8 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
   const installmentsToRepoint: InstallmentRepoint[] = [];
   const installmentsToCancel: CancelPlan[] = [];
   const blockedInstallmentsForReview: BlockedInstallmentForReview[] = [];
-  const residualCreditStudents: ResidualCreditStudent[] = [];
-  const underBilledStudents: UnderBilledStudent[] = [];
+  const studentsEndingInCredit: StudentEndingInCredit[] = [];
+  let feeDeltaTotal = 0;
   const affectedStudentIds = new Set<string>();
   let studentsWithResolvedSettings = 0;
   let expectedScheduledInstallments = 0;
@@ -1007,63 +930,45 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
           setupData.globalPolicy.installmentCount,
         );
 
-    // Re-split so a REDUCTION lands on unpaid headroom instead of being thrown
-    // away because some installment already carries a payment. Without this a
-    // discount applied to a student who had paid anything changed nothing at
-    // all — see lib/fees/paid-floor-allocation.ts.
+    // The policy's own split, written as it stands. Money settles the
+    // installments oldest-first at read time (20260905090000), so a row that
+    // carries a payment is repriced like any other and the pool re-settles;
+    // the one thing worth knowing up front is a family the new total leaves
+    // overpaid, which becomes credit_balance and a Finance Controls refund.
     const plannedNetCharges = baseAmounts.map(
       (base, index) => (base ?? 0) + (transportAmounts[index] ?? 0) - (discountAmounts[index] ?? 0),
     );
-    const allocation = allocateChargesRespectingPaidFloors({
-      plannedCharges: plannedNetCharges,
-      plannedTotal: plannedNetCharges.reduce((total, value) => total + value, 0),
-      rows: Array.from({ length: setupData.globalPolicy.installmentCount }, (_, index) => {
-        const existingRow = existingInstallmentMap.get(`${student.id}::${index + 1}`);
+    const plannedTotal = plannedNetCharges.reduce((total, value) => total + value, 0);
+    const studentRows = existingInstallments.filter(
+      (row) => row.student_id === student.id && row.status !== "cancelled",
+    );
+    const settledPool = studentRows.reduce(
+      (total, row) =>
+        total +
+        Math.max(
+          (paymentTotalsByInstallment.get(row.id) ?? 0) +
+            (adjustmentTotalsByInstallment.get(row.id) ?? 0),
+          0,
+        ),
+      0,
+    );
+    // Rows outside the planned slots -- carry-forward, EMI late fees -- keep
+    // their own charge and absorb the pool first, so they count as capacity.
+    const chargeOutsidePlan = studentRows
+      .filter((row) => row.installment_no > setupData.globalPolicy.installmentCount)
+      .reduce((total, row) => total + row.amount_due, 0);
+    const creditAmount = settledPool - (plannedTotal + chargeOutsidePlan);
 
-        return {
-          index,
-          existingAmountDue: existingRow?.amount_due ?? 0,
-          // paymentTotalsByInstallment sums payments without the receipts join,
-          // so discount-mode close-outs are included. That raises the floor,
-          // which is the conservative direction: a written-off row is not
-          // reduced further.
-          appliedAmount: existingRow
-            ? Math.max(
-                (paymentTotalsByInstallment.get(existingRow.id) ?? 0) +
-                  (adjustmentTotalsByInstallment.get(existingRow.id) ?? 0),
-                0,
-              )
-            : 0,
-        };
-      }),
-    });
-
-    if (allocation.residualCreditAmount > 0) {
-      residualCreditStudents.push({
+    if (creditAmount > 0) {
+      studentsEndingInCredit.push({
         studentId: student.id,
         admissionNo: student.admission_no,
         fullName: student.full_name,
-        residualCreditAmount: allocation.residualCreditAmount,
+        creditAmount,
       });
-    }
-
-    if (allocation.unbilledIncreaseAmount > 0) {
-      underBilledStudents.push({
-        studentId: student.id,
-        admissionNo: student.admission_no,
-        fullName: student.full_name,
-        unbilledIncreaseAmount: allocation.unbilledIncreaseAmount,
-      });
-      affectedStudentIds.add(student.id);
     }
 
     setupData.globalPolicy.installmentSchedule.forEach((schedule, index) => {
-      // The allocator works in NET terms. Transport and per-row discount stay
-      // as planned; the adjustment is taken on base_amount, which is where the
-      // workbook engine already folds the annual discount (see below).
-      const allocatedNet = allocation.charges[index] ?? 0;
-      const plannedNet = plannedNetCharges[index] ?? 0;
-      const allocationDelta = allocatedNet - plannedNet;
       const plannedInstallment = {
         student_id: student.id,
         class_id: student.class_id,
@@ -1072,7 +977,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
         installment_no: index + 1,
         installment_label: `${schedule.label} (${schedule.dueDateLabel})`,
         due_date: schedule.dueDate,
-        base_amount: Math.max((baseAmounts[index] ?? 0) + allocationDelta, 0),
+        base_amount: Math.max(baseAmounts[index] ?? 0, 0),
         transport_amount: transportAmounts[index] ?? 0,
         discount_amount: discountAmounts[index] ?? 0,
         late_fee_flat_amount: resolved.lateFeeFlatAmount,
@@ -1084,6 +989,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
 
       if (!existingInstallment) {
         installmentsToInsert.push(plannedInstallment);
+        feeDeltaTotal += plannedAmountDue(plannedInstallment);
         affectedStudentIds.add(student.id);
         return;
       }
@@ -1153,22 +1059,13 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
         return;
       }
 
-      // On a row that carries money, an amount change writes ONLY the money.
-      // The label, due date and late-fee amount are what the parent's receipt
-      // reported and what the late-fee clock runs on, so they are preserved
-      // verbatim — see classifyInstallmentLock.
-      const carriesMoney = paidAmount > 0 || adjustmentAmount !== 0;
-      const moneyOnly = lock.kind === "safe_reduction" || lock.kind === "safe_increase";
+      // The whole row, money or not: label, due date (unchanged, or the lock
+      // above held it) and late-fee rate all come from policy. The receipt keeps
+      // its own record of what it was written against.
+      feeDeltaTotal += plannedAmountDue(plannedInstallment) - existingInstallment.amount_due;
       installmentsToUpdate.push({
         id: existingInstallment.id,
         ...plannedInstallment,
-        ...(moneyOnly && carriesMoney
-          ? {
-              installment_label: existingInstallment.installment_label,
-              due_date: existingInstallment.due_date,
-              late_fee_flat_amount: existingInstallment.late_fee_flat_amount,
-            }
-          : {}),
       });
       affectedStudentIds.add(student.id);
     });
@@ -1232,8 +1129,8 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
     installmentsToRepoint,
     installmentsToCancel,
     blockedInstallmentsForReview,
-    residualCreditStudents,
-    underBilledStudents,
+    studentsEndingInCredit,
+    feeDeltaTotal,
     skippedStudents: dedupeSkippedStudents(skippedStudents),
     warnings,
     errors,
@@ -1267,8 +1164,7 @@ export async function previewLedgerGenerationDetailed(
   return {
     ...summarizePlan(plan),
     blockedInstallmentsForReview: plan.blockedInstallmentsForReview,
-    residualCreditStudents: plan.residualCreditStudents,
-    underBilledStudents: plan.underBilledStudents,
+    studentsEndingInCredit: plan.studentsEndingInCredit,
     skippedStudents: plan.skippedStudents,
     warnings: plan.warnings,
     errors: plan.errors,
@@ -1325,8 +1221,7 @@ export async function generateSessionLedgersAction(
   return {
     ...summarizePlan(plan),
     blockedInstallmentsForReview: plan.blockedInstallmentsForReview,
-    residualCreditStudents: plan.residualCreditStudents,
-    underBilledStudents: plan.underBilledStudents,
+    studentsEndingInCredit: plan.studentsEndingInCredit,
     skippedStudents: plan.skippedStudents,
     warnings: plan.warnings,
     errors: plan.errors,

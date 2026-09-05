@@ -15,6 +15,7 @@ import { DownloadAnchor } from "@/ui/primitives/download-anchor";
 import { Button } from "@/ui/primitives/button";
 import { Input } from "@/ui/primitives/input";
 import { Label } from "@/ui/primitives/label";
+import { CUSTOM_TRANSPORT_BUCKET_LABEL, CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/transport-route-key";
 import {
   formatPaymentModeLabel,
   getReportAuditNote,
@@ -272,6 +273,7 @@ function OutstandingFilters({
             className={`${selectClassName} mt-2`}
           >
             <option value="">All routes</option>
+            <option value={CUSTOM_TRANSPORT_ROUTE_KEY}>{CUSTOM_TRANSPORT_BUCKET_LABEL}</option>
             {routeOptions.map((route) => (
               <option key={route.id} value={route.id}>
                 {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
@@ -337,6 +339,7 @@ function CollectionFilters({
             className={`${selectClassName} mt-2`}
           >
             <option value="">All routes</option>
+            <option value={CUSTOM_TRANSPORT_ROUTE_KEY}>{CUSTOM_TRANSPORT_BUCKET_LABEL}</option>
             {routeOptions.map((route) => (
               <option key={route.id} value={route.id}>
                 {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
@@ -425,6 +428,7 @@ function LedgerFilters({
             className={`${selectClassName} mt-2`}
           >
             <option value="">All routes</option>
+            <option value={CUSTOM_TRANSPORT_ROUTE_KEY}>{CUSTOM_TRANSPORT_BUCKET_LABEL}</option>
             {routeOptions.map((route) => (
               <option key={route.id} value={route.id}>
                 {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}

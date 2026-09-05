@@ -254,7 +254,7 @@ export async function createStudentAction(
         readyForPaymentCount: duesResult.readyForPaymentCount,
         duesNeedAttentionCount: duesResult.duesNeedAttentionCount,
         protectedRowCount: duesResult.protectedRowCount,
-        residualCreditTotal: duesResult.residualCreditTotal,
+        creditTotal: duesResult.creditTotal,
         reasonSummary: duesResult.reasonSummary,
       });
       syncMessage = duesMessage.message;
@@ -544,7 +544,7 @@ export async function updateStudentAction(
         readyForPaymentCount: duesResult.readyForPaymentCount,
         duesNeedAttentionCount: duesResult.duesNeedAttentionCount,
         protectedRowCount: duesResult.protectedRowCount,
-        residualCreditTotal: duesResult.residualCreditTotal,
+        creditTotal: duesResult.creditTotal,
         reasonSummary: duesResult.reasonSummary,
       });
       syncMessage = ` ${duesMessage.message}`;
@@ -778,7 +778,7 @@ function buildStudentDuesMessage(payload: {
   readyForPaymentCount: number;
   duesNeedAttentionCount: number;
   protectedRowCount: number;
-  residualCreditTotal: number;
+  creditTotal: number;
   reasonSummary: string | null;
 }): StudentDuesMessage {
   const savedVerb = payload.action === "added" ? "saved" : "updated";
@@ -798,18 +798,18 @@ function buildStudentDuesMessage(payload: {
     return {
       status: "warning",
       message:
-        `Student ${savedVerb}. ${payload.protectedRowCount} fee ${rowWord} already carrying ` +
-        `payments ${verb} left unchanged. Open Admin Tools → Session Health to review ` +
-        `before collecting.`,
+        `Student ${savedVerb}. ${payload.protectedRowCount} fee ${rowWord} ${verb} held for review ` +
+        `(covered by an EMI plan, or a due date moving on paid money). Open Admin Tools → ` +
+        `Session Health to review before collecting.`,
     };
   }
 
-  if (payload.residualCreditTotal > 0) {
+  if (payload.creditTotal > 0) {
     return {
       status: "warning",
       message:
         `Student ${savedVerb} and fee records updated. The discount is larger than the ` +
-        `unpaid balance, so ${formatInr(payload.residualCreditTotal)} is now refundable. ` +
+        `unpaid balance, so ${formatInr(payload.creditTotal)} is now refundable. ` +
         `Open Finance Controls to process a refund.`,
     };
   }

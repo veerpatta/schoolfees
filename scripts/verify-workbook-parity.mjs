@@ -1,3 +1,8 @@
+// Models the Excel workbook's arithmetic: a student's outstanding is
+// max(0, totalDue - totalPaid) with no per-installment pinning, and the
+// on-time test is base-only. The engines (20260905090000) settle the same pool
+// oldest-first but count each row's late fee as capacity before the next row,
+// so this script deliberately does NOT reproduce per-installment late fees.
 const dueDates = ["2026-04-20", "2026-07-20", "2026-10-20", "2027-01-20"];
 
 function splitInstallments({ tuition, transport = 0, academic, other = 0, discount = 0 }) {

@@ -169,8 +169,11 @@ inside a `display:none` panel.
   per year, lowest candidate tuition wins. See `docs/modules/conventional-discounts.md`.
 - **Transport is charged two ways** — a `transport_routes` row, or
   `student_fee_overrides.custom_transport_fee_amount` with no route at all. Always render
-  through `buildTransportRouteLabel`; "No transport" printed beside a ₹14,000 charge was a
-  real bug on three surfaces.
+  through `buildTransportRouteLabel` **with the amount**; "No transport" printed beside a
+  ₹14,000 charge was a real bug on three surfaces, then on eight more that passed a route
+  and no amount. Route pickers, the dashboard route board, the reports and the MCP worker
+  file such students under **"Custom amount (no route)"** (`CUSTOM_TRANSPORT_ROUTE_KEY`),
+  never under "No transport".
 
 A discount only moves money when dues are **regenerated**. Writing an assignment directly
 in SQL leaves it disagreeing with the projection — that is what

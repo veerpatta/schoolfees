@@ -70,6 +70,7 @@ import {
 } from "@/modules/defaulters/ui/bulk-whatsapp-provider";
 import type { WhatsappTemplate } from "@/modules/whatsapp/domain/types";
 import type { CollectionRow } from "./transactions-lazy-tables";
+import { CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/transport-route-key";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -726,6 +727,12 @@ export function TransactionsClientShell({
   const t = useTranslations("Transactions");
   const tCommon = useTranslations("Common");
   const tSegments = useTranslations("Segments");
+  // The custom-transport bucket sits with the routes: a student charged
+  // transport through an override has no route id to pick.
+  const routeChoices = useMemo<RouteOption[]>(
+    () => [{ id: CUSTOM_TRANSPORT_ROUTE_KEY, label: t("filterRouteCustom") }, ...routeOptions],
+    [routeOptions, t],
+  );
   const [activeView, setActiveView] = useState(initialView);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [workbook, setWorkbook] = useState<OfficeWorkbookData>(initialWorkbook);
@@ -1028,7 +1035,7 @@ export function TransactionsClientShell({
     ...(filters.routeId
       ? [{
           key: "route",
-          label: routeOptions.find((o) => o.id === filters.routeId)?.label ?? filters.routeId,
+          label: routeChoices.find((o) => o.id === filters.routeId)?.label ?? filters.routeId,
           onRemove: () => handleFilterChange("routeId", ""),
         }]
       : []),
@@ -1659,7 +1666,7 @@ export function TransactionsClientShell({
                 >
                   {t("filterRouteAll")}
                 </button>
-                {routeOptions.map((option) => (
+                {routeChoices.map((option) => (
                   <button
                     key={option.id}
                     type="button"

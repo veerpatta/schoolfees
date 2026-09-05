@@ -7,7 +7,7 @@ import {
   generateSessionLedgersAction,
   type LedgerGenerationResult,
   type LedgerSkippedStudent,
-  type ResidualCreditStudent,
+  type StudentEndingInCredit,
 } from "@/modules/fees/data/generator";
 import { createClient } from "@/platform/supabase/server";
 import {
@@ -59,8 +59,8 @@ export type AutomaticDuesPreparationResult = {
    */
   protectedRowCount: number;
   /** Rupees that became refundable because a discount exceeded the balance. */
-  residualCreditTotal: number;
-  residualCreditStudents: ResidualCreditStudent[];
+  creditTotal: number;
+  studentsEndingInCredit: StudentEndingInCredit[];
   readyForPaymentCount: number;
   duesNeedAttentionCount: number;
   officeSummary: string;
@@ -283,8 +283,8 @@ export function toAutomaticDuesPreparationResult(
     cancelled: result.installmentsToCancel,
     protected: result.lockedInstallments,
     protectedRowCount: result.lockedInstallments,
-    residualCreditTotal: result.residualCreditTotal,
-    residualCreditStudents: result.residualCreditStudents,
+    creditTotal: result.creditTotal,
+    studentsEndingInCredit: result.studentsEndingInCredit,
     readyForPaymentCount: preparedStudentIds.length,
     duesNeedAttentionCount: attentionStudentIds.length,
     officeSummary,
@@ -307,13 +307,12 @@ function buildEmptySyncResult(reason: string, warnings: string[] = []): Financia
     installmentsToRepoint: 0,
     installmentsToCancel: 0,
     lockedInstallments: 0,
-    residualCreditTotal: 0,
-    underBilledTotal: 0,
+    creditTotal: 0,
+    feeDeltaTotal: 0,
     expectedScheduledInstallments: 0,
     affectedStudents: 0,
     blockedInstallmentsForReview: [],
-    residualCreditStudents: [],
-    underBilledStudents: [],
+    studentsEndingInCredit: [],
     skippedStudents: [],
     errors: [],
     reason,
@@ -589,13 +588,12 @@ function mergeLedgerResults(results: LedgerGenerationResult[]): LedgerGeneration
       installmentsToRepoint: 0,
       installmentsToCancel: 0,
       lockedInstallments: 0,
-      residualCreditTotal: 0,
-      underBilledTotal: 0,
+      creditTotal: 0,
+      feeDeltaTotal: 0,
       expectedScheduledInstallments: 0,
       affectedStudents: 0,
       blockedInstallmentsForReview: [],
-      residualCreditStudents: [],
-      underBilledStudents: [],
+      studentsEndingInCredit: [],
       skippedStudents: [],
       warnings: [],
       errors: [],
@@ -619,13 +617,12 @@ function mergeLedgerResults(results: LedgerGenerationResult[]): LedgerGeneration
     installmentsToRepoint: results.reduce((sum, r) => sum + r.installmentsToRepoint, 0),
     installmentsToCancel: results.reduce((sum, r) => sum + r.installmentsToCancel, 0),
     lockedInstallments: results.reduce((sum, r) => sum + r.lockedInstallments, 0),
-    residualCreditTotal: results.reduce((sum, r) => sum + r.residualCreditTotal, 0),
-    underBilledTotal: results.reduce((sum, r) => sum + r.underBilledTotal, 0),
+    creditTotal: results.reduce((sum, r) => sum + r.creditTotal, 0),
+    feeDeltaTotal: results.reduce((sum, r) => sum + r.feeDeltaTotal, 0),
     expectedScheduledInstallments: results.reduce((sum, r) => sum + r.expectedScheduledInstallments, 0),
     affectedStudents: results.reduce((sum, r) => sum + r.affectedStudents, 0),
     blockedInstallmentsForReview: results.flatMap((r) => r.blockedInstallmentsForReview),
-    residualCreditStudents: results.flatMap((r) => r.residualCreditStudents),
-    underBilledStudents: results.flatMap((r) => r.underBilledStudents),
+    studentsEndingInCredit: results.flatMap((r) => r.studentsEndingInCredit),
     skippedStudents: results.flatMap((r) => r.skippedStudents),
     warnings: [...new Set(results.flatMap((r) => r.warnings))],
     errors: [...new Set(results.flatMap((r) => r.errors))],

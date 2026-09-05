@@ -77,7 +77,7 @@ export async function getRouteCollectionSummary(
   const { data, error } = await supabase
     .from("v_workbook_student_financials")
     .select(
-      "transport_route_id, transport_route_name, transport_route_code, base_charge_total, total_due, total_paid, outstanding_amount",
+      "transport_route_id, transport_route_name, transport_route_code, transport_fee, base_charge_total, total_due, total_paid, outstanding_amount",
     )
     .eq("session_label", sessionLabel)
     .eq("record_status", "active");
@@ -92,16 +92,23 @@ export async function getRouteCollectionSummary(
     transport_route_id: string | null;
     transport_route_name: string | null;
     transport_route_code: string | null;
+    transport_fee: number | null;
     base_charge_total: number | null;
     total_due: number | null;
     total_paid: number | null;
     outstanding_amount: number | null;
   }>) {
-    if (!row.transport_route_id) continue;
-    const key = row.transport_route_id;
-    const label = row.transport_route_code
-      ? `${row.transport_route_name ?? "Route"} (${row.transport_route_code})`
-      : row.transport_route_name ?? "Route";
+    // A student charged transport through an override has no route id. They
+    // used to be dropped here outright, so a whole bucket of transport money
+    // was missing from the board. They get a bucket of their own instead.
+    const isCustomOnly = !row.transport_route_id && Number(row.transport_fee ?? 0) > 0;
+    if (!row.transport_route_id && !isCustomOnly) continue;
+    const key = row.transport_route_id ?? CUSTOM_TRANSPORT_ROUTE_KEY;
+    const label = isCustomOnly
+      ? CUSTOM_TRANSPORT_BUCKET_LABEL
+      : row.transport_route_code
+        ? `${row.transport_route_name ?? "Route"} (${row.transport_route_code})`
+        : row.transport_route_name ?? "Route";
     const existing = map.get(key) ?? {
       routeId: key,
       routeLabel: label,
@@ -837,6 +844,7 @@ export async function getDashboardPageData(options: {
 import { after } from "next/server";
 import { prepareDuesForStudentsAutomatically } from "@/modules/system-sync/domain/finance-sync";
 import { revalidateSessionFinance } from "@/modules/system-sync/domain/finance-revalidation";
+import { CUSTOM_TRANSPORT_BUCKET_LABEL, CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/label";
 
 export type DashboardAutoPrepareHealth = Pick<
   NonNullable<DashboardPageData["systemSyncHealth"]>,

@@ -117,6 +117,11 @@ function installment(
     totalPending: 1500,
     balanceStatus: "pending",
     lateFeeStatus: "none",
+    settledAmount: 0,
+    feeSettledAmount: 0,
+    lateFeeSettledAmount: 0,
+    planPriority: 1,
+    settlementRank: 1,
     ...overrides,
   };
 }
@@ -355,7 +360,11 @@ describe("dashboard summary", () => {
           totalCharge: 6000,
           baseCharge: 5000,
           finalLateFee: 1000,
-          pendingAmount: 6000,
+          // Fees only, as the engine reports it since the late-fee split; the
+          // late fee rides in lateFeePending and the two add to totalPending.
+          pendingAmount: 5000,
+          lateFeePending: 1000,
+          totalPending: 6000,
           balanceStatus: "overdue",
         }),
       ],
@@ -364,7 +373,11 @@ describe("dashboard summary", () => {
           totalCharge: 6000,
           baseCharge: 5000,
           finalLateFee: 1000,
-          pendingAmount: 6000,
+          // Fees only, as the engine reports it since the late-fee split; the
+          // late fee rides in lateFeePending and the two add to totalPending.
+          pendingAmount: 5000,
+          lateFeePending: 1000,
+          totalPending: 6000,
           balanceStatus: "overdue",
         }),
       ],
@@ -375,7 +388,7 @@ describe("dashboard summary", () => {
     expect(summary.kpis.totalPending).toBe(6000);
     expect(summary.kpis.overdueAmount).toBe(5000);
     expect(summary.classSummary[0]?.overdueAmount).toBe(5000);
-    expect(summary.installmentSummary[0]?.pendingAmount).toBe(6000);
+    expect(summary.installmentSummary[0]?.pendingAmount).toBe(5000);
     expect(summary.installmentSummary[0]?.overdueAmount).toBe(5000);
   });
 

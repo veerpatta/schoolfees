@@ -315,18 +315,24 @@ if (previewProbe.error) {
 
 /* ── Installment ↔ ledger invariant ─────────────────────────────────────────
  *
- * For every non-cancelled installment, the engine's applied_amount must equal
- * what the append-only ledger actually says — sum(payments.amount) plus
- * sum(payment_adjustments.amount_delta) — and pending must be exactly
- * greatest(base_charge − applied, 0). Zero tolerance: these are rupees.
+ * Money settles the installments oldest-first at read time (20260905090000).
+ * The receipt pin -- sum(payments.amount) + sum(payment_adjustments.amount_delta)
+ * on a row -- is HISTORY: it says which installment a receipt was written
+ * against, not what is still owed there. So the per-row identity this used to
+ * assert (pending == base − pinned net) is no longer the invariant; it was the
+ * bug. What has to hold now, to the rupee:
  *
- * This is the invariant that proves a reversal restored its installment. A
- * reversed receipt writes a compensating adjustment; if the view ever stops
- * netting it (the exact bug 20260808200000 fixed for write-offs), pending
- * quietly stays settled while the ledger says the money went back. Verified
- * clean across all 2,108 live installments on 2026-08-18; this section keeps
- * it that way. Failure here exits non-zero, unlike the informational sections
- * above — a drifted installment is not a report, it is an alarm.
+ *   (a) applied_amount never exceeds the pinned net on its row -- the pin is
+ *       still the record of cash, and a reversal must still come out of it;
+ *   (b) per student and session, everything settled across the rows equals
+ *       min(total money, total capacity), where capacity = base + final late
+ *       fee -- the pool fills the rows and nothing leaks;
+ *   (c) per row, pending = base − min(settled, base) and
+ *       late_fee_pending = final late fee − max(settled − base, 0) -- fees
+ *       first, then the late fee.
+ *
+ * Failure here exits non-zero, unlike the informational sections above -- a
+ * drifted installment is not a report, it is an alarm.
  */
 
 const invariantSessions = [
@@ -342,7 +348,9 @@ for (const sessionLabel of invariantSessions) {
     for (let from = 0; ; from += pageSize) {
       const { data, error } = await supabase
         .from("v_workbook_installment_balances")
-        .select("installment_id, base_charge, applied_amount, pending_amount")
+        .select(
+          "installment_id, student_id, session_label, installment_no, base_charge, applied_amount, discount_closeout_amount, final_late_fee, settled_amount, pending_amount, late_fee_pending, settlement_rank",
+        )
         .eq("session_label", sessionLabel)
         .order("installment_id", { ascending: true })
         .range(from, from + pageSize - 1);
@@ -375,51 +383,69 @@ for (const sessionLabel of invariantSessions) {
   await addAmounts("payments", "amount");
   await addAmounts("payment_adjustments", "amount_delta");
 
-  let appliedMismatches = 0;
-  let pendingMismatches = 0;
+  let appliedOvershoots = 0;
+  let splitMismatches = 0;
+  let poolMismatches = 0;
   const samples = [];
 
+  const byStudent = new Map();
   for (const row of balances) {
-    // Cash only: the view splits discount-mode close-outs into their own
-    // column, so applied_amount is payments+adjustments EXCLUDING close-outs…
-    // except the ledger sum here includes them. Compare against settled money
-    // instead: applied + closeout equals the full ledger net. The view does
-    // not expose the split per row in this select, so assert the safe half —
-    // pending must always be derivable from base and the FULL net, floored.
-    const net = netByInstallment.get(row.installment_id) ?? 0;
-    const settled = Math.max(net, 0);
-    const expectedPending = Math.max((row.base_charge ?? 0) - settled, 0);
-    if ((row.pending_amount ?? 0) !== expectedPending) {
-      pendingMismatches += 1;
+    // (a) the pin is still the record of cash.
+    const net = Math.max(netByInstallment.get(row.installment_id) ?? 0, 0);
+    if ((row.applied_amount ?? 0) > net) {
+      appliedOvershoots += 1;
+      if (samples.length < 5) {
+        samples.push(`${row.installment_id}: applied ${row.applied_amount} exceeds ledger net ${net}`);
+      }
+    }
+
+    // (c) fees first, then the late fee, on each row.
+    const settled = row.settled_amount ?? 0;
+    const base = row.base_charge ?? 0;
+    const expectedPending = Math.max(base - Math.min(settled, base), 0);
+    const expectedLateFeePending = Math.max((row.final_late_fee ?? 0) - Math.max(settled - base, 0), 0);
+    if ((row.pending_amount ?? 0) !== expectedPending || (row.late_fee_pending ?? 0) !== expectedLateFeePending) {
+      splitMismatches += 1;
       if (samples.length < 5) {
         samples.push(
-          `${row.installment_id}: pending ${row.pending_amount} vs ledger-derived ${expectedPending} (base ${row.base_charge}, net ${net})`,
+          `${row.installment_id}: pending ${row.pending_amount}/${row.late_fee_pending} vs settled-derived ${expectedPending}/${expectedLateFeePending} (base ${base}, settled ${settled})`,
         );
       }
     }
-    if ((row.applied_amount ?? 0) > settled) {
-      appliedMismatches += 1;
+
+    const key = `${row.student_id}::${row.session_label}`;
+    const acc = byStudent.get(key) ?? { money: 0, capacity: 0, settled: 0 };
+    acc.money += (row.applied_amount ?? 0) + (row.discount_closeout_amount ?? 0);
+    acc.capacity += base + (row.final_late_fee ?? 0);
+    acc.settled += settled;
+    byStudent.set(key, acc);
+  }
+
+  // (b) the pool fills the rows and nothing leaks.
+  for (const [key, acc] of byStudent) {
+    const expected = Math.min(acc.money, acc.capacity);
+    if (acc.settled !== expected) {
+      poolMismatches += 1;
       if (samples.length < 5) {
-        samples.push(
-          `${row.installment_id}: applied ${row.applied_amount} exceeds ledger net ${settled}`,
-        );
+        samples.push(`${key}: settled ${acc.settled} vs min(money ${acc.money}, capacity ${acc.capacity}) = ${expected}`);
       }
     }
   }
 
   printHeader(`Installment ↔ Ledger Invariant (${sessionLabel})`);
   console.log(`Installments checked: ${balances.length}`);
-  console.log(`Pending mismatches:   ${pendingMismatches}`);
-  console.log(`Applied overshoots:   ${appliedMismatches}`);
+  console.log(`Applied overshoots:   ${appliedOvershoots}`);
+  console.log(`Fee/late-fee splits:  ${splitMismatches} mismatch(es)`);
+  console.log(`Pool totals:          ${poolMismatches} student/session pair(s) leaking`);
   printRows(samples, "Ledger and engine agree to the rupee");
 
-  invariantFailures += pendingMismatches + appliedMismatches;
+  invariantFailures += appliedOvershoots + splitMismatches + poolMismatches;
 }
 
 if (invariantFailures > 0) {
   console.error(
-    `\nINVARIANT FAILURE: ${invariantFailures} installment(s) disagree with the append-only ledger. ` +
-      "A reversal or adjustment is not being netted into the balances view.",
+    `\nINVARIANT FAILURE: ${invariantFailures} installment or student figure(s) disagree with the append-only ledger. ` +
+      "Either a reversal is not being netted into the balances view, or the pooled settlement is leaking money.",
   );
   process.exit(1);
 }

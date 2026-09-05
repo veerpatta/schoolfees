@@ -137,6 +137,10 @@ type WorkbookInstallmentBalanceRow = {
   pending_amount: number;
   final_late_fee: number;
   balance_status: string;
+  /** Pooled settlement, since 20260905090000. */
+  settled_amount?: number | null;
+  fee_settled_amount?: number | null;
+  late_fee_pending?: number | null;
 };
 
 type ReceiptAdjustmentRow = {
@@ -280,14 +284,18 @@ function buildInstallmentStatus(
     .map((row) => {
       // Late fees are fines, not part of "expected" — so an installment is
       // settled once its BASE charge is covered, regardless of any unpaid late
-      // fee. Pending and status therefore track the base charge only (mirrors
-      // the view's internal base_pending_amount). The late fee still surfaces
+      // fee. Pending and status therefore track the base charge only. Both
+      // come from the engine: money settles the installments oldest-first at
+      // read time, so the receipt pin on this row says where a receipt was
+      // written, not what is still owed here. The late fee still surfaces
       // separately in the fee summary and in the `lateFee` field below.
       const applied = row.applied_amount ?? row.paid_amount ?? 0;
-      const basePending = Math.max(
-        0,
-        (row.base_charge ?? 0) - applied - (row.discount_closeout_amount ?? 0),
-      );
+      const feeSettled =
+        row.fee_settled_amount ??
+        Math.min(row.settled_amount ?? applied + (row.discount_closeout_amount ?? 0), row.base_charge ?? 0);
+      const basePending =
+        row.pending_amount ??
+        Math.max(0, (row.base_charge ?? 0) - applied - (row.discount_closeout_amount ?? 0));
       return {
         installmentNo: row.installment_no,
         label: getDisplayInstallmentLabel({
@@ -296,7 +304,7 @@ function buildInstallmentStatus(
         }),
         dueDate: row.due_date,
         expected: row.base_charge ?? 0,
-        paid: applied,
+        paid: feeSettled,
         pending: basePending,
         lateFee: row.final_late_fee ?? 0,
         status: normalizeBalanceStatus(row.balance_status, basePending),
@@ -761,7 +769,7 @@ export async function getReceiptDetailWith(
     supabase
       .from("v_workbook_installment_balances")
       .select(
-        "installment_no, installment_label, session_label, due_date, base_charge, total_charge, paid_amount, applied_amount, discount_closeout_amount, pending_amount, final_late_fee, balance_status",
+        "installment_no, installment_label, session_label, due_date, base_charge, total_charge, paid_amount, applied_amount, discount_closeout_amount, pending_amount, final_late_fee, balance_status, settled_amount, fee_settled_amount, late_fee_pending",
       )
       .eq("student_id", receipt.student_id),
     // All append-only payment adjustments for this student. Corrections are
@@ -981,7 +989,7 @@ export async function getReceiptDetailWith(
     parentEmail: student?.email ?? null,
     classLabel: buildClassLabel(student?.class_ref ?? null),
     sessionLabel,
-    transportRouteLabel: buildRouteLabel(student?.route_ref ?? null),
+    transportRouteLabel: buildRouteLabel(student?.route_ref ?? null, financial?.transport_fee ?? null),
     studentStatusLabel: financial?.student_status_label ?? "Old",
     feeSummary: buildFeeSummary(financial, {
       discountAmount: adjustmentTotals.receiptDiscountAmount,

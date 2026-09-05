@@ -47,7 +47,7 @@ Import direction, enforced by `npm run quality:architecture`:
 | [`dashboard`](../../src/modules/dashboard/README.md) | `/protected/dashboard?view=overview\|collection\|recovery\|classes\|latefee` | 7 | 3 | 14 |
 | [`defaulters`](../../src/modules/defaulters/README.md) | /protected/defaulters | 9 | 3 | 18 |
 | [`exports`](../../src/modules/exports/README.md) | `/protected/exports` · `/protected/exports/[exportType]` | 1 | 2 | 0 |
-| [`fees`](../../src/modules/fees/README.md) | /protected/fee-setup · /protected/fee-structure | 20 | 11 | 7 |
+| [`fees`](../../src/modules/fees/README.md) | /protected/fee-setup · /protected/fee-structure | 19 | 11 | 7 |
 | [`finance-controls`](../../src/modules/finance-controls/README.md) | /protected/finance-controls | 3 | 2 | 1 |
 | [`imports`](../../src/modules/imports/README.md) | /protected/imports | 9 | 3 | 9 |
 | [`master-data`](../../src/modules/master-data/README.md) | /protected/master-data | 0 | 1 | 1 |
@@ -85,7 +85,7 @@ happen there. `src/modules/README.md` indexes them and records why there is no
 | `tests/smoke-2026-05` | 0 | 6 |
 | `tests/smoke-readiness` | 0 | 3 |
 | `tests/ui` | 95 | 96 |
-| `tests/unit` | 169 | 169 |
+| `tests/unit` | 168 | 168 |
 
 `npm run test` runs vitest over two projects — `node` for everything and
 `interaction` (jsdom) for `tests/ui/interaction/**`. `tests/scan` and
@@ -103,13 +103,13 @@ Surfaced because size is the thing a map can measure and a reader cannot.
 | Lines | File |
 |---:|---|
 | 3516 | `src/modules/payments/ui/payment-desk-mobile.tsx` |
-| 2130 | `src/modules/payments/data/queries.ts` |
+| 2133 | `src/modules/payments/data/queries.ts` |
 | 2082 | `src/modules/fees/ui/fee-setup-client.tsx` |
 | 2058 | `src/app/protected/dashboard/page.tsx` |
 | 2007 | `src/modules/imports/data/queries.ts` |
-| 1905 | `src/modules/students/data/queries.ts` |
-| 1888 | `src/modules/transactions/ui/transactions-client-shell.tsx` |
-| 1726 | `src/modules/reports/data/queries.ts` |
+| 1931 | `src/modules/students/data/queries.ts` |
+| 1902 | `src/modules/transactions/ui/transactions-client-shell.tsx` |
+| 1804 | `src/modules/reports/data/queries.ts` |
 
 The ceilings that stop these growing live in
 `quality/office-quality-budgets.json`. They ratchet down, never up.

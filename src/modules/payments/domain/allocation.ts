@@ -4,7 +4,15 @@ import type {
 } from "@/modules/payments/domain/types";
 
 function sortForAllocation(items: InstallmentBalanceItem[]) {
+  // The same order post_student_payment_with_adjustments uses: rows on an
+  // active EMI plan first, then oldest due date, then installment number.
   return [...items].sort((left, right) => {
+    const leftPriority = left.planPriority ?? 1;
+    const rightPriority = right.planPriority ?? 1;
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority;
+    }
+
     if (left.dueDate === right.dueDate) {
       return left.installmentNo - right.installmentNo;
     }

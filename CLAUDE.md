@@ -177,13 +177,40 @@ Four things follow, and getting one wrong is a money bug:
   what made the Waive button invisible on the student page until `20260826120000`.
 - **An admin (`fees:write`) may waive a late fee that has already been COLLECTED**, via
   `p_include_collected`. Nothing is written to `payments` or `receipts`: the installment
-  charges less, and since `20260826115000` the money the family already handed over spills
-  onto the next installments, oldest first, before anything left becomes credit. Those
-  waivers carry `source = 'manual_collected'`. The spill rule is a second block duplicated
-  across both engines — `>>> SHARED SURPLUS SPILL RULE <<<` — with the same
-  edit-both-or-neither rule as the late-fee CASE.
+  charges less, and the money the family already handed over settles the next installments,
+  oldest first, before anything left becomes credit. Those waivers carry
+  `source = 'manual_collected'`.
 
-Verify with `node scripts/verify-late-fee-health.mjs --session <label>` (9 invariants).
+### Money settles the installments oldest-first
+
+Since `20260905090000` a receipt's `installment_id` is **history, not position**. Every
+rupee a family paid in a session is one pool that clears installment 1, then 2, then 3,
+then 4 — each row's fees first, then its late fee — over the counter's own order
+(`plan_priority`, `due_date`, `installment_no`). The late fee is pooled the same way: a row
+was settled on time if everything paid by its due date, minus what the rows ahead of it
+absorb, covers its base. Both engines carry this as a `>>> SHARED POOLED SETTLEMENT RULE <<<`
+block with the same edit-both-or-neither rule as the late-fee CASE; it is a `with recursive`
+walk because row 2's late fee depends on whether row 1 charged one.
+
+| Column | Means |
+|--------|-------|
+| `applied_amount` | The pin: cash receipted against this row, net of reversals. Sums to `total_paid`. |
+| `settled_amount` | Where the pool says the money sits. `pending_amount`, `late_fee_pending` and `balance_status` derive from it. |
+
+Three things follow:
+
+- **A later installment can never read paid while an earlier one is owed.** That picture
+  (SR 660: installment 3 "Paid ₹0", installments 1 and 2 "Overdue" on ₹7,600 paid before
+  installment 1 was due) is the bug this replaced.
+- **Regeneration writes the policy split to every row, paid or not.** A fee edit is
+  automatic; the pool re-settles. The only rows the generator still holds for a person are
+  EMI-covered ones and a paid row whose *due date* would move (that re-runs the late-fee
+  clock and nothing grandfathers it). Existing receipts are never rewritten; new ones are
+  correct because the desk previews and posts through the same engine.
+- **Per-row "Paid" reads `settledAmount`**, never `appliedAmount`; totals still sum the pin.
+  `calculateInstallmentBasePending` prefers the engine's `pendingAmount` over base minus pin.
+
+Verify with `node scripts/verify-late-fee-health.mjs --session <label>` (10 invariants).
 
 ### RBAC
 
@@ -310,9 +337,10 @@ What is worth naming, because it is *not* obvious from a folder name:
 - `src/platform/env.ts` — env var accessors that throw on missing or placeholder values.
 - `src/platform/db/types.ts` — generated Supabase database types.
 - `supabase/schema.sql` — readable snapshot of the schema, **not** the source of truth and
-  currently stale: it was last regenerated on 2026-08-09, before the late-fee split and the
-  dashboard analytics work. Its own header lists the objects that have moved since.
-  `supabase/migrations/` is authoritative.
+  currently stale: it was last regenerated on 2026-08-09, before the late-fee split, the
+  dashboard analytics work and the pooled-settlement engines (`20260905090000`). Its own
+  header lists the objects that have moved since. `supabase/migrations/` is authoritative;
+  regenerate with `node scripts/generate-schema-snapshot.mjs` after the next `db push`.
 - `supabase/migrations/` — ordered migration history.
 
 ### Supabase Client Pattern
@@ -525,12 +553,15 @@ Copy `.env.example` to `.env.local` for local development. Required values:
 6. `2026-27` is the live production session with real school financial records.
    Use `TEST-2026-27` for all testing and debugging. Never add test data,
    post test payments, or make experimental changes to the `2026-27` session.
-7. Fee Setup publish must preview impact first and protect paid/partial/adjusted rows from
-   silent rewrite. It must also leave carry-forward rows and EMI-covered installments alone.
+7. Fee Setup publish must preview impact first. Regeneration writes the policy's split to
+   every unprotected row; money already paid settles the installments oldest-first in the
+   read model, so a paid or partial row is repriced, never rewritten in `payments` or
+   `receipts`. It leaves carry-forward rows, EMI-covered installments, and due-date moves on
+   paid rows alone.
 8. A late fee is never folded into a fees figure, and never makes a student a defaulter.
-   The rule lives in two engines that must be edited together — as does the surplus-spill
-   rule beside it. An admin may forgive a late fee the family has already paid; that
-   returns money to them through the derived views and still never rewrites a posted
+   The rule lives in two engines that must be edited together — as does the pooled
+   settlement rule beside it. An admin may forgive a late fee the family has already paid;
+   that returns money to them through the derived views and still never rewrites a posted
    payment or receipt.
 8b. **Headcount and money count different students, on purpose.** Headcount is
    `record_status = 'active'`. Money — expected, collected, pending, defaulters — is

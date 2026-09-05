@@ -10,6 +10,7 @@ import type {
   StudentClassOption,
   StudentRouteOption,
 } from "@/modules/students/domain/types";
+import { CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/transport-route-key";
 
 type DefaulterFiltersProps = {
   filters: DefaulterFilters;
@@ -72,6 +73,7 @@ export async function DefaulterFilters({
           className={selectClassName}
         >
           <option value="">{t("filterRouteAll")}</option>
+          <option value={CUSTOM_TRANSPORT_ROUTE_KEY}>{t("filterRouteCustom")}</option>
           {routeOptions.map((route) => (
             <option key={route.id} value={route.id}>
               {routeLabel(route)}

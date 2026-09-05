@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -65,9 +65,20 @@ function constraintCodes(sql: string, constraintName: string) {
   return [...body.slice(arrayStart, arrayEnd).matchAll(/'([a-z_]+)'/g)].map((match) => match[1]!);
 }
 
-const migration = read(
-  "supabase/migrations/20260814090000_widen_blocked_installment_reason_codes.sql",
-);
+/**
+ * The NEWEST migration that (re)defines the constraint is the one that holds in
+ * production. 20260814090000 widened both; 20260905090000 widened them again
+ * for `due_date_changed` and `in_repayment_plan`.
+ */
+function latestMigrationDefining(constraintName: string) {
+  const dir = path.join(repoRoot, "supabase/migrations");
+  const files = readdirSync(dir)
+    .filter((file) => file.endsWith(".sql"))
+    .sort()
+    .filter((file) => readFileSync(path.join(dir, file), "utf8").includes(`add constraint ${constraintName}`));
+  expect(files.length, `no migration adds ${constraintName}`).toBeGreaterThan(0);
+  return readFileSync(path.join(dir, files[files.length - 1]!), "utf8");
+}
 
 describe("reason codes the code emits are storable", () => {
   it("every LockedInstallmentReasonCode is allowed by config_change_blocked_installments", () => {
@@ -76,7 +87,7 @@ describe("reason codes the code emits are storable", () => {
       "export type LockedInstallmentReasonCode =",
     );
     const allowed = constraintCodes(
-      migration,
+      latestMigrationDefining("config_change_blocked_installments_reason_code_check"),
       "config_change_blocked_installments_reason_code_check",
     );
 
@@ -84,12 +95,16 @@ describe("reason codes the code emits are storable", () => {
     // 'in_repayment_plan' is the one that was missing. Named explicitly so a
     // future edit that drops it fails here rather than in the office.
     expect(declared).toContain("in_repayment_plan");
+    expect(declared).toContain("due_date_changed");
     expect(allowed).toEqual(expect.arrayContaining(declared));
   });
 
   it("every regeneration reason_code is allowed by ledger_regeneration_rows", () => {
     const declared = unionMembers(read("src/modules/fees/data/regeneration.ts"), "  reason_code:");
-    const allowed = constraintCodes(migration, "ledger_regeneration_rows_reason_code_check");
+    const allowed = constraintCodes(
+      latestMigrationDefining("ledger_regeneration_rows_reason_code_check"),
+      "ledger_regeneration_rows_reason_code_check",
+    );
 
     expect(declared.length).toBeGreaterThan(0);
     expect(declared).toContain("discount_reduces_unpaid");

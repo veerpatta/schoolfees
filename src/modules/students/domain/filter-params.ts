@@ -6,6 +6,7 @@ import {
 import { parseSegments, serializeSegments } from "@/modules/students/domain/student-segments";
 import { STUDENT_STATUSES } from "@/modules/students/domain/constants";
 import { EMPTY_STUDENT_FILTERS, type StudentListFilters } from "@/modules/students/domain/types";
+import { CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/transport-route-key";
 
 /**
  * The single normalizer for Students list filters.
@@ -44,9 +45,10 @@ export function normalizeStudentFilters(read: SearchParamReader): StudentListFil
     query: read("query")?.trim() ?? EMPTY_STUDENT_FILTERS.query,
     sessionLabel: rawSessionLabel || EMPTY_STUDENT_FILTERS.sessionLabel,
     classId: UUID_PATTERN.test(rawClassId) ? rawClassId : EMPTY_STUDENT_FILTERS.classId,
-    transportRouteId: UUID_PATTERN.test(rawRouteId)
-      ? rawRouteId
-      : EMPTY_STUDENT_FILTERS.transportRouteId,
+    transportRouteId:
+      UUID_PATTERN.test(rawRouteId) || rawRouteId === CUSTOM_TRANSPORT_ROUTE_KEY
+        ? rawRouteId
+        : EMPTY_STUDENT_FILTERS.transportRouteId,
     // "active" is the deliberate default on BOTH entry points. An office opening
     // Students wants the current roll, not every student who ever attended.
     //
