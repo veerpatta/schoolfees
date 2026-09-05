@@ -111,7 +111,7 @@ export type LockedInstallmentReasonCode =
   // difference separately.
   | "in_repayment_plan"
   // The due date is moving on a row the family has paid against. Since money
-  // settles oldest-first at read time (20260905090000) that is the ONE thing a
+  // settles oldest-first at read time (20260905064847) that is the ONE thing a
   // fee edit may not do to a paid row on its own: the late fee is decided by
   // what had been paid by the due date, so moving it re-runs that clock
   // retroactively and nothing grandfathers the result.
@@ -443,7 +443,7 @@ function classifyCancelLock(payload: {
 /**
  * Decide whether a planned change may be written over an existing installment.
  *
- * Since 20260905090000 money settles the installments oldest-first at read
+ * Since 20260905064847 money settles the installments oldest-first at read
  * time, whatever installment a receipt was pinned to. A row carrying money is
  * therefore no longer a frozen bill: repricing it moves nothing a receipt said
  * (the receipt keeps its own record of where it was written), it only changes
@@ -931,7 +931,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
         );
 
     // The policy's own split, written as it stands. Money settles the
-    // installments oldest-first at read time (20260905090000), so a row that
+    // installments oldest-first at read time (20260905064847), so a row that
     // carries a payment is repriced like any other and the pool re-settles;
     // the one thing worth knowing up front is a family the new total leaves
     // overpaid, which becomes credit_balance and a Finance Controls refund.

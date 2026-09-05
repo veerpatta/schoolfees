@@ -19,6 +19,7 @@ import type {
   DashboardPaymentModeBreakdown,
 } from "@/modules/dashboard/domain/summary";
 import { formatInr } from "@/platform/helpers/currency";
+import { formatMediumDate } from "@/platform/helpers/date";
 
 /**
  * The six boards.
@@ -38,12 +39,7 @@ function formatMonth(month: string) {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatMediumDate(value);
 }
 
 const MODE_LABELS: Record<string, string> = {

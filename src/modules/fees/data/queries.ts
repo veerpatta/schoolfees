@@ -120,7 +120,7 @@ type WorkbookInstallmentBalanceRow = {
   transport_route_id: string | null;
   transport_route_name: string | null;
   transport_route_code: string | null;
-  /** Pooled settlement, since 20260905090000. Optional so an older select still maps. */
+  /** Pooled settlement, since 20260905064847. Optional so an older select still maps. */
   settled_amount?: number | null;
   fee_settled_amount?: number | null;
   late_fee_settled_amount?: number | null;
@@ -300,7 +300,7 @@ function mapFinancialRow(row: WorkbookStudentFinancialRow): WorkbookStudentFinan
 function mapInstallmentRow(row: WorkbookInstallmentBalanceRow): WorkbookInstallmentBalance {
   const isCarryForward = row.is_carry_forward === true;
   const feeBucket = row.carry_forward_fee_head ? `previous_year_${row.carry_forward_fee_head}` : null;
-  // The pooled figure. A caller that selected the view before 20260905090000
+  // The pooled figure. A caller that selected the view before 20260905064847
   // added the column gets the pin back, which is what it used to read anyway.
   const appliedAmount = row.applied_amount ?? row.paid_amount;
   const settledAmount = row.settled_amount ?? appliedAmount + (row.discount_closeout_amount ?? 0);

@@ -35,7 +35,7 @@ import { existsSync, readFileSync } from "node:fs";
  *      settled. This is the check that earns 20260826120000 -- forgiving a
  *      collected late fee is only honest if the money it frees actually lands
  *      on the next installments.
- *  10. Money settles the installments oldest-first (20260905090000): no row
+ *  10. Money settles the installments oldest-first (20260905064847): no row
  *      carries money while a row ahead of it in the pool's order still owes.
  *      A later installment reading "Paid" beside an earlier one reading
  *      "Overdue" is exactly the picture SR 660 showed, and it is never right.
@@ -248,7 +248,7 @@ const CUT_OVER_DATE = "2026-08-08";
 // ── 5. Grandfathering held ─────────────────────────────────────────────────
 // The rule change in 20260808140000 wrote a 'grandfather' waiver equal to
 // (new raw fee - old raw fee) so that final_late_fee stayed put for everyone who
-// already had a bill. 20260905090000 did the same when settlement became
+// already had a bill. 20260905064847 did the same when settlement became
 // pooled oldest-first, and wrote its own snapshot. If a later migration moved a
 // raw fee without a matching waiver, somebody's bill changed without anyone
 // deciding to change it.
@@ -496,7 +496,7 @@ const CUT_OVER_DATE = "2026-08-08";
 }
 
 // ── 10. No later installment is settled while an earlier one still owes ────
-// The rule 20260905090000 exists for. Money settles the rows in the pool's
+// The rule 20260905064847 exists for. Money settles the rows in the pool's
 // order -- settlement_rank -- fees first, then the late fee, before moving on.
 // So within a student and session, a row with settled_amount > 0 can only
 // follow rows with nothing pending at all.

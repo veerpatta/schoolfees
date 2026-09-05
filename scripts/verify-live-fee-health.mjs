@@ -315,7 +315,7 @@ if (previewProbe.error) {
 
 /* ── Installment ↔ ledger invariant ─────────────────────────────────────────
  *
- * Money settles the installments oldest-first at read time (20260905090000).
+ * Money settles the installments oldest-first at read time (20260905064847).
  * The receipt pin -- sum(payments.amount) + sum(payment_adjustments.amount_delta)
  * on a row -- is HISTORY: it says which installment a receipt was written
  * against, not what is still owed there. So the per-row identity this used to

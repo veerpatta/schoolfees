@@ -115,7 +115,7 @@ export type WorkbookInstallmentBalance = {
   paidAmount: number;
   /**
    * Cash that actually stuck to the PIN: `paidAmount` net of cash adjustments,
-   * floored at zero. Since 20260905090000 this is the historical record of
+   * floored at zero. Since 20260905064847 this is the historical record of
    * which installment a receipt was written against — it is what `total_paid`
    * sums, but it is NOT where the money is read as sitting. For "how much of
    * this installment is paid" use `settledAmount`.

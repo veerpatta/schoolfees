@@ -159,7 +159,7 @@ function mockDb(payload: {
  * `classifyInstallmentLock` froze all four, the whole plan was discarded, and
  * the office was told "Student updated and fee records updated."
  *
- * Since 20260905090000 the answer is simpler than the paid-floor allocator
+ * Since 20260905064847 the answer is simpler than the paid-floor allocator
  * that first fixed it: money settles the installments oldest-first at read
  * time, so a row carrying a payment is repriced like any other and the pool
  * re-settles. SR 660 is why -- Rs 7,600 paid before installment 1 was due

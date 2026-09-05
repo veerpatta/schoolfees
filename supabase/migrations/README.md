@@ -512,7 +512,7 @@ express the school's rule and never fired once:
 
 ### Money settles the installments oldest-first (2026-09-05)
 
-- `20260905090000_settlement_pools_oldest_first` — a receipt's `installment_id` is history,
+- `20260905064847_settlement_pools_oldest_first` — a receipt's `installment_id` is history,
   not position. Both engines (`v_workbook_installment_balances`,
   `private.workbook_installment_snapshot`) now pool every rupee a family paid in a session
   and settle the rows in the counter's order — `plan_priority`, `due_date`,
@@ -535,8 +535,8 @@ express the school's rule and never fired once:
   `in_repayment_plan` for regeneration rows) and adds a financial-view refresh trigger on
   `student_repayment_plans`, since activating a plan re-orders settlement. Live case:
   SR 660, Rs 7,600 paid before installment 1 was due, reading installment 3 "Paid" and
-  installments 1 and 2 "Overdue" after a fee edit. Apply BEFORE `20260905093000`.
-- `20260905093000_transport_override_is_transport` — `get_dashboard_analytics`' route
+  installments 1 and 2 "Overdue" after a fee edit. Apply BEFORE `20260905064925`.
+- `20260905064925_transport_override_is_transport` — `get_dashboard_analytics`' route
   board gains a `'Custom amount (no route)'` bucket (`routeKey = 'custom'`) for students
   charged transport through `student_fee_overrides.custom_transport_fee_amount` with no
   route, instead of filing them under "No transport"; patched by asserted string
@@ -554,6 +554,19 @@ express the school's rule and never fired once:
    stuffing it under a tangentially related one.
 
 ## Historical repair notes (keep for the record)
+
+The linked project records the two pooled-settlement release migrations at the
+timestamps assigned by the authenticated Supabase MCP fallback:
+
+- `20260905064847_settlement_pools_oldest_first`
+- `20260905064925_transport_override_is_transport`
+
+They were originally authored as `20260905090000_…` and `20260905093000_…`.
+The files were renamed immediately after the production apply so local and
+remote migration history compare cleanly. The SQL bodies are byte-for-byte what
+was applied; references to `20260905090000` inside the first body are therefore
+its immutable authored self-label and the prefix used by its grandfather-waiver
+audit reason.
 
 The linked Supabase project records two early Notion sync migration versions
 that were applied remotely before their files were committed:

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Money settles the installments oldest-first at read time (20260905090000).
+ * Money settles the installments oldest-first at read time (20260905064847).
  *
  * The rule lives in SQL, twice, and the two copies must be byte-identical
  * under normalisation: `20260812001114` string-patched one engine and EMI

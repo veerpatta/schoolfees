@@ -1,5 +1,5 @@
 {
-  "runId": "202609050614",
+  "runId": "202609050703",
   "verdict": {
     "pass": true,
     "reasons": [],
@@ -40,7 +40,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:46.059Z"
+      "firstSeenAt": "2026-09-05T07:03:26.952Z"
     },
     {
       "id": "4228d0bad9e4",
@@ -68,7 +68,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:46.056Z"
+      "firstSeenAt": "2026-09-05T07:03:26.950Z"
     },
     {
       "id": "dca108a42982",
@@ -96,7 +96,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.611Z"
+      "firstSeenAt": "2026-09-05T07:03:21.660Z"
     },
     {
       "id": "e8b7b4a41e83",
@@ -124,7 +124,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.612Z"
+      "firstSeenAt": "2026-09-05T07:03:21.661Z"
     },
     {
       "id": "50fcd8d5b9a2",
@@ -152,7 +152,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.612Z"
+      "firstSeenAt": "2026-09-05T07:03:21.661Z"
     },
     {
       "id": "91eed7adfb0b",
@@ -180,7 +180,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.630Z"
+      "firstSeenAt": "2026-09-05T07:03:21.675Z"
     },
     {
       "id": "715ab5a699da",
@@ -208,7 +208,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.631Z"
+      "firstSeenAt": "2026-09-05T07:03:21.676Z"
     },
     {
       "id": "9f24c0980791",
@@ -236,7 +236,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.635Z"
+      "firstSeenAt": "2026-09-05T07:03:21.680Z"
     },
     {
       "id": "c88e75488491",
@@ -264,7 +264,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.639Z"
+      "firstSeenAt": "2026-09-05T07:03:21.682Z"
     },
     {
       "id": "309dda17d75a",
@@ -292,7 +292,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.654Z"
+      "firstSeenAt": "2026-09-05T07:03:21.696Z"
     },
     {
       "id": "5a2b495e75c5",
@@ -320,7 +320,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.655Z"
+      "firstSeenAt": "2026-09-05T07:03:21.696Z"
     },
     {
       "id": "df8320e8ef22",
@@ -348,7 +348,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.655Z"
+      "firstSeenAt": "2026-09-05T07:03:21.696Z"
     },
     {
       "id": "f5a600033ff0",
@@ -376,7 +376,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.656Z"
+      "firstSeenAt": "2026-09-05T07:03:21.697Z"
     },
     {
       "id": "e3f675784bca",
@@ -404,7 +404,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.656Z"
+      "firstSeenAt": "2026-09-05T07:03:21.697Z"
     },
     {
       "id": "0efdc8dc1fc5",
@@ -432,7 +432,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.658Z"
+      "firstSeenAt": "2026-09-05T07:03:21.698Z"
     },
     {
       "id": "f6e6fd9e6267",
@@ -460,7 +460,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.669Z"
+      "firstSeenAt": "2026-09-05T07:03:21.705Z"
     },
     {
       "id": "c60f73d8101e",
@@ -488,7 +488,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.669Z"
+      "firstSeenAt": "2026-09-05T07:03:21.705Z"
     },
     {
       "id": "c0f6eb57c126",
@@ -516,7 +516,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.675Z"
+      "firstSeenAt": "2026-09-05T07:03:21.711Z"
     },
     {
       "id": "e2ff8558d0ae",
@@ -544,7 +544,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.677Z"
+      "firstSeenAt": "2026-09-05T07:03:21.714Z"
     },
     {
       "id": "76d42cfda804",
@@ -572,7 +572,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.678Z"
+      "firstSeenAt": "2026-09-05T07:03:21.715Z"
     },
     {
       "id": "d4bec263f674",
@@ -600,7 +600,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.689Z"
+      "firstSeenAt": "2026-09-05T07:03:21.727Z"
     },
     {
       "id": "c97831de28c9",
@@ -628,7 +628,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.689Z"
+      "firstSeenAt": "2026-09-05T07:03:21.727Z"
     },
     {
       "id": "2c00e47f6a64",
@@ -656,7 +656,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.696Z"
+      "firstSeenAt": "2026-09-05T07:03:21.736Z"
     },
     {
       "id": "e66e23084c91",
@@ -684,7 +684,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.713Z"
+      "firstSeenAt": "2026-09-05T07:03:21.744Z"
     },
     {
       "id": "92eed16efc7c",
@@ -712,7 +712,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.713Z"
+      "firstSeenAt": "2026-09-05T07:03:21.744Z"
     },
     {
       "id": "8d04057b8c25",
@@ -740,7 +740,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:46.014Z"
+      "firstSeenAt": "2026-09-05T07:03:26.918Z"
     },
     {
       "id": "8fbc39394e1b",
@@ -768,10 +768,10 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.731Z"
+      "firstSeenAt": "2026-09-05T07:03:21.753Z"
     },
     {
-      "id": "25ce81898384",
+      "id": "6e8145766782",
       "rule": "scan.dead-export",
       "severity": "P2",
       "confidence": "deterministic",
@@ -782,8 +782,8 @@
       "session": "n/a",
       "title": "src/platform/helpers/date.ts:246 exports istTodayIso, which nothing uses",
       "expected": "Every exported value is either imported somewhere, resolved by Next.js by convention, or deleted.",
-      "actual": "`istTodayIso` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/platform/helpers/date.ts, at its own declaration. 68 module(s) import this file, none of them for this name.",
-      "fingerprint": "`istTodayIso` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/platform/helpers/date.ts, at its own declaration. 68 module(s) import this file, none of them for this name.",
+      "actual": "`istTodayIso` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/platform/helpers/date.ts, at its own declaration. 69 module(s) import this file, none of them for this name.",
+      "fingerprint": "`istTodayIso` is exported and the identifier appears in no other source file in the repository — not in app/, components/, lib/, hooks/, tests/ or scripts/ — and only once inside src/platform/helpers/date.ts, at its own declaration. 69 module(s) import this file, none of them for this name.",
       "evidence": {
         "consoleTail": [
           "export function istTodayIso(now: Date = new Date()): string {"
@@ -796,7 +796,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:46.035Z"
+      "firstSeenAt": "2026-09-05T07:03:26.934Z"
     },
     {
       "id": "f36caaafe374",
@@ -824,7 +824,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.735Z"
+      "firstSeenAt": "2026-09-05T07:03:21.755Z"
     },
     {
       "id": "655997ddd6ab",
@@ -852,7 +852,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.749Z"
+      "firstSeenAt": "2026-09-05T07:03:21.770Z"
     },
     {
       "id": "2a08b49125ea",
@@ -880,7 +880,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.749Z"
+      "firstSeenAt": "2026-09-05T07:03:21.770Z"
     },
     {
       "id": "81dce775ba9b",
@@ -908,7 +908,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.749Z"
+      "firstSeenAt": "2026-09-05T07:03:21.771Z"
     },
     {
       "id": "aa211862e2c8",
@@ -936,7 +936,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.749Z"
+      "firstSeenAt": "2026-09-05T07:03:21.771Z"
     },
     {
       "id": "e1f9dd8286ee",
@@ -964,7 +964,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.499Z"
     },
     {
       "id": "d0ed42f13c3a",
@@ -992,7 +992,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.500Z"
     },
     {
       "id": "03d2d34f1092",
@@ -1020,7 +1020,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.499Z"
     },
     {
       "id": "5fad48a7287b",
@@ -1048,7 +1048,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.499Z"
     },
     {
       "id": "ef43cda43d2b",
@@ -1076,7 +1076,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.499Z"
     },
     {
       "id": "1d4c0f440e4f",
@@ -1104,7 +1104,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.500Z"
     },
     {
       "id": "d89b1bb2ecf4",
@@ -1132,7 +1132,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.500Z"
     },
     {
       "id": "fe4b790a9ade",
@@ -1160,7 +1160,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.500Z"
     },
     {
       "id": "553a7439553c",
@@ -1188,7 +1188,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.500Z"
     },
     {
       "id": "66b34a387be6",
@@ -1216,7 +1216,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:45.438Z"
+      "firstSeenAt": "2026-09-05T07:03:26.500Z"
     },
     {
       "id": "29e73ec10600",
@@ -1244,7 +1244,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.356Z"
+      "firstSeenAt": "2026-09-05T07:03:21.475Z"
     },
     {
       "id": "274e90575771",
@@ -1272,7 +1272,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:46.058Z"
+      "firstSeenAt": "2026-09-05T07:03:26.951Z"
     },
     {
       "id": "83bf35a40105",
@@ -1300,7 +1300,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:46.058Z"
+      "firstSeenAt": "2026-09-05T07:03:26.951Z"
     },
     {
       "id": "54d456feb4d8",
@@ -1328,7 +1328,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.384Z"
+      "firstSeenAt": "2026-09-05T07:03:21.499Z"
     },
     {
       "id": "150c7194e84c",
@@ -1356,7 +1356,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.384Z"
+      "firstSeenAt": "2026-09-05T07:03:21.499Z"
     },
     {
       "id": "84e55bc7a515",
@@ -1384,7 +1384,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.541Z"
+      "firstSeenAt": "2026-09-05T07:03:21.610Z"
     },
     {
       "id": "f338f189ce40",
@@ -1412,7 +1412,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.542Z"
+      "firstSeenAt": "2026-09-05T07:03:21.611Z"
     },
     {
       "id": "6a4ef1318b79",
@@ -1440,7 +1440,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.559Z"
+      "firstSeenAt": "2026-09-05T07:03:21.622Z"
     },
     {
       "id": "2548978eeea8",
@@ -1468,7 +1468,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.562Z"
+      "firstSeenAt": "2026-09-05T07:03:21.624Z"
     },
     {
       "id": "71c5eebdf8dc",
@@ -1496,7 +1496,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.565Z"
+      "firstSeenAt": "2026-09-05T07:03:21.626Z"
     },
     {
       "id": "474b40f71cd8",
@@ -1524,7 +1524,7 @@
       "variants": [],
       "variantsTruncated": false,
       "seenCount": 1,
-      "firstSeenAt": "2026-09-05T06:14:38.570Z"
+      "firstSeenAt": "2026-09-05T07:03:21.629Z"
     }
   ]
 }

@@ -28,7 +28,7 @@ export type ConfigChangeImpactPreview = {
   installmentsToUpdate: number;
   installmentsToCancel: number;
   /**
-   * Rows held for a person. Since 20260905090000 money settles the installments
+   * Rows held for a person. Since 20260905064847 money settles the installments
    * oldest-first at read time, so a row carrying a payment is repriced like any
    * other and only two things still hold a row: an active EMI plan, or a due
    * date moving on a row the family has paid against.

@@ -19,7 +19,8 @@ student, import, or finance-facing changes.
 - Post one small TEST payment and verify the saved receipt matches the confirmation.
 - Try refresh/back/re-submit after success and confirm duplicate posting is blocked.
 - Check Transactions shows the receipt as read-only financial history.
-- Change a TEST fee setup/default, preview impact, and confirm paid rows are not rewritten.
+- Change a TEST fee setup/default, preview impact, and confirm posted payments and receipts
+  are not rewritten, money re-settles oldest-first, and held EMI/due-date rows are listed.
 - Confirm Dashboard, Defaulters, and Exports reflect the TEST session totals after sync.
 - Run the standard validation commands before considering production impact.
 

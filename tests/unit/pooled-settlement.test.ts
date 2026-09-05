@@ -7,7 +7,7 @@ import {
 } from "@/modules/fees/domain/pooled-settlement";
 
 /**
- * The cases the pooled-settlement rule (20260905090000) has to get right, in
+ * The cases the pooled-settlement rule (20260905064847) has to get right, in
  * plain numbers. The SQL is the engine; this is the statement of intent it is
  * held to, and the reference `scripts/verify-live-fee-health.mjs` recomputes
  * a sample of live students against.

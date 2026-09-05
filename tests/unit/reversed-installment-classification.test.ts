@@ -25,7 +25,7 @@ describe("reversed installments are classified on the net", () => {
   it("the paid branch requires net applied money, not just gross payments", () => {
     // One classifier still carries the paid/partial vocabulary: the withdrawal
     // path (classifyCancelLock). The regeneration path used to as well, until
-    // 20260905090000 made money settle oldest-first at read time and a row
+    // 20260905064847 made money settle oldest-first at read time and a row
     // carrying a payment stopped being a frozen bill -- it no longer classes
     // rows as paid or partial at all.
     const netted = generator.match(/if \(paidAmount > 0 && appliedAmount > 0\) \{/g);

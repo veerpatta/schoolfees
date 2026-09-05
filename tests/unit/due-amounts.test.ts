@@ -105,7 +105,7 @@ describe("due amount helpers", () => {
   });
 
   it("prefers the engine's pending over base minus the receipt pin", () => {
-    // Since 20260905090000 money settles the installments oldest-first at read
+    // Since 20260905064847 money settles the installments oldest-first at read
     // time. The pin on this row says Rs 1,900 was receipted here; the pool
     // says the row is untouched because earlier rows were still owed.
     expect(

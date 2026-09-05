@@ -121,19 +121,19 @@ const MIRRORS = [
       + "then its late fee before moving on; a row was settled on time if everything paid by its "
       + "due date, minus what the rows ahead of it absorb, covers its base.",
     declaredAt:
-      "supabase/migrations/20260905090000_settlement_pools_oldest_first.sql "
+      "supabase/migrations/20260905064847_settlement_pools_oldest_first.sql "
       + "(\">>> SHARED POOLED SETTLEMENT RULE <<< Byte-identical to ... Edit both or neither\")",
     sides: [
       {
         name: "v_workbook_installment_balances pooled block",
-        file: "supabase/migrations/20260905090000_settlement_pools_oldest_first.sql",
+        file: "supabase/migrations/20260905064847_settlement_pools_oldest_first.sql",
         from: ">>> SHARED POOLED SETTLEMENT RULE <<<",
         to: "<<< SHARED POOLED SETTLEMENT RULE >>>",
         occurrence: 1,
       },
       {
         name: "private.workbook_installment_snapshot pooled block",
-        file: "supabase/migrations/20260905090000_settlement_pools_oldest_first.sql",
+        file: "supabase/migrations/20260905064847_settlement_pools_oldest_first.sql",
         from: ">>> SHARED POOLED SETTLEMENT RULE <<<",
         to: "<<< SHARED POOLED SETTLEMENT RULE >>>",
         occurrence: 2,
@@ -350,7 +350,7 @@ const SHARED_RULE_MARKER_LINE =
 const SHARED_RULE_MARKER_LINES =
   /^[\t ]*--[\t ]*>>>[\t ]*SHARED LATE FEE RULE[\t ]*<<<[\t ]*$/gm;
 
-/** The pooled-settlement block both engines carry since 20260905090000. */
+/** The pooled-settlement block both engines carry since 20260905064847. */
 const POOLED_RULE_MARKER = "SHARED POOLED SETTLEMENT RULE";
 const POOLED_RULE_OPEN_LINE =
   /^[\t ]*--[\t ]*>>>[\t ]*SHARED POOLED SETTLEMENT RULE[\t ]*<<<[\t ]*$/m;

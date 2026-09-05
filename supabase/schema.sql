@@ -13,7 +13,7 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260903181330
+-- Schema version: 20260905064925
 -- Objects: 92 tables/views, 60 functions
 
 
@@ -794,6 +794,30 @@ create table if not exists public.session_reconcile_log (
   run_by uuid
 );
 
+-- public.settlement_pool_change_snapshot
+create table if not exists public.settlement_pool_change_snapshot (
+  installment_id uuid not null,
+  student_id uuid not null,
+  session_label text not null,
+  installment_no smallint,
+  due_date date,
+  base_charge integer not null,
+  paid_amount integer not null,
+  adjustment_amount integer not null,
+  applied_amount integer not null,
+  discount_closeout_amount integer not null,
+  raw_late_fee integer not null,
+  waiver_applied integer not null,
+  final_late_fee integer not null,
+  total_charge integer not null,
+  pending_amount integer not null,
+  late_fee_pending integer not null,
+  total_pending integer not null,
+  balance_status text not null,
+  late_fee_status text not null,
+  captured_at timestamp with time zone default now() not null
+);
+
 -- public.setup_progress
 create table if not exists public.setup_progress (
   id uuid default gen_random_uuid() not null,
@@ -1297,6 +1321,7 @@ alter table public.refund_requests add constraint refund_requests_pkey PRIMARY K
 alter table public.school_fee_defaults add constraint school_fee_defaults_pkey PRIMARY KEY (id);
 alter table public.school_holidays add constraint school_holidays_pkey PRIMARY KEY (holiday_date);
 alter table public.session_reconcile_log add constraint session_reconcile_log_pkey PRIMARY KEY (id);
+alter table public.settlement_pool_change_snapshot add constraint settlement_pool_change_snapshot_pkey PRIMARY KEY (installment_id);
 alter table public.setup_progress add constraint setup_progress_pkey PRIMARY KEY (id);
 alter table public.student_carry_forward_balances add constraint student_carry_forward_balances_pkey PRIMARY KEY (id);
 alter table public.student_collection_flags add constraint student_collection_flags_pkey PRIMARY KEY (id);
@@ -1373,7 +1398,7 @@ alter table public.config_change_blocked_installments add constraint config_chan
 alter table public.config_change_blocked_installments add constraint config_change_blocked_installments_amount_due_check CHECK ((amount_due >= 0));
 alter table public.config_change_blocked_installments add constraint config_change_blocked_installments_outstanding_amount_check CHECK ((outstanding_amount >= 0));
 alter table public.config_change_blocked_installments add constraint config_change_blocked_installments_paid_amount_check CHECK ((paid_amount >= 0));
-alter table public.config_change_blocked_installments add constraint config_change_blocked_installments_reason_code_check CHECK ((reason_code = ANY (ARRAY['fully_paid'::text, 'partially_paid'::text, 'adjustment_posted'::text, 'in_repayment_plan'::text])));
+alter table public.config_change_blocked_installments add constraint config_change_blocked_installments_reason_code_check CHECK ((reason_code = ANY (ARRAY['fully_paid'::text, 'partially_paid'::text, 'adjustment_posted'::text, 'in_repayment_plan'::text, 'due_date_changed'::text])));
 alter table public.config_change_blocked_installments add constraint config_change_blocked_installments_review_status_check CHECK ((review_status = ANY (ARRAY['pending'::text, 'reviewed'::text])));
 alter table public.conventional_discount_policies add constraint conventional_discount_policies_calculation_type_check CHECK ((calculation_type = ANY (ARRAY['tuition_zero'::text, 'tuition_percentage'::text, 'tuition_fixed_amount'::text])));
 alter table public.conventional_discount_policies add constraint conventional_discount_policies_code_check CHECK ((code ~ '^[a-z][a-z0-9_]{1,47}$'::text));
@@ -1452,7 +1477,7 @@ alter table public.ledger_regeneration_rows add constraint ledger_regeneration_r
 alter table public.ledger_regeneration_rows add constraint ledger_regeneration_rows_late_fee_flat_amount_check CHECK ((late_fee_flat_amount >= 0));
 alter table public.ledger_regeneration_rows add constraint ledger_regeneration_rows_outstanding_amount_check CHECK ((outstanding_amount >= 0));
 alter table public.ledger_regeneration_rows add constraint ledger_regeneration_rows_paid_amount_check CHECK ((paid_amount >= 0));
-alter table public.ledger_regeneration_rows add constraint ledger_regeneration_rows_reason_code_check CHECK ((reason_code = ANY (ARRAY['missing_installment'::text, 'already_in_sync'::text, 'fully_paid'::text, 'partially_paid'::text, 'adjustment_posted'::text, 'existing_waived'::text, 'existing_cancelled'::text, 'extra_installment'::text, 'missing_settings'::text, 'discount_reduces_unpaid'::text, 'charge_rise_on_unsettled'::text])));
+alter table public.ledger_regeneration_rows add constraint ledger_regeneration_rows_reason_code_check CHECK ((reason_code = ANY (ARRAY['missing_installment'::text, 'already_in_sync'::text, 'fully_paid'::text, 'partially_paid'::text, 'adjustment_posted'::text, 'existing_waived'::text, 'existing_cancelled'::text, 'extra_installment'::text, 'missing_settings'::text, 'discount_reduces_unpaid'::text, 'charge_rise_on_unsettled'::text, 'in_repayment_plan'::text, 'due_date_changed'::text])));
 alter table public.ledger_regeneration_rows add constraint ledger_regeneration_rows_review_status_check CHECK ((review_status = ANY (ARRAY['pending'::text, 'reviewed'::text])));
 alter table public.ledger_regeneration_rows add constraint ledger_regeneration_rows_transport_amount_check CHECK ((transport_amount >= 0));
 alter table public.payment_adjustments add constraint payment_adjustments_amount_delta_check CHECK ((amount_delta <> 0));
@@ -2657,12 +2682,12 @@ $function$
 ;
 
 CREATE OR REPLACE FUNCTION private.workbook_installment_snapshot(p_student_id uuid DEFAULT NULL::uuid, p_as_of_date date DEFAULT CURRENT_DATE, p_include_candidate_late boolean DEFAULT false)
- RETURNS TABLE(installment_id uuid, student_id uuid, admission_no text, student_name text, father_name text, father_phone text, session_label text, class_id uuid, class_name text, class_label text, section text, stream_name text, installment_no smallint, installment_label text, due_date date, base_charge integer, paid_amount integer, adjustment_amount integer, applied_amount integer, raw_late_fee integer, waiver_applied integer, final_late_fee integer, total_charge integer, pending_amount integer, late_fee_pending integer, total_pending integer, balance_status text, late_fee_status text, last_payment_date date, transport_route_id uuid, transport_route_name text, transport_route_code text)
+ RETURNS TABLE(installment_id uuid, student_id uuid, admission_no text, student_name text, father_name text, father_phone text, session_label text, class_id uuid, class_name text, class_label text, section text, stream_name text, installment_no smallint, installment_label text, due_date date, base_charge integer, paid_amount integer, adjustment_amount integer, applied_amount integer, raw_late_fee integer, waiver_applied integer, final_late_fee integer, total_charge integer, pending_amount integer, late_fee_pending integer, total_pending integer, balance_status text, late_fee_status text, last_payment_date date, transport_route_id uuid, transport_route_name text, transport_route_code text, settled_amount integer, fee_settled_amount integer, late_fee_settled_amount integer, plan_priority integer, settlement_rank integer)
  LANGUAGE sql
  STABLE
  SET search_path TO 'public', 'private'
 AS $function$
-  with session_policy as (
+  with recursive session_policy as (
     select distinct on (academic_session_label) academic_session_label
     from public.fee_policy_configs
     where calculation_model = 'workbook_v1'
@@ -2680,7 +2705,17 @@ AS $function$
       i.late_fee_flat_amount, coalesce(i.is_emi_late_fee, false) as is_emi_late_fee,
       s.transport_route_id,
       route_row.route_name as transport_route_name,
-      route_row.route_code as transport_route_code
+      route_row.route_code as transport_route_code,
+      case
+        when exists (
+          select 1
+          from public.student_repayment_plan_items as plan_item
+          join public.student_repayment_plans as plan_row on plan_row.id = plan_item.plan_id
+          where plan_item.installment_id = i.id
+            and plan_row.lifecycle = 'active'
+        ) then 0
+        else 1
+      end as plan_priority
     from public.installments as i
     join public.students as s on s.id = i.student_id
     join public.classes as c on c.id = i.class_id
@@ -2702,24 +2737,12 @@ AS $function$
         coalesce(payment_row.discount_closeout_amount, 0)
           + coalesce(adjustment_row.closeout_adjustment, 0), 0
       )::integer as discount_closeout_amount,
-      greatest(
-        coalesce(payment_row.paid_by_due_amount, 0)
-          + coalesce(payment_row.closeout_by_due_amount, 0)
-          + coalesce(adj_by_due_row.adjustment_by_due_amount, 0),
-        0
-      )::integer as settled_by_due_amount,
       payment_row.last_payment_date
     from session_installments
     left join lateral (
       select
         coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode <> 'discount'), 0) as paid_amount,
         coalesce(sum(payment_row.amount) filter (where receipt_row.payment_mode = 'discount'), 0) as discount_closeout_amount,
-        coalesce(sum(payment_row.amount) filter (
-          where receipt_row.payment_date <= session_installments.due_date
-            and receipt_row.payment_mode <> 'discount'), 0) as paid_by_due_amount,
-        coalesce(sum(payment_row.amount) filter (
-          where receipt_row.payment_date <= session_installments.due_date
-            and receipt_row.payment_mode = 'discount'), 0) as closeout_by_due_amount,
         max(receipt_row.payment_date) as last_payment_date
       from public.payments as payment_row
       join public.receipts as receipt_row on receipt_row.id = payment_row.receipt_id
@@ -2735,113 +2758,158 @@ AS $function$
       join public.receipts as adj_receipt on adj_receipt.id = adj_payment.receipt_id
       where adj.installment_id = session_installments.installment_id
     ) as adjustment_row on true
-    left join lateral (
-      select coalesce(sum(adj.amount_delta), 0) as adjustment_by_due_amount
-      from public.payment_adjustments as adj
-      join public.payments as adj_payment on adj_payment.id = adj.payment_id
-      join public.receipts as adj_receipt on adj_receipt.id = adj_payment.receipt_id
-      where adj.installment_id = session_installments.installment_id
-        and adj_receipt.payment_date <= session_installments.due_date
-    ) as adj_by_due_row on true
   ),
-  late_eval as (
+  -- >>> SHARED POOLED SETTLEMENT RULE <<<
+  -- Byte-identical to public.v_workbook_installment_balances. Edit both or
+  -- neither. 20260812001114 edited only one copy of the late-fee rule and EMI
+  -- late fees went invisible to half the app for four days.
+  --
+  -- Every rupee the family paid in this session is one pool. It settles the rows
+  -- in the counter's order -- plan_priority, due_date, installment_no -- and on
+  -- each row it covers the fees first, then the late fee, before moving on. The
+  -- pin on payments.installment_id is history, not position.
+  student_money as (
+    -- Each counted rupee with the date it arrived, for the on-time test. A
+    -- reversal carries the date of the receipt it reverses, so reversing an
+    -- on-time payment re-charges the late fee correctly.
+    select
+      rolled.student_id, rolled.session_label,
+      receipt_row.payment_date, payment_row.amount::bigint as amount
+    from rolled
+    join public.payments as payment_row on payment_row.installment_id = rolled.installment_id
+    join public.receipts as receipt_row on receipt_row.id = payment_row.receipt_id
+    union all
+    select
+      rolled.student_id, rolled.session_label,
+      adj_receipt.payment_date, adj.amount_delta::bigint as amount
+    from rolled
+    join public.payment_adjustments as adj on adj.installment_id = rolled.installment_id
+    join public.payments as adj_payment on adj_payment.id = adj.payment_id
+    join public.receipts as adj_receipt on adj_receipt.id = adj_payment.receipt_id
+  ),
+  ordered as (
     select
       rolled.*,
-      case
-        when rolled.installment_status = 'waived' then 0
-        when coalesce(rolled.late_fee_flat_amount, 0) <= 0 then 0
-        when rolled.is_emi_late_fee then
-          case when current_date > rolled.due_date
-               then rolled.late_fee_flat_amount else 0 end
-        when rolled.base_charge <= 0 then 0
-        when rolled.settled_by_due_amount >= rolled.base_charge then 0
-        when current_date > rolled.due_date then rolled.late_fee_flat_amount
-        else 0
-      end::integer as raw_late_fee
+      row_number() over (
+        partition by rolled.student_id, rolled.session_label
+        order by rolled.plan_priority, rolled.due_date, rolled.installment_no, rolled.installment_id
+      )::integer as settlement_rank,
+      sum(rolled.applied_amount + rolled.discount_closeout_amount) over (
+        partition by rolled.student_id, rolled.session_label
+      )::bigint as pool_total,
+      coalesce(by_due.amount, 0)::bigint as pool_by_due_amount
     from rolled
+    left join lateral (
+      select greatest(coalesce(sum(money_row.amount), 0), 0) as amount
+      from student_money as money_row
+      where money_row.student_id = rolled.student_id
+        and money_row.session_label = rolled.session_label
+        and money_row.payment_date <= rolled.due_date
+    ) as by_due on true
   ),
-  waiver_eval as (
+  walk as (
+    -- One step per row, in settlement order. capacity_after is what this row
+    -- and every row before it can absorb: base + final late fee each.
     select
-      late_eval.*,
-      least(late_eval.raw_late_fee, coalesce(waiver_row.waiver_amount, 0))::integer as waiver_applied
-    from late_eval
+      seed.student_id, seed.session_label,
+      0::integer as settlement_rank,
+      0::bigint as capacity_after,
+      0::integer as raw_late_fee, 0::integer as waiver_applied, 0::integer as final_late_fee
+    from (select distinct student_id, session_label from ordered) as seed
+    union all
+    select
+      step.student_id, step.session_label, step.settlement_rank,
+      walk.capacity_after + step.base_charge + late_fee.final_late_fee,
+      late_fee.raw_late_fee, late_fee.waiver_applied, late_fee.final_late_fee
+    from walk
+    join ordered as step
+      on step.student_id = walk.student_id
+     and step.session_label = walk.session_label
+     and step.settlement_rank = walk.settlement_rank + 1
     left join public.v_effective_late_fee_waivers as waiver_row
-      on waiver_row.installment_id = late_eval.installment_id
-  ),
-  split as (
-    select
-      waiver_eval.*,
-      greatest(waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0)::integer as final_late_fee,
-      greatest(waiver_eval.applied_amount + waiver_eval.discount_closeout_amount, 0)::integer as settled_amount
-    from waiver_eval
-  ),
-  spill as (
-    select
-      split.*,
-      greatest(split.settled_amount - (split.base_charge + split.final_late_fee), 0)::integer
-        as row_surplus,
-      greatest((split.base_charge + split.final_late_fee) - split.settled_amount, 0)::integer
-        as row_room
-    from split
-  ),
-  carry as (
-    select
-      spill.*,
-      least(
-        coalesce(sum(spill.row_surplus) over w_before, 0),
-        coalesce(sum(spill.row_room)   over w_through, 0)
-      )::integer as cum_filled,
-      least(
-        coalesce(sum(spill.row_surplus) over w_before_prev, 0),
-        coalesce(sum(spill.row_room)    over w_before,      0)
-      )::integer as cum_filled_prev
-    from spill
-    window
-      w_before      as (partition by spill.student_id order by spill.due_date, spill.installment_no
-                        rows between unbounded preceding and 1 preceding),
-      w_through     as (partition by spill.student_id order by spill.due_date, spill.installment_no
-                        rows between unbounded preceding and current row),
-      w_before_prev as (partition by spill.student_id order by spill.due_date, spill.installment_no
-                        rows between unbounded preceding and 2 preceding)
+      on waiver_row.installment_id = step.installment_id
+    cross join lateral (
+      select
+        raw.raw_late_fee,
+        least(raw.raw_late_fee, coalesce(waiver_row.waiver_amount, 0))::integer as waiver_applied,
+        greatest(raw.raw_late_fee - least(raw.raw_late_fee, coalesce(waiver_row.waiver_amount, 0)), 0)::integer as final_late_fee
+      from (
+        select
+          -- >>> SHARED LATE FEE RULE <<<
+          -- Byte-identical to v_workbook_installment_balances above. Edit both or
+          -- neither -- 20260812001114 edited only this copy and EMI late fees went
+          -- invisible to every read surface for four days.
+          case
+            when step.installment_status = 'waived' then 0
+            when coalesce(step.late_fee_flat_amount, 0) <= 0 then 0
+            when step.is_emi_late_fee then
+              case when current_date > step.due_date
+                   then step.late_fee_flat_amount else 0 end
+            when step.base_charge <= 0 then 0
+            when step.pool_by_due_amount >= walk.capacity_after + step.base_charge then 0
+            when current_date > step.due_date then step.late_fee_flat_amount
+            else 0
+          end::integer as raw_late_fee
+      ) as raw
+    ) as late_fee
   ),
   settled as (
     select
-      carry.*,
-      (carry.settled_amount + greatest(carry.cum_filled - carry.cum_filled_prev, 0))::integer
-        as effective_settled
-    from carry
+      ordered.*,
+      walk.raw_late_fee, walk.waiver_applied, walk.final_late_fee,
+      -- The pool fills this row after everything ahead of it is full, up to
+      -- its own capacity. Fees first, then the late fee.
+      least(
+        greatest(ordered.pool_total - (walk.capacity_after - ordered.base_charge - walk.final_late_fee), 0),
+        (ordered.base_charge + walk.final_late_fee)::bigint
+      )::integer as settled_amount
+    from ordered
+    join walk
+      on walk.student_id = ordered.student_id
+     and walk.session_label = ordered.session_label
+     and walk.settlement_rank = ordered.settlement_rank
+  ),
+  final_split as (
+    select
+      settled.*,
+      least(settled.settled_amount, settled.base_charge)::integer as fee_settled_amount,
+      (settled.settled_amount - least(settled.settled_amount, settled.base_charge))::integer as late_fee_settled_amount
+    from settled
   )
+  -- <<< SHARED POOLED SETTLEMENT RULE >>>
   select
-    settled.installment_id, settled.student_id, settled.admission_no,
-    settled.student_name, settled.father_name, settled.father_phone,
-    settled.session_label, settled.class_id, settled.class_name,
-    settled.class_label, settled.section, settled.stream_name,
-    settled.installment_no, settled.installment_label, settled.due_date,
-    settled.base_charge, settled.paid_amount, settled.adjustment_amount,
-    settled.applied_amount, settled.raw_late_fee, settled.waiver_applied,
-    settled.final_late_fee,
-    greatest(settled.base_charge + settled.raw_late_fee - settled.waiver_applied, 0)::integer as total_charge,
-    greatest(settled.base_charge - settled.effective_settled, 0)::integer as pending_amount,
-    greatest(settled.final_late_fee - greatest(settled.effective_settled - settled.base_charge, 0), 0)::integer as late_fee_pending,
-    (greatest(settled.base_charge - settled.effective_settled, 0)
-       + greatest(settled.final_late_fee - greatest(settled.effective_settled - settled.base_charge, 0), 0))::integer as total_pending,
+    final_split.installment_id, final_split.student_id, final_split.admission_no,
+    final_split.student_name, final_split.father_name, final_split.father_phone,
+    final_split.session_label, final_split.class_id, final_split.class_name,
+    final_split.class_label, final_split.section, final_split.stream_name,
+    final_split.installment_no, final_split.installment_label, final_split.due_date,
+    final_split.base_charge, final_split.paid_amount, final_split.adjustment_amount,
+    final_split.applied_amount, final_split.raw_late_fee, final_split.waiver_applied,
+    final_split.final_late_fee,
+    greatest(final_split.base_charge + final_split.raw_late_fee - final_split.waiver_applied, 0)::integer as total_charge,
+    greatest(final_split.base_charge - final_split.fee_settled_amount, 0)::integer as pending_amount,
+    greatest(final_split.final_late_fee - final_split.late_fee_settled_amount, 0)::integer as late_fee_pending,
+    (greatest(final_split.base_charge - final_split.fee_settled_amount, 0)
+       + greatest(final_split.final_late_fee - final_split.late_fee_settled_amount, 0))::integer as total_pending,
     case
-      when settled.installment_status = 'waived' then 'waived'
-      when greatest(settled.base_charge - settled.effective_settled, 0) <= 0 then 'paid'
-      when p_as_of_date > settled.due_date then 'overdue'
-      when settled.effective_settled > 0 then 'partial'
+      when final_split.installment_status = 'waived' then 'waived'
+      when greatest(final_split.base_charge - final_split.fee_settled_amount, 0) <= 0 then 'paid'
+      when p_as_of_date > final_split.due_date then 'overdue'
+      when final_split.settled_amount > 0 then 'partial'
       else 'pending'
     end as balance_status,
     case
-      when settled.raw_late_fee <= 0 then 'none'
-      when greatest(settled.final_late_fee - greatest(settled.effective_settled - settled.base_charge, 0), 0) > 0 then 'pending'
-      when settled.waiver_applied >= settled.raw_late_fee then 'waived'
+      when final_split.raw_late_fee <= 0 then 'none'
+      when greatest(final_split.final_late_fee - final_split.late_fee_settled_amount, 0) > 0 then 'pending'
+      when final_split.waiver_applied >= final_split.raw_late_fee then 'waived'
       else 'paid'
     end as late_fee_status,
-    settled.last_payment_date, settled.transport_route_id,
-    settled.transport_route_name, settled.transport_route_code
-  from settled
-  order by settled.student_id, settled.installment_no;
+    final_split.last_payment_date, final_split.transport_route_id,
+    final_split.transport_route_name, final_split.transport_route_code,
+    final_split.settled_amount, final_split.fee_settled_amount, final_split.late_fee_settled_amount,
+    final_split.plan_priority, final_split.settlement_rank
+  from final_split
+  order by final_split.student_id, final_split.installment_no;
 $function$
 ;
 
@@ -3714,10 +3782,16 @@ begin
   route_rows as (
     select
       f.transport_route_id                                     as route_id,
-      coalesce(
-        nullif(trim(coalesce(f.transport_route_name, '')), ''),
-        'No transport'
-      )                                                        as route_label,
+      case
+        when nullif(trim(coalesce(f.transport_route_name, '')), '') is not null
+          then trim(f.transport_route_name)
+        -- Charged transport through student_fee_overrides with no route: a
+        -- real bucket, not "No transport". Mirrors CUSTOM_TRANSPORT_BUCKET_LABEL
+        -- in src/modules/fees/domain/label.ts.
+        when coalesce(f.transport_fee, 0) > 0
+          then 'Custom amount (no route)'
+        else 'No transport'
+      end                                                      as route_label,
       count(*)::integer                                        as students,
       coalesce(sum(f.base_charge_total), 0)::integer           as expected,
       coalesce(sum(f.total_paid), 0)::integer                  as collected,
@@ -3733,6 +3807,9 @@ begin
     select coalesce(jsonb_agg(
       jsonb_build_object(
         'routeId',         route_id,
+        'routeKey',        coalesce(route_id::text,
+                              case when route_label = 'Custom amount (no route)'
+                                   then 'custom' else 'none' end),
         'routeLabel',      route_label,
         'studentCount',    students,
         'expectedAmount',  expected,
@@ -5546,7 +5623,7 @@ $function$
 ;
 
 CREATE OR REPLACE FUNCTION public.preview_workbook_payment_allocation(p_student_id uuid, p_payment_date date DEFAULT CURRENT_DATE)
- RETURNS TABLE(installment_id uuid, student_id uuid, admission_no text, student_name text, father_name text, father_phone text, session_label text, class_id uuid, class_name text, class_label text, section text, stream_name text, installment_no smallint, installment_label text, is_carry_forward boolean, source_session_label text, target_session_label text, carry_forward_fee_head text, due_date date, base_charge integer, paid_amount integer, adjustment_amount integer, applied_amount integer, raw_late_fee integer, waiver_applied integer, final_late_fee integer, total_charge integer, pending_amount integer, late_fee_pending integer, total_pending integer, balance_status text, late_fee_status text, last_payment_date date, transport_route_id uuid, transport_route_name text, transport_route_code text)
+ RETURNS TABLE(installment_id uuid, student_id uuid, admission_no text, student_name text, father_name text, father_phone text, session_label text, class_id uuid, class_name text, class_label text, section text, stream_name text, installment_no smallint, installment_label text, is_carry_forward boolean, source_session_label text, target_session_label text, carry_forward_fee_head text, due_date date, base_charge integer, paid_amount integer, adjustment_amount integer, applied_amount integer, raw_late_fee integer, waiver_applied integer, final_late_fee integer, total_charge integer, pending_amount integer, late_fee_pending integer, total_pending integer, balance_status text, late_fee_status text, last_payment_date date, transport_route_id uuid, transport_route_name text, transport_route_code text, settled_amount integer, fee_settled_amount integer, late_fee_settled_amount integer, plan_priority integer)
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public', 'private', 'pg_temp'
@@ -5569,7 +5646,9 @@ AS $function$
     snapshot_row.total_pending,
     snapshot_row.balance_status, snapshot_row.late_fee_status,
     snapshot_row.last_payment_date, snapshot_row.transport_route_id,
-    snapshot_row.transport_route_name, snapshot_row.transport_route_code
+    snapshot_row.transport_route_name, snapshot_row.transport_route_code,
+    snapshot_row.settled_amount, snapshot_row.fee_settled_amount,
+    snapshot_row.late_fee_settled_amount, snapshot_row.plan_priority
   from private.workbook_installment_snapshot(p_student_id, p_payment_date, true) as snapshot_row
   join public.installments as installment_row
     on installment_row.id = snapshot_row.installment_id
@@ -5581,7 +5660,7 @@ AS $function$
     ])
   )
     and snapshot_row.total_pending > 0
-  order by snapshot_row.due_date asc, snapshot_row.installment_no asc;
+  order by snapshot_row.plan_priority asc, snapshot_row.due_date asc, snapshot_row.installment_no asc;
 $function$
 ;
 
@@ -7050,20 +7129,6 @@ create or replace view public.v_outstanding_summary as
   WHERE balance_status <> ALL (ARRAY['paid'::text, 'cancelled'::text])
   GROUP BY session_label, class_name, section, stream_name;
 
--- public.v_transport_route_outstanding
-create or replace view public.v_transport_route_outstanding as
- SELECT COALESCE(transport_route_id::text, 'unassigned'::text) AS route_bucket,
-    transport_route_id,
-    COALESCE(transport_route_name, 'No route'::text) AS route_name,
-    transport_route_code,
-    count(DISTINCT student_id) AS students_with_dues,
-    count(*) AS open_installments,
-    count(*) FILTER (WHERE balance_status = 'overdue'::text) AS overdue_installments,
-    COALESCE(sum(outstanding_amount), 0::numeric) AS outstanding_amount
-   FROM public.v_installment_balances
-  WHERE outstanding_amount > 0 AND (balance_status = ANY (ARRAY['partial'::text, 'overdue'::text, 'pending'::text]))
-  GROUP BY (COALESCE(transport_route_id::text, 'unassigned'::text)), transport_route_id, (COALESCE(transport_route_name, 'No route'::text)), transport_route_code;
-
 -- public.v_whatsapp_run_holdout_outcomes
 create or replace view public.v_whatsapp_run_holdout_outcomes as
  SELECT h.run_id,
@@ -7114,7 +7179,7 @@ create or replace view public.v_whatsapp_run_outcomes as
 
 -- public.v_workbook_installment_balances
 create materialized view if not exists public.v_workbook_installment_balances as
- WITH session_policy AS (
+ WITH RECURSIVE session_policy AS (
          SELECT DISTINCT ON (fee_policy_configs.academic_session_label) fee_policy_configs.academic_session_label
            FROM public.fee_policy_configs
           WHERE fee_policy_configs.calculation_model = 'workbook_v1'::text
@@ -7143,7 +7208,14 @@ create materialized view if not exists public.v_workbook_installment_balances as
             i.source_session_label,
             s.transport_route_id,
             route_row.route_name AS transport_route_name,
-            route_row.route_code AS transport_route_code
+            route_row.route_code AS transport_route_code,
+                CASE
+                    WHEN (EXISTS ( SELECT 1
+                       FROM public.student_repayment_plan_items plan_item
+                         JOIN public.student_repayment_plans plan_row ON plan_row.id = plan_item.plan_id
+                      WHERE plan_item.installment_id = i.id AND plan_row.lifecycle = 'active'::text)) THEN 0
+                    ELSE 1
+                END AS plan_priority
            FROM public.installments i
              JOIN public.students s ON s.id = i.student_id
              JOIN public.classes c ON c.id = i.class_id
@@ -7175,17 +7247,15 @@ create materialized view if not exists public.v_workbook_installment_balances as
             session_installments.transport_route_id,
             session_installments.transport_route_name,
             session_installments.transport_route_code,
+            session_installments.plan_priority,
             COALESCE(payment_row.paid_amount, 0::bigint)::integer AS paid_amount,
             COALESCE(adjustment_row.adjustment_amount, 0::bigint)::integer AS adjustment_amount,
             GREATEST(COALESCE(payment_row.paid_amount, 0::bigint) + COALESCE(adjustment_row.cash_adjustment, 0::bigint), 0::bigint)::integer AS applied_amount,
             GREATEST(COALESCE(payment_row.discount_closeout_amount, 0::bigint) + COALESCE(adjustment_row.closeout_adjustment, 0::bigint), 0::bigint)::integer AS discount_closeout_amount,
-            GREATEST(COALESCE(payment_row.paid_by_due_amount, 0::bigint) + COALESCE(payment_row.closeout_by_due_amount, 0::bigint) + COALESCE(adj_by_due_row.adjustment_by_due_amount, 0::bigint), 0::bigint)::integer AS settled_by_due_amount,
             payment_row.last_payment_date
            FROM session_installments
              LEFT JOIN LATERAL ( SELECT COALESCE(sum(payment_row_1.amount) FILTER (WHERE receipt_row.payment_mode <> 'discount'::public.payment_mode), 0::bigint) AS paid_amount,
                     COALESCE(sum(payment_row_1.amount) FILTER (WHERE receipt_row.payment_mode = 'discount'::public.payment_mode), 0::bigint) AS discount_closeout_amount,
-                    COALESCE(sum(payment_row_1.amount) FILTER (WHERE receipt_row.payment_date <= session_installments.due_date AND receipt_row.payment_mode <> 'discount'::public.payment_mode), 0::bigint) AS paid_by_due_amount,
-                    COALESCE(sum(payment_row_1.amount) FILTER (WHERE receipt_row.payment_date <= session_installments.due_date AND receipt_row.payment_mode = 'discount'::public.payment_mode), 0::bigint) AS closeout_by_due_amount,
                     max(receipt_row.payment_date) AS last_payment_date
                    FROM public.payments payment_row_1
                      JOIN public.receipts receipt_row ON receipt_row.id = payment_row_1.receipt_id
@@ -7197,12 +7267,24 @@ create materialized view if not exists public.v_workbook_installment_balances as
                      JOIN public.payments adj_payment ON adj_payment.id = adj.payment_id
                      JOIN public.receipts adj_receipt ON adj_receipt.id = adj_payment.receipt_id
                   WHERE adj.installment_id = session_installments.installment_id) adjustment_row ON true
-             LEFT JOIN LATERAL ( SELECT COALESCE(sum(adj.amount_delta), 0::bigint) AS adjustment_by_due_amount
-                   FROM public.payment_adjustments adj
-                     JOIN public.payments adj_payment ON adj_payment.id = adj.payment_id
-                     JOIN public.receipts adj_receipt ON adj_receipt.id = adj_payment.receipt_id
-                  WHERE adj.installment_id = session_installments.installment_id AND adj_receipt.payment_date <= session_installments.due_date) adj_by_due_row ON true
-        ), late_eval AS (
+        ), student_money AS (
+         SELECT rolled.student_id,
+            rolled.session_label,
+            receipt_row.payment_date,
+            payment_row.amount::bigint AS amount
+           FROM rolled
+             JOIN public.payments payment_row ON payment_row.installment_id = rolled.installment_id
+             JOIN public.receipts receipt_row ON receipt_row.id = payment_row.receipt_id
+        UNION ALL
+         SELECT rolled.student_id,
+            rolled.session_label,
+            adj_receipt.payment_date,
+            adj.amount_delta::bigint AS amount
+           FROM rolled
+             JOIN public.payment_adjustments adj ON adj.installment_id = rolled.installment_id
+             JOIN public.payments adj_payment ON adj_payment.id = adj.payment_id
+             JOIN public.receipts adj_receipt ON adj_receipt.id = adj_payment.receipt_id
+        ), ordered AS (
          SELECT rolled.installment_id,
             rolled.student_id,
             rolled.admission_no,
@@ -7227,217 +7309,139 @@ create materialized view if not exists public.v_workbook_installment_balances as
             rolled.transport_route_id,
             rolled.transport_route_name,
             rolled.transport_route_code,
+            rolled.plan_priority,
             rolled.paid_amount,
             rolled.adjustment_amount,
             rolled.applied_amount,
             rolled.discount_closeout_amount,
-            rolled.settled_by_due_amount,
             rolled.last_payment_date,
-                CASE
-                    WHEN rolled.installment_status = 'waived'::public.installment_status THEN 0
-                    WHEN COALESCE(rolled.late_fee_flat_amount, 0) <= 0 THEN 0
-                    WHEN rolled.is_emi_late_fee THEN
-                    CASE
-                        WHEN CURRENT_DATE > rolled.due_date THEN rolled.late_fee_flat_amount
-                        ELSE 0
-                    END
-                    WHEN rolled.base_charge <= 0 THEN 0
-                    WHEN rolled.settled_by_due_amount >= rolled.base_charge THEN 0
-                    WHEN CURRENT_DATE > rolled.due_date THEN rolled.late_fee_flat_amount
-                    ELSE 0
-                END AS raw_late_fee
+            row_number() OVER (PARTITION BY rolled.student_id, rolled.session_label ORDER BY rolled.plan_priority, rolled.due_date, rolled.installment_no, rolled.installment_id)::integer AS settlement_rank,
+            sum(rolled.applied_amount + rolled.discount_closeout_amount) OVER (PARTITION BY rolled.student_id, rolled.session_label) AS pool_total,
+            COALESCE(by_due.amount, 0::numeric)::bigint AS pool_by_due_amount
            FROM rolled
-        ), waiver_eval AS (
-         SELECT late_eval.installment_id,
-            late_eval.student_id,
-            late_eval.admission_no,
-            late_eval.student_name,
-            late_eval.father_name,
-            late_eval.father_phone,
-            late_eval.session_label,
-            late_eval.class_id,
-            late_eval.class_name,
-            late_eval.class_label,
-            late_eval.section,
-            late_eval.stream_name,
-            late_eval.installment_no,
-            late_eval.installment_label,
-            late_eval.due_date,
-            late_eval.base_charge,
-            late_eval.installment_status,
-            late_eval.late_fee_flat_amount,
-            late_eval.is_emi_late_fee,
-            late_eval.is_carry_forward,
-            late_eval.source_session_label,
-            late_eval.transport_route_id,
-            late_eval.transport_route_name,
-            late_eval.transport_route_code,
-            late_eval.paid_amount,
-            late_eval.adjustment_amount,
-            late_eval.applied_amount,
-            late_eval.discount_closeout_amount,
-            late_eval.settled_by_due_amount,
-            late_eval.last_payment_date,
-            late_eval.raw_late_fee,
-            LEAST(late_eval.raw_late_fee, COALESCE(waiver_row.waiver_amount, 0)) AS waiver_applied
-           FROM late_eval
-             LEFT JOIN public.v_effective_late_fee_waivers waiver_row ON waiver_row.installment_id = late_eval.installment_id
-        ), split AS (
-         SELECT waiver_eval.installment_id,
-            waiver_eval.student_id,
-            waiver_eval.admission_no,
-            waiver_eval.student_name,
-            waiver_eval.father_name,
-            waiver_eval.father_phone,
-            waiver_eval.session_label,
-            waiver_eval.class_id,
-            waiver_eval.class_name,
-            waiver_eval.class_label,
-            waiver_eval.section,
-            waiver_eval.stream_name,
-            waiver_eval.installment_no,
-            waiver_eval.installment_label,
-            waiver_eval.due_date,
-            waiver_eval.base_charge,
-            waiver_eval.installment_status,
-            waiver_eval.late_fee_flat_amount,
-            waiver_eval.is_emi_late_fee,
-            waiver_eval.is_carry_forward,
-            waiver_eval.source_session_label,
-            waiver_eval.transport_route_id,
-            waiver_eval.transport_route_name,
-            waiver_eval.transport_route_code,
-            waiver_eval.paid_amount,
-            waiver_eval.adjustment_amount,
-            waiver_eval.applied_amount,
-            waiver_eval.discount_closeout_amount,
-            waiver_eval.settled_by_due_amount,
-            waiver_eval.last_payment_date,
-            waiver_eval.raw_late_fee,
-            waiver_eval.waiver_applied,
-            GREATEST(waiver_eval.raw_late_fee - waiver_eval.waiver_applied, 0) AS final_late_fee,
-            GREATEST(waiver_eval.applied_amount + waiver_eval.discount_closeout_amount, 0) AS settled_amount
-           FROM waiver_eval
-        ), spill AS (
-         SELECT split.installment_id,
-            split.student_id,
-            split.admission_no,
-            split.student_name,
-            split.father_name,
-            split.father_phone,
-            split.session_label,
-            split.class_id,
-            split.class_name,
-            split.class_label,
-            split.section,
-            split.stream_name,
-            split.installment_no,
-            split.installment_label,
-            split.due_date,
-            split.base_charge,
-            split.installment_status,
-            split.late_fee_flat_amount,
-            split.is_emi_late_fee,
-            split.is_carry_forward,
-            split.source_session_label,
-            split.transport_route_id,
-            split.transport_route_name,
-            split.transport_route_code,
-            split.paid_amount,
-            split.adjustment_amount,
-            split.applied_amount,
-            split.discount_closeout_amount,
-            split.settled_by_due_amount,
-            split.last_payment_date,
-            split.raw_late_fee,
-            split.waiver_applied,
-            split.final_late_fee,
-            split.settled_amount,
-            GREATEST(split.settled_amount - (split.base_charge + split.final_late_fee), 0) AS row_surplus,
-            GREATEST(split.base_charge + split.final_late_fee - split.settled_amount, 0) AS row_room
-           FROM split
-        ), carry AS (
-         SELECT spill.installment_id,
-            spill.student_id,
-            spill.admission_no,
-            spill.student_name,
-            spill.father_name,
-            spill.father_phone,
-            spill.session_label,
-            spill.class_id,
-            spill.class_name,
-            spill.class_label,
-            spill.section,
-            spill.stream_name,
-            spill.installment_no,
-            spill.installment_label,
-            spill.due_date,
-            spill.base_charge,
-            spill.installment_status,
-            spill.late_fee_flat_amount,
-            spill.is_emi_late_fee,
-            spill.is_carry_forward,
-            spill.source_session_label,
-            spill.transport_route_id,
-            spill.transport_route_name,
-            spill.transport_route_code,
-            spill.paid_amount,
-            spill.adjustment_amount,
-            spill.applied_amount,
-            spill.discount_closeout_amount,
-            spill.settled_by_due_amount,
-            spill.last_payment_date,
-            spill.raw_late_fee,
-            spill.waiver_applied,
-            spill.final_late_fee,
-            spill.settled_amount,
-            spill.row_surplus,
-            spill.row_room,
-            LEAST(COALESCE(sum(spill.row_surplus) OVER w_before, 0::bigint), COALESCE(sum(spill.row_room) OVER w_through, 0::bigint))::integer AS cum_filled,
-            LEAST(COALESCE(sum(spill.row_surplus) OVER w_before_prev, 0::bigint), COALESCE(sum(spill.row_room) OVER w_before, 0::bigint))::integer AS cum_filled_prev
-           FROM spill
-          WINDOW w_before AS (PARTITION BY spill.student_id ORDER BY spill.due_date, spill.installment_no ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), w_through AS (PARTITION BY spill.student_id ORDER BY spill.due_date, spill.installment_no ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), w_before_prev AS (PARTITION BY spill.student_id ORDER BY spill.due_date, spill.installment_no ROWS BETWEEN UNBOUNDED PRECEDING AND 2 PRECEDING)
+             LEFT JOIN LATERAL ( SELECT GREATEST(COALESCE(sum(money_row.amount), 0::numeric), 0::numeric) AS amount
+                   FROM student_money money_row
+                  WHERE money_row.student_id = rolled.student_id AND money_row.session_label = rolled.session_label AND money_row.payment_date <= rolled.due_date) by_due ON true
+        ), walk AS (
+         SELECT seed.student_id,
+            seed.session_label,
+            0 AS settlement_rank,
+            0::bigint AS capacity_after,
+            0 AS raw_late_fee,
+            0 AS waiver_applied,
+            0 AS final_late_fee
+           FROM ( SELECT DISTINCT ordered.student_id,
+                    ordered.session_label
+                   FROM ordered) seed
+        UNION ALL
+         SELECT step.student_id,
+            step.session_label,
+            step.settlement_rank,
+            walk.capacity_after + step.base_charge + late_fee.final_late_fee,
+            late_fee.raw_late_fee,
+            late_fee.waiver_applied,
+            late_fee.final_late_fee
+           FROM walk
+             JOIN ordered step ON step.student_id = walk.student_id AND step.session_label = walk.session_label AND step.settlement_rank = (walk.settlement_rank + 1)
+             LEFT JOIN public.v_effective_late_fee_waivers waiver_row ON waiver_row.installment_id = step.installment_id
+             CROSS JOIN LATERAL ( SELECT raw.raw_late_fee,
+                    LEAST(raw.raw_late_fee, COALESCE(waiver_row.waiver_amount, 0)) AS waiver_applied,
+                    GREATEST(raw.raw_late_fee - LEAST(raw.raw_late_fee, COALESCE(waiver_row.waiver_amount, 0)), 0) AS final_late_fee
+                   FROM ( SELECT
+                                CASE
+                                    WHEN step.installment_status = 'waived'::public.installment_status THEN 0
+                                    WHEN COALESCE(step.late_fee_flat_amount, 0) <= 0 THEN 0
+                                    WHEN step.is_emi_late_fee THEN
+                                    CASE
+WHEN CURRENT_DATE > step.due_date THEN step.late_fee_flat_amount
+ELSE 0
+                                    END
+                                    WHEN step.base_charge <= 0 THEN 0
+                                    WHEN step.pool_by_due_amount >= (walk.capacity_after + step.base_charge) THEN 0
+                                    WHEN CURRENT_DATE > step.due_date THEN step.late_fee_flat_amount
+                                    ELSE 0
+                                END AS raw_late_fee) raw) late_fee
         ), settled AS (
-         SELECT carry.installment_id,
-            carry.student_id,
-            carry.admission_no,
-            carry.student_name,
-            carry.father_name,
-            carry.father_phone,
-            carry.session_label,
-            carry.class_id,
-            carry.class_name,
-            carry.class_label,
-            carry.section,
-            carry.stream_name,
-            carry.installment_no,
-            carry.installment_label,
-            carry.due_date,
-            carry.base_charge,
-            carry.installment_status,
-            carry.late_fee_flat_amount,
-            carry.is_emi_late_fee,
-            carry.is_carry_forward,
-            carry.source_session_label,
-            carry.transport_route_id,
-            carry.transport_route_name,
-            carry.transport_route_code,
-            carry.paid_amount,
-            carry.adjustment_amount,
-            carry.applied_amount,
-            carry.discount_closeout_amount,
-            carry.settled_by_due_amount,
-            carry.last_payment_date,
-            carry.raw_late_fee,
-            carry.waiver_applied,
-            carry.final_late_fee,
-            carry.settled_amount,
-            carry.row_surplus,
-            carry.row_room,
-            carry.cum_filled,
-            carry.cum_filled_prev,
-            carry.settled_amount + GREATEST(carry.cum_filled - carry.cum_filled_prev, 0) AS effective_settled
-           FROM carry
+         SELECT ordered.installment_id,
+            ordered.student_id,
+            ordered.admission_no,
+            ordered.student_name,
+            ordered.father_name,
+            ordered.father_phone,
+            ordered.session_label,
+            ordered.class_id,
+            ordered.class_name,
+            ordered.class_label,
+            ordered.section,
+            ordered.stream_name,
+            ordered.installment_no,
+            ordered.installment_label,
+            ordered.due_date,
+            ordered.base_charge,
+            ordered.installment_status,
+            ordered.late_fee_flat_amount,
+            ordered.is_emi_late_fee,
+            ordered.is_carry_forward,
+            ordered.source_session_label,
+            ordered.transport_route_id,
+            ordered.transport_route_name,
+            ordered.transport_route_code,
+            ordered.plan_priority,
+            ordered.paid_amount,
+            ordered.adjustment_amount,
+            ordered.applied_amount,
+            ordered.discount_closeout_amount,
+            ordered.last_payment_date,
+            ordered.settlement_rank,
+            ordered.pool_total,
+            ordered.pool_by_due_amount,
+            walk.raw_late_fee,
+            walk.waiver_applied,
+            walk.final_late_fee,
+            LEAST(GREATEST(ordered.pool_total - (walk.capacity_after - ordered.base_charge - walk.final_late_fee), 0::bigint), (ordered.base_charge + walk.final_late_fee)::bigint)::integer AS settled_amount
+           FROM ordered
+             JOIN walk ON walk.student_id = ordered.student_id AND walk.session_label = ordered.session_label AND walk.settlement_rank = ordered.settlement_rank
+        ), final_split AS (
+         SELECT settled.installment_id,
+            settled.student_id,
+            settled.admission_no,
+            settled.student_name,
+            settled.father_name,
+            settled.father_phone,
+            settled.session_label,
+            settled.class_id,
+            settled.class_name,
+            settled.class_label,
+            settled.section,
+            settled.stream_name,
+            settled.installment_no,
+            settled.installment_label,
+            settled.due_date,
+            settled.base_charge,
+            settled.installment_status,
+            settled.late_fee_flat_amount,
+            settled.is_emi_late_fee,
+            settled.is_carry_forward,
+            settled.source_session_label,
+            settled.transport_route_id,
+            settled.transport_route_name,
+            settled.transport_route_code,
+            settled.plan_priority,
+            settled.paid_amount,
+            settled.adjustment_amount,
+            settled.applied_amount,
+            settled.discount_closeout_amount,
+            settled.last_payment_date,
+            settled.settlement_rank,
+            settled.pool_total,
+            settled.pool_by_due_amount,
+            settled.raw_late_fee,
+            settled.waiver_applied,
+            settled.final_late_fee,
+            settled.settled_amount,
+            LEAST(settled.settled_amount, settled.base_charge) AS fee_settled_amount,
+            settled.settled_amount - LEAST(settled.settled_amount, settled.base_charge) AS late_fee_settled_amount
+           FROM settled
         )
  SELECT installment_id,
     student_id,
@@ -7463,19 +7467,19 @@ create materialized view if not exists public.v_workbook_installment_balances as
     waiver_applied,
     final_late_fee,
     GREATEST(base_charge + raw_late_fee - waiver_applied, 0) AS total_charge,
-    GREATEST(base_charge - effective_settled, 0) AS pending_amount,
-    GREATEST(final_late_fee - GREATEST(effective_settled - base_charge, 0), 0) AS late_fee_pending,
-    GREATEST(base_charge - effective_settled, 0) + GREATEST(final_late_fee - GREATEST(effective_settled - base_charge, 0), 0) AS total_pending,
+    GREATEST(base_charge - fee_settled_amount, 0) AS pending_amount,
+    GREATEST(final_late_fee - late_fee_settled_amount, 0) AS late_fee_pending,
+    GREATEST(base_charge - fee_settled_amount, 0) + GREATEST(final_late_fee - late_fee_settled_amount, 0) AS total_pending,
         CASE
             WHEN installment_status = 'waived'::public.installment_status THEN 'waived'::text
-            WHEN GREATEST(base_charge - effective_settled, 0) <= 0 THEN 'paid'::text
+            WHEN GREATEST(base_charge - fee_settled_amount, 0) <= 0 THEN 'paid'::text
             WHEN CURRENT_DATE > due_date THEN 'overdue'::text
-            WHEN effective_settled > 0 THEN 'partial'::text
+            WHEN settled_amount > 0 THEN 'partial'::text
             ELSE 'pending'::text
         END AS balance_status,
         CASE
             WHEN raw_late_fee <= 0 THEN 'none'::text
-            WHEN GREATEST(final_late_fee - GREATEST(effective_settled - base_charge, 0), 0) > 0 THEN 'pending'::text
+            WHEN GREATEST(final_late_fee - late_fee_settled_amount, 0) > 0 THEN 'pending'::text
             WHEN waiver_applied >= raw_late_fee THEN 'waived'::text
             ELSE 'paid'::text
         END AS late_fee_status,
@@ -7485,8 +7489,13 @@ create materialized view if not exists public.v_workbook_installment_balances as
     transport_route_code,
     is_carry_forward,
     source_session_label,
-    is_emi_late_fee
-   FROM settled;
+    is_emi_late_fee,
+    settled_amount,
+    fee_settled_amount,
+    late_fee_settled_amount,
+    plan_priority,
+    settlement_rank
+   FROM final_split;
 
 -- public.v_student_carry_forward_balances
 create or replace view public.v_student_carry_forward_balances as
@@ -7825,11 +7834,11 @@ create materialized view if not exists public.v_workbook_student_financials as
             COALESCE(sum(v_workbook_installment_balances.applied_amount), 0::bigint)::integer AS total_paid,
             COALESCE(sum(v_workbook_installment_balances.discount_closeout_amount), 0::bigint)::integer AS total_discount_closeouts,
             COALESCE(sum(v_workbook_installment_balances.pending_amount), 0::bigint)::integer AS outstanding_amount,
-            COALESCE(sum(GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0)), 0::bigint)::integer AS base_outstanding_amount,
+            COALESCE(sum(v_workbook_installment_balances.pending_amount), 0::bigint)::integer AS base_outstanding_amount,
             COALESCE(max(v_workbook_installment_balances.last_payment_date), NULL::date) AS last_payment_date,
-            count(*) FILTER (WHERE GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0) <= 0) AS paid_installment_count,
-            count(*) FILTER (WHERE GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0) > 0 AND (v_workbook_installment_balances.applied_amount > 0 OR v_workbook_installment_balances.discount_closeout_amount > 0)) AS partly_paid_installment_count,
-            count(*) FILTER (WHERE GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0) > 0 AND v_workbook_installment_balances.due_date < CURRENT_DATE) AS overdue_installment_count,
+            count(*) FILTER (WHERE v_workbook_installment_balances.pending_amount <= 0) AS paid_installment_count,
+            count(*) FILTER (WHERE v_workbook_installment_balances.pending_amount > 0 AND v_workbook_installment_balances.settled_amount > 0) AS partly_paid_installment_count,
+            count(*) FILTER (WHERE v_workbook_installment_balances.pending_amount > 0 AND v_workbook_installment_balances.due_date < CURRENT_DATE) AS overdue_installment_count,
             max(
                 CASE
                     WHEN v_workbook_installment_balances.installment_no = 1 THEN v_workbook_installment_balances.base_charge
@@ -7852,22 +7861,22 @@ create materialized view if not exists public.v_workbook_student_financials as
                 END) AS installment4_base,
             max(
                 CASE
-                    WHEN v_workbook_installment_balances.installment_no = 1 THEN v_workbook_installment_balances.paid_amount
+                    WHEN v_workbook_installment_balances.installment_no = 1 THEN v_workbook_installment_balances.settled_amount
                     ELSE NULL::integer
                 END) AS paid_installment1,
             max(
                 CASE
-                    WHEN v_workbook_installment_balances.installment_no = 2 THEN v_workbook_installment_balances.paid_amount
+                    WHEN v_workbook_installment_balances.installment_no = 2 THEN v_workbook_installment_balances.settled_amount
                     ELSE NULL::integer
                 END) AS paid_installment2,
             max(
                 CASE
-                    WHEN v_workbook_installment_balances.installment_no = 3 THEN v_workbook_installment_balances.paid_amount
+                    WHEN v_workbook_installment_balances.installment_no = 3 THEN v_workbook_installment_balances.settled_amount
                     ELSE NULL::integer
                 END) AS paid_installment3,
             max(
                 CASE
-                    WHEN v_workbook_installment_balances.installment_no = 4 THEN v_workbook_installment_balances.paid_amount
+                    WHEN v_workbook_installment_balances.installment_no = 4 THEN v_workbook_installment_balances.settled_amount
                     ELSE NULL::integer
                 END) AS paid_installment4,
             max(
@@ -7932,22 +7941,22 @@ create materialized view if not exists public.v_workbook_student_financials as
                 END) AS final_late_fee4,
             max(
                 CASE
-                    WHEN v_workbook_installment_balances.installment_no = 1 THEN GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0)
+                    WHEN v_workbook_installment_balances.installment_no = 1 THEN v_workbook_installment_balances.pending_amount
                     ELSE NULL::integer
                 END) AS inst1_pending,
             max(
                 CASE
-                    WHEN v_workbook_installment_balances.installment_no = 2 THEN GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0)
+                    WHEN v_workbook_installment_balances.installment_no = 2 THEN v_workbook_installment_balances.pending_amount
                     ELSE NULL::integer
                 END) AS inst2_pending,
             max(
                 CASE
-                    WHEN v_workbook_installment_balances.installment_no = 3 THEN GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0)
+                    WHEN v_workbook_installment_balances.installment_no = 3 THEN v_workbook_installment_balances.pending_amount
                     ELSE NULL::integer
                 END) AS inst3_pending,
             max(
                 CASE
-                    WHEN v_workbook_installment_balances.installment_no = 4 THEN GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0)
+                    WHEN v_workbook_installment_balances.installment_no = 4 THEN v_workbook_installment_balances.pending_amount
                     ELSE NULL::integer
                 END) AS inst4_pending
            FROM public.v_workbook_installment_balances
@@ -7955,10 +7964,10 @@ create materialized view if not exists public.v_workbook_student_financials as
         ), next_due AS (
          SELECT DISTINCT ON (v_workbook_installment_balances.student_id) v_workbook_installment_balances.student_id,
             v_workbook_installment_balances.due_date AS next_due_date,
-            GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0) AS next_due_amount,
+            v_workbook_installment_balances.pending_amount AS next_due_amount,
             v_workbook_installment_balances.installment_label AS next_due_label
            FROM public.v_workbook_installment_balances
-          WHERE GREATEST(v_workbook_installment_balances.base_charge - v_workbook_installment_balances.applied_amount - v_workbook_installment_balances.discount_closeout_amount, 0) > 0
+          WHERE v_workbook_installment_balances.pending_amount > 0
           ORDER BY v_workbook_installment_balances.student_id, v_workbook_installment_balances.due_date, v_workbook_installment_balances.installment_no
         ), last_payment AS (
          SELECT DISTINCT ON (receipts.student_id) receipts.student_id,
@@ -8635,6 +8644,7 @@ CREATE TRIGGER audit_student_repayment_plan_items AFTER INSERT OR DELETE ON publ
 CREATE TRIGGER student_repayment_plan_items_write_once BEFORE UPDATE ON public.student_repayment_plan_items FOR EACH ROW EXECUTE FUNCTION private.prevent_repayment_row_update();
 CREATE TRIGGER audit_student_repayment_plans AFTER INSERT OR DELETE OR UPDATE ON public.student_repayment_plans FOR EACH ROW EXECUTE FUNCTION private.capture_audit_event();
 CREATE TRIGGER protect_terms_on_student_repayment_plans BEFORE UPDATE ON public.student_repayment_plans FOR EACH ROW EXECUTE FUNCTION private.protect_repayment_plan_terms();
+CREATE TRIGGER refresh_financials_on_repayment_plan AFTER INSERT OR DELETE OR UPDATE OF lifecycle ON public.student_repayment_plans FOR EACH STATEMENT EXECUTE FUNCTION public.trigger_refresh_financial_views();
 CREATE TRIGGER set_actor_columns_on_student_repayment_plans BEFORE INSERT OR UPDATE ON public.student_repayment_plans FOR EACH ROW EXECUTE FUNCTION private.set_actor_columns();
 CREATE TRIGGER set_updated_at_on_student_repayment_plans BEFORE UPDATE ON public.student_repayment_plans FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 CREATE TRIGGER audit_student_repayment_receipt_links AFTER INSERT OR DELETE ON public.student_repayment_receipt_links FOR EACH ROW EXECUTE FUNCTION private.capture_audit_event();
@@ -8694,6 +8704,7 @@ alter table public.refund_requests enable row level security;
 alter table public.school_fee_defaults enable row level security;
 alter table public.school_holidays enable row level security;
 alter table public.session_reconcile_log enable row level security;
+alter table public.settlement_pool_change_snapshot enable row level security;
 alter table public.setup_progress enable row level security;
 alter table public.student_carry_forward_balances enable row level security;
 alter table public.student_collection_flags enable row level security;
@@ -9182,6 +9193,7 @@ grant DELETE on public.school_holidays to service_role;
 grant DELETE on public.session_reconcile_log to anon;
 grant DELETE on public.session_reconcile_log to authenticated;
 grant DELETE on public.session_reconcile_log to service_role;
+grant DELETE on public.settlement_pool_change_snapshot to service_role;
 grant DELETE on public.setup_progress to anon;
 grant DELETE on public.setup_progress to authenticated;
 grant DELETE on public.setup_progress to service_role;
@@ -9271,9 +9283,6 @@ grant DELETE on public.v_student_manual_late_fee_waivers to authenticated;
 grant DELETE on public.v_student_manual_late_fee_waivers to service_role;
 grant DELETE on public.v_student_repayment_plan_status to authenticated;
 grant DELETE on public.v_student_repayment_plan_status to service_role;
-grant DELETE on public.v_transport_route_outstanding to anon;
-grant DELETE on public.v_transport_route_outstanding to authenticated;
-grant DELETE on public.v_transport_route_outstanding to service_role;
 grant DELETE on public.v_whatsapp_run_holdout_outcomes to anon;
 grant DELETE on public.v_whatsapp_run_holdout_outcomes to authenticated;
 grant DELETE on public.v_whatsapp_run_holdout_outcomes to service_role;
@@ -9407,6 +9416,7 @@ grant INSERT on public.school_holidays to service_role;
 grant INSERT on public.session_reconcile_log to anon;
 grant INSERT on public.session_reconcile_log to authenticated;
 grant INSERT on public.session_reconcile_log to service_role;
+grant INSERT on public.settlement_pool_change_snapshot to service_role;
 grant INSERT on public.setup_progress to anon;
 grant INSERT on public.setup_progress to authenticated;
 grant INSERT on public.setup_progress to service_role;
@@ -9496,9 +9506,6 @@ grant INSERT on public.v_student_manual_late_fee_waivers to authenticated;
 grant INSERT on public.v_student_manual_late_fee_waivers to service_role;
 grant INSERT on public.v_student_repayment_plan_status to authenticated;
 grant INSERT on public.v_student_repayment_plan_status to service_role;
-grant INSERT on public.v_transport_route_outstanding to anon;
-grant INSERT on public.v_transport_route_outstanding to authenticated;
-grant INSERT on public.v_transport_route_outstanding to service_role;
 grant INSERT on public.v_whatsapp_run_holdout_outcomes to anon;
 grant INSERT on public.v_whatsapp_run_holdout_outcomes to authenticated;
 grant INSERT on public.v_whatsapp_run_holdout_outcomes to service_role;
@@ -9632,6 +9639,7 @@ grant REFERENCES on public.school_holidays to service_role;
 grant REFERENCES on public.session_reconcile_log to anon;
 grant REFERENCES on public.session_reconcile_log to authenticated;
 grant REFERENCES on public.session_reconcile_log to service_role;
+grant REFERENCES on public.settlement_pool_change_snapshot to service_role;
 grant REFERENCES on public.setup_progress to anon;
 grant REFERENCES on public.setup_progress to authenticated;
 grant REFERENCES on public.setup_progress to service_role;
@@ -9721,9 +9729,6 @@ grant REFERENCES on public.v_student_manual_late_fee_waivers to authenticated;
 grant REFERENCES on public.v_student_manual_late_fee_waivers to service_role;
 grant REFERENCES on public.v_student_repayment_plan_status to authenticated;
 grant REFERENCES on public.v_student_repayment_plan_status to service_role;
-grant REFERENCES on public.v_transport_route_outstanding to anon;
-grant REFERENCES on public.v_transport_route_outstanding to authenticated;
-grant REFERENCES on public.v_transport_route_outstanding to service_role;
 grant REFERENCES on public.v_whatsapp_run_holdout_outcomes to anon;
 grant REFERENCES on public.v_whatsapp_run_holdout_outcomes to authenticated;
 grant REFERENCES on public.v_whatsapp_run_holdout_outcomes to service_role;
@@ -9857,6 +9862,7 @@ grant SELECT on public.school_holidays to service_role;
 grant SELECT on public.session_reconcile_log to anon;
 grant SELECT on public.session_reconcile_log to authenticated;
 grant SELECT on public.session_reconcile_log to service_role;
+grant SELECT on public.settlement_pool_change_snapshot to service_role;
 grant SELECT on public.setup_progress to anon;
 grant SELECT on public.setup_progress to authenticated;
 grant SELECT on public.setup_progress to service_role;
@@ -9946,9 +9952,6 @@ grant SELECT on public.v_student_manual_late_fee_waivers to authenticated;
 grant SELECT on public.v_student_manual_late_fee_waivers to service_role;
 grant SELECT on public.v_student_repayment_plan_status to authenticated;
 grant SELECT on public.v_student_repayment_plan_status to service_role;
-grant SELECT on public.v_transport_route_outstanding to anon;
-grant SELECT on public.v_transport_route_outstanding to authenticated;
-grant SELECT on public.v_transport_route_outstanding to service_role;
 grant SELECT on public.v_whatsapp_run_holdout_outcomes to anon;
 grant SELECT on public.v_whatsapp_run_holdout_outcomes to authenticated;
 grant SELECT on public.v_whatsapp_run_holdout_outcomes to service_role;
@@ -10082,6 +10085,7 @@ grant TRIGGER on public.school_holidays to service_role;
 grant TRIGGER on public.session_reconcile_log to anon;
 grant TRIGGER on public.session_reconcile_log to authenticated;
 grant TRIGGER on public.session_reconcile_log to service_role;
+grant TRIGGER on public.settlement_pool_change_snapshot to service_role;
 grant TRIGGER on public.setup_progress to anon;
 grant TRIGGER on public.setup_progress to authenticated;
 grant TRIGGER on public.setup_progress to service_role;
@@ -10171,9 +10175,6 @@ grant TRIGGER on public.v_student_manual_late_fee_waivers to authenticated;
 grant TRIGGER on public.v_student_manual_late_fee_waivers to service_role;
 grant TRIGGER on public.v_student_repayment_plan_status to authenticated;
 grant TRIGGER on public.v_student_repayment_plan_status to service_role;
-grant TRIGGER on public.v_transport_route_outstanding to anon;
-grant TRIGGER on public.v_transport_route_outstanding to authenticated;
-grant TRIGGER on public.v_transport_route_outstanding to service_role;
 grant TRIGGER on public.v_whatsapp_run_holdout_outcomes to anon;
 grant TRIGGER on public.v_whatsapp_run_holdout_outcomes to authenticated;
 grant TRIGGER on public.v_whatsapp_run_holdout_outcomes to service_role;
@@ -10307,6 +10308,7 @@ grant TRUNCATE on public.school_holidays to service_role;
 grant TRUNCATE on public.session_reconcile_log to anon;
 grant TRUNCATE on public.session_reconcile_log to authenticated;
 grant TRUNCATE on public.session_reconcile_log to service_role;
+grant TRUNCATE on public.settlement_pool_change_snapshot to service_role;
 grant TRUNCATE on public.setup_progress to anon;
 grant TRUNCATE on public.setup_progress to authenticated;
 grant TRUNCATE on public.setup_progress to service_role;
@@ -10396,9 +10398,6 @@ grant TRUNCATE on public.v_student_manual_late_fee_waivers to authenticated;
 grant TRUNCATE on public.v_student_manual_late_fee_waivers to service_role;
 grant TRUNCATE on public.v_student_repayment_plan_status to authenticated;
 grant TRUNCATE on public.v_student_repayment_plan_status to service_role;
-grant TRUNCATE on public.v_transport_route_outstanding to anon;
-grant TRUNCATE on public.v_transport_route_outstanding to authenticated;
-grant TRUNCATE on public.v_transport_route_outstanding to service_role;
 grant TRUNCATE on public.v_whatsapp_run_holdout_outcomes to anon;
 grant TRUNCATE on public.v_whatsapp_run_holdout_outcomes to authenticated;
 grant TRUNCATE on public.v_whatsapp_run_holdout_outcomes to service_role;
@@ -10532,6 +10531,7 @@ grant UPDATE on public.school_holidays to service_role;
 grant UPDATE on public.session_reconcile_log to anon;
 grant UPDATE on public.session_reconcile_log to authenticated;
 grant UPDATE on public.session_reconcile_log to service_role;
+grant UPDATE on public.settlement_pool_change_snapshot to service_role;
 grant UPDATE on public.setup_progress to anon;
 grant UPDATE on public.setup_progress to authenticated;
 grant UPDATE on public.setup_progress to service_role;
@@ -10621,9 +10621,6 @@ grant UPDATE on public.v_student_manual_late_fee_waivers to authenticated;
 grant UPDATE on public.v_student_manual_late_fee_waivers to service_role;
 grant UPDATE on public.v_student_repayment_plan_status to authenticated;
 grant UPDATE on public.v_student_repayment_plan_status to service_role;
-grant UPDATE on public.v_transport_route_outstanding to anon;
-grant UPDATE on public.v_transport_route_outstanding to authenticated;
-grant UPDATE on public.v_transport_route_outstanding to service_role;
 grant UPDATE on public.v_whatsapp_run_holdout_outcomes to anon;
 grant UPDATE on public.v_whatsapp_run_holdout_outcomes to authenticated;
 grant UPDATE on public.v_whatsapp_run_holdout_outcomes to service_role;

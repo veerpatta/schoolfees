@@ -38,7 +38,9 @@ UAT is complete. The app is live with real 2026-27 data.
 
 - Posted receipts and payments are append-only — they cannot be edited or deleted.
 - Corrections use the explicit adjustment/reversal workflow.
-- Fee Setup changes apply to unpaid/future rows only. Paid rows are never rewritten.
+- Fee Setup may reprice in-scope installment charges; posted payments and receipts are
+  never rewritten. Existing money re-settles oldest-first. Active EMI-plan rows and a
+  paid row whose due date would move remain held for review.
 - Audit logs are always preserved.
 
 ## Export and Backup Reminders
@@ -74,4 +76,3 @@ passed*, and a date passing enqueues nothing on its own), and charges EMI late f
 **pg_cron has no request context**, so `has_permission()` returns false inside a cron job.
 A job that calls a permission-gated function must be guarded differently — the EMI late-fee
 job silently never fired once for exactly this reason.
-

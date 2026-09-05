@@ -3,7 +3,7 @@
  *
  * The rule itself lives in SQL, twice, under the `>>> SHARED POOLED SETTLEMENT
  * RULE <<<` marker in `v_workbook_installment_balances` and
- * `private.workbook_installment_snapshot` (20260905090000). This is a third
+ * `private.workbook_installment_snapshot` (20260905064847). This is a third
  * copy, deliberately: it exists so a unit test can state the cases the SQL has
  * to get right in plain numbers, and so `scripts/verify-live-fee-health.mjs`
  * can recompute a sample of students from the raw tables and diff them

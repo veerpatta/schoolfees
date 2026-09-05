@@ -12,7 +12,7 @@ type InstallmentLike = {
    * `v_workbook_installment_balances.pending_amount` — fees still owed on this
    * row after the pool has settled it oldest-first. When present it is the
    * answer; the arithmetic fallback below reads the receipt PIN, which since
-   * 20260905090000 is history, not position.
+   * 20260905064847 is history, not position.
    */
   pendingAmount?: number | null;
   /** The Payment Desk's name for the same fees-only figure. */

@@ -183,7 +183,7 @@ Four things follow, and getting one wrong is a money bug:
 
 ### Money settles the installments oldest-first
 
-Since `20260905090000` a receipt's `installment_id` is **history, not position**. Every
+Since `20260905064847` a receipt's `installment_id` is **history, not position**. Every
 rupee a family paid in a session is one pool that clears installment 1, then 2, then 3,
 then 4 — each row's fees first, then its late fee — over the counter's own order
 (`plan_priority`, `due_date`, `installment_no`). The late fee is pooled the same way: a row
@@ -338,7 +338,7 @@ What is worth naming, because it is *not* obvious from a folder name:
 - `src/platform/db/types.ts` — generated Supabase database types.
 - `supabase/schema.sql` — readable snapshot of the schema, **not** the source of truth and
   currently stale: it was last regenerated on 2026-08-09, before the late-fee split, the
-  dashboard analytics work and the pooled-settlement engines (`20260905090000`). Its own
+  dashboard analytics work and the pooled-settlement engines (`20260905064847`). Its own
   header lists the objects that have moved since. `supabase/migrations/` is authoritative;
   regenerate with `node scripts/generate-schema-snapshot.mjs` after the next `db push`.
 - `supabase/migrations/` — ordered migration history.

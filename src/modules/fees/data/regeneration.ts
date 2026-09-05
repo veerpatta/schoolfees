@@ -61,7 +61,7 @@ type InstallmentAdjustmentRow = {
 
 /**
  * What the engine says about a row today. Money settles the installments
- * oldest-first at read time (20260905090000), so the preview reads the
+ * oldest-first at read time (20260905064847), so the preview reads the
  * engine's figures rather than re-deriving them from the receipt pin.
  */
 type EngineBalanceRow = {
@@ -119,7 +119,7 @@ type RegenerationRowPlan = PlannedInstallment & {
     // The two reasons a row carrying money is still held for a person, since
     // money settles oldest-first at read time and a repriced row no longer
     // contradicts any receipt. Both are in
-    // ledger_regeneration_rows_reason_code_check as of 20260905090000.
+    // ledger_regeneration_rows_reason_code_check as of 20260905064847.
     | "in_repayment_plan"
     | "due_date_changed";
   reason_label: string;
@@ -583,7 +583,7 @@ async function loadPlan(): Promise<RegenerationPlan> {
         );
 
     // The policy's own split, exactly as the generator writes it. Money
-    // settles the installments oldest-first at read time (20260905090000), so
+    // settles the installments oldest-first at read time (20260905064847), so
     // a row carrying a payment is repriced like any other.
     setupData.globalPolicy.installmentSchedule.forEach((schedule, index) => {
       const plannedInstallment = {

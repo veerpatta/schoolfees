@@ -67,7 +67,7 @@ function constraintCodes(sql: string, constraintName: string) {
 
 /**
  * The NEWEST migration that (re)defines the constraint is the one that holds in
- * production. 20260814090000 widened both; 20260905090000 widened them again
+ * production. 20260814090000 widened both; 20260905064847 widened them again
  * for `due_date_changed` and `in_repayment_plan`.
  */
 function latestMigrationDefining(constraintName: string) {

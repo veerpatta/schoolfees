@@ -137,7 +137,7 @@ type WorkbookInstallmentBalanceRow = {
   pending_amount: number;
   final_late_fee: number;
   balance_status: string;
-  /** Pooled settlement, since 20260905090000. */
+  /** Pooled settlement, since 20260905064847. */
   settled_amount?: number | null;
   fee_settled_amount?: number | null;
   late_fee_pending?: number | null;
