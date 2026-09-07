@@ -34,6 +34,63 @@ export async function workbookResponse(filename: string, rows: Array<Record<stri
   });
 }
 
+/**
+ * Excel's rules for a tab name, which nothing in this repo handled until the
+ * collection lists needed 22 route names as sheets: 31 characters, none of
+ * `[]:*?/\`, not empty, and unique within the workbook. Breaking any of them
+ * makes Excel refuse to open the file at all.
+ */
+export function safeSheetName(label: string, used: Set<string>): string {
+  const cleaned = label.replace(/[[\]:*?/\\]/g, " ").replace(/\s+/g, " ").trim();
+  const base = (cleaned || "Sheet").slice(0, 31);
+
+  let name = base;
+  let counter = 2;
+  while (used.has(name.toLowerCase())) {
+    const suffix = ` (${counter})`;
+    name = `${base.slice(0, 31 - suffix.length)}${suffix}`;
+    counter += 1;
+  }
+
+  used.add(name.toLowerCase());
+  return name;
+}
+
+/**
+ * One workbook, one sheet per group.
+ *
+ * `workbookResponse` writes a single sheet called "Export", which is right for
+ * a flat list and wrong for a set of lists somebody is about to hand out one at
+ * a time. Same headers and same body shape, so both go through the identical
+ * download path.
+ */
+export async function groupedWorkbookResponse(
+  filename: string,
+  sheets: Array<{ name: string; rows: Array<Record<string, string | number>> }>,
+) {
+  const XLSX = await import("xlsx");
+  const workbook = XLSX.utils.book_new();
+  const used = new Set<string>();
+
+  for (const sheet of sheets) {
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(sheet.rows),
+      safeSheetName(sheet.name, used),
+    );
+  }
+
+  const data = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+  return new Response(new Uint8Array(data), {
+    headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${filename}"`,
+      "cache-control": "no-store",
+    },
+  });
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")

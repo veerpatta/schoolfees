@@ -56,6 +56,18 @@ students.
 
 Source: `src/modules/exports/data/ai-context-bundle.ts` (`aiContextBundleResponse`).
 
+## Grouped workbooks
+
+`workbookResponse` writes a single sheet called `Export`, which is right for a
+flat list and wrong for a set of lists somebody hands out one at a time.
+`groupedWorkbookResponse(filename, sheets)` writes one sheet per group, and
+`safeSheetName` enforces the rules Excel will otherwise refuse to open a file
+over: 31 characters, none of `[]:*?/\`, non-empty, unique. Both live in
+`src/modules/exports/data/responses.ts`.
+
+The first consumer is `/protected/reminders/lists/export` — the fee-collection
+lists, one tab per class or route. See `docs/modules/whatsapp-reminders.md`.
+
 ## File Quality Expectations
 
 - office-friendly filename pattern

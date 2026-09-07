@@ -63,6 +63,9 @@ type Props = {
    * the field still posts with the run.
    */
   holdoutControl: ReactNode;
+  /** Server-rendered links to the collection lists. A ReactNode, like
+   *  `holdoutControl`, so this route gains no client JavaScript for them. */
+  listActions: ReactNode;
   /**
    * The body the top family on the list will read, rendered on the server.
    *
@@ -236,6 +239,7 @@ export function RemindersWorkspace({
   notThisNotice,
   previewBody,
   holdoutControl,
+  listActions,
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
@@ -392,6 +396,11 @@ export function RemindersWorkspace({
       >
         <ReminderFilterFields idPrefix="" filters={filters} classOptions={audience.classOptions} />
       </form>
+
+      {/* Under the filter, because the list you want to hand out is the list you
+          just narrowed. `max-md:order-2` puts it with the phone's filter
+          disclosure rather than 40 screens below the cards. */}
+      <div className="max-md:order-2 max-md:-mt-2 print:hidden">{listActions}</div>
 
       {/* --------------------------------------------------------------- who is out */}
       {/* The rule first, then the count. "Why is this family not here" is the

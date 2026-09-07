@@ -8,6 +8,7 @@ import { OfficeNotice } from "@/ui/office/office-ui";
 import { RemindersWorkspace } from "@/modules/whatsapp/ui/reminders-workspace";
 import { DueTodayCard } from "@/modules/whatsapp/ui/due-today-card";
 import { HoldoutControl } from "@/modules/whatsapp/ui/holdout-control";
+import { CollectionListLinks } from "@/modules/whatsapp/ui/collection-list-links";
 import { campaignsDueOn } from "@/modules/whatsapp/domain/campaign-schedule";
 import {
   buildInstallmentCalendar,
@@ -19,10 +20,8 @@ import { createAdminClient } from "@/platform/supabase/admin";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
 import { isAisensyConfigured } from "@/modules/whatsapp/data/aisensy";
 import {
-  drainPendingFinancialRefresh,
   istToday,
   loadReminderAudience,
-  parseReminderFilters,
   resolveCurrentSessionLabel,
   type ReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
@@ -36,15 +35,14 @@ import {
   SITUATION_RULE,
   TEMPLATE_INSTALLMENTS,
 } from "@/modules/whatsapp/domain/campaigns";
-import { getFeePolicySummary } from "@/modules/fees/data/policy";
 import {
   listCampaigns,
   loadRanScheduleSlots,
   type SavedCampaign,
 } from "@/modules/whatsapp/data/campaign-store";
 import { describeLateFeeDrift } from "@/modules/whatsapp/domain/late-fee";
-import { loadLastUsedNoticeSettings } from "@/modules/whatsapp/data/reminder-settings";
-import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
+import { resolveReminderContext } from "@/modules/whatsapp/data/reminder-context";
+import { isoFromDdMmYyyy } from "@/platform/helpers/date";
 
 // The list is only ever as good as the ledger it was read from, and staff will
 // send money-bearing messages off it. Never serve it from a cache.
@@ -91,50 +89,16 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
 
   try {
     sessionLabel = await resolveCurrentSessionLabel(supabase);
-    // Free unless a fee change is actually queued, and it keeps the figure on
-    // screen equal to the one the send would re-derive.
-    await drainPendingFinancialRefresh(supabase);
-    // The same parser sendRemindersAction uses, so the audience this screen
-    // shows and the one the send rebuilds cannot disagree.
-    // The date slot is picked by the office, not derived — but it opens on
-    // something sensible. NOT `next_due_date`: carry-forward rows are dated
-    // 2026-04-01, before Installment 1, so that column reports the carry-forward
-    // line for every family still carrying one.
-    const policy = await getFeePolicySummary({ useAdmin: true }).catch(() => null);
-    const upcoming = (policy?.installmentSchedule ?? [])
-      .map((entry) => entry.dueDate)
-      .filter((due): due is string => Boolean(due) && due >= istToday())
-      .sort()[0];
-    // What the ledger really charges, so slot 7 opens agreeing with the receipt.
-    ledgerLateFee = Number(policy?.lateFeeFlatAmount ?? 0);
-    // What the office last put on a message wins over both defaults. They pick
-    // a settle-by date and a late fee and keep them for days; opening on the
-    // calendar's date every morning meant retyping both before every send.
-    const remembered = await loadLastUsedNoticeSettings(supabase, sessionLabel);
-    // The window is an audience setting like any other, so it is read off the
-    // query string BEFORE the calendar that depends on it. A cheap second parse
-    // rather than a calendar built on the wrong window.
-    const windowDays = parseReminderFilters(reader(params), sessionLabel).preDueWindowDays;
-    calendar = buildInstallmentCalendar({
-      schedule: policy?.installmentSchedule ?? [],
-      today: istToday(),
-      windowDays,
-    });
-    filters = parseReminderFilters(
-      reader(params),
-      sessionLabel,
-      remembered?.lastDate || formatDdMmYyyy(upcoming ?? null),
-      remembered?.lateFeeAmount ?? ledgerLateFee,
-      // The calendar's answer becomes the default installment set. An explicit
-      // choice in the URL still wins.
-      calendar.active,
-      remembered?.lateFeeBasis ?? null,
-    );
-    // The calendar is what `upcoming`, `upcoming_final` and `late_fee_applied`
-    // are derived from. Passing it is not optional in spirit: without it those
-    // three notices reach nobody and the installment default silently reverts to
-    // the hardcoded pair this whole phase replaced.
-    audience = await loadReminderAudience(supabase, filters, calendar);
+    // The drain, the policy read, the window-before-calendar parse and the
+    // filter parse all live in `resolveReminderContext` now, because the
+    // collection-lists screen and its export have to derive the SAME audience
+    // from the SAME query string. Two copies of this is how a teacher's sheet
+    // ends up naming families this screen never showed.
+    const context = await resolveReminderContext(supabase, sessionLabel, reader(params));
+    ledgerLateFee = context.ledgerLateFee;
+    calendar = context.calendar;
+    filters = context.filters;
+    audience = context.audience;
     // Cheap, and it lets the header say how many are saved without a second page.
     savedCampaigns = await listCampaigns(supabase, sessionLabel).catch(() => []);
     // Which scheduled slots have already gone out, so a campaign that ran this
@@ -313,6 +277,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           lateFeeWarning={lateFeeWarning}
           previewBody={previewBody}
           holdoutControl={<HoldoutControl />}
+          listActions={<CollectionListLinks filters={filters} />}
           situationRule={SITUATION_RULE[filters.situation]}
           notThisNotice={NOT_THIS_NOTICE[filters.situation]}
           savedCampaign={activeCampaign ? { id: activeCampaign.id, name: activeCampaign.name } : null}

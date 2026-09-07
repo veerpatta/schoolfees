@@ -30,6 +30,7 @@ const PAGE = "src/app/protected/reminders/page.tsx";
 const ACTIONS = "src/app/protected/reminders/actions.ts";
 const CAMPAIGNS = "src/modules/whatsapp/domain/campaigns.ts";
 const PICKER = "src/modules/whatsapp/ui/notice-picker.tsx";
+const CONTEXT = "src/modules/whatsapp/data/reminder-context.ts";
 
 describe("WhatsApp reminders on a phone", () => {
   it("clears the tab bar, because /protected/reminders is NOT a takeover", () => {
@@ -165,13 +166,24 @@ describe("WhatsApp reminders on a phone", () => {
     //
     // That is not hypothetical: the wiring was lost once to a stray
     // `git checkout` and committed green. This is the guard.
-    const source = read(PAGE);
+    //
+    // The wiring moved into `resolveReminderContext` when the collection lists
+    // arrived, because the send screen, the lists screen and the lists export
+    // all have to derive the SAME audience from the same query string. So this
+    // now guards ONE place on behalf of three callers, which is stronger than
+    // it was — but only while the page really does go through it.
+    const context = read(CONTEXT);
 
-    expect(source).toContain("buildInstallmentCalendar");
-    expect(source).toMatch(/loadReminderAudience\(\s*supabase,\s*filters,\s*calendar\s*\)/);
+    expect(context).toContain("buildInstallmentCalendar");
+    expect(context).toMatch(/loadReminderAudience\(\s*supabase,\s*filters,\s*calendar\s*\)/);
     // The calendar's active set must reach the parser, or the installment
     // default is still a constant.
-    expect(source).toContain("calendar.active");
+    expect(context).toContain("calendar.active");
+    // The window is parsed BEFORE the calendar that depends on it.
+    expect(context).toContain("preDueWindowDays");
+
+    const source = read(PAGE);
+    expect(source).toContain("resolveReminderContext");
     // And the banner must ask the per-notice rule rather than comparing dates,
     // or `late_fee_applied` is greyed out on the one screen it belongs on.
     expect(source).toContain("describeDateGuard");

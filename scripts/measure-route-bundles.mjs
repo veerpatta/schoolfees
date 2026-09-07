@@ -16,6 +16,11 @@ const routes = [
   // Added when Receipts grew a real filter sheet — until then it was a search
   // box, and the only route in the daily set with no ceiling over it.
   "receipts",
+  // The collection lists. Gated from the day it shipped: every download button,
+  // the share sheet and the copy button were pushed onto this route precisely
+  // so /protected/reminders would not have to carry them, and an ungated route
+  // is where they would quietly pile up instead.
+  "reminders/lists",
 ];
 
 async function measure(route) {

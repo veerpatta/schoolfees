@@ -5,7 +5,7 @@ Fee reminders and the message templates behind them.
 | | |
 |---|---|
 | Route | /protected/reminders (+ campaigns, runs) · /protected/admin-tools/whatsapp-templates |
-| Files | 16 domain · 8 data · 11 ui |
+| Files | 18 domain · 9 data · 13 ui |
 
 ## Owns
 
@@ -14,9 +14,13 @@ Fee reminders and the message templates behind them.
 - The AiSensy send path
 - The fee calendar's read of who is due a reminder today (`domain/installment-calendar.ts`)
 - Grouping the audience into families, one message per phone (`domain/family-grouping.ts`)
+- Turning the same audience into paper a teacher can carry (`domain/collection-list.ts`)
 
 ## Invariants
 
+- **One audience resolution, three callers.** `data/reminder-context.ts` is the only place the drain, the policy read and the filter parse happen. The send screen, the collection lists and the lists export all go through it, because two copies of this feature's parsing have already disagreed in production.
+- **The collection lists are per STUDENT.** Family grouping is for messages; a class teacher collects from children, and siblings sit in different classes.
+- **The send screen gains no client JavaScript.** `/protected/reminders` has ~800 gzip bytes of headroom; every download, share and copy control lives on `/protected/reminders/lists`.
 - Cadence decides who is due a reminder. It exists so staff stop unticking the same families by hand every day.
 - **The calendar decides the installments, not a constant.** `TEMPLATE_INSTALLMENTS` is the last-resort fallback for a session with no readable schedule; the default comes from `buildInstallmentCalendar` and is resolved once, in `parseReminderFilters`, so the filter and the slot {{4}} phrase cannot disagree.
 - **A late fee is read, never derived.** `late_fee_applied` quotes `v_workbook_installment_balances.late_fee_pending`. The view is the only thing that knows about waivers and the accrual rule at once — recomputing it in TypeScript is the trap `waive_late_fee` fell into from the other side.

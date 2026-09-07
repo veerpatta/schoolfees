@@ -701,3 +701,81 @@ describe("reminder audience — promises", () => {
     expect(audience.candidates.map((c) => c.studentId)).toEqual(["moved-on"]);
   });
 });
+
+/**
+ * The unreachable list feeds two screens that want different breadths.
+ *
+ * `/protected/reminders/unreachable` wants EVERY family with no usable number:
+ * a family with no phone is unreachable whichever notice is selected, and that
+ * page exists to get the record fixed. The collection lists want only the ones
+ * the current notice is actually about.
+ *
+ * `matchesNotice` is how one array serves both. If it were ever implemented by
+ * moving the push later in the loop, the unreachable page would silently shrink
+ * — which is exactly what these tests exist to catch.
+ */
+describe("unreachable families", () => {
+  const noPhone = (id: string, overrides: Record<string, unknown> = {}) =>
+    student(id, { father_phone: null, mother_phone: null, ...overrides });
+
+  it("lists a family with no number even when this notice is not about them", async () => {
+    const audience = await load({
+      // Nothing pending on installments 1 and 2, so `fee_due` is not about them.
+      financials: [noPhone("clear", { inst1_pending: 0, inst2_pending: 0 })],
+    });
+
+    expect(audience.unreachable.map((f) => f.studentId)).toEqual(["clear"]);
+    expect(audience.unreachable[0]!.matchesNotice).toBe(false);
+  });
+
+  it("flags one the notice IS about, so the collection list can pick it up", async () => {
+    const audience = await load({ financials: [noPhone("owing")] });
+
+    expect(audience.unreachable[0]!.matchesNotice).toBe(true);
+  });
+
+  it("does not count an unreachable family towards the notice chips", async () => {
+    // The counts are what the picker shows as reachable per notice. A family we
+    // cannot message must not inflate them.
+    const audience = await load({ financials: [noPhone("owing")] });
+
+    expect(audience.counts.fee_due).toBe(0);
+  });
+
+  it("keeps an unreachable family out of candidates, paused and every skip count", async () => {
+    const audience = await load({
+      financials: [noPhone("owing")],
+      flags: [{ student_id: "owing", whatsapp_cadence: "never", whatsapp_snoozed_until: null }],
+    });
+
+    expect(audience.candidates).toHaveLength(0);
+    // Held back by a cadence is a decision about MESSAGING. A family we cannot
+    // message at all is reported as unreachable, not as paused.
+    expect(audience.paused).toHaveLength(0);
+    expect(audience.skipped.whatsappNever).toBe(0);
+    expect(audience.skipped.noPhoneOnRecord).toBe(1);
+  });
+
+  it("carries the number on record, so the office can see what to fix", async () => {
+    const audience = await load({
+      financials: [noPhone("landline", { father_phone: "01482222333" })],
+    });
+
+    // A number that exists but is not a usable mobile is `phoneUnusable`, not
+    // `noPhoneOnRecord`, and does not reach the unreachable list at all.
+    expect(audience.skipped.phoneUnusable).toBe(1);
+    expect(audience.unreachable).toHaveLength(0);
+  });
+
+  it("respects the class filter when deciding whether the notice is about them", async () => {
+    const audience = await load(
+      { financials: [noPhone("owing")] },
+      { classId: "another-class" },
+    );
+
+    // Still on the list — they have no number whatever class is picked — but
+    // not on a sheet for a class they are not in.
+    expect(audience.unreachable).toHaveLength(1);
+    expect(audience.unreachable[0]!.matchesNotice).toBe(false);
+  });
+});

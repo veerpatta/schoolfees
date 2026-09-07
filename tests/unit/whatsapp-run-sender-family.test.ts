@@ -59,6 +59,8 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
     parentName: "Ramesh Lal Gurjar",
     studentClass: "Class 2",
     classId: null,
+    classSortOrder: 5,
+    transportRoute: null,
     destination: "+917976199548",
     usedMotherPhone: false,
     dueAmount: 13250,

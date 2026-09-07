@@ -12,6 +12,7 @@ Three screens:
 | `/protected/reminders` | Send. The audience, the notice, the late fee, the list. |
 | `/protected/reminders/campaigns` | Saved settings you can apply again, and what each has collected. |
 | `/protected/reminders/runs/[runId]` | One press of Send: who it reached, and what came in after. |
+| `/protected/reminders/lists` | The same audience as paper: grouped by class, route or amount, ready to hand out. |
 
 There are **seven notices in two languages, and all fourteen templates are
 approved and Live**. Six `_v2` since 22 Aug — fee due (nothing received),
@@ -91,6 +92,15 @@ fee balance on it.
 | `docs/modules/whatsapp-campaign-registry.md` | **Ground truth** for the six campaign names, slot orders and bodies |
 | `tests/unit/whatsapp-campaigns.test.ts` | Slot counts and order per campaign, no rupee glyph in a slot |
 | `tests/ui/whatsapp-reminders-screen.test.ts` | Takeover clearance, one form, the name-less checkbox, client boundary, notice/language/date round-trip |
+| `src/modules/whatsapp/data/reminder-context.ts` | **One audience resolution** for the send screen, the lists screen and the lists export. `server-only` |
+| `src/modules/whatsapp/domain/collection-list.ts` | The audience reshaped for a person: statuses, amount bands, grouping, the pasteable text. Pure |
+| `src/modules/whatsapp/domain/collection-list-pdf.tsx` | The printable list. One page per class or route |
+| `src/modules/whatsapp/ui/collection-list-links.tsx` | The three links on the send screen. A SERVER component — see the byte rule below |
+| `src/modules/whatsapp/ui/collection-list-actions.tsx` | Share and Copy on the lists screen. Client, and only on that route |
+| `src/app/protected/reminders/lists/{page,loading}.tsx` | The grouped screen |
+| `src/app/protected/reminders/lists/export/route.ts` | `?format=xlsx\|pdf`, `?groupBy=`, `?scope=` |
+| `tests/unit/whatsapp-collection-list.test.ts` | Bands, grouping order, statuses, the identical-key-set rule |
+| `tests/ui/reminders-collection-lists.test.ts` | The byte rule, the filter round-trip, the share sequence |
 
 ## Design decisions — preserve these unless asked
 
@@ -192,6 +202,137 @@ fee balance on it.
   call anywhere in `sendTestReminderAction`, and that absence is the guarantee.
   Logging a test would claim that student's day and silently drop them from the
   real send.
+
+## Circulating the list — `/protected/reminders/lists`
+
+The eligibility filter answers the hardest question in fee collection: *which
+families owe money right now*. Until 2026-09-07 there was exactly one thing you
+could do with the answer — send a WhatsApp message. This screen is the other
+thing: hand a class teacher their class, a route in-charge their bus, or work
+the biggest balances first.
+
+Three formats off the same list: a **multi-sheet XLSX** (one tab per group, plus
+an "All" tab), a **PDF** (one page per group, letterhead, blank *Collected* and
+*Signature* columns), and **pasteable text** for a staff WhatsApp group. On a
+phone, **Share** pushes the group's PDF straight into a teacher's WhatsApp.
+
+### Why it is a separate route, and not a button on the send screen
+
+`/protected/reminders` has **~800 gzip bytes of headroom** in
+`quality/route-bundle-baseline.json`, and that file's standing rule is that
+ceilings ratchet down. Every part of downloading is a client component —
+`DownloadAnchor`, the share sheet, the copy button — so all of it lives on
+`/protected/reminders/lists`, which carries its own ceiling from the day it
+shipped.
+
+What the send screen gets is **one server-rendered `ReactNode` of links**,
+passed in exactly the way `holdoutControl` already is. Measured cost: **98 gzip
+bytes** (135495 → 135593). `tests/ui/reminders-collection-lists.test.ts` pins
+this — no `"use client"` in `collection-list-links.tsx`, and no download route
+named anywhere in the send screen's own files.
+
+### Per student, never per family
+
+`domain/family-grouping.ts` exists because one phone should get one message. A
+class teacher collects from **children**, and three children of one family sit
+in three different classes. Grouping by phone here would put a child on another
+class's sheet, and the office would go looking for them in the wrong room.
+
+### Everybody the filter found is on the list
+
+Fee collection is not WhatsApp. A family paused by a snooze, already messaged
+today, or with no usable number **still owes the money**, so they are on the
+sheet with a status against them rather than quietly missing from it. Measured
+live on 2026-09-07, `fee_due` grouped by class: 84 to collect, 19 with no
+number, 10 snoozed, 1 messaged recently — 114 across 18 lists, ₹13,61,625.
+
+A family who has **paid** is simply absent, because the ledger is applied first.
+That distinction is the whole design: absent means settled, marked means held
+back.
+
+### `matchesNotice`, and the screen it must not break
+
+`audience.unreachable` is deliberately broader than this list: a family with no
+number is unreachable **whichever notice is selected**, and
+`/protected/reminders/unreachable` exists to get the record fixed. So the array
+keeps everybody and each row carries `matchesNotice` — true when the row would
+also have survived the notice, the minimum and the class filter.
+
+The flag is computed **at the existing push site**, where `qualifies` and
+`dueAmount` are already in scope. Moving the push later in the loop would have
+worked and would have silently shrunk the unreachable page; six tests in
+`tests/unit/whatsapp-reminder-audience.test.ts` exist to catch exactly that,
+including that an unreachable family never lands in `candidates`, in `paused`,
+or in the notice chip counts.
+
+### One audience resolution, three callers
+
+`data/reminder-context.ts` holds the drain, the policy read, the
+window-before-calendar parse and the filter parse. The send screen, the lists
+screen and the lists export all go through it.
+
+This is not tidiness. This feature has already shipped two copies of a filter
+parse that disagreed — the action once hardcoded `1100 / [1,2] / 1` instead of
+reading the constants — and two copies of a slot mapping that quoted different
+values in the preview and the send. A third and fourth copy, in a screen and a
+download, is how a teacher's sheet ends up naming families the send screen never
+showed.
+
+The export **re-derives** its audience from the query string and never accepts a
+list of students from the browser. A family who paid since the page loaded must
+not appear on a sheet somebody is about to hand out, and the audience is never
+stored anywhere in this feature by rule.
+
+### Grouping
+
+| `?groupBy=` | Order | Note |
+|---|---|---|
+| `class` | The school's own `sort_order` | Nursery, JKG, SKG, 1–10, then the four streams. Alphabetical opens on "11 Arts". |
+| `route` | Alphabetical, **"No route (walk-in)" last** | 304 of 510 students have a route; the other 206 must not lead the page. |
+| `amount` | Largest band first | This grouping exists to answer "who do we chase first". |
+
+Route names come from `v_workbook_student_financials`, which already carried
+`transport_route_name` — three more columns on a select that was running anyway,
+no join and no migration.
+
+The bands were **measured, not guessed**. Live 2026-27 on 2026-09-07: `≤5k`→53,
+`5–10k`→71, `10–20k`→176, `20–30k`→133, `>30k`→46, against a maximum of ₹47,600
+and a mean owed of ₹17,129. The obvious bands (2k/5k/10k/20k) put 70% of the
+school in two buckets.
+
+### Two things that would break a downloaded file
+
+- **Excel refuses to open a workbook with a bad tab name.** 31 characters, none
+  of `[]:*?/\`, non-empty, unique. Nothing in this repo handled that until 22
+  route names became 22 sheets — `safeSheetName` in
+  `modules/exports/data/responses.ts` does, and `Amet College Road (Colony
+  Inside)` is the live row that proves it, truncated to exactly 31.
+- **`json_to_sheet` takes its headers from the first row's keys only.** A row
+  with fewer keys silently drops columns from the whole sheet, so `toExportRow`
+  returns the identical key set for every status and a test asserts it.
+
+Amounts leave as **numbers**, not formatted strings: a spreadsheet that cannot
+sum its own money column is a screenshot with extra steps.
+
+### Sharing on a phone is two presses
+
+The first press fetches the PDF and the button becomes **Send**; the second
+calls `navigator.share`. Fetching inside the sharing click consumes the
+transient user activation mobile browsers — iOS Safari especially — require, and
+the share is then rejected with "could not share". `document-share-sheet.tsx`
+learned this and solves it by fetching when its sheet opens; a bare button has
+no "open", so the first press is the open.
+
+That sheet is **not** reused: it is built around sending a document to a parent
+and takes their numbers to choose between. A teacher is picked from the
+operating system's own share sheet, so there is no number for us to offer.
+
+### Permissions
+
+`settings:view`, the same gate as the four reminders screens — deliberately not
+`settings:write`. Only an admin may **send**; an accountant, a teacher or a fee
+collector may certainly **print the list they are being asked to collect
+against**.
 
 ## Cadence — how often one family hears from us
 

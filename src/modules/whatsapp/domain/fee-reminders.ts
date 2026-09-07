@@ -220,6 +220,10 @@ export type ReminderCandidate = {
   parentName: string;
   studentClass: string;
   classId: string | null;
+  /** The class's place in the school's own order, for grouping. */
+  classSortOrder: number;
+  /** Route name, for the route-wise collection list. Null when they walk in. */
+  transportRoute: string | null;
   destination: string;
   /** True when the father's number was missing and the mother's was used. */
   usedMotherPhone: boolean;
@@ -309,6 +313,13 @@ export type PausedFamily = {
   admissionNo: string;
   studentName: string;
   studentClass: string;
+  classSortOrder: number;
+  /** The three below are carried for the collection lists, which put a paused
+   * family on a teacher's sheet: they are held back from a MESSAGE, not from
+   * owing the money. */
+  transportRoute: string | null;
+  parentName: string;
+  destination: string | null;
   reason: "never" | "snoozed" | "too_soon" | "promise_open";
   cadence: ReminderCadence;
   /** When they come back, for `snoozed` and `too_soon`. */
@@ -334,6 +345,24 @@ export type ReminderAudience = {
     admissionNo: string;
     studentName: string;
     studentClass: string;
+    classSortOrder: number;
+    transportRoute: string | null;
+    parentName: string;
+    /**
+     * The number ON RECORD, unusable or absent. `/reminders/unreachable` exists
+     * to get this fixed, and the office needs to see what is currently there.
+     */
+    phoneOnRecord: string | null;
+    dueAmount: number;
+    /**
+     * True when this family would ALSO have survived the notice, the minimum and
+     * the class filter — i.e. they belong on this collection list.
+     *
+     * The array itself is deliberately broader: a family with no number is
+     * unreachable whichever notice is selected, and `/reminders/unreachable`
+     * reads all of them. Only the collection lists filter on this flag.
+     */
+    matchesNotice: boolean;
   }>;
   /** Held back by a cadence or a snooze — reversible, so shown and undoable. */
   paused: PausedFamily[];
@@ -355,6 +384,13 @@ const SELECT_COLUMNS = [
   "mother_phone",
   "class_id",
   "class_label",
+  // The school's own class order — Nursery, JKG, SKG, 1..10, then the four
+  // streams. Alphabetical would open a classwise list on "11 Arts".
+  "sort_order",
+  // Route grouping on the collection lists. Already on the matview, so this is
+  // two more columns on a select that was running anyway — no join, no migration.
+  "transport_route_name",
+  "transport_route_code",
   "record_status",
   "total_paid",
   "inst1_pending",
@@ -372,6 +408,9 @@ type FinancialRow = {
   mother_phone: string | null;
   class_id: string | null;
   class_label: string | null;
+  sort_order: number | null;
+  transport_route_name: string | null;
+  transport_route_code: string | null;
   record_status: string | null;
   total_paid: number | null;
   inst1_pending: number | null;
@@ -654,6 +693,9 @@ export async function loadReminderAudience(
     }
 
     const studentClass = row.class_label ?? "";
+    const transportRoute = row.transport_route_name?.trim() || null;
+    const classSortOrder = Number(row.sort_order ?? 0);
+    const parentName = titleCase(row.father_name) || "अभिभावक";
     const fatherDestination = toWhatsappDestination(row.father_phone);
     const motherDestination = toWhatsappDestination(row.mother_phone);
     const destination = fatherDestination ?? motherDestination;
@@ -668,6 +710,19 @@ export async function loadReminderAudience(
           admissionNo,
           studentName: titleCase(row.student_name),
           studentClass,
+          classSortOrder,
+          transportRoute,
+          parentName,
+          phoneOnRecord: row.father_phone ?? row.mother_phone ?? null,
+          dueAmount,
+          // Everything this needs is already in scope — `qualifies` and
+          // `dueAmount` are computed above the phone check — so the flag costs
+          // nothing and, critically, changes nothing about who lands in the
+          // array. `/reminders/unreachable` still reads all of them.
+          matchesNotice:
+            qualifies[filters.situation] &&
+            dueAmount >= filters.minDueAmount &&
+            (!filters.classId || row.class_id === filters.classId),
         });
       } else {
         skipped.phoneUnusable += 1;
@@ -718,6 +773,10 @@ export async function loadReminderAudience(
         admissionNo,
         studentName: titleCase(row.student_name),
         studentClass,
+        classSortOrder,
+        transportRoute,
+        parentName,
+        destination,
         reason,
         cadence,
         returnsOn,
@@ -763,9 +822,11 @@ export async function loadReminderAudience(
       studentId: row.student_id,
       admissionNo,
       studentName: titleCase(row.student_name),
-      parentName: titleCase(row.father_name) || "अभिभावक",
+      parentName,
       studentClass,
       classId: row.class_id,
+      classSortOrder,
+      transportRoute,
       destination,
       usedMotherPhone: !fatherDestination,
       dueAmount,
