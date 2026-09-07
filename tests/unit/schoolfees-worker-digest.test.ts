@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 /**
  * Behaviour tests for the MCP Worker, driven through its real transport with a
@@ -455,6 +455,20 @@ async function callTool(name: string, args: Record<string, unknown>, id = 1) {
   }
   return body.result.structuredContent;
 }
+
+/**
+ * Warm the Worker import once, generously.
+ *
+ * `loadWorker()` is a real module evaluation of a separate Cloudflare bundle,
+ * not a unit-test-sized operation: about a second on its own, and past vitest's
+ * 5s default under a loaded runner where it competes with every other suite's
+ * transform. Eight tests call it and the module cache means only the FIRST pays
+ * — so whichever test ran first would time out while the other seven passed,
+ * which is what it did twice in CI on pushes that changed nothing near it.
+ */
+beforeAll(async () => {
+  await loadWorker();
+}, 30_000);
 
 afterEach(() => {
   vi.restoreAllMocks();

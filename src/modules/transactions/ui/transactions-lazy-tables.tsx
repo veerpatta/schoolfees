@@ -27,7 +27,7 @@ import { ValueStatePill } from "@/ui/office/office-ui";
 import { BulkRowCheckbox } from "@/modules/defaulters/ui/bulk-whatsapp-provider";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatShortDate } from "@/platform/helpers/date";
-import { buildTransportRouteLabel } from "@/modules/fees/domain/label";
+import { buildTransportRouteLabel, hasTransport } from "@/modules/fees/domain/label";
 import { appendSessionParam } from "@/platform/navigation/session-href";
 import type { OfficeWorkbookStudentRow } from "@/modules/transactions/data/dues";
 import { cn } from "@/platform/utils";
@@ -916,8 +916,21 @@ export function ClassRegisterTable({
                     <ValueStatePill tone={getStatusTone(row.statusLabel)} className="normal-case tracking-normal">
                       {row.duesStatus === "missing_dues" ? "Dues not prepared" : row.statusLabel || "-"}
                     </ValueStatePill>
-                    {row.transportRouteName && (
-                      <span className="text-[11px] text-muted-foreground">{row.transportRouteName}</span>
+                    {/* The desk table beside this one has always used the
+                        helper; the phone card printed the raw name, so a
+                        student charged through an override showed no transport
+                        at all here and a placeholder-route student showed "No
+                        Transport" as though it were a route. */}
+                    {hasTransport({
+                      routeName: row.transportRouteName,
+                      transportFeeAmount: row.transportFee,
+                    }) && (
+                      <span className="text-[11px] text-muted-foreground">
+                        {buildTransportRouteLabel({
+                          routeName: row.transportRouteName,
+                          transportFeeAmount: row.transportFee,
+                        })}
+                      </span>
                     )}
                   </div>
                 }

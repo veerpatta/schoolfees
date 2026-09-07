@@ -4,6 +4,10 @@ import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
 import { bulkUpdateStudentsAction } from "@/app/protected/students/actions";
+import {
+  isSentinelNoTransportRoute,
+  NO_TRANSPORT_LABEL,
+} from "@/modules/fees/domain/transport-route-key";
 import { Button } from "@/ui/primitives/button";
 import { Label } from "@/ui/primitives/label";
 import { Sheet } from "@/ui/primitives/sheet";
@@ -162,9 +166,18 @@ export function BulkStudentEditBar({
             >
               <option value="">Don&apos;t change route</option>
               <option value="__clear__">Clear transport route</option>
+              {/* The "No Transport" row is a ₹0 placeholder, not a route, and
+                  unmarked it looks identical to a real one in this list — so a
+                  bulk assign could put a whole selection onto a route that
+                  means "no route". The student form has said so since the
+                  override work; this picker had not caught up. */}
               {routeOptions.map((route) => (
                 <option key={route.id} value={route.id}>
-                  {route.routeCode ? `${route.label} (${route.routeCode})` : route.label}
+                  {isSentinelNoTransportRoute(route.label)
+                    ? `${route.label} — placeholder, same as "${NO_TRANSPORT_LABEL}"`
+                    : route.routeCode
+                      ? `${route.label} (${route.routeCode})`
+                      : route.label}
                 </option>
               ))}
             </select>

@@ -15,3 +15,24 @@ export const CUSTOM_TRANSPORT_ROUTE_KEY = "custom";
 
 /** The label for that bucket wherever routes are rolled up or filtered. */
 export const CUSTOM_TRANSPORT_BUCKET_LABEL = "Custom amount (no route)";
+
+/**
+ * A `transport_routes` row named this is a placeholder meaning "not on
+ * transport", not a real route. Compared case-insensitively and trimmed.
+ */
+export const SENTINEL_NO_TRANSPORT_ROUTE_NAME = "no transport";
+
+/** Shown when the student genuinely has no transport and is charged nothing. */
+export const NO_TRANSPORT_LABEL = "No transport";
+
+/**
+ * True when this route row is the placeholder rather than a real route.
+ *
+ * Lives here rather than in `label.ts` for the reason this module exists: every
+ * route PICKER needs it, and `label.ts` pulls in the currency formatter that
+ * those client components cannot afford. `label.ts` re-exports it, so no
+ * existing import path changes.
+ */
+export function isSentinelNoTransportRoute(routeName: string | null | undefined): boolean {
+  return (routeName ?? "").trim().toLowerCase() === SENTINEL_NO_TRANSPORT_ROUTE_NAME;
+}

@@ -222,8 +222,14 @@ export type ReminderCandidate = {
   classId: string | null;
   /** The class's place in the school's own order, for grouping. */
   classSortOrder: number;
-  /** Route name, for the route-wise collection list. Null when they walk in. */
+  /**
+   * Route name as recorded. Null covers TWO different families — one that walks
+   * to school, and one charged a custom amount with no route — so never read it
+   * alone. `transportFeeAmount` is what separates them.
+   */
   transportRoute: string | null;
+  /** What this student is charged for transport, however it was arranged. */
+  transportFeeAmount: number;
   destination: string;
   /** True when the father's number was missing and the mother's was used. */
   usedMotherPhone: boolean;
@@ -314,6 +320,7 @@ export type PausedFamily = {
   studentName: string;
   studentClass: string;
   classSortOrder: number;
+  transportFeeAmount: number;
   /** The three below are carried for the collection lists, which put a paused
    * family on a teacher's sheet: they are held back from a MESSAGE, not from
    * owing the money. */
@@ -347,6 +354,7 @@ export type ReminderAudience = {
     studentClass: string;
     classSortOrder: number;
     transportRoute: string | null;
+    transportFeeAmount: number;
     parentName: string;
     /**
      * The number ON RECORD, unusable or absent. `/reminders/unreachable` exists
@@ -387,10 +395,14 @@ const SELECT_COLUMNS = [
   // The school's own class order — Nursery, JKG, SKG, 1..10, then the four
   // streams. Alphabetical would open a classwise list on "11 Arts".
   "sort_order",
-  // Route grouping on the collection lists. Already on the matview, so this is
-  // two more columns on a select that was running anyway — no join, no migration.
+  // Route grouping on the collection lists. Already on the matview, so these
+  // are three more columns on a select that was running anyway — no join, no
+  // migration. `transport_fee` is not decoration: a student charged through
+  // `student_fee_overrides.custom_transport_fee_amount` has NO route, so the
+  // name alone cannot tell "walks to school" from "pays Rs 14,000 a year".
   "transport_route_name",
   "transport_route_code",
+  "transport_fee",
   "record_status",
   "total_paid",
   "inst1_pending",
@@ -411,6 +423,7 @@ type FinancialRow = {
   sort_order: number | null;
   transport_route_name: string | null;
   transport_route_code: string | null;
+  transport_fee: number | null;
   record_status: string | null;
   total_paid: number | null;
   inst1_pending: number | null;
@@ -694,6 +707,7 @@ export async function loadReminderAudience(
 
     const studentClass = row.class_label ?? "";
     const transportRoute = row.transport_route_name?.trim() || null;
+    const transportFeeAmount = Number(row.transport_fee ?? 0);
     const classSortOrder = Number(row.sort_order ?? 0);
     const parentName = titleCase(row.father_name) || "अभिभावक";
     const fatherDestination = toWhatsappDestination(row.father_phone);
@@ -712,6 +726,7 @@ export async function loadReminderAudience(
           studentClass,
           classSortOrder,
           transportRoute,
+          transportFeeAmount,
           parentName,
           phoneOnRecord: row.father_phone ?? row.mother_phone ?? null,
           dueAmount,
@@ -775,6 +790,7 @@ export async function loadReminderAudience(
         studentClass,
         classSortOrder,
         transportRoute,
+        transportFeeAmount,
         parentName,
         destination,
         reason,
@@ -827,6 +843,7 @@ export async function loadReminderAudience(
       classId: row.class_id,
       classSortOrder,
       transportRoute,
+      transportFeeAmount,
       destination,
       usedMotherPhone: !fatherDestination,
       dueAmount,

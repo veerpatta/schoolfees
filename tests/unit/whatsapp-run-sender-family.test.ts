@@ -61,6 +61,7 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
     classId: null,
     classSortOrder: 5,
     transportRoute: null,
+    transportFeeAmount: 0,
     destination: "+917976199548",
     usedMotherPhone: false,
     dueAmount: 13250,

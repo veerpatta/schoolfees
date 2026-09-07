@@ -26,6 +26,7 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
     classId: "c2",
     classSortOrder: 5,
     transportRoute: "Route A",
+    transportFeeAmount: 14000,
     destination: "+917976199548",
     usedMotherPhone: false,
     dueAmount: 13250,
@@ -56,6 +57,7 @@ function paused(overrides: Partial<PausedFamily> = {}): PausedFamily {
     studentClass: "Class 5",
     classSortOrder: 8,
     transportRoute: null,
+    transportFeeAmount: 0,
     parentName: "Suresh Sharma",
     destination: "+919999999999",
     reason: "snoozed",
@@ -185,6 +187,7 @@ describe("buildCollectionRows", () => {
       studentClass: "Class 1",
       classSortOrder: 4,
       transportRoute: null,
+      transportFeeAmount: 0,
       parentName: "Mahesh Meena",
       phoneOnRecord: "12345",
       dueAmount: 5000,
@@ -223,13 +226,16 @@ describe("groupCollectionRows", () => {
     ]);
   });
 
-  it("puts the no-route bucket last", () => {
-    // 206 of 510 students have no route. Sorted naively it leads the page, and
-    // a route in-charge is handed everybody who does not use the bus.
+  it("puts the no-transport bucket last", () => {
+    // Around 200 of 510 students are on no transport. Sorted naively that
+    // bucket leads the page, and a route in-charge opens on everybody who does
+    // not use the bus.
     const rows = buildCollectionRows(
       audience({
         candidates: [
-          candidate({ studentId: "a", transportRoute: null }),
+          // transportFeeAmount 0 — a genuine walker. With a charge they would
+          // belong in the custom bucket, which is a different test.
+          candidate({ studentId: "a", transportRoute: null, transportFeeAmount: 0 }),
           candidate({ studentId: "b", transportRoute: "Zzz Village" }),
           candidate({ studentId: "c", transportRoute: "Aaa Colony" }),
         ],
@@ -238,7 +244,82 @@ describe("groupCollectionRows", () => {
 
     const labels = groupCollectionRows(rows, "route").map((group) => group.label);
     expect(labels[0]).toBe("Aaa Colony");
-    expect(labels.at(-1)).toContain("No route");
+    expect(labels.at(-1)).toBe("No transport");
+  });
+
+  it("gives a custom-transport student their own bucket, not the walkers'", () => {
+    // The bug this exists to kill. 3 live students are charged transport
+    // through student_fee_overrides with NO route — Rs 29,500 a year between
+    // them — and they were filed under "No route (walk-in)", so a route
+    // in-charge was never handed their names.
+    const rows = buildCollectionRows(
+      audience({
+        candidates: [
+          candidate({ studentId: "a", transportRoute: null, transportFeeAmount: 14000 }),
+          candidate({ studentId: "b", transportRoute: null, transportFeeAmount: 0 }),
+        ],
+      }),
+    );
+
+    const groups = groupCollectionRows(rows, "route");
+    const custom = groups.find((group) => group.label === "Custom amount (no route)");
+
+    expect(custom).toBeDefined();
+    expect(custom!.rows.map((row) => row.studentId)).toEqual(["a"]);
+    // And the one genuinely not on transport is somewhere else entirely.
+    expect(custom!.rows.some((row) => row.studentId === "b")).toBe(false);
+  });
+
+  it("does not treat the 'No Transport' placeholder route as a route", () => {
+    // 8 live students sit on a real transport_routes row literally NAMED
+    // "No Transport", seeded at Rs 0. Grouped naively that produced a route
+    // sheet headed "No Transport" beside a separate "No route" sheet: two
+    // buckets meaning the same thing.
+    const rows = buildCollectionRows(
+      audience({
+        candidates: [
+          candidate({ studentId: "a", transportRoute: "No Transport", transportFeeAmount: 0 }),
+          candidate({ studentId: "b", transportRoute: null, transportFeeAmount: 0 }),
+        ],
+      }),
+    );
+
+    const labels = groupCollectionRows(rows, "route").map((group) => group.label);
+
+    expect(labels).toEqual(["No transport"]);
+    expect(labels).not.toContain("No Transport");
+  });
+
+  it("still bills a sentinel-route student who carries a custom amount", () => {
+    // The nastiest shape: on the placeholder route AND charged an override.
+    // Reading either field alone gets this student wrong.
+    const rows = buildCollectionRows(
+      audience({
+        candidates: [
+          candidate({ studentId: "a", transportRoute: "No Transport", transportFeeAmount: 9500 }),
+        ],
+      }),
+    );
+
+    expect(groupCollectionRows(rows, "route")[0]!.label).toBe("Custom amount (no route)");
+  });
+
+  it("sorts real routes first, then custom amounts, then the walkers", () => {
+    const rows = buildCollectionRows(
+      audience({
+        candidates: [
+          candidate({ studentId: "a", transportRoute: null, transportFeeAmount: 0 }),
+          candidate({ studentId: "b", transportRoute: null, transportFeeAmount: 12000 }),
+          candidate({ studentId: "c", transportRoute: "Amet Bus", transportFeeAmount: 14000 }),
+        ],
+      }),
+    );
+
+    expect(groupCollectionRows(rows, "route").map((group) => group.label)).toEqual([
+      "Amet Bus",
+      "Custom amount (no route)",
+      "No transport",
+    ]);
   });
 
   it("orders amount bands largest first", () => {
@@ -328,6 +409,7 @@ describe("toExportRow", () => {
             studentClass: "Class 1",
             classSortOrder: 4,
             transportRoute: null,
+            transportFeeAmount: 0,
             parentName: "Mahesh Meena",
             phoneOnRecord: null,
             dueAmount: 5000,

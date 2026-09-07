@@ -20,6 +20,12 @@
  *   rows, and they must not be able to disagree.
  */
 import { formatRupeesPlain } from "@/platform/helpers/currency";
+import {
+  buildTransportRouteLabel,
+  CUSTOM_TRANSPORT_BUCKET_LABEL,
+  isSentinelNoTransportRoute,
+  NO_TRANSPORT_LABEL,
+} from "@/modules/fees/domain/label";
 import type {
   PausedFamily,
   ReminderAudience,
@@ -42,6 +48,8 @@ export type CollectionRow = {
   studentClass: string;
   classSortOrder: number;
   transportRoute: string | null;
+  /** What they are charged for transport, however it was arranged. */
+  transportFeeAmount: number;
   parentName: string;
   /** The number to ring. Absent only for an unreachable family. */
   phone: string | null;
@@ -163,6 +171,7 @@ function fromCandidate(candidate: ReminderCandidate): CollectionRow {
     studentClass: candidate.studentClass,
     classSortOrder: candidate.classSortOrder,
     transportRoute: candidate.transportRoute,
+    transportFeeAmount: candidate.transportFeeAmount,
     parentName: candidate.parentName,
     phone: candidate.destination,
     usedMotherPhone: candidate.usedMotherPhone,
@@ -193,6 +202,7 @@ export function buildCollectionRows(audience: ReminderAudience): CollectionRow[]
       studentClass: family.studentClass,
       classSortOrder: family.classSortOrder,
       transportRoute: family.transportRoute,
+      transportFeeAmount: family.transportFeeAmount,
       parentName: family.parentName,
       phone: family.destination,
       usedMotherPhone: false,
@@ -213,6 +223,7 @@ export function buildCollectionRows(audience: ReminderAudience): CollectionRow[]
       studentClass: family.studentClass,
       classSortOrder: family.classSortOrder,
       transportRoute: family.transportRoute,
+      transportFeeAmount: family.transportFeeAmount,
       parentName: family.parentName,
       phone: null,
       usedMotherPhone: false,
@@ -239,7 +250,43 @@ function slug(value: string): string {
   );
 }
 
-const NO_ROUTE_LABEL = "No route (walk-in)";
+/**
+ * Which transport bucket a student belongs in, and why this is not just
+ * `transportRoute ?? "No route"`.
+ *
+ * Transport is charged two ways in this school: a `transport_routes` row on the
+ * student, or `student_fee_overrides.custom_transport_fee_amount` with no route
+ * at all. Reading the route name alone gets BOTH ends wrong, and both were
+ * wrong on the first cut of this list:
+ *
+ * - **3 students charged Rs 29,500 a year between them** have no route, so they
+ *   fell into "No route (walk-in)" — a route in-charge was never handed their
+ *   names, which is exactly the report that prompted this.
+ * - **8 students sit on a real route literally NAMED "No Transport"**, a ₹0
+ *   placeholder row. That produced a route sheet headed "No Transport"
+ *   alongside a separate "No route (walk-in)" sheet: two buckets meaning the
+ *   same thing, neither of them the one that mattered.
+ *
+ * `migrations/20260905064925_transport_override_is_transport.sql` fixed the SQL
+ * half of this for the dashboard's route board. This is the same rule, spelled
+ * with the same helpers, so the two cannot drift.
+ */
+function transportBucket(row: CollectionRow): { label: string; order: number } {
+  const name = row.transportRoute?.trim() ?? "";
+
+  // A real route. The sentinel is not one, whatever it is called.
+  if (name && !isSentinelNoTransportRoute(name)) {
+    return { label: name, order: 0 };
+  }
+
+  // Charged for transport with no route to put them on. A bucket of their own,
+  // sorted just before the walkers so a route in-charge still sees them.
+  if (row.transportFeeAmount > 0) {
+    return { label: CUSTOM_TRANSPORT_BUCKET_LABEL, order: 9998 };
+  }
+
+  return { label: NO_TRANSPORT_LABEL, order: 9999 };
+}
 
 export function groupCollectionRows(
   rows: CollectionRow[],
@@ -257,11 +304,13 @@ export function groupCollectionRows(
       key = `class-${slug(label)}`;
       order = row.studentClass ? row.classSortOrder : 9999;
     } else if (groupBy === "route") {
-      label = row.transportRoute ?? NO_ROUTE_LABEL;
+      const bucket = transportBucket(row);
+      label = bucket.label;
       key = `route-${slug(label)}`;
-      // 206 of 510 students have no route. That bucket is real, but it must not
-      // be the first thing a route in-charge is handed.
-      order = row.transportRoute ? 0 : 9999;
+      // Real routes first, then the custom-amount students, then the walkers.
+      // Around 200 of 510 are on no transport at all: a real bucket, but not
+      // the first thing a route in-charge should be handed.
+      order = bucket.order;
     } else {
       const band = bandFor(row.dueAmount);
       label = band.label;
@@ -323,7 +372,13 @@ export function toExportRow(row: CollectionRow): Record<string, string | number>
     "SR no": row.admissionNo,
     "Student": row.studentName,
     "Class": row.studentClass,
-    "Route": row.transportRoute ?? "",
+    // The canonical label, not the raw name: blank here meant a student
+    // charged Rs 14,000 a year through an override read as having no
+    // transport at all, in a column the office reconciles against.
+    "Route": buildTransportRouteLabel({
+      routeName: row.transportRoute,
+      transportFeeAmount: row.transportFeeAmount,
+    }),
     "Parent": row.parentName,
     "Phone": row.phone ?? "",
     "Amount owed": row.dueAmount,

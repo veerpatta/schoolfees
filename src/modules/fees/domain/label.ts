@@ -28,20 +28,20 @@
  */
 
 import { formatInr } from "@/platform/helpers/currency";
-import { CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/transport-route-key";
-
-/**
- * A `transport_routes` row named this is a placeholder meaning "not on
- * transport", not a real route. Compared case-insensitively and trimmed.
- */
-export const SENTINEL_NO_TRANSPORT_ROUTE_NAME = "no transport";
-
-/** Shown when the student genuinely has no transport and is charged nothing. */
-export const NO_TRANSPORT_LABEL = "No transport";
+import {
+  CUSTOM_TRANSPORT_ROUTE_KEY,
+  isSentinelNoTransportRoute,
+  NO_TRANSPORT_LABEL,
+} from "@/modules/fees/domain/transport-route-key";
 
 export {
   CUSTOM_TRANSPORT_BUCKET_LABEL,
   CUSTOM_TRANSPORT_ROUTE_KEY,
+  NO_TRANSPORT_LABEL,
+  SENTINEL_NO_TRANSPORT_ROUTE_NAME,
+  // Re-exported, not redefined: a route picker imports it from the light
+  // module to stay clear of the currency formatter this one pulls in.
+  isSentinelNoTransportRoute,
 } from "@/modules/fees/domain/transport-route-key";
 
 /**
@@ -103,14 +103,6 @@ export type TransportLabelInput = {
    */
   transportFeeAmount?: number | null;
 };
-
-/**
- * True when this route row is the "No Transport" placeholder rather than a real
- * route. Accepts the name directly so callers filtering a picker can use it.
- */
-export function isSentinelNoTransportRoute(routeName: string | null | undefined): boolean {
-  return (routeName ?? "").trim().toLowerCase() === SENTINEL_NO_TRANSPORT_ROUTE_NAME;
-}
 
 function readRoute(input: TransportLabelInput): { name: string | null; code: string | null } {
   const name = input.routeName ?? input.route?.route_name ?? input.route?.routeName ?? null;
