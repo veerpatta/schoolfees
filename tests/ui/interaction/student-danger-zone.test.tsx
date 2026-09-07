@@ -141,9 +141,16 @@ describe("StudentDangerZone feedback", () => {
 
     // The banner text travels in the URL, because a toast fired while the page
     // is navigating away is easy to miss entirely.
-    expect(replace).toHaveBeenCalledWith(
-      expect.stringContaining("/protected/students?removed="),
-    );
+    //
+    // waitFor, because `replace` is called from useActionFeedback's onSuccess —
+    // a useEffect that runs after the action state settles, not synchronously
+    // inside the click. Asserted bare, this passed on a quiet machine and
+    // failed on a loaded CI runner, which is the worst of both.
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith(
+        expect.stringContaining("/protected/students?removed="),
+      );
+    });
     expect(decodeURIComponent(replace.mock.calls.at(-1)![0] as string)).toContain(
       "KUSAM REGAR (SR 2712)",
     );
