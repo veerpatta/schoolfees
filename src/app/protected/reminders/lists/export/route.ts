@@ -117,9 +117,11 @@ async function handleExport(request: NextRequest) {
       return new Response(new Uint8Array(buffer), {
         headers: {
           "content-type": "application/pdf",
-          // `inline`, like every other PDF here: the office prints these far
-          // more often than it files them.
-          "content-disposition": `inline; filename="${formatExportName(filenameBase, "pdf")}"`,
+          // `attachment`, unlike the receipt and fee-statement PDFs, which open
+          // inline. Those are one page somebody glances at; this is a stack of
+          // class sheets the office wants ON DISK to print and hand out, and an
+          // inline viewer put a step between the button and the file.
+          "content-disposition": `attachment; filename="${formatExportName(filenameBase, "pdf")}"`,
           "cache-control": "no-store",
         },
       });

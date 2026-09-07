@@ -177,7 +177,7 @@ export default async function CollectionListsPage({ searchParams }: PageProps) {
           </DownloadAnchor>
           <DownloadAnchor
             href={exportHref("pdf", "all")}
-            target="_blank"
+            download
             className="focus-ring inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-4 text-sm font-semibold md:min-h-0 md:flex-none md:py-2"
             pendingLabel="Preparing"
           >
@@ -243,7 +243,7 @@ export default async function CollectionListsPage({ searchParams }: PageProps) {
                       </DownloadAnchor>
                       <DownloadAnchor
                         href={exportHref("pdf", group.key)}
-                        target="_blank"
+                        download
                         className="focus-ring inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border px-2 text-xs font-semibold md:min-h-0 md:px-3 md:py-1.5"
                         pendingLabel="…"
                       >

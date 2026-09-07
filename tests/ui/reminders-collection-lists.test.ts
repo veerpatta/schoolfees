@@ -153,6 +153,44 @@ describe("the lists screen", () => {
   });
 });
 
+describe("the files the office actually takes away", () => {
+  it("sends the PDF as an attachment, so the button downloads it", () => {
+    // Unlike the receipt and fee-statement PDFs, which open inline: those are
+    // one page somebody glances at, this is a stack of class sheets to print.
+    const source = read(EXPORT_ROUTE);
+
+    expect(source).toContain('`attachment; filename="${formatExportName(filenameBase, "pdf")}"`');
+    expect(source).not.toContain("inline; filename");
+  });
+
+  it("does not open a tab it would only close again", () => {
+    // An attachment plus target="_blank" flashes a blank tab on every download.
+    const source = read(LISTS_PAGE);
+
+    expect(source).not.toContain('target="_blank"');
+    expect(source).toContain("download");
+  });
+
+  it("prints on A4 landscape, because eight columns do not fit portrait", () => {
+    // Portrait gives 539pt of usable width, which is ~17 characters for a
+    // student name at 9pt. Landscape gives 786pt.
+    const source = read("src/modules/whatsapp/domain/collection-list-pdf.tsx");
+
+    expect(source).toContain('size="A4" orientation="landscape"');
+    // Both the group pages and the summary page, or the stack prints mixed.
+    expect(source.match(/orientation="landscape"/g)?.length).toBe(2);
+  });
+
+  it("widths every workbook column so nothing opens as ####", () => {
+    const source = read("src/modules/exports/data/responses.ts");
+
+    expect(source).toContain('worksheet["!cols"]');
+    // SheetJS CE emits no <pane>, so a freeze here would be a claim, not a
+    // behaviour — verified against the generated sheet XML.
+    expect(source).not.toContain('worksheet["!freeze"]');
+  });
+});
+
 describe("the lists screen on a phone", () => {
   it("collapses each group's roll, so eighteen classes are not one long scroll", () => {
     // Expanded, the live fee_due list is 114 cards across 18 classes — roughly

@@ -73,11 +73,34 @@ export async function groupedWorkbookResponse(
   const used = new Set<string>();
 
   for (const sheet of sheets) {
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(sheet.rows),
-      safeSheetName(sheet.name, used),
-    );
+    const worksheet = XLSX.utils.json_to_sheet(sheet.rows);
+
+    // Width every column to its widest cell.
+    //
+    // `json_to_sheet` writes no `!cols` at all, so every column opens at the
+    // default ~8 characters: a student name reads as "Aaradhya G…" and a phone
+    // number as "#######" until somebody drags thirteen column borders, on
+    // every one of nineteen tabs.
+    //
+    // A frozen header row is deliberately NOT set here. `setSheetLayout` in the
+    // imports module writes `!freeze`, but SheetJS CE does not emit a `<pane>`
+    // element for it — verified by reading the generated sheet XML, which
+    // carries `<cols>` and `<sheetView>` and no `<pane>`. Setting it would look
+    // like a behaviour this file does not actually have.
+    const headers = Object.keys(sheet.rows[0] ?? {});
+    if (headers.length > 0) {
+      worksheet["!cols"] = headers.map((header) => {
+        const widest = sheet.rows.reduce(
+          (longest, row) => Math.max(longest, String(row[header] ?? "").length),
+          header.length,
+        );
+        // Floor of 10 keeps the two write-in columns wide enough to write in;
+        // ceiling of 34 stops one long note from pushing the rest off screen.
+        return { wch: Math.min(34, Math.max(10, widest + 2)) };
+      });
+    }
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName(sheet.name, used));
   }
 
   const data = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;

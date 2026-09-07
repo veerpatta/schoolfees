@@ -26,8 +26,17 @@ import type { CollectionGroup } from "@/modules/whatsapp/domain/collection-list"
 import { COLLECTION_STATUS_LABELS } from "@/modules/whatsapp/domain/collection-list";
 
 /**
- * Column widths as flex ratios. Portrait A4 at 9pt fits these; widening Student
- * or Parent is what pushes Signature off the page, so change them together.
+ * Column widths as flex ratios, against A4 LANDSCAPE.
+ *
+ * Eight columns — two of them blank for a person to write in — do not fit
+ * portrait: 539pt of usable width gave Student about 103pt, which is 17
+ * characters at 9pt, and most of this school's names are longer than that.
+ * Landscape gives 786pt, so Student gets ~150pt and a name fits on one line.
+ * The exports module's printable HTML already sets `@page { size: A4
+ * landscape }` for exactly this reason.
+ *
+ * These are ratios, so they only ever have to stay in proportion — but
+ * widening Student or Parent is still what pushes Signature off the page.
  */
 const COL = {
   sr: 1.1,
@@ -91,7 +100,7 @@ function GroupPage({
   return (
     // One page per group is the whole point: a class teacher is handed exactly
     // their class, with nobody else's children on the back of it.
-    <Page size="A4" style={sharedStyles.page} wrap>
+    <Page size="A4" orientation="landscape" style={sharedStyles.page} wrap>
       <SchoolLetterhead
         docTitleEn={`Fees pending — ${group.label}`}
         docTitleHi="शुल्क शेष सूची"
@@ -177,7 +186,7 @@ export async function renderCollectionListPdf(input: {
       {/* The office's own copy: what was handed out, and what it adds up to.
           Only worth a page when there is more than one group to reconcile. */}
       {input.groups.length > 1 ? (
-        <Page size="A4" style={sharedStyles.page}>
+        <Page size="A4" orientation="landscape" style={sharedStyles.page}>
           <SchoolLetterhead
             docTitleEn="Fees pending — summary"
             docTitleHi="शुल्क शेष सारांश"
