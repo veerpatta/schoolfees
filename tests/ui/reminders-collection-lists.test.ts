@@ -171,6 +171,24 @@ describe("the files the office actually takes away", () => {
     expect(source).toContain("download");
   });
 
+  it("gives the WHOLE list the same four actions a single group gets", () => {
+    // Share and Copy were per-group only, so the office could send one teacher
+    // their class but could not send anybody the lot.
+    const source = read(LISTS_PAGE);
+
+    // Two CollectionListActions: one on the whole-list bar, one per group.
+    expect(source.match(/<CollectionListActions/g)?.length).toBe(2);
+    expect(source).toContain('text={allText}');
+    expect(source).toContain("renderAllCollectionsText");
+  });
+
+  it("builds the whole-list text from the per-group renderer, not beside it", () => {
+    // One list must not be formatted two ways.
+    const source = read("src/modules/whatsapp/domain/collection-list.ts");
+
+    expect(source).toMatch(/renderAllCollectionsText[\s\S]*renderCollectionText\(group\)/);
+  });
+
   it("prints on A4 landscape, because eight columns do not fit portrait", () => {
     // Portrait gives 539pt of usable width, which is ~17 characters for a
     // student name at 9pt. Landscape gives 786pt.

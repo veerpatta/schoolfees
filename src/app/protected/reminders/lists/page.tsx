@@ -20,6 +20,7 @@ import {
   COLLECTION_STATUS_LABELS,
   groupCollectionRows,
   isCollectionGroupBy,
+  renderAllCollectionsText,
   renderCollectionText,
   type CollectionGroupBy,
 } from "@/modules/whatsapp/domain/collection-list";
@@ -97,6 +98,17 @@ export default async function CollectionListsPage({ searchParams }: PageProps) {
     NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)
       ?.label ?? filters.situation;
 
+  /**
+   * One block covering every group, for the whole-list Copy and Share.
+   *
+   * Built from the same renderer the per-group text uses, so a class copied on
+   * its own and the same class inside the full list cannot read differently.
+   */
+  const allText = renderAllCollectionsText(groups, {
+    title: `Fees pending — ${noticeLabel}`,
+    sessionLabel,
+  });
+
   /** The filter, preserved. Dropping it here would export a different list. */
   const carried = new URLSearchParams();
   for (const name of CARRIED_PARAMS) {
@@ -167,22 +179,31 @@ export default async function CollectionListsPage({ searchParams }: PageProps) {
           ))}
         </div>
 
-        <div className="ml-auto flex w-full gap-2 md:w-auto">
+        {/* The whole list gets the SAME four actions a single group gets.
+            Share and Copy were per-group only, so the office could send one
+            teacher their class but not send the lot to anybody. */}
+        <div className="ml-auto grid w-full grid-cols-4 gap-1.5 md:flex md:w-auto md:gap-2">
           <DownloadAnchor
             href={exportHref("xlsx", "all")}
-            className="focus-ring inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-4 text-sm font-semibold md:min-h-0 md:flex-none md:py-2"
-            pendingLabel="Preparing"
+            className="focus-ring inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border px-2 text-xs font-semibold md:min-h-0 md:px-4 md:py-2 md:text-sm"
+            pendingLabel="…"
           >
-            Excel (all)
+            Excel
           </DownloadAnchor>
           <DownloadAnchor
             href={exportHref("pdf", "all")}
             download
-            className="focus-ring inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-4 text-sm font-semibold md:min-h-0 md:flex-none md:py-2"
-            pendingLabel="Preparing"
+            className="focus-ring inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border px-2 text-xs font-semibold md:min-h-0 md:px-4 md:py-2 md:text-sm"
+            pendingLabel="…"
           >
-            PDF (all)
+            PDF
           </DownloadAnchor>
+          <CollectionListActions
+            pdfHref={exportHref("pdf", "all")}
+            fileName={`fees-pending-${groupBy}-${sessionLabel}.pdf`}
+            shareTitle={`Fees pending — ${noticeLabel}, session ${sessionLabel}`}
+            text={allText}
+          />
         </div>
       </div>
 

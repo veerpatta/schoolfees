@@ -7,6 +7,7 @@ import {
   COLLECTION_STATUS_LABELS,
   groupCollectionRows,
   isCollectionGroupBy,
+  renderAllCollectionsText,
   renderCollectionText,
   toExportRow,
 } from "@/modules/whatsapp/domain/collection-list";
@@ -376,6 +377,66 @@ describe("renderCollectionText", () => {
     // A plainly collectable row carries no bracketed note.
     // Grouped by currency.ts, so the message and the heading agree.
     expect(text).toContain("Aaradhya Gurjar (TEST-001) - Rs. 13,250 - +917976199548\n");
+  });
+});
+
+describe("renderAllCollectionsText", () => {
+  const built = () =>
+    groupCollectionRows(
+      buildCollectionRows(
+        audience({
+          candidates: [
+            candidate({ studentId: "a", studentClass: "Nursery", classSortOrder: 1, dueAmount: 5000 }),
+            candidate({ studentId: "b", studentClass: "Class 2", classSortOrder: 5, dueAmount: 3000 }),
+          ],
+        }),
+      ),
+      "class",
+    );
+
+  it("opens with what the whole list adds up to", () => {
+    const text = renderAllCollectionsText(built(), {
+      title: "Fees pending",
+      sessionLabel: "TEST-2026-27",
+    });
+
+    expect(text).toContain("Fees pending - session TEST-2026-27");
+    expect(text).toContain("2 students across 2 lists");
+    expect(text).toContain("Rs. 8,000 outstanding");
+  });
+
+  it("keeps every group's own heading, so the block reads like the sheet", () => {
+    const text = renderAllCollectionsText(built(), {
+      title: "Fees pending",
+      sessionLabel: "TEST-2026-27",
+    });
+
+    expect(text).toContain("Nursery - fees pending");
+    expect(text).toContain("Class 2 - fees pending");
+  });
+
+  it("names every student the groups hold", () => {
+    const groups = built();
+    const text = renderAllCollectionsText(groups, {
+      title: "Fees pending",
+      sessionLabel: "TEST-2026-27",
+    });
+
+    for (const group of groups) {
+      for (const row of group.rows) expect(text).toContain(row.studentName);
+    }
+  });
+
+  it("formats a group identically alone and inside the whole list", () => {
+    // The per-group Copy and the whole-list Copy must not drift: one is built
+    // on the other precisely so a class cannot read two ways.
+    const groups = built();
+    const text = renderAllCollectionsText(groups, {
+      title: "Fees pending",
+      sessionLabel: "TEST-2026-27",
+    });
+
+    expect(text).toContain(renderCollectionText(groups[0]!));
   });
 });
 

@@ -362,6 +362,34 @@ export function renderCollectionText(group: CollectionGroup): string {
 }
 
 /**
+ * Every group in one block, for copying or sharing the WHOLE list.
+ *
+ * The per-group text exists so a class teacher can be sent their class. This is
+ * the other half: the office wanting the lot in one message, without
+ * downloading a file first.
+ *
+ * Each group keeps its own heading and total, so the block reads the way the
+ * sheet does, and it opens with what the whole thing adds up to. Built ON
+ * `renderCollectionText` rather than beside it, so one list cannot end up
+ * formatted two ways.
+ */
+export function renderAllCollectionsText(
+  groups: CollectionGroup[],
+  meta: { title: string; sessionLabel: string },
+): string {
+  const students = groups.reduce((sum, group) => sum + group.rows.length, 0);
+  const total = groups.reduce((sum, group) => sum + group.total, 0);
+
+  return [
+    `${meta.title} - session ${meta.sessionLabel}`,
+    `${students} student${students === 1 ? "" : "s"} across ${groups.length} ` +
+      `${groups.length === 1 ? "list" : "lists"}, ${rupees(total)} outstanding`,
+    "",
+    ...groups.map((group) => renderCollectionText(group)),
+  ].join("\n");
+}
+
+/**
  * The columns every export shares, so the XLSX and the PDF cannot disagree.
  *
  * Amounts leave as NUMBERS: a spreadsheet that cannot sum its own money column
