@@ -503,20 +503,29 @@ export async function aiContextBundleResponse(filename: string, sessionLabel: st
     `A later installment can never read paid while an earlier one is owed.`,
     ``,
     `TRANSPORT (read before summing transport revenue)`,
-    `A student can be charged for transport in two ways, and only one of them`,
-    `involves a route:`,
-    `  1. Assigned to a real transport_routes row. "Transport" reads the route`,
-    `     name and code.`,
-    `  2. No route, but student_fee_overrides.custom_transport_fee_amount is set.`,
-    `     "Transport" reads "Custom transport (₹N)" and "Transport is custom`,
-    `     amount" is yes. These students WERE being charged while every screen`,
-    `     said "No transport" — 3 of them in the live 2026-27 session, ₹29,500 a`,
-    `     year between them.`,
+    `A student can be charged for transport in THREE ways. Only two involve a`,
+    `route, and only one of those charges the route's own rate:`,
+    `  1. On a real transport_routes row, charged that route's standard fee.`,
+    `     "Transport" reads the route name and code.`,
+    `  2. On a real route, but student_fee_overrides.custom_transport_fee_amount`,
+    `     is ALSO set. The override WINS: the route's annual_fee_amount is not`,
+    `     what this family pays. "Transport" still reads the route name, because`,
+    `     that is the bus they board — so the route name alone will mislead you`,
+    `     here. "Transport is custom amount" is yes and "Transport charged" is`,
+    `     the real figure. Live 2026-27: 4 students, three of them on Amet City`,
+    `     (standard ₹7,000) paying ₹10,000, ₹5,700 and ₹10,000, and one on`,
+    `     Makarda (standard ₹14,000) paying ₹12,000.`,
+    `  3. No route at all, with the override set. "Transport" reads "Custom`,
+    `     transport (₹N)". These students WERE being charged while every screen`,
+    `     said "No transport" — 3 of them live, ₹29,500 a year between them.`,
     `There is also a real route literally NAMED "No Transport", seeded at ₹0 and`,
     `still selectable. It is a placeholder, not a route: the Routes sheet flags it`,
     `in "Is 'no transport' placeholder", and an override can still charge a`,
     `student who is sitting on it.`,
     `ALWAYS sum "Transport charged", never infer transport from the route name.`,
+    `NEVER compute a route's revenue as annual_fee_amount × students: the Routes`,
+    `sheet carries "Students on a custom amount" precisely because that`,
+    `multiplication is wrong for every route where it is not zero.`,
     `"Transport route (raw)" is the unprocessed stored value, kept so the two can`,
     `be compared.`,
     ``,
@@ -536,7 +545,11 @@ export async function aiContextBundleResponse(filename: string, sessionLabel: st
     `                      corrections) with signed amount_delta and reason.`,
     `* Refunds           — refund requests with status (pending/approved/processed).`,
     `* Classes           — class master with sort order and session label.`,
-    `* Routes            — transport route master with codes.`,
+    `* Routes            — transport route master with codes, plus what each`,
+    `                      route ACTUALLY collects: how many of its students are`,
+    `                      on a custom amount, and the lowest/highest transport`,
+    `                      figure charged on it. When "Distinct amounts charged"`,
+    `                      is above 1 the route has no single rate.`,
     `* Discounts         — conventional discount policies + every active assignment.`,
     `* Defaulters        — outstanding follow-up list (students with pending > 0).`,
     `* Recovery Follow-Up — active defaulter contact state, promise/no-call data,`,
@@ -928,13 +941,34 @@ export async function aiContextBundleResponse(filename: string, sessionLabel: st
   XLSX.utils.book_append_sheet(
     workbook,
     XLSX.utils.json_to_sheet(
-      masterData.routeOptions.map((row) => ({
-        "Route name": row.label,
-        "Route code": row.routeCode ?? "",
-        "Is 'no transport' placeholder": isSentinelNoTransportRoute(row.label) ? "yes" : "no",
-        "Active": row.isActive ? "yes" : "no",
-        "Route id": row.id,
-      })),
+      masterData.routeOptions.map((row) => {
+        // Computed from the roster this bundle already holds rather than from
+        // transport_routes.annual_fee_amount, and that is the point: a route's
+        // standard fee is NOT what every student on it pays. Three of Amet
+        // City's 63 carry an override. Showing the spread of what is actually
+        // charged is what stops a reader multiplying a rate by a headcount.
+        const onRoute = financials.filter((student) => student.transportRouteId === row.id);
+        const charged = onRoute
+          .map((student) => Number(student.transportFee ?? 0))
+          .filter((amount) => amount > 0);
+        const custom = onRoute.filter(
+          (student) =>
+            feeOverrideByStudent.get(student.studentId)?.custom_transport_fee_amount != null,
+        );
+
+        return {
+          "Route name": row.label,
+          "Route code": row.routeCode ?? "",
+          "Is 'no transport' placeholder": isSentinelNoTransportRoute(row.label) ? "yes" : "no",
+          "Active": row.isActive ? "yes" : "no",
+          "Students on this route": onRoute.length,
+          "Students on a custom amount": custom.length,
+          "Transport charged (lowest)": charged.length > 0 ? Math.min(...charged) : 0,
+          "Transport charged (highest)": charged.length > 0 ? Math.max(...charged) : 0,
+          "Distinct amounts charged": new Set(charged).size,
+          "Route id": row.id,
+        };
+      }),
     ),
     "Routes",
   );

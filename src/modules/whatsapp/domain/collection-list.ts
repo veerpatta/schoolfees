@@ -379,6 +379,12 @@ export function toExportRow(row: CollectionRow): Record<string, string | number>
       routeName: row.transportRoute,
       transportFeeAmount: row.transportFeeAmount,
     }),
+    // The amount, beside the route, because a route does NOT imply one rate.
+    // Live: three of Amet City's students carry an override and pay Rs 10,000,
+    // Rs 5,700 and Rs 10,000 against a standard Rs 7,000. A route in-charge
+    // handed 63 names and one rate would collect the wrong money from four of
+    // them.
+    "Transport fee": row.transportFeeAmount,
     "Parent": row.parentName,
     "Phone": row.phone ?? "",
     "Amount owed": row.dueAmount,

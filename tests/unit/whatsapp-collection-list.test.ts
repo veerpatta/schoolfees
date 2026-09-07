@@ -387,6 +387,34 @@ describe("toExportRow", () => {
     expect(typeof row["Amount owed"]).toBe("number");
   });
 
+  it("names the transport charge beside the route, because a route has no one rate", () => {
+    // Live: three of Amet City's 63 students carry an override and pay
+    // Rs 10,000 / Rs 5,700 / Rs 10,000 against a standard Rs 7,000.
+    const row = toExportRow(
+      buildCollectionRows(
+        audience({
+          candidates: [candidate({ transportRoute: "Amet City", transportFeeAmount: 10000 })],
+        }),
+      )[0]!,
+    );
+
+    expect(row["Route"]).toBe("Amet City");
+    expect(row["Transport fee"]).toBe(10000);
+  });
+
+  it("spells out a custom arrangement in the Route column rather than leaving it blank", () => {
+    const row = toExportRow(
+      buildCollectionRows(
+        audience({
+          candidates: [candidate({ transportRoute: null, transportFeeAmount: 14000 })],
+        }),
+      )[0]!,
+    );
+
+    expect(String(row["Route"])).toContain("Custom transport");
+    expect(row["Transport fee"]).toBe(14000);
+  });
+
   it("keeps Collected and Signature blank for the person holding the sheet", () => {
     const row = toExportRow(buildCollectionRows(audience({ candidates: [candidate()] }))[0]!);
 
