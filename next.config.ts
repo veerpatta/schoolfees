@@ -54,6 +54,14 @@ const nextConfig: NextConfig = {
       "./public/branding/icon-192.png",
     ],
     "/api/service/documents": ["./public/fonts/**", "./public/branding/icon-192.png"],
+    // The collection lists render a PDF through the same document-kit, so it
+    // reads the same two assets off disk. Vercel's tracer follows imports, not
+    // computed paths: without this the route works in `next dev` and throws on
+    // Vercel, which is a failure only a deployment can find.
+    "/protected/reminders/lists/export": [
+      "./public/fonts/**",
+      "./public/branding/icon-192.png",
+    ],
   },
   images: {
     formats: ["image/avif", "image/webp"],

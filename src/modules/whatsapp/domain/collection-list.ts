@@ -19,6 +19,7 @@
  * - **Pure.** No `server-only`: the screen and the export route both build these
  *   rows, and they must not be able to disagree.
  */
+import { formatRupeesPlain } from "@/platform/helpers/currency";
 import type {
   PausedFamily,
   ReminderAudience,
@@ -72,18 +73,45 @@ export const COLLECTION_STATUS_LABELS: Record<CollectionStatus, string> = {
  * The obvious bands (2k/5k/10k/20k) put 70% of the school in two buckets, which
  * is not a way to decide who to chase first.
  */
+const BAND_BOUNDS = [
+  { key: "b1", min: 1, max: 5000 },
+  { key: "b2", min: 5001, max: 10000 },
+  { key: "b3", min: 10001, max: 20000 },
+  { key: "b4", min: 20001, max: 30000 },
+  { key: "b5", min: 30001, max: Number.POSITIVE_INFINITY },
+] as const;
+
+/**
+ * "Rs." rather than "₹", and this is the one deliberate divergence here.
+ *
+ * A band label heads a page of the printable list, and react-pdf's Helvetica
+ * has no ₹ glyph — the same reason `rs()` exists in `platform/pdf/document-kit`.
+ * The label also becomes an Excel tab name and a line in the pasteable text, so
+ * one spelling has to serve all three.
+ *
+ * The DIGITS still come from `currency.ts`, so en-IN grouping is decided in one
+ * place and a find-references on that file reaches these labels too.
+ */
+// @allow-raw-money-format — heads a react-pdf page, which cannot render ₹.
+const RUPEE_PREFIX = "Rs.";
+
+const rupees = (value: number) => `${RUPEE_PREFIX} ${formatRupeesPlain(value)}`;
+
 export const AMOUNT_BANDS: ReadonlyArray<{
   key: string;
   label: string;
   min: number;
   max: number;
-}> = [
-  { key: "b1", label: "Up to Rs. 5,000", min: 1, max: 5000 },
-  { key: "b2", label: "Rs. 5,001 - 10,000", min: 5001, max: 10000 },
-  { key: "b3", label: "Rs. 10,001 - 20,000", min: 10001, max: 20000 },
-  { key: "b4", label: "Rs. 20,001 - 30,000", min: 20001, max: 30000 },
-  { key: "b5", label: "Above Rs. 30,000", min: 30001, max: Number.POSITIVE_INFINITY },
-];
+}> = BAND_BOUNDS.map((band) => ({
+  key: band.key,
+  min: band.min,
+  max: band.max,
+  label: !Number.isFinite(band.max)
+    ? `Above ${rupees(band.min - 1)}`
+    : band.min === 1
+      ? `Up to ${rupees(band.max)}`
+      : `${rupees(band.min)} - ${formatRupeesPlain(band.max)}`,
+}));
 
 /** The bucket for anything at or below zero — a paused family can sit here. */
 const NOTHING_BAND = { key: "b0", label: "Nothing outstanding" };
@@ -263,16 +291,13 @@ export function groupCollectionRows(
 /**
  * The block an office phone pastes into a staff WhatsApp group.
  *
- * The amount formatter is passed in rather than imported so this file stays
- * free of the money helpers' import graph and out of the formatting audit.
+ * Amounts go through the same `rupees` the band labels use, so a list, its
+ * heading and the message about it cannot quote three different spellings.
  */
-export function renderCollectionText(
-  group: CollectionGroup,
-  formatAmount: (value: number) => string,
-): string {
+export function renderCollectionText(group: CollectionGroup): string {
   const lines = [
     `${group.label} - fees pending`,
-    `${group.rows.length} student${group.rows.length === 1 ? "" : "s"}, ${formatAmount(group.total)} total`,
+    `${group.rows.length} student${group.rows.length === 1 ? "" : "s"}, ${rupees(group.total)} total`,
     "",
   ];
 
@@ -280,7 +305,7 @@ export function renderCollectionText(
     const phone = row.phone ?? "no number";
     const note = row.status === "eligible" ? "" : ` [${COLLECTION_STATUS_LABELS[row.status]}]`;
     lines.push(
-      `${index + 1}. ${row.studentName} (${row.admissionNo}) - ${formatAmount(row.dueAmount)} - ${phone}${note}`,
+      `${index + 1}. ${row.studentName} (${row.admissionNo}) - ${rupees(row.dueAmount)} - ${phone}${note}`,
     );
   });
 

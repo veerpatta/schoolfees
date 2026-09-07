@@ -116,6 +116,16 @@ describe("amount bands", () => {
     expect(bandFor(1).key).toBe("b1");
   });
 
+  it("spells its labels through currency.ts, without a glyph react-pdf lacks", () => {
+    const labels = AMOUNT_BANDS.map((band) => band.label);
+
+    expect(labels[0]).toBe("Up to Rs. 5,000");
+    expect(labels[1]).toBe("Rs. 5,001 - 10,000");
+    expect(labels.at(-1)).toBe("Above Rs. 30,000");
+    // A band label heads a PDF page, and Helvetica has no rupee glyph.
+    for (const label of labels) expect(label).not.toContain("₹");
+  });
+
   it("covers the live spread rather than piling into two buckets", () => {
     // The shape this was measured against on 2026-09-07: 53 / 71 / 176 / 133 / 46.
     const sample = [3000, 7000, 15000, 25000, 40000];
@@ -276,14 +286,15 @@ describe("renderCollectionText", () => {
       audience({ candidates: [candidate()], paused: [paused({ studentClass: "Class 2" })] }),
     );
     const [group] = groupCollectionRows(rows, "class");
-    const text = renderCollectionText(group!, (value) => `Rs. ${value}`);
+    const text = renderCollectionText(group!);
 
     expect(text).toContain("Class 2");
     expect(text).toContain("2 students");
     expect(text).toContain("Aaradhya Gurjar");
     expect(text).toContain(COLLECTION_STATUS_LABELS.paused_snoozed);
     // A plainly collectable row carries no bracketed note.
-    expect(text).toContain("Aaradhya Gurjar (TEST-001) - Rs. 13250 - +917976199548\n");
+    // Grouped by currency.ts, so the message and the heading agree.
+    expect(text).toContain("Aaradhya Gurjar (TEST-001) - Rs. 13,250 - +917976199548\n");
   });
 });
 

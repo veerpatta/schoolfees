@@ -25,7 +25,6 @@ import {
 } from "@/modules/whatsapp/domain/collection-list";
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { formatInr } from "@/platform/helpers/currency";
-import { formatRupeesPlain } from "@/platform/helpers/currency";
 
 /**
  * The eligibility list, ready to hand out.
@@ -211,7 +210,7 @@ export default async function CollectionListsPage({ searchParams }: PageProps) {
             </h1>
 
             {groups.map((group) => {
-              const text = renderCollectionText(group, formatRupeesPlain);
+              const text = renderCollectionText(group);
               const fileName = `fees-pending-${group.key}.pdf`;
 
               return (
