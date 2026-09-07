@@ -177,8 +177,27 @@ describe("the files the office actually takes away", () => {
     const source = read("src/modules/whatsapp/domain/collection-list-pdf.tsx");
 
     expect(source).toContain('size="A4" orientation="landscape"');
-    // Both the group pages and the summary page, or the stack prints mixed.
-    expect(source.match(/orientation="landscape"/g)?.length).toBe(2);
+  });
+
+  it("packs the groups into one page set instead of a page each", () => {
+    // A page per group meant a class of five burned a whole A4 sheet and
+    // eighteen classes came to nineteen pages for 114 children.
+    const source = read("src/modules/whatsapp/domain/collection-list-pdf.tsx");
+
+    // Counted on the page SIZE, not on "<Page": the file explains the old
+    // shape in prose and a test that trips over its own explanation is noise.
+    expect(source.match(/size="A4"/g)?.length).toBe(1);
+    // The old shape: a component that WAS a page per group.
+    expect(source).not.toContain("function GroupPage");
+    expect(source).toContain("function GroupBlock");
+  });
+
+  it("keeps a group heading from stranding at the foot of a page", () => {
+    // Without this a group title can be the last thing that fits, and its
+    // students start the next sheet under a column header with no name on it.
+    const source = read("src/modules/whatsapp/domain/collection-list-pdf.tsx");
+
+    expect(source).toContain("minPresenceAhead");
   });
 
   it("widths every workbook column so nothing opens as ####", () => {

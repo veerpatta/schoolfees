@@ -84,48 +84,61 @@ function Cell({
   );
 }
 
-function GroupPage({
-  group,
-  sessionLabel,
-  subtitle,
-  logo,
-  generatedAt,
-}: {
-  group: CollectionGroup;
-  sessionLabel: string;
-  subtitle: string;
-  logo: Awaited<ReturnType<typeof loadLogoImage>>;
-  generatedAt: string;
-}) {
+/** The column header, repeated at the top of every page by `fixed`. */
+function TableHead() {
   return (
-    // One page per group is the whole point: a class teacher is handed exactly
-    // their class, with nobody else's children on the back of it.
-    <Page size="A4" orientation="landscape" style={sharedStyles.page} wrap>
-      <SchoolLetterhead
-        docTitleEn={`Fees pending — ${group.label}`}
-        docTitleHi="शुल्क शेष सूची"
-        logo={logo}
-      />
+    <View style={sharedStyles.tableHeader} fixed>
+      <HeaderCell label="SR no" flex={COL.sr} />
+      <HeaderCell label="Student" flex={COL.student} />
+      <HeaderCell label="Parent" flex={COL.parent} />
+      <HeaderCell label="Phone" flex={COL.phone} />
+      <HeaderCell label="Owed" flex={COL.owed} right />
+      <HeaderCell label="Status" flex={COL.status} />
+      <HeaderCell label="Collected" flex={COL.collected} right />
+      <HeaderCell label="Signature" flex={COL.signature} />
+    </View>
+  );
+}
 
-      <View style={sharedStyles.rule} />
-
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+/**
+ * One group: a heading, then its students. NOT its own page.
+ *
+ * The first cut gave every group a `<Page>`, so a class of 5 students burned a
+ * whole A4 sheet and eighteen classes came to nineteen pages for 114 children.
+ * Groups now flow one after another and a short class is followed straight down
+ * the page by the next one — the same 114 children land in about four pages.
+ *
+ * Two react-pdf details do the real work:
+ *
+ * - `minPresenceAhead` on the heading. Without it a group title can be the last
+ *   thing that fits on a page, leaving the heading stranded and its students
+ *   starting the next sheet under a repeated column header with no name on it.
+ *   The value is roughly a heading plus three rows, so a group only starts on a
+ *   page that can show something of it.
+ * - `wrap={false}` per row, so a student is never split across the fold.
+ *
+ * Handing one class to one teacher is still a one-press job: the per-group
+ * download (`?scope=<group>`) renders that group alone.
+ */
+function GroupBlock({ group, first }: { group: CollectionGroup; first: boolean }) {
+  return (
+    <View style={{ marginTop: first ? 0 : 6 }} minPresenceAhead={44}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          backgroundColor: pdfTokens.panel,
+          paddingVertical: 3,
+          paddingHorizontal: 4,
+          marginBottom: 2,
+        }}
+      >
+        <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 10 }}>{group.label}</Text>
         <Text style={sharedStyles.muted}>
-          Session {sessionLabel} · {group.rows.length}{" "}
-          {group.rows.length === 1 ? "student" : "students"}
+          {group.rows.length} {group.rows.length === 1 ? "student" : "students"} ·{" "}
+          {rs(group.total)}
         </Text>
-        <Text style={{ fontFamily: "Helvetica-Bold" }}>Total {rs(group.total)}</Text>
-      </View>
-
-      <View style={sharedStyles.tableHeader} fixed>
-        <HeaderCell label="SR no" flex={COL.sr} />
-        <HeaderCell label="Student" flex={COL.student} />
-        <HeaderCell label="Parent" flex={COL.parent} />
-        <HeaderCell label="Phone" flex={COL.phone} />
-        <HeaderCell label="Owed" flex={COL.owed} right />
-        <HeaderCell label="Status" flex={COL.status} />
-        <HeaderCell label="Collected" flex={COL.collected} right />
-        <HeaderCell label="Signature" flex={COL.signature} />
       </View>
 
       {group.rows.map((row) => (
@@ -148,12 +161,7 @@ function GroupPage({
           <Cell flex={COL.signature}>{""}</Cell>
         </View>
       ))}
-
-      <Text style={sharedStyles.footer} fixed>
-        {subtitle} · generated {generatedAt} · page{" "}
-        <Text render={({ pageNumber }) => String(pageNumber)} />
-      </Text>
-    </Page>
+    </View>
   );
 }
 
@@ -172,57 +180,76 @@ export async function renderCollectionListPdf(input: {
 
   return renderToBuffer(
     <Document>
-      {input.groups.map((group) => (
-        <GroupPage
-          key={group.key}
-          group={group}
-          sessionLabel={input.sessionLabel}
-          subtitle={input.subtitle}
+      {/* ONE page set, not one page per group. The letterhead prints once, the
+          column header repeats itself, and the groups flow — so a class of five
+          is followed down the same sheet by the next class instead of ending
+          it. */}
+      <Page size="A4" orientation="landscape" style={sharedStyles.page} wrap>
+        <SchoolLetterhead
+          docTitleEn="Fees pending"
+          docTitleHi="शुल्क शेष सूची"
           logo={logo}
-          generatedAt={input.generatedAt}
         />
-      ))}
 
-      {/* The office's own copy: what was handed out, and what it adds up to.
-          Only worth a page when there is more than one group to reconcile. */}
-      {input.groups.length > 1 ? (
-        <Page size="A4" orientation="landscape" style={sharedStyles.page}>
-          <SchoolLetterhead
-            docTitleEn="Fees pending — summary"
-            docTitleHi="शुल्क शेष सारांश"
-            logo={logo}
-          />
-          <View style={sharedStyles.rule} />
+        <View style={sharedStyles.rule} />
 
-          <View style={sharedStyles.tableHeader}>
-            <HeaderCell label="List" flex={3} />
-            <HeaderCell label="Students" flex={1} right />
-            <HeaderCell label="Amount owed" flex={1.6} right />
-          </View>
-
-          {input.groups.map((group) => (
-            <View key={group.key} style={sharedStyles.tableRow}>
-              <Cell flex={3}>{group.label}</Cell>
-              <Cell flex={1} right>
-                {String(group.rows.length)}
-              </Cell>
-              <Cell flex={1.6} right>
-                {rs(group.total)}
-              </Cell>
-            </View>
-          ))}
-
-          <View style={{ ...sharedStyles.tableHeader, marginTop: 2 }}>
-            <HeaderCell label={`Total (${input.groups.length} lists)`} flex={3} />
-            <HeaderCell label={String(grandCount)} flex={1} right />
-            <HeaderCell label={rs(grandTotal)} flex={1.6} right />
-          </View>
-
-          <Text style={sharedStyles.footer} fixed>
-            {input.subtitle} · generated {input.generatedAt}
+        <View
+          style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}
+        >
+          <Text style={sharedStyles.muted}>
+            Session {input.sessionLabel} · {grandCount}{" "}
+            {grandCount === 1 ? "student" : "students"} across {input.groups.length}{" "}
+            {input.groups.length === 1 ? "list" : "lists"}
           </Text>
-        </Page>
-      ) : null}
+          <Text style={{ fontFamily: "Helvetica-Bold" }}>Total {rs(grandTotal)}</Text>
+        </View>
+
+        <TableHead />
+
+        {input.groups.map((group, index) => (
+          <GroupBlock key={group.key} group={group} first={index === 0} />
+        ))}
+
+        {/* The office's reconciliation, at the end of the flow rather than on a
+            page of its own — it only costs a sheet if it does not fit on the
+            last one. Pointless when there is a single group to reconcile. */}
+        {input.groups.length > 1 ? (
+          <View style={{ marginTop: 14 }} minPresenceAhead={60}>
+            <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 10, marginBottom: 3 }}>
+              Summary
+            </Text>
+
+            <View style={sharedStyles.tableHeader}>
+              <HeaderCell label="List" flex={3} />
+              <HeaderCell label="Students" flex={1} right />
+              <HeaderCell label="Amount owed" flex={1.6} right />
+            </View>
+
+            {input.groups.map((group) => (
+              <View key={group.key} style={sharedStyles.tableRow} wrap={false}>
+                <Cell flex={3}>{group.label}</Cell>
+                <Cell flex={1} right>
+                  {String(group.rows.length)}
+                </Cell>
+                <Cell flex={1.6} right>
+                  {rs(group.total)}
+                </Cell>
+              </View>
+            ))}
+
+            <View style={{ ...sharedStyles.tableHeader, marginTop: 2 }}>
+              <HeaderCell label={`Total (${input.groups.length} lists)`} flex={3} />
+              <HeaderCell label={String(grandCount)} flex={1} right />
+              <HeaderCell label={rs(grandTotal)} flex={1.6} right />
+            </View>
+          </View>
+        ) : null}
+
+        <Text style={sharedStyles.footer} fixed>
+          {input.subtitle} · generated {input.generatedAt} · page{" "}
+          <Text render={({ pageNumber }) => String(pageNumber)} />
+        </Text>
+      </Page>
     </Document>,
   );
 }
