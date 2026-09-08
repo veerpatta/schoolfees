@@ -28,6 +28,27 @@ Fee reminders and the message templates behind them.
   situation decides only what is written and which campaign is billed. Do not
   reintroduce a per-situation branch in `loadReminderAudience`; that is the
   shape this replaced.
+- **The audience chips are named for the AUDIENCE, never for a notice.**
+  `AUDIENCE_SHORTCUTS` in `domain/audience.ts`. For one day they carried the
+  twelve NOTICE names and sat directly under twelve template chips carrying the
+  same twelve names, so "Fee due" appeared twice on one screen meaning two
+  different things and nothing said which row changed the message and which
+  changed the list. Naming them for who they describe also deduplicates them —
+  the waiver pair and `late_fee_applied` are one audience, `upcoming` and
+  `upcoming_final` are another — and makes room for "Everyone who owes", which
+  no notice could express. The two cards are numbered **1 What it says** and
+  **2 Who gets it** for the same reason.
+- **A template is never dimmed for not fitting the audience.** Pointing a
+  message at families who cannot fill its slots is the freedom this feature
+  exists to give; a greyed chip reads as "unavailable". The ⚠ count says what is
+  missing without discouraging it. Only an UNAPPROVED template is held back,
+  because Meta really will refuse that one.
+- **Every notice states what a parent will read, in one sentence.** The same
+  late-fee control means three different things depending on the template —
+  typed on nine, taken from the ledger per family on the waiver pair and
+  `late_fee_applied`, printed not at all where there is no date slot — and
+  nothing on screen used to say which you were looking at. The office must not
+  have to work that out from which controls happen to be visible.
 - **Every filter applies on every template.** `SITUATION_FILTERS` used to HIDE
   the installment, paid-so-far and minimum controls on a notice whose rule
   ignored them. That was honest while the notice gated the audience and a cage

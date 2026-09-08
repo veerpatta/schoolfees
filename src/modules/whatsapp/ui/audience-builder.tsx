@@ -9,15 +9,17 @@ import { Label } from "@/ui/primitives/label";
 import { SelectNative } from "@/ui/primitives/select-native";
 import { cn } from "@/platform/utils";
 import {
+  AUDIENCE_SHORTCUTS,
   INSTALLMENT_MATCHES,
-  presetHref,
+  matchingShortcut,
   PROMISE_OPTIONS,
   QUOTE_BASES,
   reminderQuery,
+  shortcutHref,
   TRI_OPTIONS,
+  type AudienceShortcutKey,
   type ReminderQueryKey,
 } from "@/modules/whatsapp/domain/audience";
-import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import type { ReminderAudience, ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
 import type { StudentBrief } from "@/modules/whatsapp/data/student-lookup";
 import { CarriedFilterFields } from "@/modules/whatsapp/ui/carried-filter-fields";
@@ -61,6 +63,14 @@ type Props = {
   matches: StudentBrief[];
   /** What was typed, echoed back beside the matches. */
   searchQuery: string;
+  /**
+   * What today makes of the fee calendar — the same values `presetFor` needs.
+   *
+   * Passed in rather than recomputed: a shortcut's href has to describe the
+   * SAME filters the audience was counted with, or a chip reading 92 lands on
+   * a different 92.
+   */
+  calendarArgs: { activeInstallments: readonly number[]; nextInstallment: number | null };
   /**
    * The add-a-student action, passed in rather than imported — see the same
    * note on `NoticePicker`. `src/modules/**` may not reach into `src/app/**`,
@@ -356,8 +366,11 @@ export function AudienceBuilder({
   excluded,
   matches,
   searchQuery,
+  calendarArgs,
   addAction,
 }: Props) {
+  /** Which shortcut the current filters are, or null when narrowed by hand. */
+  const activeShortcut: AudienceShortcutKey | null = matchingShortcut(filters, calendarArgs);
   /** Drop `id` from a comma list in the query string, keeping everything else. */
   const without = (key: "include" | "exclude", id: string) => {
     const source = key === "include" ? filters.includeStudentIds : filters.excludeStudentIds;
@@ -383,42 +396,74 @@ export function AudienceBuilder({
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3.5 shadow-sm md:rounded-lg md:p-4">
+      {/* Numbered, because the two cards on this screen answer two questions
+          that used to be one. Without the numbers they read as two rows of
+          chips doing the same job. */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="text-sm font-bold text-foreground">Who gets it</h3>
+        <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-accent-foreground">
+            2
+          </span>
+          Who gets it
+        </h3>
         <p className="text-[11.5px] text-muted-foreground">
-          The filters decide the list, not the template. Any message can go to any of them.
+          Only these filters decide the list. Changing the message above never changes it.
         </p>
       </div>
 
-      {/* ------------------------------------------------------------ presets */}
-      {/* One line on a 390px screen: scroll rather than wrap, so the row never
-          reflows under a thumb mid-tap. `no-scrollbar` for the same reason the
-          notice chips carry it — Windows Chrome paints a persistent grey bar
-          under an `overflow-x-auto` row. Above `md` it wraps instead.
-          A preset DROPS every audience key, so it is also the "put it back how
-          it was" after narrowing by hand. */}
+      {/* --------------------------------------------------- audience shortcuts */}
+      {/* Named for WHO they describe, not for a notice. Until 2026-09-09 these
+          were twelve chips carrying the twelve NOTICE names, sitting directly
+          under twelve template chips carrying the same twelve names — so "Fee
+          due" appeared twice on one screen meaning two different things, and
+          nothing on the page said which row changed the message and which
+          changed the list. Eight honest names and an "Everyone who owes" that
+          no notice could ever express.
+
+          `no-scrollbar` because Windows Chrome paints a persistent grey bar
+          under an `overflow-x-auto` row; above `md` it wraps instead. */}
       <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
-        <span className="shrink-0 self-center pr-0.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-          Start from
-        </span>
-        {NOTICE_SITUATIONS.map((entry) => (
-          <Link
-            key={entry.value}
-            href={presetHref(filters, entry.value)}
-            scroll={false}
-            prefetch={false}
-            title={entry.hint}
-            className={cn(
-              "focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3.5 text-[12px] font-bold text-foreground transition-colors hover:border-border-strong",
-              audience.counts[entry.value] === 0 && "opacity-45",
-            )}
-          >
-            <span className="whitespace-nowrap">{entry.label}</span>
-            <span className="tabular-nums text-[11px] font-extrabold text-muted-foreground">
-              {audience.counts[entry.value]}
+        {AUDIENCE_SHORTCUTS.map((entry) => {
+          const active = entry.key === activeShortcut;
+          const count = audience.counts[entry.key] ?? 0;
+          return (
+            <Link
+              key={entry.key}
+              href={shortcutHref(filters, entry.key, calendarArgs)}
+              scroll={false}
+              prefetch={false}
+              title={entry.hint}
+              aria-current={active ? "true" : undefined}
+              className={cn(
+                "focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[12px] font-bold transition-colors",
+                active
+                  ? "border-accent bg-accent/12 text-foreground"
+                  : "border-border bg-surface-2 text-foreground hover:border-border-strong",
+                count === 0 && !active && "opacity-45",
+              )}
+            >
+              <span className="whitespace-nowrap">{entry.label}</span>
+              <span
+                className={cn(
+                  "tabular-nums text-[11px] font-extrabold",
+                  active ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {count}
+              </span>
+            </Link>
+          );
+        })}
+        {/* Nothing matches, so the office narrowed it by hand. Saying so beats
+            leaving every chip unselected for no visible reason. */}
+        {activeShortcut === null ? (
+          <span className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-accent bg-accent/12 px-3.5 text-[12px] font-bold text-foreground">
+            Custom
+            <span className="tabular-nums text-[11px] font-extrabold">
+              {audience.candidates.length}
             </span>
-          </Link>
-        ))}
+          </span>
+        ) : null}
       </div>
 
       {/* ------------------------------------------------------------ filters */}
@@ -451,7 +496,31 @@ export function AudienceBuilder({
       </form>
 
       {/* ---------------------------------------------------- by hand */}
-      <div className="flex flex-col gap-2 border-t border-border pt-3">
+      {/* A disclosure, not an always-open block. On a phone the search field,
+          its button and three lines of standing explanation cost six rows
+          above a list the office is scrolling to — for an action they take
+          rarely. Open by default the moment anybody IS hand-picked, so a list
+          that has been edited never hides that fact; the summary carries the
+          counts either way, because a hand-picked student changes who gets a
+          billed message and must never be invisible. */}
+      <details
+        open={handPicked > 0 || matches.length > 0 || Boolean(searchQuery)}
+        className="border-t border-border pt-3"
+      >
+        <summary className="focus-ring flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-1 text-[12.5px] font-bold text-foreground md:min-h-0">
+          <span className="inline-flex items-center gap-1.5">
+            <Plus className="size-3.5" aria-hidden="true" />
+            Add or remove specific students
+          </span>
+          {handPicked > 0 ? (
+            <span className="rounded-full bg-accent/15 px-2.5 py-1 text-[11px] font-extrabold text-foreground">
+              {included.length > 0 ? `${included.length} added` : null}
+              {included.length > 0 && excluded.length > 0 ? " · " : null}
+              {excluded.length > 0 ? `${excluded.length} removed` : null}
+            </span>
+          ) : null}
+        </summary>
+      <div className="flex flex-col gap-2 pt-2.5">
         <form
           action={addAction}
           className="flex flex-wrap items-end gap-2"
@@ -542,6 +611,7 @@ export function AudienceBuilder({
           number.
         </p>
       </div>
+      </details>
     </div>
   );
 }

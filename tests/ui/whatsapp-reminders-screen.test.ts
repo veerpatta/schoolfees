@@ -280,8 +280,16 @@ describe("WhatsApp reminders on a phone", () => {
     const href = source.slice(source.indexOf("function hrefWith"), source.indexOf("const CHIP_BASE"));
 
     expect(href).toContain("reminderQuery(filters");
-    expect(href).not.toContain("presetHref");
-    expect(read(AUDIENCE_BUILDER)).toContain("presetHref(filters, entry.value)");
+    // The template row must not carry an audience control at all.
+    expect(href).not.toContain("shortcutHref");
+    expect(read(PICKER)).not.toContain("AUDIENCE_SHORTCUTS");
+
+    // And the audience row is named for the AUDIENCE, never for a notice —
+    // twelve notice-named chips under twelve notice-named template chips is
+    // the confusion this replaced.
+    const builder = read(AUDIENCE_BUILDER);
+    expect(builder).toContain("shortcutHref(filters, entry.key, calendarArgs)");
+    expect(builder).not.toContain("NOTICE_SITUATIONS");
   });
 
   it("renders the desk table only above md", () => {

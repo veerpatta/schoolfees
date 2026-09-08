@@ -365,30 +365,31 @@ describe("reminder audience — which notice, which families", () => {
     expect(audience.candidates).toHaveLength(0);
   });
 
-  it("counts all three notices in one pass, whichever is selected", async () => {
+  it("counts every audience shortcut in one pass, whichever one is applied", async () => {
     const audience = await load(withCarryForward, { situation: "fee_due" });
 
-    // The four calendar-driven notices are counted in the same pass and read
-    // zero here: this fixture has no installment schedule, no applied late fee
-    // and no contact history, which is exactly the shape of a session before any
-    // due date has passed.
+    // Keyed by SHORTCUT since 2026-09-09, not by notice. The chips are named
+    // for the audience they describe now — "Nothing paid yet", not "Fee due" —
+    // because twelve notice-named audience chips sat under twelve notice-named
+    // template chips and nothing said which row changed what.
+    //
+    // The calendar-driven ones read zero: this fixture has no installment
+    // schedule, no applied late fee and no contact history, which is the shape
+    // of a session before any due date has passed.
     expect(audience.counts).toEqual({
-      fee_due: 1,
-      balance: 1,
-      prevyear: 1,
-      upcoming: 0,
-      upcoming_final: 0,
-      late_fee_applied: 0,
-      promise_lapsed: 0,
-      // The 2026-09-08 five. Exam clearance is "anything pending on the
-      // selected installments", so both current-year families are on it.
-      overdue_final: 0,
-      late_fee_waiver: 0,
-      waiver_last_call: 0,
-      promise_due: 0,
-      exam_clearance: 2,
+      // Anything outstanding at all, whoever they are — the shortcut no notice
+      // could ever express, which is why it is new.
+      everyone: 2,
+      nothing_paid: 1,
+      part_paid: 1,
+      last_session: 1,
+      not_due_yet: 0,
+      late_fee: 0,
+      overdue: 0,
+      promised_now: 0,
+      promise_broken: 0,
     });
-    // Only the selected one produces candidates.
+    // Only the applied filter set produces candidates.
     expect(audience.candidates).toHaveLength(1);
   });
 
@@ -515,7 +516,7 @@ describe("reminder audience — the calendar decides the installments", () => {
     );
 
     expect(audience.candidates).toHaveLength(0);
-    expect(audience.counts.upcoming).toBe(0);
+    expect(audience.counts.not_due_yet).toBe(0);
   });
 
   it("keeps a family off the courtesy notice while a late fee is on the account", async () => {
@@ -533,7 +534,7 @@ describe("reminder audience — the calendar decides the installments", () => {
       CALENDAR_INST2_DUE_SOON,
     );
 
-    expect(audience.counts.upcoming).toBe(0);
+    expect(audience.counts.not_due_yet).toBe(0);
     // `late_fee_applied` reads 0 rather than 1, and that is the preset counts
     // becoming honest rather than a family going missing. The old counts were
     // taken BEFORE the minimum was applied, so they promised families the list
@@ -541,7 +542,7 @@ describe("reminder audience — the calendar decides the installments", () => {
     // ₹0 and the ₹1 minimum has always excluded them from the list itself.
     // Now the button's number is what clicking it gives you. To reach a family
     // who owes only a late fee, set "Quoted amount at least" to 0.
-    expect(audience.counts.late_fee_applied).toBe(0);
+    expect(audience.counts.late_fee).toBe(0);
   });
 
   it("gives `upcoming_final` the same audience as `upcoming`, whatever the date", async () => {
@@ -556,8 +557,8 @@ describe("reminder audience — the calendar decides the installments", () => {
 
     // Six days out: both presets reach the family.
     const early = await load(tables, { situation: "upcoming" }, CALENDAR_INST2_DUE_SOON);
-    expect(early.counts.upcoming).toBe(1);
-    expect(early.counts.upcoming_final).toBe(1);
+    expect(early.counts.not_due_yet).toBe(1);
+    expect(early.counts.not_due_yet).toBe(1);
 
     // Two days out: unchanged.
     const late = await load(
@@ -568,8 +569,8 @@ describe("reminder audience — the calendar decides the installments", () => {
         today: "2026-07-18",
       }),
     );
-    expect(late.counts.upcoming).toBe(1);
-    expect(late.counts.upcoming_final).toBe(1);
+    expect(late.counts.not_due_yet).toBe(1);
+    expect(late.counts.not_due_yet).toBe(1);
     expect(late.candidates.map((c) => c.studentId)).toEqual(["soon"]);
   });
 
@@ -579,7 +580,7 @@ describe("reminder audience — the calendar decides the installments", () => {
       { financials: [student("a")] },
       { situation: "upcoming" },
     );
-    expect(audience.counts.upcoming).toBe(0);
+    expect(audience.counts.not_due_yet).toBe(0);
     expect(audience.candidates).toHaveLength(0);
   });
 });
@@ -653,7 +654,7 @@ describe("reminder audience — late_fee_applied reads the ledger", () => {
       { situation: "late_fee_applied" },
     );
 
-    expect(audience.counts.late_fee_applied).toBe(0);
+    expect(audience.counts.late_fee).toBe(0);
   });
 
   it("ignores a late fee on an installment the calendar says has not passed", async () => {
@@ -667,7 +668,7 @@ describe("reminder audience — late_fee_applied reads the ledger", () => {
       { situation: "late_fee_applied" },
     );
 
-    expect(audience.counts.late_fee_applied).toBe(0);
+    expect(audience.counts.late_fee).toBe(0);
   });
 });
 
@@ -685,7 +686,7 @@ describe("reminder audience — the waiver pair read the ledger too", () => {
     // Fees in dueAmount, the late fee alongside — never added together.
     expect(audience.candidates[0]!.dueAmount).toBe(9125);
     expect(audience.candidates[0]!.lateFeeApplied).toBe(1000);
-    expect(audience.counts.waiver_last_call).toBe(1);
+    expect(audience.counts.late_fee).toBe(1);
   });
 
   it("leaves out a family who paid the fees late and owes only the late fee", async () => {
@@ -699,13 +700,13 @@ describe("reminder audience — the waiver pair read the ledger too", () => {
       { situation: "late_fee_waiver" },
     );
 
-    expect(audience.counts.late_fee_waiver).toBe(0);
-    expect(audience.counts.waiver_last_call).toBe(0);
+    expect(audience.counts.late_fee).toBe(0);
+    expect(audience.counts.late_fee).toBe(0);
     // 0, not 1: see the note on the courtesy-notice test above. The preset
     // counts now apply the minimum, so they promise exactly what clicking the
     // button delivers — and the ₹1 minimum has always kept a family whose fees
     // are clear off the list itself.
-    expect(audience.counts.late_fee_applied).toBe(0);
+    expect(audience.counts.late_fee).toBe(0);
   });
 });
 
@@ -732,7 +733,7 @@ describe("reminder audience — overdue_final follows the calendar", () => {
 
   it("reaches nobody when the session has no schedule", async () => {
     const audience = await load({ financials: [student("a")] }, { situation: "overdue_final" });
-    expect(audience.counts.overdue_final).toBe(0);
+    expect(audience.counts.overdue).toBe(0);
   });
 });
 
@@ -779,7 +780,7 @@ describe("reminder audience — promises", () => {
     // Not held back as "inside a promise" — this notice is about the promise.
     expect(audience.skipped.promiseOpen).toBe(0);
     // The family five days out is still inside their promise, and still held.
-    expect(audience.counts.promise_due).toBe(1);
+    expect(audience.counts.promised_now).toBe(1);
   });
 
   it("holds a family back from every other notice while their promise is live", async () => {
@@ -812,7 +813,7 @@ describe("reminder audience — promises", () => {
     );
 
     expect(audience.skipped.promiseOpen).toBe(0);
-    expect(audience.counts.promise_lapsed).toBe(0);
+    expect(audience.counts.promise_broken).toBe(0);
   });
 
   it("takes a family whose promised date has gone with money still owing", async () => {
@@ -843,7 +844,7 @@ describe("reminder audience — promises", () => {
       { situation: "promise_lapsed" },
     );
 
-    expect(audience.counts.promise_lapsed).toBe(0);
+    expect(audience.counts.promise_broken).toBe(0);
   });
 
   it("reads only the LATEST contact, so a later call ends an older promise", async () => {
@@ -901,7 +902,7 @@ describe("unreachable families", () => {
     // cannot message must not inflate them.
     const audience = await load({ financials: [noPhone("owing")] });
 
-    expect(audience.counts.fee_due).toBe(0);
+    expect(audience.counts.nothing_paid).toBe(0);
   });
 
   it("keeps an unreachable family out of candidates, paused and every skip count", async () => {

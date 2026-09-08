@@ -387,6 +387,13 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
               excluded={excludedBriefs}
               matches={matches}
               searchQuery={findQuery}
+              // The SAME values the audience was counted with, so a shortcut
+              // chip reading 92 lands on that exact 92.
+              calendarArgs={{
+                activeInstallments:
+                  calendar.active.length > 0 ? calendar.active : TEMPLATE_INSTALLMENTS,
+                nextInstallment: calendar.next?.installmentNo ?? null,
+              }}
               addAction={addReminderStudentAction}
             />
           }

@@ -266,6 +266,121 @@ export function presetFor(
   }
 }
 
+
+/**
+ * The audience shortcuts, named for WHO they describe.
+ *
+ * These are filter presets, and until 2026-09-09 they were rendered as twelve
+ * chips carrying the twelve NOTICE names — right beside twelve template chips
+ * carrying the same twelve names. "Fee due" appeared twice on one screen
+ * meaning two different things, and the office could not tell the row that
+ * changes the message from the row that changes the list.
+ *
+ * So they are named for the audience now, and deduplicated: three notices
+ * (`late_fee_applied` and the waiver pair) share one audience, and so do
+ * `upcoming` / `upcoming_final`. `exam_clearance` is `fee_due`'s filter set
+ * with `any` instead of `all`, which the installment control already says
+ * better than a chip can. Twelve look-alike chips become eight honest ones,
+ * plus "Everyone who owes" — the shortcut nobody could reach before, because
+ * no NOTICE meant "no constraints at all".
+ *
+ * `from` is the situation whose preset supplies the filters, so there is still
+ * exactly ONE definition of each audience and `presetFor` remains the only
+ * place it lives.
+ */
+export const AUDIENCE_SHORTCUTS = [
+  {
+    key: "everyone",
+    label: "Everyone who owes",
+    hint: "Every collectable family with anything still outstanding this session",
+    from: null,
+  },
+  {
+    key: "nothing_paid",
+    label: "Nothing paid yet",
+    hint: "Nothing received beyond the academic fee, every selected installment pending",
+    from: "fee_due",
+  },
+  {
+    key: "part_paid",
+    label: "Part paid, still owing",
+    hint: "Something received, still owing on at least one selected installment",
+    from: "balance",
+  },
+  {
+    key: "overdue",
+    label: "Past a due date",
+    hint: "Fees still pending on an installment whose due date has gone",
+    from: "overdue_final",
+  },
+  {
+    key: "late_fee",
+    label: "Carrying a late fee",
+    hint: "The ledger is charging a late fee on a passed installment",
+    from: "late_fee_applied",
+  },
+  {
+    key: "not_due_yet",
+    label: "Not due yet",
+    hint: "An installment falls due inside the window and nothing earlier is owed",
+    from: "upcoming",
+  },
+  {
+    key: "promised_now",
+    label: "Promised, due now",
+    hint: "The family's promised date is today or tomorrow",
+    from: "promise_due",
+  },
+  {
+    key: "promise_broken",
+    label: "Promise broken",
+    hint: "The promised date has passed and the money has not arrived",
+    from: "promise_lapsed",
+  },
+  {
+    key: "last_session",
+    label: "Owes from last session",
+    hint: "A balance carried forward with something left on it",
+    from: "prevyear",
+  },
+] as const satisfies ReadonlyArray<{
+  key: string;
+  label: string;
+  hint: string;
+  from: NoticeSituation | null;
+}>;
+
+export type AudienceShortcutKey = (typeof AUDIENCE_SHORTCUTS)[number]["key"];
+
+/**
+ * The filters one shortcut stands for.
+ *
+ * `everyone` is the only one not delegated to a notice's preset, because no
+ * notice ever meant "no constraint at all": anything still outstanding on this
+ * session's four installments, whoever they are and whatever they have paid.
+ */
+export function shortcutFilters(
+  key: AudienceShortcutKey,
+  args: { activeInstallments: readonly number[]; nextInstallment: number | null },
+): Omit<AudienceFilters, "classId" | "includeRte" | "includeStudentIds" | "excludeStudentIds"> {
+  const entry = AUDIENCE_SHORTCUTS.find((option) => option.key === key);
+  if (!entry || entry.from === null) {
+    return {
+      installments: [],
+      installmentMatch: "all",
+      maxTotalPaid: null,
+      minTotalPaid: null,
+      minDueAmount: 1,
+      lateFee: "any",
+      overdue: "any",
+      carryForward: "any",
+      promise: "skip_open",
+      quote: "session",
+    };
+  }
+  return presetFor(entry.from, args);
+}
+
 /**
  * Families who have paid at most this much have effectively paid nothing — it
  * is the academic fee and nothing else has landed.
@@ -421,32 +536,69 @@ export function reminderQuery(
 }
 
 /**
- * The href for a preset chip: the notice, and NOTHING about the audience.
+ * The href for an audience shortcut: the shortcut's own filters, and NOTHING
+ * about the message.
  *
- * Dropping every audience key is what makes a preset a preset — the parse falls
- * back to that notice's own `presetFor`, which is the "put it back how it was"
- * the office needs after narrowing a list by hand.
+ * The mirror image of `hrefWith` in the notice picker, and the pair is the
+ * whole point: a TEMPLATE chip changes only what is said, a SHORTCUT chip
+ * changes only who hears it. Neither ever reaches into the other's half, so
+ * the office can answer the two questions in either order without one
+ * silently undoing the other.
  */
-export function presetHref(source: ReminderQuerySource, situation: string): string {
+export function shortcutHref(
+  source: ReminderQuerySource,
+  key: AudienceShortcutKey,
+  args: { activeInstallments: readonly number[]; nextInstallment: number | null },
+): string {
+  const filters = shortcutFilters(key, args);
   const params = reminderQuery(source, {
-    situation,
-    // `null`, not `""`: dropping the key is what makes the preset supply the
-    // set. An empty value would mean "no installment constraint", which is a
-    // different answer.
-    installments: null,
-    installmentMatch: null,
-    maxTotalPaid: null,
-    minTotalPaid: null,
-    minDueAmount: null,
-    lateFee: null,
-    overdue: null,
-    carryForward: null,
-    promise: null,
-    quote: null,
+    installments: filters.installments.join(","),
+    installmentMatch: filters.installmentMatch,
+    maxTotalPaid: filters.maxTotalPaid === null ? null : String(filters.maxTotalPaid),
+    minTotalPaid: filters.minTotalPaid === null ? null : String(filters.minTotalPaid),
+    minDueAmount: String(filters.minDueAmount),
+    lateFee: filters.lateFee,
+    overdue: filters.overdue,
+    carryForward: filters.carryForward,
+    promise: filters.promise,
+    quote: filters.quote,
+    // Hand-picked students are a decision about THIS list, so a shortcut that
+    // rebuilds the list drops them. The office can always add them back, and
+    // silently carrying somebody into an audience they were never chosen for
+    // is the worse surprise.
     include: null,
     exclude: null,
   });
   return `?${params.toString()}`;
+}
+
+/**
+ * Does the current filter set match a shortcut exactly?
+ *
+ * Drives the "Custom" state: when nothing matches, the office has narrowed the
+ * list by hand and the screen says so rather than leaving every chip looking
+ * unselected for no visible reason.
+ */
+export function matchingShortcut(
+  filters: AudienceFilters,
+  args: { activeInstallments: readonly number[]; nextInstallment: number | null },
+): AudienceShortcutKey | null {
+  for (const entry of AUDIENCE_SHORTCUTS) {
+    const candidate = shortcutFilters(entry.key, args);
+    const same =
+      candidate.installments.join(",") === filters.installments.join(",") &&
+      candidate.installmentMatch === filters.installmentMatch &&
+      candidate.maxTotalPaid === filters.maxTotalPaid &&
+      candidate.minTotalPaid === filters.minTotalPaid &&
+      candidate.minDueAmount === filters.minDueAmount &&
+      candidate.lateFee === filters.lateFee &&
+      candidate.overdue === filters.overdue &&
+      candidate.carryForward === filters.carryForward &&
+      candidate.promise === filters.promise &&
+      candidate.quote === filters.quote;
+    if (same) return entry.key;
+  }
+  return null;
 }
 
 /** A comma list of ids out of the query string, deduped and trimmed. */

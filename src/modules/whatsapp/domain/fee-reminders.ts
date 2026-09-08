@@ -37,10 +37,13 @@ import {
   isPromiseFilter,
   isQuoteBasis,
   isTri,
+  AUDIENCE_SHORTCUTS,
   NOTICE_FACT_LABELS,
   NOTICE_FACTS,
   parseIdList,
   presetFor,
+  shortcutFilters,
+  type AudienceShortcutKey,
   type AudienceFilters,
   type InstallmentMatch,
   type NoticeFact,
@@ -501,15 +504,15 @@ export type ReminderAudience = {
   paused: PausedFamily[];
   classOptions: ClassOption[];
   /**
-   * How many families each notice's PRESET would reach, counted in the same
+   * How many families each AUDIENCE SHORTCUT would reach, counted in the same
    * pass as the selected filter set.
    *
-   * A preset count, not a notice count — since the template stopped gating the
-   * audience, "how many does Balance reach" is only answerable as "how many
-   * would Balance's own filter set reach". The preset buttons show these, so
-   * the office can still see that Balance is 252 before choosing it.
+   * Keyed by shortcut, not by notice. They were keyed by notice while the
+   * chips were named after notices, which is exactly the confusion this
+   * replaced: a count under "Fee due" told you nothing about whether that chip
+   * changed the message or the list.
    */
-  counts: Record<NoticeSituation, number>;
+  counts: Record<AudienceShortcutKey, number>;
   /**
    * How many families ON THE CURRENT LIST each template would have to quote a
    * missing fact at.
@@ -891,24 +894,15 @@ export async function loadReminderAudience(
   const paused: PausedFamily[] = [];
   const candidates: ReminderCandidate[] = [];
   const classCounts = new Map<string, ClassOption>();
-  const counts: Record<NoticeSituation, number> = {
-    upcoming: 0,
-    upcoming_final: 0,
-    fee_due: 0,
-    balance: 0,
-    overdue_final: 0,
-    late_fee_applied: 0,
-    late_fee_waiver: 0,
-    waiver_last_call: 0,
-    promise_due: 0,
-    promise_lapsed: 0,
-    exam_clearance: 0,
-    prevyear: 0,
-  };
+  const counts = Object.fromEntries(
+    AUDIENCE_SHORTCUTS.map((entry) => [entry.key, 0]),
+  ) as Record<AudienceShortcutKey, number>;
   // How many of the final candidates each template would have to quote a
   // missing fact at. Zero for almost every combination; non-zero is what the
   // template chips warn about now that they no longer gate the audience.
-  const noticeGaps: Record<NoticeSituation, number> = { ...counts };
+  const noticeGaps = Object.fromEntries(
+    SITUATION_KEYS.map((situation) => [situation, 0]),
+  ) as Record<NoticeSituation, number>;
   let excludedByHand = 0;
   const today = istToday();
 
@@ -1095,14 +1089,14 @@ export async function loadReminderAudience(
     // A PRESET count, not a notice count. Since the template stopped gating the
     // audience, "how many does Balance reach" is only answerable as "how many
     // would Balance's preset reach", which is what these buttons put back.
-    for (const situation of SITUATION_KEYS) {
-      const preset = presetFor(situation, presetContext);
-      const presetAmount = quotedAmountFor(preset.quote, facts, preset.installments);
+    for (const entry of AUDIENCE_SHORTCUTS) {
+      const shortcut = shortcutFilters(entry.key, presetContext);
+      const shortcutAmount = quotedAmountFor(shortcut.quote, facts, shortcut.installments);
       if (
-        matchesAudienceFilters(preset, facts) &&
-        presetAmount >= preset.minDueAmount
+        matchesAudienceFilters(shortcut, facts) &&
+        shortcutAmount >= shortcut.minDueAmount
       ) {
-        counts[situation] += 1;
+        counts[entry.key] += 1;
       }
     }
 

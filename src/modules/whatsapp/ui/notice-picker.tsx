@@ -120,12 +120,27 @@ export function NoticePicker({
       action={applyAction}
       className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3.5 shadow-sm md:rounded-lg md:p-4"
     >
+      {/* Numbered, and it says so: this row picks the WORDING and nothing else.
+          Its twelve chips used to sit above twelve audience chips carrying the
+          same twelve names, and nothing on the page distinguished them. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-accent-foreground">
+            1
+          </span>
+          What it says
+        </h3>
+        <p className="text-[11.5px] text-muted-foreground">
+          Picking a message never changes who is on the list.
+        </p>
+      </div>
+
       {/* One line on a 390px screen: scroll rather than wrap, so the row never
           reflows under a thumb mid-tap. `no-scrollbar` because Windows Chrome
           paints a persistent grey bar under an `overflow-x-auto` row, which
-          reads as broken chrome rather than as an affordance — and there are
-          two of these rows now, this one and the presets. Above `md` there is
-          room to wrap, so the overflow is dropped entirely rather than hidden. */}
+          reads as broken chrome rather than as an affordance. Above `md` there
+          is room to wrap, so the overflow is dropped entirely rather than
+          hidden. */}
       <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
         {NOTICE_SITUATIONS.map((entry) => {
           const active = entry.value === filters.situation;
@@ -165,13 +180,16 @@ export function NoticePicker({
                 active
                   ? "border-accent bg-accent text-accent-foreground"
                   : "border-border bg-card text-foreground hover:border-border-strong",
-                // Dimmed, never hidden. A template that fits nobody on today's
-                // list is information; hiding it would move the row under a
-                // finger mid-tap.
-                gap > 0 && gap === candidateCount && !active && "opacity-45",
               )}
             >
               <span className="whitespace-nowrap">{entry.label}</span>
+              {/* NEVER dimmed for a gap. A template whose slots this audience
+                  cannot fill is still a template the office may deliberately
+                  want to send — that freedom is the whole point of separating
+                  the message from the list — and a greyed chip reads as
+                  "unavailable". The ⚠ says what is missing; it does not
+                  discourage. Only an unapproved template is visually held
+                  back, above, because Meta really will refuse it. */}
               {gap > 0 ? (
                 // How many on the CURRENT list this template cannot quote
                 // properly. Not an audience count — the template has no say in
@@ -291,27 +309,52 @@ export function NoticePicker({
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        {ledgerQuoted ? (
-          <>
-            The late fee on this notice is{" "}
-            <span className="font-semibold text-foreground">the ledger&rsquo;s figure, per family</span>
-            {" — "}read from the installment balances, never typed here.
-            {runDateFree ? " It prints no date." : ""}
-          </>
-        ) : runDateFree ? (
-          <>
-            The message will say:{" "}
-            <span className="font-semibold text-foreground">{phrase}</span>, and the date on it is{" "}
-            <span className="font-semibold text-foreground">each family&rsquo;s own promised date</span>.
-          </>
-        ) : (
-          <>
-            The message will say:{" "}
-            <span className="font-semibold text-foreground">{phrase}</span>
-          </>
-        )}
-      </p>
+      {/* -------------------------------------------------- what a parent reads */}
+      {/* ONE sentence, on every template, saying what actually goes out about
+          the deadline and the late fee.
+          
+          This is the fix for the real complaint: the same late-fee control
+          means three different things depending on the chip above it — typed
+          here on nine notices, taken from the ledger per family on the waiver
+          pair and `late_fee_applied`, and printed not at all where the notice
+          has no date slot. Nothing on screen said which you were looking at,
+          so the office could not tell a waiver note that quotes the ledger
+          from a fee-due note quoting whatever was last typed. Now they do not
+          have to work it out: the sentence says it. */}
+      <div className="rounded-lg border border-border bg-surface-2 px-3 py-2.5">
+        <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
+          What a parent reads
+        </p>
+        <p className="mt-1 text-[13px] leading-relaxed text-foreground">
+          {ledgerQuoted ? (
+            <>
+              Their own late fee,{" "}
+              <span className="font-semibold">taken from the ledger for each family</span> — nothing
+              typed here reaches them.
+              {isWaiver && filters.lastDate ? (
+                <> It is not charged if the fees arrive by <span className="font-semibold">{filters.lastDate}</span>.</>
+              ) : runDateFree ? (
+                <> The message carries no date.</>
+              ) : null}
+            </>
+          ) : runDateFree ? (
+            <>
+              <span className="font-semibold">{phrase}</span>, against{" "}
+              <span className="font-semibold">each family&rsquo;s own promised date</span> from the
+              contact log.
+            </>
+          ) : (
+            <>
+              Pay by <span className="font-semibold">{filters.lastDate || "— pick a date"}</span>
+              {filters.lateFeeBasis === "none" ? (
+                <>. No late fee is mentioned.</>
+              ) : (
+                <>, or <span className="font-semibold">{phrase}</span> applies.</>
+              )}
+            </>
+          )}
+        </p>
+      </div>
 
       {lateFeeWarning ? (
         // Warn, never block. The office may deliberately quote something the
