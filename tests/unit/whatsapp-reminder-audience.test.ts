@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_REMINDER_FILTERS, loadReminderAudience } from "@/modules/whatsapp/domain/fee-reminders";
+import {
+  DEFAULT_REMINDER_FILTERS,
+  describeMissingFacts,
+  loadReminderAudience,
+} from "@/modules/whatsapp/domain/fee-reminders";
 import {
   buildInstallmentCalendar,
   type InstallmentCalendar,
@@ -935,5 +939,30 @@ describe("unreachable families", () => {
     // not on a sheet for a class they are not in.
     expect(audience.unreachable).toHaveLength(1);
     expect(audience.unreachable[0]!.matchesNotice).toBe(false);
+  });
+});
+
+describe("describeMissingFacts", () => {
+  it("reads as a sentence, because the badge puts a verb in front of it", () => {
+    // The badge renders `Needs {label}` and the tooltip renders
+    // "This message names {label}, which this family does not have". The
+    // labels are noun phrases carrying their own article, so both readings
+    // have to work — the first version of this shipped as "No a late fee on
+    // the ledger".
+    expect(describeMissingFacts(["late_fee"])).toBe("a late fee on the ledger");
+    expect(describeMissingFacts(["promise"])).toBe("a promised date on record");
+  });
+
+  it("joins two or more with 'and', never a bare comma list", () => {
+    expect(describeMissingFacts(["late_fee", "amount"])).toBe(
+      "a late fee on the ledger and a non-zero amount to quote",
+    );
+    expect(describeMissingFacts(["next_due", "overdue", "amount"])).toBe(
+      "an installment falling due next, an installment past its due date and a non-zero amount to quote",
+    );
+  });
+
+  it("is empty when nothing is missing, so the badge does not render", () => {
+    expect(describeMissingFacts([])).toBe("");
   });
 });

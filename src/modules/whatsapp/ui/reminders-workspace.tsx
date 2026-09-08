@@ -491,7 +491,10 @@ export function RemindersWorkspace({
                         title={`This message names ${candidate.missingFactsLabel}, which this family does not have`}
                         className="rounded bg-warning/20 px-2 py-0.5 text-[10px] font-bold normal-case tracking-normal text-warning-foreground"
                       >
-                        No {candidate.missingFactsLabel}
+                        {/* "Needs", not "No": the labels are noun phrases
+                            carrying their own article, so "No" produced
+                            "No a late fee on the ledger". */}
+                        Needs {candidate.missingFactsLabel}
                       </span>
                     ) : null}
                   </div>
