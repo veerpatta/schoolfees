@@ -82,6 +82,8 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
     preferredLanguage: null,
     secondaryDestination: null,
     sentCount: 0,
+    includedByHand: false,
+    missingFacts: [],
     ...overrides,
   };
 }
@@ -90,10 +92,19 @@ function filters(overrides: Partial<ReminderFilters> = {}): ReminderFilters {
   return {
     sessionLabel: "TEST-2026-27",
     maxTotalPaid: 0,
+    minTotalPaid: null,
     installments: [1, 2],
+    installmentMatch: "all",
     minDueAmount: 1,
+    lateFee: "any",
+    overdue: "any",
+    carryForward: "any",
+    promise: "skip_open",
+    quote: "selected",
     classId: null,
     includeRte: false,
+    includeStudentIds: [],
+    excludeStudentIds: [],
     situation: "fee_due",
     language: "hi",
     lastDate: "20-10-2026",

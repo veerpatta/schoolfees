@@ -22,6 +22,7 @@ const MIGRATION = "supabase/migrations/20260822090000_whatsapp_campaigns_and_run
  * opens a run at all.
  */
 const RUN_SENDER = "src/modules/whatsapp/data/run-sender.ts";
+const AUDIENCE_DOMAIN = "src/modules/whatsapp/domain/audience.ts";
 const STORE = "src/modules/whatsapp/data/campaign-store.ts";
 
 describe("the run grouping key", () => {
@@ -120,15 +121,25 @@ describe("the send action", () => {
 
 describe("a saved campaign", () => {
   it("stores no audience — only the rule that derives one", () => {
-    // The whole reason "families who paid drop off" needs nothing built.
-    const store = read(STORE);
-    const filters = store.slice(
-      store.indexOf("export type SavedCampaignFilters"),
-      store.indexOf("/** One press of Send"),
+    // The whole reason "families who paid drop off" needs nothing built. The
+    // shape moved to `SavedAudience` in domain/audience when the audience was
+    // split from the template, so the check follows it there.
+    const shape = read(AUDIENCE_DOMAIN);
+    const saved = shape.slice(
+      shape.indexOf("export type SavedAudience = {"),
+      shape.indexOf("export function savedAudienceFrom"),
     );
-    for (const banned of ["studentIds", "recipients", "candidates", "audience"]) {
-      expect(filters).not.toContain(banned);
+    for (const banned of ["studentIds", "recipients", "candidates"]) {
+      expect(saved).not.toContain(banned);
     }
-    expect(filters).toContain("installments");
+    expect(saved).toContain("installments");
+
+    // Hand-picked students are the specific temptation here: they are on the
+    // send screen, they ride the query string, and a saved campaign is replayed
+    // by a nightly cron. An included student bypasses the filters AND their
+    // reminder cadence, so storing one would message that family every night.
+    expect(saved).not.toContain("includeStudentIds");
+    expect(saved).not.toContain("excludeStudentIds");
+    expect(read(STORE)).toContain("export type SavedCampaignFilters = SavedAudience");
   });
 });

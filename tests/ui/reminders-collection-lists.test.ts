@@ -21,6 +21,7 @@ const EXPORT_ROUTE = "src/app/protected/reminders/lists/export/route.ts";
 const ACTIONS = "src/modules/whatsapp/ui/collection-list-actions.tsx";
 const WORKSPACE = "src/modules/whatsapp/ui/reminders-workspace.tsx";
 const SEND_PAGE = "src/app/protected/reminders/page.tsx";
+const AUDIENCE = "src/modules/whatsapp/domain/audience.ts";
 
 describe("the send screen stays under its byte ceiling", () => {
   it("reaches the lists with a server-rendered link and no client code", () => {
@@ -57,20 +58,35 @@ describe("the send screen stays under its byte ceiling", () => {
 
 describe("the list follows the filter", () => {
   it("carries every audience-shaping value through to the lists screen", () => {
-    const source = read(LINKS);
+    // Drop one and the printed list is not the list on screen. This used to be
+    // a hand-written object in the links component, checked here name by name —
+    // which guarded the eight that existed and nothing added afterwards. Both
+    // sides now read ONE list, so a new filter is carried by construction.
+    expect(read(LINKS)).toContain("reminderQuery(filters)");
+    expect(read(LISTS_PAGE)).toContain("const CARRIED_PARAMS = REMINDER_QUERY_KEYS");
 
-    // Drop one of these and the printed list is not the list on screen.
+    // And that list really does hold every audience-shaping key.
+    const keys = read(AUDIENCE).slice(read(AUDIENCE).indexOf("REMINDER_QUERY_KEYS = ["));
     for (const name of [
       "situation",
       "language",
       "installments",
+      "installmentMatch",
       "maxTotalPaid",
+      "minTotalPaid",
       "minDueAmount",
+      "lateFee",
+      "overdue",
+      "carryForward",
+      "promise",
+      "quote",
       "preDueWindowDays",
       "classId",
       "includeRte",
+      "include",
+      "exclude",
     ]) {
-      expect(source).toContain(name);
+      expect(keys).toContain(`"${name}"`);
     }
   });
 

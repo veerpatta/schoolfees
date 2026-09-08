@@ -25,6 +25,7 @@ import {
   type CollectionGroupBy,
 } from "@/modules/whatsapp/domain/collection-list";
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
+import { REMINDER_QUERY_KEYS } from "@/modules/whatsapp/domain/audience";
 import { formatInr } from "@/platform/helpers/currency";
 
 /**
@@ -56,20 +57,15 @@ type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-/** Every audience-shaping param, carried through to the export unchanged. */
-const CARRIED_PARAMS = [
-  "situation",
-  "language",
-  "installments",
-  "maxTotalPaid",
-  "minDueAmount",
-  "classId",
-  "includeRte",
-  "lastDate",
-  "lateFeeAmount",
-  "lateFeeBasis",
-  "preDueWindowDays",
-] as const;
+/**
+ * Every audience-shaping param, carried through to the export unchanged.
+ *
+ * `REMINDER_QUERY_KEYS` from `domain/audience`, not a hand-written copy: a key
+ * this list forgets is a key the download silently drops, and the sheet a
+ * teacher is handed then names a different set of families than the screen
+ * that produced it.
+ */
+const CARRIED_PARAMS = REMINDER_QUERY_KEYS;
 
 export default async function CollectionListsPage({ searchParams }: PageProps) {
   await requireAnyStaffPermission(["settings:view", "settings:write"], {

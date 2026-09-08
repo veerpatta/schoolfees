@@ -28,6 +28,8 @@ const SAFE_AREA = "var(--mobile-safe-area-bottom, 0px)";
 
 /** Everything added to this feature that a phone renders. */
 const NEW_SURFACES = [
+  "src/modules/whatsapp/ui/audience-builder.tsx",
+  "src/modules/whatsapp/ui/notice-picker.tsx",
   "src/modules/whatsapp/ui/due-today-card.tsx",
   "src/modules/whatsapp/ui/holdout-control.tsx",
   "src/modules/whatsapp/ui/run-measurement-panel.tsx",

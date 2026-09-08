@@ -177,6 +177,10 @@ const B_ALLOWED: Record<string, string> = {
   "src/ui/auth/logout-button.tsx": "sign-out; landing on the login page is the outcome",
   "src/ui/shell/app-topbar.tsx": "sign-out; landing on the login page is the outcome",
   "src/ui/mobile/account-card.tsx": "sign-out; landing on the login page is the outcome",
+  "src/modules/whatsapp/ui/notice-picker.tsx":
+    "the notice card redirects to the query string it just built; the applied notice, date and late-fee phrase ARE the result, rendered on arrival",
+  "src/modules/whatsapp/ui/audience-builder.tsx":
+    "Add-a-student redirects with the student on the list — the new chip, or the list of matches to pick from, is the result",
 };
 
 const B_KNOWN_GAPS: string[] = Object.keys(B_ALLOWED);

@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 
 import {
@@ -12,64 +10,93 @@ import {
   type NoticeSituation,
 } from "@/modules/whatsapp/domain/campaigns";
 import { LATE_FEE_BASES, lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
-import { Button } from "@/ui/primitives/button";
+import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
 import { Input } from "@/ui/primitives/input";
 import { Label } from "@/ui/primitives/label";
 import { SelectNative } from "@/ui/primitives/select-native";
 import { cn } from "@/platform/utils";
+import { reminderQuery, type ReminderQueryKey } from "@/modules/whatsapp/domain/audience";
+import { CarriedFilterFields } from "@/modules/whatsapp/ui/carried-filter-fields";
 import type { ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
 
 /**
  * Which notice is going out, in which language, by when, and with what late fee.
  *
- * Links, not buttons, for the notice and the language. Changing the notice
- * changes the audience, so it has to be linkable and back-navigable — the same
- * rule the Dashboard boards follow — and the server action re-derives the list
- * from the very same query string, so a choice held in client state could send
- * to a different set of families than the office is looking at.
+ * A SERVER component since 2026-09-08. It has no state and never had — it is
+ * links and form fields — and moving it off the client took the twelve notice
+ * labels, `isCampaignApproved`, `LATE_FEE_BASES` and `lateFeePhrase` out of the
+ * browser bundle on a route with ~480 gzip bytes of headroom. That is what paid
+ * for the audience builder beside it.
  *
- * The chips carry counts because a notice with nobody in it is worth seeing
- * before you pick it: "Balance 171" is the difference between a considered
- * choice and a guess.
+ * Links, not buttons. The server action re-derives the run from the very same
+ * query string, so a choice held in client state could send a different message
+ * than the office is looking at — and the screen has to stay linkable and
+ * back-navigable, the same rule the Dashboard boards follow.
+ *
+ * **The chips no longer carry audience counts.** Until this change the notice
+ * decided who was on the list, so "Balance 171" was a real number. It does not
+ * decide that any more — the filters do — and the counts moved to the preset
+ * row in `AudienceBuilder`, which is the only place they can honestly describe
+ * anything. What a chip carries now is the opposite question: how many families
+ * ON THE CURRENT LIST this template would have to quote a missing fact at.
  */
 
 type Props = {
   filters: ReminderFilters;
-  counts: Record<NoticeSituation, number>;
+  /**
+   * Per template, how many of the families now on the list cannot fill one of
+   * its slots — a "Late fee applied" with no late fee renders ₹0. A warning,
+   * never a block: the office asked for the freedom and there are real uses for
+   * it.
+   */
+  noticeGaps: Record<NoticeSituation, number>;
+  /** How many families are on the list at all, so a gap can be read as a share. */
+  candidateCount: number;
   /** Rendered inside the GET filter form, so the date round-trips with everything else. */
   dateFieldId: string;
   /** Shown when the phrase will not match what the ledger charges. Never blocks. */
   lateFeeWarning: string | null;
+  /**
+   * The Apply action, passed in rather than imported.
+   *
+   * `src/modules/**` may not reach into `src/app/**` — `npm run quality:architecture`
+   * counts every such edge and only lets the count fall. A server action is a
+   * value, so the composition root hands it down like any other prop and the
+   * layering holds.
+   */
+  applyAction: (formData: FormData) => void | Promise<void>;
 };
 
-/** Keeps every other filter while changing one thing. */
+/**
+ * Keeps every other setting while changing one thing.
+ *
+ * Deliberately NOT `presetHref`: switching the TEMPLATE must leave the audience
+ * exactly as the office built it. That is the whole split — the message and the
+ * list are separate choices now, and a chip that quietly rebuilt the list would
+ * put it straight back together. `AudienceBuilder`'s preset row is the control
+ * that changes the audience, and it says so.
+ */
 function hrefWith(
   filters: ReminderFilters,
   override: Partial<Pick<ReminderFilters, "situation" | "language">>,
 ): string {
-  const params = new URLSearchParams();
-  params.set("situation", override.situation ?? filters.situation);
-  params.set("language", override.language ?? filters.language);
-  params.set("maxTotalPaid", String(filters.maxTotalPaid));
-  params.set("minDueAmount", String(filters.minDueAmount));
-  params.set("installments", filters.installments.join(","));
-  if (filters.classId) params.set("classId", filters.classId);
-  if (filters.includeRte) params.set("includeRte", "on");
-  if (filters.lastDate) params.set("lastDate", filters.lastDate);
-  // The late fee travels too, or switching notice silently rewrites what the
-  // message threatens.
-  params.set("lateFeeAmount", String(filters.lateFeeAmount));
-  params.set("lateFeeBasis", filters.lateFeeBasis);
-  // Changes which installments the calendar calls active, so it changes the
-  // audience, so it travels.
-  params.set("preDueWindowDays", String(filters.preDueWindowDays));
-  return `?${params.toString()}`;
+  return `?${reminderQuery(filters, {
+    situation: override.situation ?? filters.situation,
+    language: override.language ?? filters.language,
+  }).toString()}`;
 }
 
 const CHIP_BASE =
   "focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[12.5px] font-bold transition-colors";
 
-export function NoticePicker({ filters, counts, dateFieldId, lateFeeWarning }: Props) {
+export function NoticePicker({
+  filters,
+  noticeGaps,
+  candidateCount,
+  dateFieldId,
+  lateFeeWarning,
+  applyAction,
+}: Props) {
   const isPrevYear = filters.situation === "prevyear";
   const isWaiver =
     filters.situation === "late_fee_waiver" || filters.situation === "waiver_last_call";
@@ -84,13 +111,25 @@ export function NoticePicker({ filters, counts, dateFieldId, lateFeeWarning }: P
   const phrase = lateFeePhrase(filters.lateFeeAmount, filters.lateFeeBasis, filters.language);
 
   return (
-    <div className="flex flex-col gap-3">
+    // The form lives HERE, not on the page, so the Apply button inside it can
+    // read `useFormStatus`. A server action rather than a GET: Apply also
+    // REMEMBERS the date and the late fee, so tomorrow's screen opens on them,
+    // then redirects to the same query string a GET would have built — the
+    // notice stays linkable and the back button honest.
+    <form
+      action={applyAction}
+      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3.5 shadow-sm md:rounded-lg md:p-4"
+    >
       {/* One line on a 390px screen: scroll rather than wrap, so the row never
-          reflows under a thumb mid-tap. */}
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5">
+          reflows under a thumb mid-tap. `no-scrollbar` because Windows Chrome
+          paints a persistent grey bar under an `overflow-x-auto` row, which
+          reads as broken chrome rather than as an affordance — and there are
+          two of these rows now, this one and the presets. Above `md` there is
+          room to wrap, so the overflow is dropped entirely rather than hidden. */}
+      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
         {NOTICE_SITUATIONS.map((entry) => {
           const active = entry.value === filters.situation;
-          const count = counts[entry.value];
+          const gap = noticeGaps[entry.value] ?? 0;
           // A notice whose template Meta has not approved yet is shown and
           // disabled, never hidden. The office needs to know the notice exists
           // and why it cannot be sent — a missing chip is a mystery, and the
@@ -126,20 +165,27 @@ export function NoticePicker({ filters, counts, dateFieldId, lateFeeWarning }: P
                 active
                   ? "border-accent bg-accent text-accent-foreground"
                   : "border-border bg-card text-foreground hover:border-border-strong",
-                // Dimmed, never hidden: a notice with nobody in it today is
-                // information, and hiding it would move the row under a finger.
-                count === 0 && !active && "opacity-45",
+                // Dimmed, never hidden. A template that fits nobody on today's
+                // list is information; hiding it would move the row under a
+                // finger mid-tap.
+                gap > 0 && gap === candidateCount && !active && "opacity-45",
               )}
             >
               <span className="whitespace-nowrap">{entry.label}</span>
-              <span
-                className={cn(
-                  "tabular-nums text-[11px] font-extrabold",
-                  active ? "opacity-80" : "text-muted-foreground",
-                )}
-              >
-                {count}
-              </span>
+              {gap > 0 ? (
+                // How many on the CURRENT list this template cannot quote
+                // properly. Not an audience count — the template has no say in
+                // the audience any more.
+                <span
+                  title={`${gap} of ${candidateCount} on the list are missing something this message names`}
+                  className={cn(
+                    "tabular-nums text-[11px] font-extrabold",
+                    active ? "opacity-80" : "text-warning-foreground",
+                  )}
+                >
+                  ⚠ {gap}
+                </span>
+              ) : null}
             </Link>
           );
         })}
@@ -196,9 +242,14 @@ export function NoticePicker({ filters, counts, dateFieldId, lateFeeWarning }: P
           <>
             <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
             <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
-            <Button type="submit" variant="outline" size="sm" className="self-end">
+            <PendingSubmitButton
+              variant="outline"
+              size="sm"
+              className="h-11 self-end md:h-9"
+              pendingLabel="Applying…"
+            >
               Apply
-            </Button>
+            </PendingSubmitButton>
           </>
         ) : (
           // An amount and a basis, never a free-text box: a typo here is a number
@@ -227,9 +278,14 @@ export function NoticePicker({ filters, counts, dateFieldId, lateFeeWarning }: P
                   </option>
                 ))}
               </SelectNative>
-              <Button type="submit" variant="outline" size="sm">
+              <PendingSubmitButton
+                variant="outline"
+                size="sm"
+                className="h-11 md:h-9"
+                pendingLabel="Applying…"
+              >
                 Apply
-              </Button>
+              </PendingSubmitButton>
             </div>
           </div>
         )}
@@ -265,6 +321,26 @@ export function NoticePicker({ filters, counts, dateFieldId, lateFeeWarning }: P
           <strong className="font-semibold">Heads up.</strong> {lateFeeWarning}
         </p>
       ) : null}
-    </div>
+
+      {/* The picker owns the notice, the language, the date and the late fee.
+          Everything else rides along, or submitting a date would reset the
+          audience the office just built. */}
+      <CarriedFilterFields filters={filters} except={NOTICE_FORM_KEYS} />
+    </form>
   );
 }
+
+/**
+ * The keys this card's own form posts.
+ *
+ * `campaignId` is deliberately not here: it is not a filter, it rides along on
+ * every form so a run started from a saved campaign stays attributed to it
+ * through an Apply.
+ */
+const NOTICE_FORM_KEYS = [
+  "situation",
+  "language",
+  "lastDate",
+  "lateFeeAmount",
+  "lateFeeBasis",
+] as const satisfies readonly ReminderQueryKey[];

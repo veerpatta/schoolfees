@@ -3,13 +3,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useActionState, useMemo, useState } from "react";
-import { AlertTriangle, MessageCircle, Send } from "lucide-react";
+import { AlertTriangle, MessageCircle, Send, UserPlus, X } from "lucide-react";
 
-import {
-  applyNoticeSettingsAction,
-  sendRemindersAction,
-  type SendRemindersState,
-} from "@/app/protected/reminders/actions";
+import { sendRemindersAction, type SendRemindersState } from "@/app/protected/reminders/actions";
 import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
 import { MobileEmptyRows, MobileNote, MobileRecordCard } from "@/ui/mobile/mobile-kit";
 import {
@@ -21,39 +17,54 @@ import { Checkbox } from "@/ui/primitives/checkbox";
 import { Input } from "@/ui/primitives/input";
 import { Label } from "@/ui/primitives/label";
 import { Notice } from "@/ui/primitives/notice";
-import { SelectNative } from "@/ui/primitives/select-native";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 import { formatInr } from "@/platform/helpers/currency";
 import { cn } from "@/platform/utils";
 import { cadenceLabel } from "@/modules/whatsapp/domain/reminder-cadence";
-import {
-  installmentPhrase,
-  NOTICE_SITUATIONS,
-} from "@/modules/whatsapp/domain/campaigns";
-import { NoticePicker } from "@/modules/whatsapp/ui/notice-picker";
-import { SITUATION_FILTERS } from "@/modules/whatsapp/domain/campaigns";
-import type { ReminderAudience, ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
+import type { ReminderAudience } from "@/modules/whatsapp/domain/fee-reminders";
 
 type Props = {
-  filters: ReminderFilters;
   audience: ReminderAudience;
   canSend: boolean;
   campaignName: string | null;
-  /** Composed server-side against the live fee policy. Null when they agree. */
-  lateFeeWarning: string | null;
   /** Set when the office arrived via a saved campaign's Load button. */
   savedCampaign: { id: string; name: string } | null;
   /**
-   * One line saying who this notice is about, and the wording for the families
-   * it is not about.
+   * The whole notice card — which template, which language, the date, the late
+   * fee — rendered on the server.
    *
-   * Props rather than a lookup here, because both are a single read keyed by a
-   * situation the SERVER already knows. Shipping all seven of each to the
-   * browser to pick one is ~900 gzip bytes of copy nobody reads, on a route
-   * whose ceiling in `quality/route-bundle-baseline.json` only ratchets down.
+   * A `ReactNode` prop, like `holdoutControl` below, because it is links and
+   * form fields with no client state. Moving it off the browser took the twelve
+   * notice labels, the campaign approval table and `lateFeePhrase` out of a
+   * bundle with ~480 gzip bytes of headroom, which is what paid for the
+   * audience builder.
    */
-  situationRule: string;
-  notThisNotice: string;
+  noticeControls: ReactNode;
+  /**
+   * The audience builder: presets, every filter, and the students named by
+   * hand. Server-rendered for the same reason — see `AudienceBuilder`.
+   */
+  audienceControls: ReactNode;
+  /**
+   * The hidden inputs the SEND form posts, from one canonical key list.
+   *
+   * Was a hand-written block of `<input type="hidden">` here, which is how a
+   * filter the office set could reach the screen and not the send — the action
+   * rebuilds the audience from what this form posts, so a key missing here
+   * messages a different set of families than the office ticked.
+   */
+  sendFormFields: ReactNode;
+  /** One line saying who is on this list, composed from the filters server-side. */
+  audienceRule: string;
+  /** What the amount on each row means, given the chosen quote basis. */
+  amountNote: string;
+  /**
+   * `?exclude=` with a trailing separator, so a row's Remove link is this plus
+   * the student id. Built server-side from the canonical key list rather than
+   * assembled in the browser, which would need the whole filter serialiser
+   * here.
+   */
+  excludeHrefPrefix: string;
   /**
    * The "hold some families back" disclosure, rendered on the server.
    *
@@ -85,6 +96,9 @@ type Props = {
 const IDLE_SEND: SendRemindersState = { status: "idle" };
 
 const SKIP_LABELS: Array<{ key: keyof ReminderAudience["skipped"]; label: string }> = [
+  // `installmentsClear` now counts "did not match your filters" rather than
+  // "this notice is not about them" — the notice stopped deciding that.
+  { key: "installmentsClear", label: "did not match these filters" },
   { key: "leftAndNeverPaid", label: "left and never paid" },
   { key: "noCallFlagged", label: "flagged no-call by the office" },
   { key: "rteStudent", label: "RTE students" },
@@ -100,124 +114,6 @@ const SKIP_LABELS: Array<{ key: keyof ReminderAudience["skipped"]; label: string
 ];
 
 /**
- * The filter controls, rendered once and mounted twice — collapsed behind a
- * disclosure on a phone, as the desk grid above `md`.
- *
- * `idPrefix` is load-bearing, not decoration: both branches sit in the DOM at
- * every viewport, so without it every `<Label htmlFor>` on the page would point
- * at a duplicated id. The two copies live in two separate `<form>` elements, so
- * only the one actually submitted contributes to the query string.
- *
- * WHICH controls appear depends on the notice, from `SITUATION_FILTERS`. A
- * control the notice ignores is hidden rather than disabled, and its value goes
- * along as a hidden input — a filter the office set on one notice must survive a
- * trip through a notice that had no use for it, and a dropdown that reads as
- * applied while doing nothing is how 87 families got chased for installments
- * that were not due yet.
- */
-function ReminderFilterFields({
-  idPrefix,
-  filters,
-  classOptions,
-}: {
-  idPrefix: string;
-  filters: ReminderFilters;
-  classOptions: ReminderAudience["classOptions"];
-}) {
-  const applies = SITUATION_FILTERS[filters.situation];
-
-  return (
-    <>
-      {applies.paidSoFar ? (
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}maxTotalPaid`}>{applies.paidSoFar}</Label>
-          <Input
-            id={`${idPrefix}maxTotalPaid`}
-            name="maxTotalPaid"
-            type="number"
-            min={0}
-            defaultValue={filters.maxTotalPaid}
-          />
-        </div>
-      ) : (
-        <input type="hidden" name="maxTotalPaid" value={filters.maxTotalPaid} />
-      )}
-
-      <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}minDueAmount`}>{applies.minDue}</Label>
-        <Input
-          id={`${idPrefix}minDueAmount`}
-          name="minDueAmount"
-          type="number"
-          min={0}
-          defaultValue={filters.minDueAmount}
-        />
-      </div>
-
-      {applies.installments ? (
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}installments`}>{applies.installments}</Label>
-          <SelectNative
-            id={`${idPrefix}installments`}
-            name="installments"
-            defaultValue={filters.installments.join(",")}
-          >
-            <option value="1,2">1 and 2</option>
-            <option value="1">1 only</option>
-            <option value="2">2 only</option>
-            <option value="1,2,3">1, 2 and 3</option>
-            <option value="3">3 only</option>
-          </SelectNative>
-        </div>
-      ) : (
-        <input type="hidden" name="installments" value={filters.installments.join(",")} />
-      )}
-
-      <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}classId`}>Class</Label>
-        <SelectNative id={`${idPrefix}classId`} name="classId" defaultValue={filters.classId ?? ""}>
-          <option value="">All classes</option>
-          {classOptions.map((option) => (
-            <option key={option.classId} value={option.classId}>
-              {option.label} ({option.count})
-            </option>
-          ))}
-        </SelectNative>
-      </div>
-
-      {/* Which notice, which language and which date all live on the picker card,
-          which is a different <form>. Without these, pressing Apply here would
-          submit a query string missing all three — throwing the office back to the
-          fee-due notice in Hindi with the default deadline, silently, in the middle
-          of choosing who to send to. */}
-      <input type="hidden" name="situation" value={filters.situation} />
-      <input type="hidden" name="language" value={filters.language} />
-      <input type="hidden" name="lastDate" value={filters.lastDate} />
-      {/* The window decides which installments the calendar calls active, so it
-          changes the audience and must travel with the rest of them. */}
-      <input type="hidden" name="preDueWindowDays" value={filters.preDueWindowDays} />
-      <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
-      <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
-
-      <div className="flex items-end gap-3 max-md:pt-1">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="includeRte"
-            defaultChecked={filters.includeRte}
-            className="size-4 rounded border-border-strong"
-          />
-          Include RTE
-        </label>
-        <Button type="submit" variant="outline" size="sm">
-          Apply
-        </Button>
-      </div>
-    </>
-  );
-}
-
-/**
  * What the TODAY column says. A sibling named inside the family's one message
  * was reminded — the raw `covered_by_sibling` read as "not sent" to the office,
  * on the first morning under family grouping.
@@ -229,14 +125,16 @@ function sentTodayLabel(status: string | undefined, sentLabel: string): string {
 }
 
 export function RemindersWorkspace({
-  filters,
   audience,
   canSend,
   campaignName,
-  lateFeeWarning,
   savedCampaign,
-  situationRule,
-  notThisNotice,
+  noticeControls,
+  audienceControls,
+  sendFormFields,
+  audienceRule,
+  amountNote,
+  excludeHrefPrefix,
   previewBody,
   holdoutControl,
   listActions,
@@ -292,31 +190,8 @@ export function RemindersWorkspace({
   );
   const sample = selectedCandidates[0] ?? audience.candidates[0] ?? null;
 
-  // A live summary rather than an "N applied" count: a count would need
-  // DEFAULT_REMINDER_FILTERS to know what "applied" means, and that constant
-  // lives in the server-only module this client component may not import.
-  const situationLabel =
-    NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
-
-  // The chip on the phone disclosure summarises what is applied. It must not
-  // claim an installment filter on `prevyear`, which ignores one.
-  const filterSummary = [
-    situationLabel,
-    SITUATION_FILTERS[filters.situation].installments
-      ? `Inst ${filters.installments.join(" & ")}`
-      : null,
-    audience.classOptions.find((option) => option.classId === filters.classId)?.label ??
-      "All classes",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
   return (
     <div className="flex flex-col gap-6">
-      {/* ------------------------------------------------------------ the notice */}
-      {/* Above the filters on purpose: which notice is going out decides the whole
-          list, and the filters only trim it. On a phone this is the first thing
-          under the header. */}
       {audience.candidates.length > 0 && selectable.length === 0 ? (
         // First thing on the screen, not buried under the filters: it explains
         // why every row below is greyed and why "Select all" reads 0.
@@ -328,74 +203,30 @@ export function RemindersWorkspace({
               family twice in one day, which is why nothing below can be ticked.
             </p>
             <p className="mt-1.5">
-              A <strong>different</strong> notice still can — the chips below show how many each
-              would reach — and the list rebuilds tomorrow without whoever pays tonight.
+              A <strong>different</strong> message still can, and so can the same one tomorrow —
+              the list rebuilds without whoever pays tonight.
             </p>
           </Notice>
         </div>
       ) : null}
 
-      {/* A server action rather than a GET: Apply here also REMEMBERS the date
-          and the late fee, so tomorrow's screen opens on them. It redirects to
-          the same query string a GET would have built, so the notice stays
-          linkable and the back button honest. */}
-      <form
-        action={applyNoticeSettingsAction}
-        className="rounded-xl border border-border bg-card p-3.5 shadow-sm max-md:order-1 md:rounded-lg md:p-4"
-      >
+      {/* ------------------------------------------------------- what it says */}
+      {/* Server-rendered: the notice card and the audience builder are links,
+          GET forms and server actions, so neither costs the browser a byte. */}
+      <div className="max-md:order-1">
         {savedCampaign ? (
-          <p className="-mt-0.5 mb-2.5 text-xs text-muted-foreground">
+          <p className="mb-2 text-xs text-muted-foreground">
             Running the saved campaign{" "}
             <strong className="font-semibold text-foreground">{savedCampaign.name}</strong>. The
-            list below is rebuilt from today&rsquo;s ledger, so anyone who has paid since the last run is
-            already gone from it.
+            list below is rebuilt from today&rsquo;s ledger, so anyone who has paid since the last
+            run is already gone from it.
           </p>
         ) : null}
-        <NoticePicker
-          filters={filters}
-          counts={audience.counts}
-          dateFieldId="lastDate"
-          lateFeeWarning={lateFeeWarning}
-        />
-        {/* The picker's links carry the other filters; these keep them on the
-            date form too, so submitting a date does not reset the notice. */}
-        <input type="hidden" name="situation" value={filters.situation} />
-        <input type="hidden" name="language" value={filters.language} />
-        <input type="hidden" name="maxTotalPaid" value={filters.maxTotalPaid} />
-        <input type="hidden" name="minDueAmount" value={filters.minDueAmount} />
-        <input type="hidden" name="installments" value={filters.installments.join(",")} />
-        <input type="hidden" name="preDueWindowDays" value={filters.preDueWindowDays} />
-        <input type="hidden" name="classId" value={filters.classId ?? ""} />
-        {filters.includeRte ? <input type="hidden" name="includeRte" value="on" /> : null}
-      </form>
+        {noticeControls}
+      </div>
 
-      {/* ---------------------------------------------------------------- filters */}
-      <details className="rounded-xl border border-border bg-card shadow-sm max-md:order-2 md:hidden">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground">
-          <span>Filters</span>
-          <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-            {filterSummary}
-          </span>
-        </summary>
-        <div className="border-t border-border px-4 py-4">
-          <form method="get" className="grid gap-4">
-            <ReminderFilterFields
-              idPrefix="m-"
-              filters={filters}
-              classOptions={audience.classOptions}
-            />
-          </form>
-        </div>
-      </details>
-
-      <form
-        method="get"
-        // Auto-fit rather than a fixed five: `prevyear` hides two of the
-        // controls, and a fixed count would leave holes in the row.
-        className="hidden flex-wrap items-end gap-4 rounded-lg border border-border bg-surface-2 p-4 md:flex [&>div]:min-w-[9rem] [&>div]:max-w-[15rem] [&>div]:flex-1"
-      >
-        <ReminderFilterFields idPrefix="" filters={filters} classOptions={audience.classOptions} />
-      </form>
+      {/* ------------------------------------------------------ who gets it */}
+      <div className="max-md:order-2">{audienceControls}</div>
 
       {/* Under the filter, because the list you want to hand out is the list you
           just narrowed. `max-md:order-2` puts it with the phone's filter
@@ -405,20 +236,20 @@ export function RemindersWorkspace({
       {/* --------------------------------------------------------------- who is out */}
       {/* The rule first, then the count. "Why is this family not here" is the
           question the office actually asks, and a list of exclusion counts
-          answers it only if you already know what the notice is looking for. */}
+          answers it only if you already know what was asked for. */}
       <p className="-mt-3 text-sm text-muted-foreground max-md:order-5 max-md:-mt-1">
         <strong className="font-semibold text-foreground">Who is on this list:</strong>{" "}
-        {situationRule}
+        {audienceRule}
       </p>
 
       <p className="-mt-3 text-sm text-muted-foreground max-md:order-5">
-        Excluded by these filters:{" "}
+        Left out:{" "}
         {[
-          { count: audience.skipped.installmentsClear, label: notThisNotice },
           ...SKIP_LABELS.map((entry) => ({
             count: audience.skipped[entry.key],
             label: entry.label,
           })),
+          { count: audience.excludedByHand, label: "removed by hand" },
         ]
           .filter((entry) => entry.count > 0)
           .map((entry) => `${entry.count} ${entry.label}`)
@@ -522,20 +353,12 @@ export function RemindersWorkspace({
 
       {/* -------------------------------------------------------------------- list */}
       <form action={sendFormAction} className="max-md:order-4">
-        <input type="hidden" name="maxTotalPaid" value={filters.maxTotalPaid} />
-        <input type="hidden" name="minDueAmount" value={filters.minDueAmount} />
-        <input type="hidden" name="installments" value={filters.installments.join(",")} />
-        <input type="hidden" name="preDueWindowDays" value={filters.preDueWindowDays} />
-        <input type="hidden" name="classId" value={filters.classId ?? ""} />
-        {filters.includeRte ? <input type="hidden" name="includeRte" value="on" /> : null}
-        {/* The notice decides the audience the action rebuilds. Without these the
-            send would re-derive the DEFAULT notice and message a different set of
-            families than the office ticked. */}
-        <input type="hidden" name="situation" value={filters.situation} />
-        <input type="hidden" name="language" value={filters.language} />
-        <input type="hidden" name="lastDate" value={filters.lastDate} />
-        <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
-        <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
+        {/* Every filter, from ONE canonical key list, rendered on the server.
+            The action rebuilds the audience from what this form posts, so a key
+            missing here would message a different set of families than the
+            office ticked — and a hand-written block of hidden inputs is exactly
+            how that happens. */}
+        {sendFormFields}
         {/* ---------------------------------------------------- overrides */}
         {/* Rendered only after a run has actually been refused, so the ordinary
             path never shows a row of boxes inviting somebody to tick them. */}
@@ -618,13 +441,7 @@ export function RemindersWorkspace({
         {/* The desk table says "Message says due" in a column header. A card has
             no header to lean on, so the rule is stated once here instead of on
             every card. */}
-        <MobileNote className="mb-2.5 md:hidden">
-          {filters.situation === "prevyear"
-            ? "The amount on each card is last session's balance still outstanding. It carries no late fee."
-            : filters.situation === "balance"
-              ? "The amount on each card is what is still owed on this session's installments, after everything received."
-              : `The amount on each card is the figure the message will quote — ${installmentPhrase(filters.installments, "en").toLowerCase()} of this session only, never last year's carry-forward.`}
-        </MobileNote>
+        <MobileNote className="mb-2.5 md:hidden">{amountNote}</MobileNote>
 
         <ul
           className="flex flex-col gap-2.5 md:hidden"
@@ -653,11 +470,28 @@ export function RemindersWorkspace({
                 subtitle={`${candidate.studentClass} · ${candidate.parentName}`}
                 amount={formatInr(candidate.dueAmount)}
                 status={
-                  already ? (
-                    <span className="rounded bg-surface-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                      {sentTodayLabel(candidate.sentToday?.status, "Sent today")}
-                    </span>
-                  ) : null
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {already ? (
+                      <span className="rounded bg-surface-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                        {sentTodayLabel(candidate.sentToday?.status, "Sent today")}
+                      </span>
+                    ) : null}
+                    {candidate.includedByHand ? (
+                      // The one row on the list a filter cannot explain.
+                      <span className="inline-flex items-center gap-1 rounded bg-accent/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground">
+                        <UserPlus className="size-3" aria-hidden="true" />
+                        By hand
+                      </span>
+                    ) : null}
+                    {candidate.missingFacts.length > 0 ? (
+                      // Any template can reach any family now, so a family can
+                      // be sent a message built around a fact they do not have.
+                      // Warned, never silent.
+                      <span className="rounded bg-warning/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning-foreground">
+                        Message needs {candidate.missingFacts.length} missing
+                      </span>
+                    ) : null}
+                  </div>
                 }
                 fields={[
                   { label: "Adm", value: candidate.admissionNo },
@@ -693,12 +527,27 @@ export function RemindersWorkspace({
                             : "Select for this send"}
                     </span>
                   </label>
-                  <ReminderCadenceControl
-                    studentId={candidate.studentId}
-                    cadence={candidate.cadence}
-                    disabled={!canSend}
-                    className="w-full justify-between border-t border-border pt-2.5"
-                  />
+                  <div className="flex w-full items-center gap-2 border-t border-border pt-2.5">
+                    <ReminderCadenceControl
+                      studentId={candidate.studentId}
+                      cadence={candidate.cadence}
+                      disabled={!canSend}
+                      className="min-w-0 flex-1 justify-between"
+                    />
+                    {/* Drops this family from the list itself, not just from
+                        this send: it rides `?exclude=`, so the collection lists
+                        and the export leave them off too. Undo is a chip in the
+                        audience builder. */}
+                    <Link
+                      href={`${excludeHrefPrefix}${candidate.studentId}`}
+                      scroll={false}
+                      prefetch={false}
+                      aria-label={`Remove ${candidate.studentName} from the list`}
+                      className="focus-ring grid size-11 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground"
+                    >
+                      <X className="size-4" aria-hidden="true" />
+                    </Link>
+                  </div>
                   </>
                 }
               />
@@ -706,7 +555,8 @@ export function RemindersWorkspace({
           })}
           {audience.candidates.length === 0 ? (
             <MobileEmptyRows>
-              Nobody matches these filters. Either everyone has paid, or the filters are too narrow.
+              Nobody matches these filters. Either everyone has paid, or the filters are too narrow
+              — widen them above, or start from one of the presets.
             </MobileEmptyRows>
           ) : null}
         </ul>
@@ -725,6 +575,7 @@ export function RemindersWorkspace({
                 <th className="px-3 py-2 text-right">Message says</th>
                 <th className="px-3 py-2">Today</th>
                 <th className="px-3 py-2">Remind</th>
+                <th className="w-10 px-3 py-2" />
               </tr>
             </thead>
             <tbody>
@@ -744,7 +595,25 @@ export function RemindersWorkspace({
                       />
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">{candidate.admissionNo}</td>
-                    <td className="px-3 py-2 font-medium">{candidate.studentName}</td>
+                    <td className="px-3 py-2 font-medium">
+                      {candidate.studentName}
+                      {candidate.includedByHand ? (
+                        <span
+                          title="Added by hand — the filters did not find this family"
+                          className="ml-1.5 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground"
+                        >
+                          by hand
+                        </span>
+                      ) : null}
+                      {candidate.missingFacts.length > 0 ? (
+                        <span
+                          title={`This message names ${candidate.missingFacts.length} thing(s) this family does not have`}
+                          className="ml-1.5 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning-foreground"
+                        >
+                          ⚠
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2">{candidate.studentClass}</td>
                     <td className="px-3 py-2">{candidate.parentName}</td>
                     <td className="px-3 py-2 font-mono text-xs">
@@ -775,14 +644,29 @@ export function RemindersWorkspace({
                         disabled={!canSend}
                       />
                     </td>
+                    <td className="px-3 py-2">
+                      {/* Rides `?exclude=`, so the collection lists and the
+                          export leave them off too. Undo is a chip in the
+                          audience builder above. */}
+                      <Link
+                        href={`${excludeHrefPrefix}${candidate.studentId}`}
+                        scroll={false}
+                        prefetch={false}
+                        aria-label={`Remove ${candidate.studentName} from the list`}
+                        title="Remove from the list"
+                        className="focus-ring grid size-7 place-items-center rounded text-muted-foreground hover:bg-surface-2"
+                      >
+                        <X className="size-3.5" aria-hidden="true" />
+                      </Link>
+                    </td>
                   </tr>
                 );
               })}
               {audience.candidates.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={11} className="px-3 py-8 text-center text-muted-foreground">
                     Nobody matches these filters. Either everyone has paid, or the filters are too
-                    narrow.
+                    narrow — widen them above, or start from one of the presets.
                   </td>
                 </tr>
               ) : null}

@@ -15,12 +15,10 @@ import {
 import {
   buildInstallmentCalendar,
   DEFAULT_PRE_DUE_WINDOW_DAYS,
-  isFinalNoticeWindow,
   type InstallmentCalendar,
 } from "@/modules/whatsapp/domain/installment-calendar";
 import {
   campaignNameFor,
-  isLedgerQuotedSituation,
   noticeValuesFrom,
   DEFAULT_LANGUAGE,
   DEFAULT_SITUATION,
@@ -33,6 +31,22 @@ import {
   type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
 import { campaignNamesForNotice } from "@/modules/whatsapp/domain/family-notice";
+import {
+  DEFAULT_MAX_TOTAL_PAID as AUDIENCE_DEFAULT_MAX_TOTAL_PAID,
+  isInstallmentMatch,
+  isPromiseFilter,
+  isQuoteBasis,
+  isTri,
+  NOTICE_FACTS,
+  parseIdList,
+  presetFor,
+  type AudienceFilters,
+  type InstallmentMatch,
+  type NoticeFact,
+  type PromiseFilter,
+  type QuoteBasis,
+  type Tri,
+} from "@/modules/whatsapp/domain/audience";
 import { daysBetweenIsoDates } from "@/platform/helpers/date";
 
 /**
@@ -52,24 +66,23 @@ import { daysBetweenIsoDates } from "@/platform/helpers/date";
  * type. This file only decides WHO is on the list.
  */
 
-export const DEFAULT_MAX_TOTAL_PAID = 1100;
+/** Re-exported from `domain/audience`, which the browser may import. */
+export const DEFAULT_MAX_TOTAL_PAID = AUDIENCE_DEFAULT_MAX_TOTAL_PAID;
 
-export type ReminderFilters = {
+/**
+ * A whole reminder run: who it goes to (`AudienceFilters`) and what it says.
+ *
+ * The two halves used to be one. `situation` gated the audience as well as
+ * picking the campaign, so "send the overdue wording to the fee-due families"
+ * was not expressible. Since 2026-09-08 the audience is decided by the filters
+ * alone — see `domain/audience.ts` — and `situation` decides only the message.
+ */
+export type ReminderFilters = AudienceFilters & {
   sessionLabel: string;
-  /** Families who have paid at most this much have effectively paid nothing. */
-  maxTotalPaid: number;
-  /** Every one of these installments must still carry fees. */
-  installments: number[];
-  /** Skip anyone owing less than this — not worth a paid message. */
-  minDueAmount: number;
-  classId: string | null;
-  includeRte: boolean;
   /**
-   * Which notice is being sent. This CHANGES THE AUDIENCE, which is why it lives
-   * with the filters and travels in the query string rather than in client
-   * state: the action re-derives the list from these same values, and a
-   * situation it could not see would message a different set of families than
-   * the office ticked.
+   * Which notice is being sent. It no longer changes who is on the list, but it
+   * still travels in the query string: the send action re-derives everything
+   * from these values, and it decides which campaign name is billed.
    */
   situation: NoticeSituation;
   /** Picks the campaign name only. Same families either way. */
@@ -100,15 +113,26 @@ export type ReminderFilters = {
   preDueWindowDays: number;
 };
 
+/**
+ * What a screen with nothing in its query string opens on.
+ *
+ * The audience half is `DEFAULT_SITUATION`'s own preset, so a bare
+ * `/protected/reminders` still shows exactly the families it always showed.
+ * The notice no longer GATES that list — it just supplies the opening values,
+ * every one of which the office can now change.
+ */
 export const DEFAULT_REMINDER_FILTERS: Omit<
   ReminderFilters,
   "sessionLabel" | "lastDate" | "lateFeeAmount"
 > = {
-  maxTotalPaid: DEFAULT_MAX_TOTAL_PAID,
-  installments: [...TEMPLATE_INSTALLMENTS],
-  minDueAmount: 1,
+  ...presetFor(DEFAULT_SITUATION, {
+    activeInstallments: TEMPLATE_INSTALLMENTS,
+    nextInstallment: null,
+  }),
   classId: null,
   includeRte: false,
+  includeStudentIds: [],
+  excludeStudentIds: [],
   situation: DEFAULT_SITUATION,
   language: DEFAULT_LANGUAGE,
   lateFeeBasis: DEFAULT_LATE_FEE_BASIS,
@@ -157,6 +181,12 @@ export function parseReminderFilters(
    * charged" whatever was last used, because carry-forward never accrues one.
    */
   defaultLateFeeBasis: LateFeeBasis | null = null,
+  /**
+   * The one installment the calendar says falls due next, for the courtesy
+   * notices' preset. Null when the session has no readable schedule, which
+   * simply means that preset opens on the active set instead.
+   */
+  options: { nextInstallment?: number | null } = {},
 ): ReminderFilters {
   const number = (key: string, fallback: number) => {
     const raw = read(key);
@@ -165,32 +195,86 @@ export function parseReminderFilters(
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
   };
 
-  // An absent param means "whatever the calendar says today"; an explicit one
-  // is the office overriding it and always wins.
-  const installments = (read("installments") || "")
+  /** An absent key means "take the notice's preset"; a blank one means "no limit". */
+  const optionalNumber = (key: string, fallback: number | null) => {
+    const raw = read(key);
+    if (raw === null) return fallback;
+    if (raw.trim() === "") return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  };
+
+  const situation = isNoticeSituation(read("situation"))
+    ? (read("situation") as NoticeSituation)
+    : DEFAULT_SITUATION;
+
+  // What this notice's audience used to be, and therefore what every filter
+  // opens on before the office touches it. An explicit query parameter always
+  // wins — that is the whole point of the split — but a link written before
+  // this change carries none of them and must still name the same families.
+  const preset = presetFor(situation, {
+    activeInstallments:
+      defaultInstallments.length > 0 ? defaultInstallments : TEMPLATE_INSTALLMENTS,
+    nextInstallment: options.nextInstallment ?? null,
+  });
+
+  /**
+   * An ABSENT key means "whatever the preset says". A key that is present but
+   * empty means the office unticked all four — no installment constraint at
+   * all — which is a real answer and not the same thing.
+   *
+   * The filter form always emits the key, so unticking every box reaches here
+   * as `""` rather than as nothing. Getting this wrong makes the four
+   * checkboxes impossible to clear: they would spring back to the preset.
+   */
+  const rawInstallments = read("installments");
+  const installments = (rawInstallments || "")
     .split(",")
     .map((value) => Number(value.trim()))
     .filter((value) => value >= 1 && value <= 4);
 
-  const resolvedInstallments =
-    installments.length > 0
-      ? installments
-      : defaultInstallments.length > 0
-        ? [...defaultInstallments]
-        // A session with no readable schedule falls back to the pair the school
-        // has always chased, rather than to an audience of nobody.
-        : [...TEMPLATE_INSTALLMENTS];
+  // Blank (or whitespace) is the office clearing every box. A value that HAD
+  // content but no valid installment — `0,9,banana` from a hand-edited URL —
+  // falls back to the preset rather than silently widening the audience to
+  // everybody: garbage must not be read as a deliberate "no constraint".
+  const clearedByHand = rawInstallments !== null && rawInstallments.trim() === "";
+  const resolvedInstallments = clearedByHand
+    ? []
+    : installments.length > 0
+      ? [...new Set(installments)].sort()
+      : [...preset.installments];
+
+  const pick = <T,>(key: string, guard: (value: unknown) => value is T, fallback: T): T => {
+    const raw = read(key);
+    return guard(raw) ? raw : fallback;
+  };
 
   return {
     sessionLabel,
-    maxTotalPaid: number("maxTotalPaid", DEFAULT_REMINDER_FILTERS.maxTotalPaid),
+    maxTotalPaid: optionalNumber("maxTotalPaid", preset.maxTotalPaid),
+    minTotalPaid: optionalNumber("minTotalPaid", preset.minTotalPaid),
     installments: resolvedInstallments,
-    minDueAmount: number("minDueAmount", DEFAULT_REMINDER_FILTERS.minDueAmount),
+    installmentMatch: pick<InstallmentMatch>(
+      "installmentMatch",
+      isInstallmentMatch,
+      preset.installmentMatch,
+    ),
+    minDueAmount: number("minDueAmount", preset.minDueAmount),
+    lateFee: pick<Tri>("lateFee", isTri, preset.lateFee),
+    overdue: pick<Tri>("overdue", isTri, preset.overdue),
+    carryForward: pick<Tri>("carryForward", isTri, preset.carryForward),
+    promise: pick<PromiseFilter>("promise", isPromiseFilter, preset.promise),
+    quote: pick<QuoteBasis>("quote", isQuoteBasis, preset.quote),
     classId: read("classId")?.trim() || null,
     includeRte: read("includeRte") === "on",
+    // Named by hand, and therefore the office's most recent word on this
+    // family — see `loadReminderAudience` for exactly what an include gets
+    // past and what it never does.
+    includeStudentIds: parseIdList(read("include")),
+    excludeStudentIds: parseIdList(read("exclude")),
     // An unrecognised value falls back rather than throwing: a hand-edited URL
     // must not be able to take the screen down.
-    situation: isNoticeSituation(read("situation")) ? (read("situation") as NoticeSituation) : DEFAULT_SITUATION,
+    situation,
     language: isNoticeLanguage(read("language")) ? (read("language") as NoticeLanguage) : DEFAULT_LANGUAGE,
     lastDate: read("lastDate")?.trim() || defaultLastDate,
     lateFeeAmount: number("lateFeeAmount", defaultLateFeeAmount),
@@ -295,6 +379,17 @@ export type ReminderCandidate = {
   secondaryDestination: string | null;
   /** Delivered notices logged for this family this session, any campaign. */
   sentCount: number;
+  /**
+   * True when the office named this student by hand rather than the filters
+   * finding them. Shown on the row, because it is the one line on the list a
+   * filter cannot explain.
+   */
+  includedByHand: boolean;
+  /**
+   * Slots the SELECTED template needs that this family cannot fill — see
+   * `missingFactsFor`. Empty for almost everybody.
+   */
+  missingFacts: NoticeFact[];
 };
 
 export type ReminderSkipCounts = {
@@ -360,6 +455,8 @@ export type ClassOption = { classId: string; label: string; count: number };
 export type ReminderAudience = {
   candidates: ReminderCandidate[];
   skipped: ReminderSkipCounts;
+  /** Students the office dropped by hand, counted so the screen can offer them back. */
+  excludedByHand: number;
   /** Named, because WhatsApp can never reach these families at all. */
   unreachable: Array<{
     studentId: string;
@@ -390,11 +487,23 @@ export type ReminderAudience = {
   paused: PausedFamily[];
   classOptions: ClassOption[];
   /**
-   * How many families each notice would reach, counted in the same pass as the
-   * selected one. The picker shows live numbers without three round trips, and
-   * the office can see that "Balance" is 252 before choosing it.
+   * How many families each notice's PRESET would reach, counted in the same
+   * pass as the selected filter set.
+   *
+   * A preset count, not a notice count — since the template stopped gating the
+   * audience, "how many does Balance reach" is only answerable as "how many
+   * would Balance's own filter set reach". The preset buttons show these, so
+   * the office can still see that Balance is 252 before choosing it.
    */
   counts: Record<NoticeSituation, number>;
+  /**
+   * How many families ON THE CURRENT LIST each template would have to quote a
+   * missing fact at.
+   *
+   * The template chips show this instead of an audience count, because that is
+   * now the only thing about a template that depends on who is on the list.
+   */
+  noticeGaps: Record<NoticeSituation, number>;
 };
 
 const SELECT_COLUMNS = [
@@ -461,6 +570,176 @@ function pendingFor(row: FinancialRow, installment: number): number {
     case 4: return Number(row.inst4_pending ?? 0);
     default: return 0;
   }
+}
+
+/**
+ * Everything the filters, the quote basis and the templates can ask about one
+ * family, gathered once.
+ *
+ * A plain struct rather than the matview row, so the three pure functions below
+ * are testable without a Supabase stub and cannot drift from what the loop
+ * actually computed. It replaced a twelve-boolean `qualifies` record — the
+ * thing that made the audience inseparable from the message.
+ */
+export type CandidateFacts = {
+  totalPaid: number;
+  /** Fees still pending on installments 1-4, in order. Fees only, never a late fee. */
+  installmentPending: [number, number, number, number];
+  /** What the LEDGER is charging in late fees on passed rows. Read, never derived. */
+  lateFeeApplied: number;
+  /** Fees still pending on those same late-fee rows. */
+  ledgerFeesPending: number;
+  /** Passed installments still carrying fees, whatever the late fee is doing. */
+  overdueInstallments: number[];
+  overdueAmount: number;
+  nextInstallmentNo: number | null;
+  nextInstallmentPending: number;
+  /** Everything owed across this session's four installments. Never last year's. */
+  balanceDue: number;
+  prevYearBalance: number;
+  promisedOn: string | null;
+  promiseOpen: boolean;
+  promiseDueSoon: boolean;
+  promiseLapsed: boolean;
+};
+
+function pendingOn(facts: CandidateFacts, installment: number): number {
+  return facts.installmentPending[installment - 1] ?? 0;
+}
+
+/**
+ * The figure the message will name, from the basis the office chose.
+ *
+ * Was a `switch (filters.situation)`. That switch is precisely why "send the
+ * overdue wording to the fee-due families" could not be expressed: the amount
+ * came from the template, so changing the template silently changed the money.
+ *
+ * `ledger_fees` quotes FEES only, never fees plus the late fee — those reach
+ * the message in separate slots because the ledger keeps them in separate
+ * columns, and folding them together is the first place "a late fee is not a
+ * fee" would break.
+ */
+export function quotedAmountFor(
+  quote: QuoteBasis,
+  facts: CandidateFacts,
+  installments: readonly number[],
+): number {
+  switch (quote) {
+    case "selected":
+      return installments.reduce((sum, installment) => sum + pendingOn(facts, installment), 0);
+    case "session":
+      return facts.balanceDue;
+    case "overdue":
+      return facts.overdueAmount;
+    case "next":
+      return facts.nextInstallmentPending;
+    case "ledger_fees":
+      return facts.ledgerFeesPending;
+    case "prev_year":
+      return facts.prevYearBalance;
+  }
+}
+
+/** "Either" always passes; otherwise the fact has to match. */
+function triMatches(rule: Tri, value: boolean): boolean {
+  return rule === "any" || (rule === "yes") === value;
+}
+
+/**
+ * Does this family survive the office's filters?
+ *
+ * Deliberately NOT in here, and both omissions are load-bearing:
+ *
+ * - **The class.** Class options are counted before the class filter is
+ *   applied, or picking a class empties the dropdown that picked it.
+ * - **`promise: "skip_open"`.** A family inside their own promise is PAUSED,
+ *   not filtered — a reversible decision the office can see and undo, shown in
+ *   its own list. Every other promise value is a real filter and is applied
+ *   here.
+ *
+ * The minimum is applied by the caller, which already holds the quoted amount.
+ */
+export function matchesAudienceFilters(
+  filters: Pick<
+    AudienceFilters,
+    | "installments"
+    | "installmentMatch"
+    | "maxTotalPaid"
+    | "minTotalPaid"
+    | "lateFee"
+    | "overdue"
+    | "carryForward"
+    | "promise"
+  >,
+  facts: CandidateFacts,
+): boolean {
+  if (filters.installments.length > 0) {
+    const pending = filters.installments.map((installment) => pendingOn(facts, installment));
+    // "all" is "nothing has been received on any of these"; "any" is "still
+    // owing on at least one". Asking the wrong one is what put 87 fully
+    // paid-up families on the live balance list.
+    const ok =
+      filters.installmentMatch === "all"
+        ? pending.every((amount) => amount > 0)
+        : pending.some((amount) => amount > 0);
+    if (!ok) return false;
+  }
+
+  // Inclusive ceiling — "paid so far, at most 1100" keeps a family who paid
+  // exactly the academic fee, which is the whole point of that threshold.
+  if (filters.maxTotalPaid !== null && facts.totalPaid > filters.maxTotalPaid) return false;
+  // EXCLUSIVE floor — "paid so far, over 1100". The two are complements, so a
+  // family cannot fall in both bands or in neither.
+  if (filters.minTotalPaid !== null && facts.totalPaid <= filters.minTotalPaid) return false;
+
+  if (!triMatches(filters.lateFee, facts.lateFeeApplied > 0)) return false;
+  if (!triMatches(filters.overdue, facts.overdueInstallments.length > 0)) return false;
+  if (!triMatches(filters.carryForward, facts.prevYearBalance > 0)) return false;
+
+  switch (filters.promise) {
+    case "any":
+    case "skip_open":
+      break;
+    case "open":
+      if (!facts.promiseOpen) return false;
+      break;
+    case "due_soon":
+      if (!facts.promiseDueSoon) return false;
+      break;
+    case "lapsed":
+      if (!facts.promiseLapsed) return false;
+      break;
+    case "none":
+      if (facts.promisedOn) return false;
+      break;
+  }
+
+  return true;
+}
+
+/**
+ * Which of a template's slots this family cannot fill.
+ *
+ * The price of letting any template reach any audience: "Late fee applied" sent
+ * to a family with no late fee renders ₹0, and "Promise due" to a family with
+ * no promise renders a blank date. The office asked for the freedom and there
+ * are real uses for it — a waiver notice to a family about to accrue one — so
+ * this warns rather than refuses. It must never do so silently.
+ */
+export function missingFactsFor(
+  situation: NoticeSituation,
+  facts: CandidateFacts,
+  quotedAmount: number,
+): NoticeFact[] {
+  const has: Record<NoticeFact, boolean> = {
+    late_fee: facts.lateFeeApplied > 0,
+    promise: Boolean(facts.promisedOn),
+    prev_year: facts.prevYearBalance > 0,
+    overdue: facts.overdueInstallments.length > 0,
+    next_due: facts.nextInstallmentNo !== null && facts.nextInstallmentPending > 0,
+    amount: quotedAmount > 0,
+  };
+  return NOTICE_FACTS[situation].filter((fact) => !has[fact]);
 }
 
 /**
@@ -599,24 +878,30 @@ export async function loadReminderAudience(
     exam_clearance: 0,
     prevyear: 0,
   };
+  // How many of the final candidates each template would have to quote a
+  // missing fact at. Zero for almost every combination; non-zero is what the
+  // template chips warn about now that they no longer gate the audience.
+  const noticeGaps: Record<NoticeSituation, number> = { ...counts };
+  let excludedByHand = 0;
   const today = istToday();
 
-  // Already resolved by `parseReminderFilters` — the calendar's active set
-  // unless the office overrode it. Kept as a guard only for a hand-built filter.
-  const wanted = filters.installments.length > 0 ? filters.installments : [...TEMPLATE_INSTALLMENTS];
-
-  // The one installment the courtesy notices are about, and how close it is.
+  // The one installment the courtesy presets are about.
   const nextDue = calendar.next;
-  const finalWindowOpen = nextDue ? isFinalNoticeWindow(nextDue.daysUntilDue) : false;
+
+  /**
+   * What each preset needs to know about today, resolved once.
+   *
+   * The same values `parseReminderFilters` used to build the SELECTED filter
+   * set, so a preset's count and the list you get by clicking it agree.
+   */
+  const presetContext = {
+    activeInstallments:
+      calendar.active.length > 0 ? calendar.active : [...TEMPLATE_INSTALLMENTS],
+    nextInstallment: nextDue?.installmentNo ?? null,
+  };
 
   for (const row of (rows ?? []) as FinancialRow[]) {
     const totalPaid = Number(row.total_paid ?? 0);
-
-    // Every selected installment must still carry fees — "installments 1 and 2
-    // are pending" means both, not either. `pending_amount` is fees only, so a
-    // family whose only debt is a late fee is correctly absent.
-    const perInstallment = wanted.map((installment) => pendingFor(row, installment));
-    const feeDueAmount = perInstallment.reduce((sum, amount) => sum + amount, 0);
 
     // Everything still owed on THIS session's four installments. Deliberately
     // not `outstanding_amount`, which silently folds in the carry-forward line
@@ -629,26 +914,6 @@ export async function loadReminderAudience(
 
     const carried = carryForward.get(row.student_id);
     const prevYearBalance = carried?.remaining ?? 0;
-
-    // The two current-year notices are mutually exclusive by construction:
-    // `maxTotalPaid` (1100) is the academic fee, so at or below it nothing real
-    // has been received. Measured live, the overlap between them is zero.
-    const nothingReceived = totalPaid <= filters.maxTotalPaid;
-
-    // The installment filter asks a DIFFERENT question of each current-year
-    // notice, on purpose.
-    //
-    // On `fee_due` nothing has been received, so "installments 1 and 2 are
-    // pending" means both — `every`.
-    //
-    // On `balance` the family has paid something, and one who cleared
-    // installment 1 but still owes installment 2 is exactly who the notice is
-    // for, so `some`. It has to apply at all: it used to be ignored here, and
-    // 87 of the 258 families on the live balance list were fully paid up on
-    // installments 1 and 2, owing only 3 and 4 — ₹7,77,075 not due until
-    // October and January. The office was chasing money nobody owed yet.
-    //
-    // `prevyear` ignores it entirely. Last year's balance has no installments.
 
     // What the LEDGER is charging this family in late fees, read from
     // `v_workbook_installment_balances`. Never derived here: the view is the only
@@ -669,9 +934,8 @@ export async function loadReminderAudience(
       promiseOpen && promiseDaysAway !== null && promiseDaysAway <= PROMISE_DUE_LOOKAHEAD_DAYS;
 
     // The passed installments this family still owes FEES on, whatever the
-    // late fee is doing. `overdue_final` is about the fees, so a waived late
-    // fee does not take a family off it — and a late fee with no fees behind
-    // it (fees paid late, fee still pending) does not put them on it.
+    // late fee is doing. A waived late fee does not take a family off this
+    // list — and a late fee with no fees behind it does not put them on it.
     const overdueInstallments = calendar.passed.filter(
       (installment) => pendingFor(row, installment) > 0,
     );
@@ -680,66 +944,66 @@ export async function loadReminderAudience(
       0,
     );
 
-    // The courtesy notice is about ONE installment: the next one due inside the
-    // window. "Nothing overdue" is what separates it from `fee_due` — a family
-    // already late on installment 2 must get the late-fee notice, not a polite
-    // note about installment 3.
-    const nothingOverdue =
-      calendar.passed.every((installment) => pendingFor(row, installment) <= 0) &&
-      lateFeeApplied <= 0;
     const upcomingPending = nextDue ? pendingFor(row, nextDue.installmentNo) : 0;
-    const upcomingQualifies = Boolean(nextDue) && upcomingPending > 0 && nothingOverdue;
 
-    const qualifies: Record<NoticeSituation, boolean> = {
-      // Before any late fee: fees still on the next installment, nothing behind.
-      upcoming: upcomingQualifies,
-      // The same families, but only once the date is close enough for "the late
-      // fee starts the day after" to be a statement about this week.
-      upcoming_final: upcomingQualifies && finalWindowOpen,
-      fee_due: nothingReceived && perInstallment.every((amount) => amount > 0),
-      balance: !nothingReceived && balanceDue > 0 && perInstallment.some((amount) => amount > 0),
-      // The ledger, not the calendar, decides this one: a fee is only "applied"
-      // if the view says it is pending. A waived one is correctly absent.
-      late_fee_applied: lateFeeApplied > 0,
-      // The waiver is about paying the FEES by a date, so it needs both: a
-      // late fee the ledger is charging, and fees still on those rows. A family
-      // who paid the fees late and owes only the late fee has nothing to pay
-      // by the date, and gets `late_fee_applied` instead.
-      late_fee_waiver: lateFeeApplied > 0 && (applied?.feesPending ?? 0) > 0,
-      waiver_last_call: lateFeeApplied > 0 && (applied?.feesPending ?? 0) > 0,
-      // The calendar decides: fees still pending on a date that has gone.
-      overdue_final: overdueInstallments.length > 0,
-      // A promise falling due, with money still owed against it.
-      promise_due: promiseDueSoon && (balanceDue > 0 || prevYearBalance > 0),
-      // A promise that came and went, with money still owed against it.
-      promise_lapsed: promiseLapsed && (balanceDue > 0 || prevYearBalance > 0),
-      // ANY selected installment still pending — the office picks which ones
-      // must be clear before the exams.
-      exam_clearance: perInstallment.some((amount) => amount > 0),
-      prevyear: prevYearBalance > 0,
+    /**
+     * Everything the filters and the templates can ask about this family, in
+     * one struct.
+     *
+     * Built once and read four times: by the selected filter set, by each
+     * notice's preset (for the counts on the preset row), by the quote basis,
+     * and by the template compatibility check. It used to be twelve booleans in
+     * a `qualifies` record, which is exactly why the audience could not be
+     * separated from the message.
+     */
+    const facts: CandidateFacts = {
+      totalPaid,
+      installmentPending: [
+        Number(row.inst1_pending ?? 0),
+        Number(row.inst2_pending ?? 0),
+        Number(row.inst3_pending ?? 0),
+        Number(row.inst4_pending ?? 0),
+      ],
+      lateFeeApplied,
+      ledgerFeesPending: applied?.feesPending ?? 0,
+      overdueInstallments,
+      overdueAmount,
+      nextInstallmentNo: nextDue?.installmentNo ?? null,
+      nextInstallmentPending: upcomingPending,
+      balanceDue,
+      prevYearBalance,
+      promisedOn,
+      promiseOpen,
+      promiseDueSoon,
+      promiseLapsed,
     };
 
-    // What this notice will actually quote.
-    //
-    // The ledger-quoted notices (`late_fee_applied` and the waiver pair) quote
-    // the FEES on the passed installments — never fees plus the late fee. The
-    // figures reach the message in separate slots because the ledger keeps
-    // them in separate columns, and a late fee has never made a family a
-    // defaulter here.
-    const dueAmount =
-      filters.situation === "fee_due" || filters.situation === "exam_clearance"
-        ? feeDueAmount
-        : filters.situation === "balance"
-          ? balanceDue
-          : filters.situation === "upcoming" || filters.situation === "upcoming_final"
-            ? upcomingPending
-            : isLedgerQuotedSituation(filters.situation)
-              ? (applied?.feesPending ?? 0)
-              : filters.situation === "overdue_final"
-                ? overdueAmount
-                : filters.situation === "promise_lapsed" || filters.situation === "promise_due"
-                  ? balanceDue
-                  : prevYearBalance;
+    // What the message will actually name. A basis the office chose, not a
+    // `switch` on which template is going out — that switch is what made the
+    // two inseparable. The ledger-quoted bases still quote FEES only, never
+    // fees plus the late fee: those reach the message in separate slots because
+    // the ledger keeps them in separate columns.
+    const dueAmount = quotedAmountFor(filters.quote, facts, filters.installments);
+
+    // Does this family survive the filters the office actually set? The class
+    // and the open-promise hold-back are deliberately NOT in here — see
+    // `matchesAudienceFilters`.
+    const matchesFilters =
+      matchesAudienceFilters(filters, facts) && dueAmount >= filters.minDueAmount;
+
+    // Named by hand on the screen. An include joins the list whatever the
+    // filters say, and whatever the cadence says: naming a family IS the more
+    // recent decision, and a "too soon for their cadence" hold-back the office
+    // has just overruled by typing their admission number is not a hold-back.
+    const namedByHand = filters.includeStudentIds.includes(row.student_id);
+
+    // Dropped by hand. Wins over everything, including an include, and applied
+    // before the counters so an excluded family is not reported as skipped by a
+    // filter they in fact matched.
+    if (filters.excludeStudentIds.includes(row.student_id)) {
+      excludedByHand += 1;
+      continue;
+    }
 
     // 'collectable': on the roll, or gone but still owing against what they paid.
     if (!(row.record_status === "active" || totalPaid > 0)) {
@@ -783,13 +1047,12 @@ export async function loadReminderAudience(
           parentName,
           phoneOnRecord: row.father_phone ?? row.mother_phone ?? null,
           dueAmount,
-          // Everything this needs is already in scope — `qualifies` and
-          // `dueAmount` are computed above the phone check — so the flag costs
-          // nothing and, critically, changes nothing about who lands in the
-          // array. `/reminders/unreachable` still reads all of them.
+          // Everything this needs is already in scope — the facts and the
+          // quoted amount are computed above the phone check — so the flag
+          // costs nothing and, critically, changes nothing about who lands in
+          // the array. `/reminders/unreachable` still reads all of them.
           matchesNotice:
-            qualifies[filters.situation] &&
-            dueAmount >= filters.minDueAmount &&
+            (matchesFilters || namedByHand) &&
             (!filters.classId || row.class_id === filters.classId),
         });
       } else {
@@ -799,21 +1062,30 @@ export async function loadReminderAudience(
     }
 
     // Counted here — after the guards that decide whether we could contact this
-    // family at all, and BEFORE the notice filter — so every chip in the picker
-    // shows who that notice could reach, not just the one already selected.
+    // family at all, and BEFORE the office's own filters — so every preset
+    // button shows who it would reach, not just the one already applied.
+    //
+    // A PRESET count, not a notice count. Since the template stopped gating the
+    // audience, "how many does Balance reach" is only answerable as "how many
+    // would Balance's preset reach", which is what these buttons put back.
     for (const situation of SITUATION_KEYS) {
-      if (qualifies[situation]) counts[situation] += 1;
+      const preset = presetFor(situation, presetContext);
+      const presetAmount = quotedAmountFor(preset.quote, facts, preset.installments);
+      if (
+        matchesAudienceFilters(preset, facts) &&
+        presetAmount >= preset.minDueAmount
+      ) {
+        counts[situation] += 1;
+      }
     }
 
-    // Now the selected notice. A family who owes nothing on THIS notice is not
-    // "skipped by a filter", they are simply not who it is about.
-    if (!qualifies[filters.situation]) {
-      skipped.installmentsClear += 1;
-      continue;
-    }
-
-    if (dueAmount < filters.minDueAmount) {
-      skipped.belowMinimum += 1;
+    // Now the office's own filters. A family who does not match them is not
+    // "skipped by the notice" any more — the notice has no say in it.
+    if (!matchesFilters && !namedByHand) {
+      // Split so the sentence under the list can say WHICH filter did it. Below
+      // the minimum is the one staff most often set by accident.
+      if (dueAmount < filters.minDueAmount) skipped.belowMinimum += 1;
+      else skipped.installmentsClear += 1;
       continue;
     }
 
@@ -853,43 +1125,42 @@ export async function loadReminderAudience(
       });
     };
 
-    // The family has already said when they will pay, and that day has not come.
-    //
-    // Held back from every notice except the two that are ABOUT the promise:
-    // `promise_lapsed`, for one that did not hold, and `promise_due`, which
-    // reads the promise back on the day before it falls due. Applied here,
-    // with the cadence rules, because it is the same kind of thing: a human
-    // decision the office can see and reverse, not the ledger saying nothing
-    // is owed.
-    if (
-      promiseOpen &&
-      filters.situation !== "promise_lapsed" &&
-      filters.situation !== "promise_due"
-    ) {
-      skipped.promiseOpen += 1;
-      pause("promise_open", promisedOn);
-      continue;
-    }
-
-    if (cadence === "never") {
-      skipped.whatsappNever += 1;
-      pause("never", null);
-      continue;
-    }
-
-    if (snoozedUntil && snoozedUntil >= today) {
-      skipped.whatsappSnoozed += 1;
-      pause("snoozed", snoozedUntil);
-      continue;
-    }
-
-    const gapDays = cadenceGapDays(cadence);
-    if (gapDays > 0 && lastSentOn) {
-      const nextAllowed = addDays(lastSentOn, gapDays);
-      if (nextAllowed > today) {
-        skipped.whatsappTooSoon += 1;
-        pause("too_soon", nextAllowed);
+    // Everything from here to the push is a HUMAN decision the office can see
+    // and reverse, not the ledger saying nothing is owed. Naming a family by
+    // hand overrules all of it — that is the more recent human decision, and a
+    // cadence hold-back the office has just typed an admission number to get
+    // past is not a hold-back.
+    if (!namedByHand) {
+      // The family has already said when they will pay, and that day has not
+      // come. `skip_open` is the promise filter's default, so this still holds
+      // on every notice it always held on; choosing any other promise filter is
+      // the office saying it means to chase inside the window.
+      if (promiseOpen && filters.promise === "skip_open") {
+        skipped.promiseOpen += 1;
+        pause("promise_open", promisedOn);
         continue;
+      }
+
+      if (cadence === "never") {
+        skipped.whatsappNever += 1;
+        pause("never", null);
+        continue;
+      }
+
+      if (snoozedUntil && snoozedUntil >= today) {
+        skipped.whatsappSnoozed += 1;
+        pause("snoozed", snoozedUntil);
+        continue;
+      }
+
+      const gapDays = cadenceGapDays(cadence);
+      if (gapDays > 0 && lastSentOn) {
+        const nextAllowed = addDays(lastSentOn, gapDays);
+        if (nextAllowed > today) {
+          skipped.whatsappTooSoon += 1;
+          pause("too_soon", nextAllowed);
+          continue;
+        }
       }
     }
 
@@ -928,7 +1199,16 @@ export async function loadReminderAudience(
           (candidateNumber) => candidateNumber && candidateNumber !== destination,
         ) ?? null,
       sentCount: history?.sentCount ?? 0,
+      includedByHand: namedByHand,
+      // Which of the SELECTED template's slots this family cannot fill. Empty
+      // for almost everybody; non-empty is the price of letting any template go
+      // to any audience, and the screen says so rather than sending ₹0.
+      missingFacts: missingFactsFor(filters.situation, facts, dueAmount),
     });
+
+    for (const situation of SITUATION_KEYS) {
+      if (missingFactsFor(situation, facts, dueAmount).length > 0) noticeGaps[situation] += 1;
+    }
   }
 
   candidates.sort((left, right) => right.dueAmount - left.dueAmount);
@@ -937,10 +1217,12 @@ export async function loadReminderAudience(
   return {
     candidates,
     skipped,
+    excludedByHand,
     unreachable,
     paused,
     classOptions: [...classCounts.values()].sort((a, b) => a.label.localeCompare(b.label)),
     counts,
+    noticeGaps,
   };
 }
 

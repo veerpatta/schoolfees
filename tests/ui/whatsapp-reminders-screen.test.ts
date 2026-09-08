@@ -32,6 +32,10 @@ const CAMPAIGNS = "src/modules/whatsapp/domain/campaigns.ts";
 const BODIES = "src/modules/whatsapp/domain/campaign-bodies.ts";
 const PICKER = "src/modules/whatsapp/ui/notice-picker.tsx";
 const CONTEXT = "src/modules/whatsapp/data/reminder-context.ts";
+const AUDIENCE = "src/modules/whatsapp/domain/audience.ts";
+const AUDIENCE_BUILDER = "src/modules/whatsapp/ui/audience-builder.tsx";
+const SEND_PAGE = "src/app/protected/reminders/page.tsx";
+const FEE_REMINDERS = "src/modules/whatsapp/domain/fee-reminders.ts";
 
 describe("WhatsApp reminders on a phone", () => {
   it("clears the tab bar, because /protected/reminders is NOT a takeover", () => {
@@ -73,54 +77,93 @@ describe("WhatsApp reminders on a phone", () => {
     }
   });
 
-  it("carries the chosen notice, language, date and window through every GET form", () => {
-    // Three forms submit to the same URL: the notice picker (which owns all three
-    // of these) and the phone and desk copies of the filters. A filter form
-    // missing them drops them from the query string, so narrowing to one class
-    // would silently reset the notice to fee-due, the language to Hindi and the
-    // deadline to the default — none of which the office chose, all of which a
+  it("carries every other setting through every form on the screen", () => {
+    // Four forms submit to the same URL: the notice card, the phone and desk
+    // copies of the filters, and the add-a-student box. A form that forgets a
+    // key drops it from the query string, so narrowing to one class would
+    // silently reset the notice to fee-due, the language to Hindi and the
+    // deadline to the default -- none of which the office chose, all of which a
     // parent then reads.
-    const source = read(WORKSPACE);
+    //
+    // Was four hand-written lists of hidden inputs, checked here name by name.
+    // That guarded the keys that existed and nothing added afterwards, and this
+    // feature has shipped that bug once. Every form now renders ONE component
+    // over ONE key list, and declares only what it owns.
+    expect((read(PICKER).match(/<CarriedFilterFields/g) ?? []).length).toBe(1);
+    expect((read(AUDIENCE_BUILDER).match(/<CarriedFilterFields/g) ?? []).length).toBe(3);
 
-    const fields = source.slice(
-      source.indexOf("function ReminderFilterFields"),
-      source.indexOf("export function RemindersWorkspace"),
-    );
-    // `preDueWindowDays` joined the list when the calendar started deriving the
-    // installment set: it decides which installments are active, so it decides
-    // the audience, so it has to survive an Apply exactly like the other three.
-    for (const field of ["situation", "language", "lastDate", "preDueWindowDays"]) {
-      expect(fields).toContain(`name="${field}"`);
-    }
-    // Both filter forms render the same component, so one hidden input covers both.
-    expect(source.match(/<ReminderFilterFields/g) ?? []).toHaveLength(2);
+    // The send form too -- the action rebuilds the audience from what it posts.
+    expect(read(SEND_PAGE)).toContain("sendFormFields={<CarriedFilterFields filters={filters} />}");
+    expect(read(WORKSPACE)).toContain("{sendFormFields}");
+
+    // And each form's `except` names only the keys that form actually owns.
+    expect(read(PICKER)).toContain("except={NOTICE_FORM_KEYS}");
+    expect(read(AUDIENCE_BUILDER)).toContain("except={FILTER_FORM_KEYS}");
   });
 
-  it("hides a filter the notice ignores, but never drops its value", () => {
-    // A control that does nothing reads as applied — that is how 87 families
-    // ended up chased for installments that were not due. So a notice that
-    // ignores a filter hides the control. Hiding it must not DELETE it, though:
-    // the office's installment choice has to survive a trip through the
-    // previous-session notice and still be there on the way back.
-    const source = read(WORKSPACE);
+  it("shows every filter on every notice, and mounts the panel twice", () => {
+    // The inverse of the rule this screen used to follow. `SITUATION_FILTERS`
+    // HID the installment, paid-so-far and minimum controls on any notice whose
+    // rule ignored them -- honest while the notice decided the audience, and a
+    // cage the moment it stopped. Every filter now applies to every template,
+    // so every filter is shown.
+    const source = read(AUDIENCE_BUILDER);
 
-    const fields = source.slice(
-      source.indexOf("function ReminderFilterFields"),
-      source.indexOf("export function RemindersWorkspace"),
-    );
-
-    // Every optional control is a ternary whose else-branch is a hidden input
-    // carrying the same name.
-    for (const name of ["maxTotalPaid", "installments"]) {
-      expect(fields).toContain(`<input type="hidden" name="${name}"`);
-      expect(fields).toContain(`applies.${name === "maxTotalPaid" ? "paidSoFar" : name} ?`);
+    expect(source).not.toMatch(/import[^;]*SITUATION_FILTERS/);
+    for (const name of [
+      "maxTotalPaid",
+      "minTotalPaid",
+      "minDueAmount",
+      "installments",
+      "installmentMatch",
+      "promise",
+      "quote",
+      "classId",
+      "includeRte",
+    ]) {
+      expect(source).toContain(`name="${name}"`);
     }
+    // The three yes/no/either filters share one renderer, so their names reach
+    // the markup through it rather than as literals.
+    for (const name of ["lateFee", "overdue", "carryForward"]) {
+      expect(source).toContain(`tri("${name}"`);
+    }
+    expect(source).toContain('name={key}');
+
+    // Collapsed behind a disclosure on a phone, the desk grid above md. Both
+    // sit in the DOM at every viewport, which is what `idPrefix` is for.
+    expect((source.match(/<FilterFields/g) ?? []).length).toBe(2);
+    expect(source).toContain('idPrefix="m-"');
   });
 
-  it("keeps the situation table covering every notice", () => {
-    // `SITUATION_FILTERS` and `SITUATION_RULE` are keyed by NoticeSituation, so
-    // a seventh campaign cannot be added without deciding what its filters mean.
-    const source = read(CAMPAIGNS);
+  it("keeps the template from deciding who is on the list", () => {
+    // The whole point of the split. `loadReminderAudience` must gate on the
+    // FILTERS; the situation may only pick the campaign and the wording.
+    const audience = read(FEE_REMINDERS);
+
+    expect(audience).toContain("matchesAudienceFilters(filters, facts)");
+    // The old gate, by name. `qualifies[filters.situation]` was the single
+    // expression that made "any template to any audience" impossible.
+    expect(audience).not.toContain("qualifies[filters.situation]");
+    // The amount is a chosen basis, not a switch on the template.
+    expect(audience).toContain("quotedAmountFor(filters.quote");
+  });
+
+  it("keeps the per-notice tables covering every notice", () => {
+    // `NOTICE_FACTS` and `presetFor` are keyed by NoticeSituation, so a
+    // thirteenth campaign cannot be added without deciding two things: which of
+    // its slots need a fact the family may not have, and what audience its
+    // preset starts from.
+    //
+    // Repointed from `SITUATION_FILTERS` / `SITUATION_RULE`, which answered
+    // "which families is this notice about" — a question the notice stopped
+    // being allowed to answer on 2026-09-08.
+    const source = read(AUDIENCE);
+    const facts = source.slice(source.indexOf("NOTICE_FACTS: Record"));
+    const preset = source.slice(
+      source.indexOf("export function presetFor"),
+      source.indexOf("export const DEFAULT_MAX_TOTAL_PAID"),
+    );
 
     for (const situation of [
       "fee_due",
@@ -136,8 +179,8 @@ describe("WhatsApp reminders on a phone", () => {
       "promise_due",
       "exam_clearance",
     ]) {
-      expect(source.slice(source.indexOf("SITUATION_FILTERS"))).toContain(`${situation}:`);
-      expect(source.slice(source.indexOf("SITUATION_RULE"))).toContain(`${situation}:`);
+      expect(facts).toContain(`${situation}:`);
+      expect(preset).toContain(`case "${situation}":`);
     }
   });
 
@@ -227,15 +270,18 @@ describe("WhatsApp reminders on a phone", () => {
     expect(source).toContain('aria-disabled="true"');
   });
 
-  it("carries the window on every notice and language link", () => {
-    // `hrefWith` rebuilds the whole query string, so a parameter it forgets is a
-    // parameter that resets the moment somebody switches notice.
+  it("leaves the audience alone when the template changes", () => {
+    // `hrefWith` rebuilds the whole query string from `reminderQuery`, so a
+    // parameter it forgets is one that resets the moment somebody switches
+    // notice -- and since the split, switching TEMPLATE must not rebuild the
+    // list at all. `presetHref` is the control that does that, and it lives on
+    // the audience builder where it says so.
     const source = read(PICKER);
     const href = source.slice(source.indexOf("function hrefWith"), source.indexOf("const CHIP_BASE"));
 
-    for (const field of ["situation", "language", "installments", "preDueWindowDays"]) {
-      expect(href).toContain(`"${field}"`);
-    }
+    expect(href).toContain("reminderQuery(filters");
+    expect(href).not.toContain("presetHref");
+    expect(read(AUDIENCE_BUILDER)).toContain("presetHref(filters, entry.value)");
   });
 
   it("renders the desk table only above md", () => {

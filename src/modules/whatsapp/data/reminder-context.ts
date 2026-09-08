@@ -57,11 +57,22 @@ export type ReminderContext = {
 /** One value out of a query string, or null when it is absent. */
 export type ParamReader = (key: string) => string | null;
 
-/** Builds a reader over Next's `searchParams` object. */
+/**
+ * Builds a reader over Next's `searchParams` object.
+ *
+ * A repeated key joins with a comma rather than taking the first value. The
+ * installment control is four checkboxes sharing one name, so the browser sends
+ * `installments=1&installments=2`; taking `[0]` would read "1" and build an
+ * audience of families who owe on installment 1 regardless of installment 2 —
+ * a different set of parents, quietly. The comma is the format
+ * `parseReminderFilters` already accepts, so the two forms of the same choice
+ * land on the same filters. `filtersFromForm` does the same on the other side.
+ */
 export function readerFor(params: Record<string, string | string[] | undefined>): ParamReader {
   return (key: string) => {
     const value = params[key];
-    return (Array.isArray(value) ? value[0] : value) ?? null;
+    if (Array.isArray(value)) return value.length > 0 ? value.join(",") : null;
+    return value ?? null;
   };
 }
 
@@ -103,6 +114,10 @@ export async function resolveReminderContext(
     remembered?.lateFeeAmount ?? ledgerLateFee,
     calendar.active,
     remembered?.lateFeeBasis ?? null,
+    // 5. The courtesy presets are about the ONE installment falling due next,
+    //    not the active set. Without this they open on every active
+    //    installment, and "Due soon" quietly becomes "Fee due".
+    { nextInstallment: calendar.next?.installmentNo ?? null },
   );
 
   const audience = await loadReminderAudience(supabase, filters, calendar);

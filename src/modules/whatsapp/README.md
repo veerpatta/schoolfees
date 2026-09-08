@@ -5,11 +5,13 @@ Fee reminders and the message templates behind them.
 | | |
 |---|---|
 | Route | /protected/reminders (+ campaigns, runs) · /protected/admin-tools/whatsapp-templates |
-| Files | 18 domain · 9 data · 13 ui |
+| Files | 19 domain · 10 data · 15 ui |
 
 ## Owns
 
 - Template storage and rendering, in English and Hindi
+- **Who a message goes to** (`domain/audience.ts`), which is a different question
+  from **what it says** (`domain/campaigns.ts`)
 - Reminder cadence — which families to remind, and how often
 - The AiSensy send path
 - The fee calendar's read of who is due a reminder today (`domain/installment-calendar.ts`)
@@ -17,6 +19,62 @@ Fee reminders and the message templates behind them.
 - Turning the same audience into paper a teacher can carry (`domain/collection-list.ts`)
 
 ## Invariants
+
+- **The template does not decide the audience.** Until 2026-09-08 `situation`
+  did both jobs: it picked the campaign AND gated the list through
+  `qualifies[situation]`, so "Fee due" meant 92 families, "Overdue final" meant
+  299, and "send the overdue wording to those 92" was not expressible. The two
+  are now separate — `domain/audience.ts` decides who is on the list, the
+  situation decides only what is written and which campaign is billed. Do not
+  reintroduce a per-situation branch in `loadReminderAudience`; that is the
+  shape this replaced.
+- **Every filter applies on every template.** `SITUATION_FILTERS` used to HIDE
+  the installment, paid-so-far and minimum controls on a notice whose rule
+  ignored them. That was honest while the notice gated the audience and a cage
+  the moment it stopped. The table is gone; the audience builder shows them all.
+- **The notices keep their audiences as PRESETS** (`presetFor`), and an absent
+  query parameter falls back to the selected notice's preset. That is what makes
+  every link, bookmark and saved campaign written before the split still name
+  the same families. A preset button DROPS the audience keys; switching template
+  keeps them. Getting that backwards rebuilds the list under the office's hands.
+- **The amount is a chosen basis, not a consequence of the template.**
+  `filters.quote` decides which figure the message quotes; it was a
+  `switch (filters.situation)`, which is precisely why the two could not be
+  separated. `ledger_fees` still quotes FEES only — never fees plus the late fee.
+- **A template pointed at families who cannot fill its slots WARNS, never
+  refuses.** `NOTICE_FACTS` says what each message needs from the family reading
+  it; `missingFactsFor` counts what is absent, the chips and the rows show it,
+  and `notice_fact_gap` is an overridable send guard. The office asked for the
+  freedom; the app never lets it happen silently.
+- **`upcoming_final`'s three-day window is a guard, not a filter.** It is a fact
+  about the RUN, not about a family, so it lives in `evaluateSendGuards` as
+  `final_window_closed` where an admin can send early on purpose and the reason
+  lands on the run. As an audience gate it emptied the list with no way to say so.
+- **A student named by hand joins the list whatever the filters and their
+  cadence say** — naming them is the more recent decision. It never gets past
+  the three things that mean a family is uncontactable: off the roll having
+  never paid, flagged no-call, or no usable number. Include and exclude ride the
+  query string, so the send action rebuilds the identical list and the
+  collection lists print it.
+- **A saved campaign stores no hand-picked students.** It is a standing rule a
+  nightly cron replays, and an included student bypasses the cadence, so
+  persisting one would message that family every night. `savedAudienceFrom` also
+  reads a pre-split row the way its own engine did — `maxTotalPaid` was a
+  ceiling on `fee_due`, a floor on `balance` and inert on the other ten — or a
+  scheduled run that has gone out untouched for weeks would quietly narrow.
+- **One list of query keys** (`REMINDER_QUERY_KEYS`) and one serialiser
+  (`reminderQuery`). There were five hand-written copies — three forms, the
+  picker's `hrefWith`, the collection-list links — and a key added to four of the
+  five is a key that resets the moment somebody presses Apply.
+- **Every form on the send screen renders `CarriedFilterFields`** and declares
+  only the keys it owns. The send action rebuilds the audience from what the
+  form posts, so a key missing there messages a different set of families than
+  the office ticked.
+- **`installments=` (present, empty) means "no installment constraint";
+  an absent key means "take the preset".** The four checkboxes share one name,
+  so the readers join a repeated key with a comma rather than taking the first —
+  `readerFor` and `filtersFromForm` both, or ticking 1 and 2 reads as 1 alone.
+  Garbage (`0,9,banana`) falls back rather than widening to everybody.
 
 - **One audience resolution, three callers.** `data/reminder-context.ts` is the only place the drain, the policy read and the filter parse happen. The send screen, the collection lists and the lists export all go through it, because two copies of this feature's parsing have already disagreed in production.
 - **The collection lists are per STUDENT.** Family grouping is for messages; a class teacher collects from children, and siblings sit in different classes.
@@ -32,6 +90,8 @@ Fee reminders and the message templates behind them.
 
 ## Never
 
+- Put a `situation` branch back into `loadReminderAudience`. It is the shape
+  the audience/template split removed, and it is how the two grow back together.
 - Import `domain/campaign-bodies` or `domain/campaign-bodies-v3` from `ui/` or from a client file under `src/app`. They hold every template body — per-student, family and receipt — and only the server renders one: the page's preview is a server-rendered prop and the test panel asks `previewNoticeAction`. Every byte of them in the client bundle is unreachable text against a ceiling that only ratchets down. `tests/ui/whatsapp-reminders-screen.test.ts` enforces it.
 - Send to a family that has asked not to be called. Respect the no-call flag.
 - Insert into `student_collection_flags` without passing `no_call: false` explicitly. Its default is TRUE, so a row written to record a cadence or a language would silently drop the family out of the call queue.

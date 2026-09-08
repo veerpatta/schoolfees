@@ -183,159 +183,28 @@ export function isRunDateFreeSituation(situation: string): boolean {
 export const PROMISE_DUE_LOOKAHEAD_DAYS = 1;
 
 /**
- * Which eligibility filters actually change each notice's list, and what they
- * are called there.
+ * `SITUATION_FILTERS`, `SITUATION_RULE` and `NOT_THIS_NOTICE` lived here until
+ * 2026-09-08.
  *
- * A control that does nothing is worse than no control: it reads as applied.
- * The installment dropdown sat on all three notices while only `fee_due`
- * honoured it, and 87 of the 258 families on the live balance list were fully
- * paid up on installments 1 and 2 — chased for installments 3 and 4, which were
- * not due for another two months.
+ * All three answered the same question — "which families is this notice about,
+ * and which controls therefore matter" — and the answer was a property of the
+ * notice. It is not one any more: `domain/audience.ts` decides who is on the
+ * list, and the notice decides only what the message says. `SITUATION_FILTERS`
+ * in particular HID the installment, paid-so-far and minimum controls on any
+ * notice whose rule ignored them, which was honest while the notice gated the
+ * audience and a cage the moment it stopped.
  *
- * `null` means the notice ignores that filter, so the screen hides the control
- * and carries the value forward as a hidden input instead of dropping it — the
- * office's setting must survive a round trip through a notice that had no use
- * for it.
+ * What replaced each of them:
+ *
+ * - `SITUATION_FILTERS` → nothing. Every filter shows on every template.
+ * - `SITUATION_RULE` → a sentence composed from the FILTERS, on the send page.
+ * - `NOT_THIS_NOTICE` → "did not match these filters", one wording for all.
+ * - The audiences themselves → `presetFor`, as one-tap starting points.
+ *
+ * The per-notice table that remains is `NOTICE_FACTS` in `domain/audience.ts`:
+ * which of a template's SLOTS need a fact the family may not have. That is a
+ * genuine property of a message, and it is what the chips warn about now.
  */
-export const SITUATION_FILTERS = {
-  // The two courtesy notices are about ONE installment that has not fallen due
-  // yet, picked by the calendar rather than the office. Offering a "paid so far"
-  // threshold would imply it splits the audience, and it does not.
-  upcoming: {
-    paidSoFar: null,
-    installments: null,
-    minDue: "Due at least",
-  },
-  upcoming_final: {
-    paidSoFar: null,
-    installments: null,
-    minDue: "Due at least",
-  },
-  // The ledger decides who is here: an installment past its date with a late fee
-  // actually pending on it. Nothing about what was paid this year changes that.
-  late_fee_applied: {
-    paidSoFar: null,
-    installments: null,
-    minDue: "Fees pending at least",
-  },
-  // Same audience as `late_fee_applied`, narrowed to families with fees still
-  // on those rows — a waiver is about paying the fees by a date.
-  late_fee_waiver: {
-    paidSoFar: null,
-    installments: null,
-    minDue: "Fees pending at least",
-  },
-  waiver_last_call: {
-    paidSoFar: null,
-    installments: null,
-    minDue: "Fees pending at least",
-  },
-  // The calendar decides which installments have passed; the office does not
-  // pick them. A family late on any of them is here.
-  overdue_final: {
-    paidSoFar: null,
-    installments: null,
-    minDue: "Overdue at least",
-  },
-  // The promise decides who is here. Filtering it by installment would drop
-  // families who promised against a bill this notice is not about.
-  promise_due: {
-    paidSoFar: null,
-    installments: null,
-    minDue: "Promised at least",
-  },
-  promise_lapsed: {
-    paidSoFar: null,
-    installments: null,
-    minDue: "Promised at least",
-  },
-  // The office picks which installments must be clear before the exams —
-  // ANY selected one still pending puts a family here.
-  exam_clearance: {
-    paidSoFar: null,
-    installments: "Installments to clear",
-    minDue: "Pending at least",
-  },
-  fee_due: {
-    // The threshold splits the two current-year notices; below it, only the
-    // academic fee has landed and nothing real has been received.
-    paidSoFar: "Paid so far, at most",
-    // Every selected installment must be pending — nothing has been received,
-    // so "1 and 2" means both.
-    installments: "Installments pending",
-    minDue: "Due at least",
-  },
-  balance: {
-    paidSoFar: "Paid so far, over",
-    // ANY of the selected — a family who cleared 1 and still owes 2 is exactly
-    // who this notice is for.
-    installments: "Still owing on",
-    minDue: "Balance at least",
-  },
-  prevyear: {
-    // Neither applies: this balance is last session's and has no installments,
-    // and what was paid THIS year says nothing about it.
-    paidSoFar: null,
-    installments: null,
-    minDue: "Carry-forward at least",
-  },
-} as const satisfies Record<
-  NoticeSituation,
-  { paidSoFar: string | null; installments: string | null; minDue: string }
->;
-
-/** One line saying who this notice is about, shown under the filter grid. */
-export const SITUATION_RULE: Record<NoticeSituation, string> = {
-  upcoming:
-    "An installment falls due inside the pre-due window with fees still on it, and nothing earlier is outstanding. A courtesy note, before any late fee.",
-  upcoming_final:
-    "The same families as Due soon, from three days out. The wording says the late fee starts the day after the date.",
-  late_fee_applied:
-    "An installment has passed its due date and the ledger is charging a late fee on it. The message quotes the fee, the late fee and the total separately — never added together.",
-  late_fee_waiver:
-    "The ledger is charging a late fee and fees are still pending on those installments. The message says the late fee is not charged if the fees arrive by the date — the office honours that at the counter with Waive.",
-  waiver_last_call:
-    "The same families as Waiver window, sent on or just before the waive-by date. The wording says this is the last date without the late fee, and states the report-card rule.",
-  overdue_final:
-    "Fees still pending on an installment whose due date has passed, whether or not a late fee is on the account. The message names the overdue installments, a final date, and the report-card rule.",
-  promise_due:
-    "The family's last recorded contact was a promise to pay, and that date is today or tomorrow. The message reads back the day the office spoke with them and the date they gave.",
-  promise_lapsed:
-    "The family's last recorded contact was a promise to pay, that date has passed, and the money has not arrived.",
-  exam_clearance:
-    "Anything still pending on the selected installments. The message says report cards and admit cards are issued only for accounts with no pending fees, and asks for the amount by the date.",
-  fee_due: "Nothing received beyond the academic fee, and every selected installment still pending.",
-  balance: "Something received, and still owing on at least one of the selected installments. The message quotes the whole balance.",
-  // v2 gave this notice a settle-by date and a late-fee line. What stays true is
-  // that the LEDGER never charges a late fee on carry-forward — the notice can
-  // still quote one, which is what the drift warning is for.
-  prevyear: "A balance carried forward from last session with something left on it. No installments; it carries its own settle-by date.",
-};
-
-/**
- * How to describe the families the SELECTED notice is not about.
- *
- * `installmentsClear` counts them, so the wording has to follow the notice: on
- * `prevyear`, "nothing pending on those installments" would be flatly wrong,
- * because that notice never looks at them.
- *
- * Read once, server-side, and passed to the workspace as a string — see the
- * `notThisNotice` prop.
- */
-export const NOT_THIS_NOTICE: Record<NoticeSituation, string> = {
-  upcoming: "nothing pending on the next installment, or already overdue on an earlier one",
-  upcoming_final: "nothing pending on the next installment, or already overdue on an earlier one",
-  fee_due: "already paid something, or nothing pending on those installments",
-  balance: "nothing owing on those installments",
-  late_fee_applied: "no late fee charged on any installment past its due date",
-  late_fee_waiver: "no late fee charged, or no fees left on the installments that carry one",
-  waiver_last_call: "no late fee charged, or no fees left on the installments that carry one",
-  overdue_final: "nothing pending on any installment whose date has passed",
-  promise_due: "no promise on record falling due today or tomorrow, or nothing still owing against it",
-  promise_lapsed: "no lapsed promise on record, or nothing still owing against it",
-  exam_clearance: "nothing pending on the selected installments",
-  prevyear: "no balance carried forward from last session",
-};
 
 export const SITUATION_VALUES: readonly string[] = NOTICE_SITUATIONS.map((s) => s.value);
 export const LANGUAGE_VALUES: readonly string[] = NOTICE_LANGUAGES.map((l) => l.value);

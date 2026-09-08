@@ -8,6 +8,7 @@ import { isAisensyConfigured, sendAisensyCampaignMessage } from "@/modules/whats
 import { getFeePolicySummary } from "@/modules/fees/data/policy";
 import {
   buildInstallmentCalendar,
+  isFinalNoticeWindow,
 } from "@/modules/whatsapp/domain/installment-calendar";
 import {
   drainPendingFinancialRefresh,
@@ -37,6 +38,8 @@ import {
   type CampaignDescriptor,
 } from "@/modules/whatsapp/domain/campaigns";
 import { noticeValuesFromSlots } from "@/modules/whatsapp/domain/test-send-values";
+import { REMINDER_QUERY_KEYS } from "@/modules/whatsapp/domain/audience";
+import { searchSessionStudents } from "@/modules/whatsapp/data/student-lookup";
 import { isoFromDdMmYyyy } from "@/platform/helpers/date";
 import { executeReminderRun } from "@/modules/whatsapp/data/run-sender";
 import {
@@ -61,10 +64,20 @@ export type SendRemindersState = {
 };
 
 
+/**
+ * A posted form as a `ParamReader`.
+ *
+ * `getAll(...).join(",")`, never `get(...)`: the installment control is four
+ * checkboxes sharing one name, so a form posts `installments=1&installments=2`
+ * and `get` would read "1" — an audience of families who owe on installment 1
+ * regardless of installment 2, which is a different set of parents. Joining
+ * with a comma lands on the same string the query-string form uses, so the two
+ * readers stay interchangeable. `readerFor` does the same on the other side.
+ */
 function filtersFromForm(formData: FormData, sessionLabel: string): ReminderFilters {
   return parseReminderFilters((key) => {
-    const value = formData.get(key);
-    return typeof value === "string" ? value : null;
+    const values = formData.getAll(key).filter((value): value is string => typeof value === "string");
+    return values.length > 0 ? values.join(",") : null;
   }, sessionLabel);
 }
 
@@ -92,6 +105,7 @@ export async function sendRemindersAction(
   let sessionLabel: string;
   let filters: ReminderFilters;
   let candidates: ReminderCandidate[];
+  let finalWindowOpen: boolean | null = null;
   try {
     sessionLabel = await resolveCurrentSessionLabel(supabase);
     // A discount applied a minute ago may still be sitting in the refresh queue.
@@ -109,6 +123,9 @@ export async function sendRemindersAction(
       today,
       windowDays: filters.preDueWindowDays,
     });
+    finalWindowOpen = calendar.next
+      ? isFinalNoticeWindow(calendar.next.daysUntilDue)
+      : null;
     const audience = await loadReminderAudience(supabase, filters, calendar);
     // Re-derived server-side rather than read off the form. The amount a parent
     // is quoted must come from the ledger at send time, not from a number that
@@ -149,6 +166,13 @@ export async function sendRemindersAction(
     lastDateLabel: filters.lastDate,
     today,
     recipientCount: candidates.length,
+    // Since the template stopped deciding the audience, a template can be
+    // pointed at families who cannot fill its slots. Counted over the families
+    // ACTUALLY selected, not the whole list.
+    noticeFactGaps: candidates.filter((candidate) => candidate.missingFacts.length > 0).length,
+    // The three-day rule for `upcoming_final`, moved out of the audience query
+    // and in here where it belongs — it is a fact about the run, not a family.
+    finalWindowOpen: finalWindowOpen,
     ...facts,
   });
 
@@ -265,26 +289,6 @@ export async function sendRemindersAction(
 }
 
 /**
- * Every filter the reminders screen reads off its query string, in one place,
- * so the Apply below can rebuild the URL from a posted form without knowing
- * which card each field lives on.
- */
-const REMINDER_QUERY_KEYS = [
-  "situation",
-  "language",
-  "maxTotalPaid",
-  "minDueAmount",
-  "installments",
-  "classId",
-  "includeRte",
-  "lastDate",
-  "lateFeeAmount",
-  "lateFeeBasis",
-  "preDueWindowDays",
-  "campaignId",
-] as const;
-
-/**
  * Apply on the notice card: remember the date and the late fee, then land on
  * the same URL a GET would have.
  *
@@ -294,10 +298,17 @@ const REMINDER_QUERY_KEYS = [
  * the back button honest — the same rule the picker's chips follow.
  */
 export async function applyNoticeSettingsAction(formData: FormData): Promise<void> {
+  // The canonical key list, from `domain/audience`. It used to be a copy kept
+  // here, and a key added to the screen but not to the copy is a key that
+  // silently resets the moment somebody presses Apply.
   const params = new URLSearchParams();
   for (const key of REMINDER_QUERY_KEYS) {
-    const value = formData.get(key);
-    if (typeof value === "string" && value.trim() !== "") params.set(key, value.trim());
+    const values = formData
+      .getAll(key)
+      .filter((value): value is string => typeof value === "string" && value.trim() !== "");
+    // Same comma join as `filtersFromForm`, for the same reason: four
+    // checkboxes share the `installments` name.
+    if (values.length > 0) params.set(key, values.map((value) => value.trim()).join(","));
   }
 
   // Remembering is a write, so it needs the sending permission; viewing staff
@@ -316,6 +327,60 @@ export async function applyNoticeSettingsAction(formData: FormData): Promise<voi
     }
   } catch {
     // Best-effort: the list still applies.
+  }
+
+  redirect(`/protected/reminders?${params.toString()}`);
+}
+
+/**
+ * Put one student on the list by hand, whatever the filters say.
+ *
+ * A server action rather than a typeahead, deliberately. `/protected/reminders`
+ * has ~480 gzip bytes of headroom against its bundle ceiling, and a search box
+ * that resolves on the server costs the browser nothing — the whole audience
+ * builder is GET forms, links and this.
+ *
+ * An exact admission number adds that child straight away. Anything ambiguous
+ * lands back on the screen with `?find=` and the matches rendered as Add links,
+ * so the office picks a person rather than trusting a guess. Nobody is ever
+ * added by a name that matched two children.
+ *
+ * Gated on `settings:view`, not `settings:write`: choosing who WOULD be
+ * messaged is not sending, and staff who may print the collection list may
+ * certainly build it.
+ */
+export async function addReminderStudentAction(formData: FormData): Promise<void> {
+  const params = new URLSearchParams();
+  for (const key of REMINDER_QUERY_KEYS) {
+    const values = formData
+      .getAll(key)
+      .filter((value): value is string => typeof value === "string" && value.trim() !== "");
+    if (values.length > 0) params.set(key, values.map((value) => value.trim()).join(","));
+  }
+
+  const query = String(formData.get("addStudent") ?? "").trim();
+  if (!query) redirect(`/protected/reminders?${params.toString()}`);
+
+  try {
+    await requireAnyStaffPermission(["settings:view", "settings:write"]);
+  } catch {
+    redirect(`/protected/reminders?${params.toString()}`);
+  }
+
+  const supabase = createAdminClient();
+  const sessionLabel = await resolveCurrentSessionLabel(supabase);
+  const matches = await searchSessionStudents(supabase, sessionLabel, query);
+
+  if (matches.length === 1) {
+    const existing = (params.get("include") ?? "").split(",").filter(Boolean);
+    params.set("include", [...new Set([...existing, matches[0].studentId])].join(","));
+    // An added student is on the list; leaving the search term in the box would
+    // re-offer the same person on the next render.
+    params.delete("find");
+  } else {
+    // Zero or many. The screen renders the matches — or says there were none —
+    // and the office picks.
+    params.set("find", query);
   }
 
   redirect(`/protected/reminders?${params.toString()}`);

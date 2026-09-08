@@ -44,6 +44,15 @@ describe("parseReminderFilters", () => {
       minDueAmount: DEFAULT_REMINDER_FILTERS.minDueAmount,
       classId: null,
       includeRte: false,
+      minTotalPaid: null,
+      installmentMatch: "all",
+      lateFee: "any",
+      overdue: "any",
+      carryForward: "any",
+      promise: "skip_open",
+      quote: "selected",
+      includeStudentIds: [],
+      excludeStudentIds: [],
       situation: DEFAULT_SITUATION,
       language: DEFAULT_LANGUAGE,
       lastDate: "",
@@ -167,6 +176,15 @@ describe("parseReminderFilters", () => {
       minDueAmount: 5000,
       classId: "class-7",
       includeRte: true,
+      minTotalPaid: null,
+      installmentMatch: "all",
+      lateFee: "any",
+      overdue: "any",
+      carryForward: "any",
+      promise: "skip_open",
+      quote: "selected",
+      includeStudentIds: [],
+      excludeStudentIds: [],
       situation: DEFAULT_SITUATION,
       language: DEFAULT_LANGUAGE,
       lastDate: "",
@@ -182,14 +200,31 @@ describe("parseReminderFilters", () => {
     expect(filters.installments).toEqual([...DEFAULT_REMINDER_FILTERS.installments]);
   });
 
-  it("treats a blank or negative number as absent", () => {
+  it("reads a blank paid-so-far as no limit, and a negative minimum as absent", () => {
+    // The two behave differently ON PURPOSE. "Paid so far, at most" is an
+    // OPTIONAL ceiling whose field says "blank: no ceiling", so a blank is the
+    // office deliberately removing it — a fallback there would silently put
+    // 1100 back and quietly shrink the list. The minimum is not optional, so a
+    // value that cannot be a minimum falls back rather than becoming zero.
     const filters = parseReminderFilters(
       fromQuery({ maxTotalPaid: "   ", minDueAmount: "-10" }),
       "2026-27",
     );
 
-    expect(filters.maxTotalPaid).toBe(DEFAULT_REMINDER_FILTERS.maxTotalPaid);
+    expect(filters.maxTotalPaid).toBeNull();
     expect(filters.minDueAmount).toBe(DEFAULT_REMINDER_FILTERS.minDueAmount);
+  });
+
+  it("clears every installment when the form posts an empty set, but not on garbage", () => {
+    // Unticking all four boxes posts `installments=`, which is a real answer —
+    // no installment constraint at all. A hand-edited `0,9,banana` is not: it
+    // falls back to the preset rather than widening the audience to everybody.
+    expect(parseReminderFilters(fromQuery({ installments: "" }), "2026-27").installments).toEqual(
+      [],
+    );
+    expect(
+      parseReminderFilters(fromQuery({ installments: "0,9,banana" }), "2026-27").installments,
+    ).toEqual([...DEFAULT_REMINDER_FILTERS.installments]);
   });
 
   it("carries the notice and the language through", () => {

@@ -13,6 +13,7 @@ import {
   type NoticeLanguage,
   type NoticeSituation,
 } from "@/modules/whatsapp/domain/campaigns";
+import { savedAudienceFrom, type SavedAudience } from "@/modules/whatsapp/domain/audience";
 
 /**
  * Saved campaigns and the runs they produce.
@@ -47,13 +48,16 @@ export type SavedCampaign = {
   schedule: unknown;
 };
 
-export type SavedCampaignFilters = {
-  maxTotalPaid: number;
-  minDueAmount: number;
-  installments: number[];
-  classId: string | null;
-  includeRte: boolean;
-};
+/**
+ * The audience a saved campaign carries.
+ *
+ * `SavedAudience` from `domain/audience`, which also knows how to read a row
+ * written before the audience was split from the template — those carry five
+ * keys, three of which the engine of the day applied only on some notices.
+ * Reading them back verbatim would narrow a scheduled run that has been going
+ * out untouched for weeks.
+ */
+export type SavedCampaignFilters = SavedAudience;
 
 /** One press of Send, with what it collected since. */
 export type CampaignRunOutcome = {
@@ -97,15 +101,10 @@ function toCampaign(row: any): SavedCampaign {
     name: String(row.name),
     situation: isNoticeSituation(row.situation) ? row.situation : DEFAULT_SITUATION,
     language: isNoticeLanguage(row.language) ? row.language : DEFAULT_LANGUAGE,
-    filters: {
-      maxTotalPaid: Number(raw.maxTotalPaid ?? 1100),
-      minDueAmount: Number(raw.minDueAmount ?? 1),
-      installments: Array.isArray(raw.installments)
-        ? (raw.installments as unknown[]).map(Number).filter((n) => n >= 1 && n <= 4)
-        : [1, 2],
-      classId: typeof raw.classId === "string" && raw.classId ? raw.classId : null,
-      includeRte: raw.includeRte === true,
-    },
+    filters: savedAudienceFrom(
+      isNoticeSituation(row.situation) ? row.situation : DEFAULT_SITUATION,
+      raw,
+    ),
     lastDate: row.last_date ? String(row.last_date) : null,
     lateFeeAmount: Number(row.late_fee_amount ?? 0),
     lateFeeBasis: isLateFeeBasis(row.late_fee_basis) ? row.late_fee_basis : DEFAULT_LATE_FEE_BASIS,
@@ -427,7 +426,6 @@ export async function loadRanScheduleSlots(
  * off by default and means deliberately not chasing money the school is owed.
  */
 export async function loadRunHoldout(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   runId: string,
 ): Promise<{ heldOut: number; heldOutPaid: number; heldOutCollected: number } | null> {

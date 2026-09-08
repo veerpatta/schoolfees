@@ -6,6 +6,7 @@ import {
   type InstallmentCalendar,
 } from "@/modules/whatsapp/domain/installment-calendar";
 import { addDays } from "@/modules/whatsapp/domain/reminder-cadence";
+import { presetFor } from "@/modules/whatsapp/domain/audience";
 
 /**
  * Who actually gets messaged.
@@ -110,13 +111,34 @@ const filters = {
   lateFeeAmount: 1000,
 };
 
+/**
+ * Build a run the way the screen does: the notice's PRESET, then whatever the
+ * test overrides on top.
+ *
+ * Since 2026-09-08 the notice does not gate the audience — the filters do — so
+ * "who does `late_fee_applied` reach" is now "who does its preset reach", which
+ * is exactly what `parseReminderFilters` resolves for a link that names a
+ * notice and no filters. Spreading the preset here keeps every case below
+ * asking the question it was written to ask.
+ */
 const load = (
   tables: Tables,
   overrides: Partial<typeof filters> = {},
   calendar?: InstallmentCalendar,
-) =>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  loadReminderAudience(stubClient(tables) as any, { ...filters, ...overrides }, calendar);
+) => {
+  const situation = overrides.situation ?? filters.situation;
+  const preset = presetFor(situation, {
+    activeInstallments:
+      calendar && calendar.active.length > 0 ? calendar.active : filters.installments,
+    nextInstallment: calendar?.next?.installmentNo ?? null,
+  });
+  return loadReminderAudience(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    stubClient(tables) as any,
+    { ...filters, ...preset, ...overrides },
+    calendar,
+  );
+};
 
 /**
  * A calendar with installment 1 already passed and installment 2 six days out.
@@ -420,19 +442,26 @@ describe("reminder audience — which notice, which families", () => {
     expect(feeDue.candidates).toHaveLength(0);
   });
 
-  it("leaves the previous-session notice alone — installments are not its business", async () => {
-    // That balance is last year's. It has no installments, no due date and no
-    // late fee, so the control is hidden on screen and ignored here.
+  it("gives the previous-session preset no installment filter at all", async () => {
+    // That balance is last year's: it has no installments, no due date and no
+    // late fee. The notice used to IGNORE the installment control; since the
+    // audience was split from the template there is nothing to ignore — the
+    // preset simply carries an empty set, so the family is on the list whatever
+    // installments the office had selected on the notice they came from.
     const tables = {
       financials: [student("prev-only", { total_paid: 20000, inst1_pending: 0, inst2_pending: 0 })],
       carryForward: [carried("prev-only", 8000)],
     };
 
-    for (const installments of [[1, 2], [3], [1, 2, 3]]) {
-      const audience = await load(tables, { situation: "prevyear", installments });
-      expect(audience.candidates.map((c) => c.studentId)).toEqual(["prev-only"]);
-      expect(audience.candidates[0]!.dueAmount).toBe(8000);
-    }
+    const audience = await load(tables, { situation: "prevyear" });
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["prev-only"]);
+    expect(audience.candidates[0]!.dueAmount).toBe(8000);
+
+    // And an installment filter the office sets DELIBERATELY now applies here
+    // like anywhere else — that is the point of the split. This family owes
+    // nothing on installment 1, so naming it empties the list.
+    const narrowed = await load(tables, { situation: "prevyear", installments: [1] });
+    expect(narrowed.candidates).toHaveLength(0);
   });
 
   it("never lets last year's balance into a current-year figure", async () => {
@@ -501,23 +530,35 @@ describe("reminder audience — the calendar decides the installments", () => {
     );
 
     expect(audience.counts.upcoming).toBe(0);
-    expect(audience.counts.late_fee_applied).toBe(1);
+    // `late_fee_applied` reads 0 rather than 1, and that is the preset counts
+    // becoming honest rather than a family going missing. The old counts were
+    // taken BEFORE the minimum was applied, so they promised families the list
+    // then dropped: this family's fees are clear, so the notice would quote
+    // ₹0 and the ₹1 minimum has always excluded them from the list itself.
+    // Now the button's number is what clicking it gives you. To reach a family
+    // who owes only a late fee, set "Quoted amount at least" to 0.
+    expect(audience.counts.late_fee_applied).toBe(0);
   });
 
-  it("holds `upcoming_final` shut until three days out", async () => {
+  it("gives `upcoming_final` the same audience as `upcoming`, whatever the date", async () => {
+    // The three-day window used to live HERE, emptying the final-call list
+    // outside it. That is a fact about the RUN, not about a family, and as an
+    // audience gate it made the template impossible to use deliberately. It
+    // moved to `evaluateSendGuards` as the overridable `final_window_closed`,
+    // where an admin can send early on purpose and the reason lands on the run.
     const tables = {
       financials: [student("soon", { inst1_pending: 0, inst2_pending: 4000, total_paid: 5000 })],
     };
 
-    // Six days out: the courtesy notice is available, the firm one is not.
-    const early = await load(tables, { situation: "upcoming", installments: [2] }, CALENDAR_INST2_DUE_SOON);
+    // Six days out: both presets reach the family.
+    const early = await load(tables, { situation: "upcoming" }, CALENDAR_INST2_DUE_SOON);
     expect(early.counts.upcoming).toBe(1);
-    expect(early.counts.upcoming_final).toBe(0);
+    expect(early.counts.upcoming_final).toBe(1);
 
-    // Two days out: both.
+    // Two days out: unchanged.
     const late = await load(
       tables,
-      { situation: "upcoming_final", installments: [2] },
+      { situation: "upcoming_final" },
       buildInstallmentCalendar({
         schedule: [{ dueDate: "2026-04-20" }, { dueDate: "2026-07-20" }],
         today: "2026-07-18",
@@ -656,7 +697,11 @@ describe("reminder audience — the waiver pair read the ledger too", () => {
 
     expect(audience.counts.late_fee_waiver).toBe(0);
     expect(audience.counts.waiver_last_call).toBe(0);
-    expect(audience.counts.late_fee_applied).toBe(1);
+    // 0, not 1: see the note on the courtesy-notice test above. The preset
+    // counts now apply the minimum, so they promise exactly what clicking the
+    // button delivers — and the ₹1 minimum has always kept a family whose fees
+    // are clear off the list itself.
+    expect(audience.counts.late_fee_applied).toBe(0);
   });
 });
 

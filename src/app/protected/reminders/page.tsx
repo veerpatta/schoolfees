@@ -31,10 +31,17 @@ import {
   isLedgerQuotedSituation,
   NOTICE_SITUATIONS,
   noticeValuesFrom,
-  NOT_THIS_NOTICE,
-  SITUATION_RULE,
   TEMPLATE_INSTALLMENTS,
 } from "@/modules/whatsapp/domain/campaigns";
+import { QUOTE_BASES, reminderQuery } from "@/modules/whatsapp/domain/audience";
+import { AudienceBuilder } from "@/modules/whatsapp/ui/audience-builder";
+import { CarriedFilterFields } from "@/modules/whatsapp/ui/carried-filter-fields";
+import { NoticePicker } from "@/modules/whatsapp/ui/notice-picker";
+import { loadStudentBriefs, searchSessionStudents } from "@/modules/whatsapp/data/student-lookup";
+import {
+  addReminderStudentAction,
+  applyNoticeSettingsAction,
+} from "@/app/protected/reminders/actions";
 import { renderNoticePreview } from "@/modules/whatsapp/domain/campaign-bodies";
 import { openingNoticeValues } from "@/modules/whatsapp/domain/test-send-values";
 import {
@@ -43,8 +50,9 @@ import {
   type SavedCampaign,
 } from "@/modules/whatsapp/data/campaign-store";
 import { describeLateFeeDrift } from "@/modules/whatsapp/domain/late-fee";
-import { resolveReminderContext } from "@/modules/whatsapp/data/reminder-context";
+import { readerFor, resolveReminderContext } from "@/modules/whatsapp/data/reminder-context";
 import { isoFromDdMmYyyy } from "@/platform/helpers/date";
+import { formatInr } from "@/platform/helpers/currency";
 
 // The list is only ever as good as the ledger it was read from, and staff will
 // send money-bearing messages off it. Never serve it from a cache.
@@ -60,13 +68,16 @@ type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-/** One value out of the query string, or null when it is absent. */
-function reader(params: Record<string, string | string[] | undefined>) {
-  return (key: string) => {
-    const value = params[key];
-    return (Array.isArray(value) ? value[0] : value) ?? null;
-  };
-}
+/**
+ * One value out of the query string, or null when it is absent.
+ *
+ * `readerFor` from `data/reminder-context`, not a local copy: a repeated key
+ * has to join with a comma rather than take the first value, because the
+ * installment control is four checkboxes sharing one name. A second copy of
+ * that rule here is how this screen and the collection lists would name
+ * different families again.
+ */
+const reader = readerFor;
 
 export default async function WhatsappRemindersPage({ searchParams }: PageProps) {
   const staff = await requireAnyStaffPermission(["settings:view", "settings:write"], {
@@ -221,6 +232,75 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   const situationLabel =
     NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
 
+  /**
+   * The students the office named by hand, and any search that did not resolve
+   * to exactly one person.
+   *
+   * Resolved here rather than in the builder so the whole audience panel stays
+   * a pure render: one page, one set of reads. Best-effort throughout — a
+   * lookup that fails must not take a send screen down, it just shows fewer
+   * chips.
+   */
+  const findQuery = reader(params)("find")?.trim() ?? "";
+  const [handPicked, matches] = await Promise.all([
+    loadStudentBriefs(supabase, sessionLabel, [
+      ...filters.includeStudentIds,
+      ...filters.excludeStudentIds,
+    ]).catch(() => []),
+    findQuery
+      ? searchSessionStudents(supabase, sessionLabel, findQuery).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+  const briefById = new Map(handPicked.map((brief) => [brief.studentId, brief]));
+  const includedBriefs = filters.includeStudentIds
+    .map((id) => briefById.get(id))
+    .filter((brief): brief is NonNullable<typeof brief> => Boolean(brief));
+  const excludedBriefs = filters.excludeStudentIds
+    .map((id) => briefById.get(id))
+    .filter((brief): brief is NonNullable<typeof brief> => Boolean(brief));
+
+  /**
+   * One sentence saying who is on the list, composed from the FILTERS.
+   *
+   * It used to be `SITUATION_RULE[situation]` — one line per notice, describing
+   * the audience that notice defined for itself. The notice does not define one
+   * any more, so a fixed sentence per notice would now be a description of
+   * something that is not happening.
+   */
+  const quoteLabel =
+    QUOTE_BASES.find((entry) => entry.value === filters.quote)?.label ?? "the pending amount";
+  const audienceRule = [
+    filters.installments.length > 0
+      ? `${filters.installmentMatch === "all" ? "Every one of" : "At least one of"} ${installmentPhrase(filters.installments, "en").toLowerCase()} still carrying fees`
+      : "Any installment",
+    filters.maxTotalPaid !== null ? `paid at most ${formatInr(filters.maxTotalPaid)}` : null,
+    filters.minTotalPaid !== null ? `paid more than ${formatInr(filters.minTotalPaid)}` : null,
+    filters.lateFee !== "any"
+      ? `${filters.lateFee === "yes" ? "with" : "without"} a late fee on the ledger`
+      : null,
+    filters.overdue !== "any"
+      ? `${filters.overdue === "yes" ? "past" : "not past"} a due date`
+      : null,
+    filters.carryForward !== "any"
+      ? `${filters.carryForward === "yes" ? "with" : "without"} a balance from last session`
+      : null,
+    `and ${quoteLabel.toLowerCase()} of at least ${formatInr(filters.minDueAmount)}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  /** What the amount on each row is, given the basis the office chose. */
+  const amountNote = `The amount on each card is ${quoteLabel.toLowerCase()} — the figure the message will quote.`;
+
+  /**
+   * `?exclude=` with a trailing separator, so a row's Remove link is this plus
+   * the student id. `parseIdList` drops the empty segment, so an empty list
+   * yields `exclude=,<id>` and reads back as one id.
+   */
+  const excludeHrefPrefix = `?${reminderQuery(filters, {
+    exclude: [...filters.excludeStudentIds, ""].join(","),
+  }).toString()}`;
+
   const savedCampaignCount = savedCampaigns.length;
   const familyCount = audience.candidates.length;
   const familyLabel = `${familyCount} famil${familyCount === 1 ? "y" : "ies"}`;
@@ -279,17 +359,38 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       />
 
       <RemindersWorkspace
-          filters={filters}
           audience={audience}
           canSend={canSend && providerReady && !dateHasPassed}
           campaignName={campaignName}
-          lateFeeWarning={lateFeeWarning}
           previewBody={previewBody}
           holdoutControl={<HoldoutControl />}
           listActions={<CollectionListLinks filters={filters} />}
-          situationRule={SITUATION_RULE[filters.situation]}
-          notThisNotice={NOT_THIS_NOTICE[filters.situation]}
+          audienceRule={audienceRule}
+          amountNote={amountNote}
+          excludeHrefPrefix={excludeHrefPrefix}
           savedCampaign={activeCampaign ? { id: activeCampaign.id, name: activeCampaign.name } : null}
+          noticeControls={
+            <NoticePicker
+              filters={filters}
+              noticeGaps={audience.noticeGaps}
+              candidateCount={audience.candidates.length}
+              dateFieldId="lastDate"
+              lateFeeWarning={lateFeeWarning}
+              applyAction={applyNoticeSettingsAction}
+            />
+          }
+          audienceControls={
+            <AudienceBuilder
+              filters={filters}
+              audience={audience}
+              included={includedBriefs}
+              excluded={excludedBriefs}
+              matches={matches}
+              searchQuery={findQuery}
+              addAction={addReminderStudentAction}
+            />
+          }
+          sendFormFields={<CarriedFilterFields filters={filters} />}
         />
       </SectionCard>
 

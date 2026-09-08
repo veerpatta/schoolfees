@@ -20,6 +20,7 @@ import { Notice } from "@/ui/primitives/notice";
 import { SelectNative } from "@/ui/primitives/select-native";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 import { formatInr } from "@/platform/helpers/currency";
+import { savedAudienceParams } from "@/modules/whatsapp/domain/audience";
 import { formatDdMmYyyy } from "@/platform/helpers/date";
 
 /**
@@ -63,14 +64,12 @@ const IDLE: CampaignFormState = { status: "idle" };
 
 /** The send screen, with this campaign's settings already applied. */
 export function campaignHref(campaign: SavedCampaign): string {
-  const params = new URLSearchParams();
+  // Only what the campaign STORED. A key it did not store is left out so the
+  // notice's preset supplies it on the other side — which is what keeps a
+  // campaign saved before the audience/template split naming the same families.
+  const params = new URLSearchParams(savedAudienceParams(campaign.filters));
   params.set("situation", campaign.situation);
   params.set("language", campaign.language);
-  params.set("maxTotalPaid", String(campaign.filters.maxTotalPaid));
-  params.set("minDueAmount", String(campaign.filters.minDueAmount));
-  params.set("installments", campaign.filters.installments.join(","));
-  if (campaign.filters.classId) params.set("classId", campaign.filters.classId);
-  if (campaign.filters.includeRte) params.set("includeRte", "on");
   if (campaign.lastDate) params.set("lastDate", formatDdMmYyyy(campaign.lastDate));
   params.set("lateFeeAmount", String(campaign.lateFeeAmount));
   params.set("lateFeeBasis", campaign.lateFeeBasis);
@@ -156,9 +155,9 @@ export function CampaignManager({
                       {campaign.filters.classId
                         ? ` · ${classOptions.find((c) => c.classId === campaign.filters.classId)?.label ?? "one class"}`
                         : " · All classes"}
-                      {campaign.situation === "prevyear"
-                        ? ""
-                        : ` · Inst ${campaign.filters.installments.join(" & ")}`}
+                      {campaign.filters.installments?.length
+                        ? ` · Inst ${campaign.filters.installments.join(" & ")}`
+                        : ""}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Late fee on the message:{" "}
@@ -433,7 +432,7 @@ export function CampaignManager({
                 name="maxTotalPaid"
                 type="number"
                 min={0}
-                defaultValue={open?.filters.maxTotalPaid ?? 1100}
+                defaultValue={open?.filters.maxTotalPaid ?? ""}
               />
             </div>
 

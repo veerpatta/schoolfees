@@ -1,4 +1,7 @@
-import { describeDateGuard } from "@/modules/whatsapp/domain/installment-calendar";
+import {
+  describeDateGuard,
+  FINAL_NOTICE_DAYS_BEFORE_DUE,
+} from "@/modules/whatsapp/domain/installment-calendar";
 
 /**
  * Everything that must be true before a reminder run may send.
@@ -86,6 +89,26 @@ export type SendGuardContext = {
    * had sent to a hundred families the day before.
    */
   campaignProven?: boolean | null;
+  /**
+   * How many families on this run cannot fill a slot the chosen template names
+   * — no late fee on a "Late fee applied", no promise on a "Promise due".
+   *
+   * A judgement, not an impossibility: the office asked to be able to point any
+   * template at any audience, and there are real uses for it. It became a guard
+   * on 2026-09-08, when the template stopped deciding the audience and this
+   * mismatch became expressible for the first time.
+   */
+  noticeFactGaps?: number | null;
+  /**
+   * Is the run's date close enough for `upcoming_final`'s wording — "the late
+   * fee starts the day after" — to be a statement about this week?
+   *
+   * Was a hard audience gate: `upcoming_final` reached nobody outside three
+   * days, whatever the office intended. That is a fact about the RUN, not about
+   * a family, so it belongs here with the other judgements about whether to
+   * send rather than in the query that decides who owes money.
+   */
+  finalWindowOpen?: boolean | null;
 };
 
 /**
@@ -191,6 +214,23 @@ export function evaluateSendGuards(context: SendGuardContext): SendGuardResult {
       code: "untested_campaign",
       message:
         "This campaign has never gone out — not to a family, and not as a test. Send yourself one test first, so a wrong slot order is caught on a staff phone rather than a parent's. You will not be asked again for this campaign.",
+    });
+  }
+
+  if (
+    context.situation === "upcoming_final" &&
+    context.finalWindowOpen === false
+  ) {
+    overridable.push({
+      code: "final_window_closed",
+      message: `The final-call wording says the late fee starts the day after ${context.lastDateLabel || "the date on the message"}, and that is more than ${FINAL_NOTICE_DAYS_BEFORE_DUE} days away. Parents read a "final" notice as urgent; sent early it teaches them it is not.`,
+    });
+  }
+
+  if (context.noticeFactGaps && context.noticeFactGaps > 0) {
+    overridable.push({
+      code: "notice_fact_gap",
+      message: `${context.noticeFactGaps} of these families are missing something this message names — a late fee, a promised date or a carry-forward balance the ledger does not have for them. Those slots go out as ₹0 or blank.`,
     });
   }
 

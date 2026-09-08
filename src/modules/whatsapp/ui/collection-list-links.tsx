@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
 import { COLLECTION_GROUP_BY } from "@/modules/whatsapp/domain/collection-list";
+import { reminderQuery } from "@/modules/whatsapp/domain/audience";
 
 /**
  * The way off this screen and onto paper.
@@ -19,18 +20,10 @@ import { COLLECTION_GROUP_BY } from "@/modules/whatsapp/domain/collection-list";
  * allowlisted. Linking to a PAGE keeps both problems away.
  */
 export function CollectionListLinks({ filters }: { filters: ReminderFilters }) {
-  // Every audience-shaping value, so the list somebody prints is the list they
-  // were just looking at. Dropping one silently exports a different school.
-  const carried = new URLSearchParams({
-    situation: filters.situation,
-    language: filters.language,
-    installments: filters.installments.join(","),
-    maxTotalPaid: String(filters.maxTotalPaid),
-    minDueAmount: String(filters.minDueAmount),
-    preDueWindowDays: String(filters.preDueWindowDays),
-  });
-  if (filters.classId) carried.set("classId", filters.classId);
-  if (filters.includeRte) carried.set("includeRte", "on");
+  // Every audience-shaping value, from the ONE canonical key list. Dropping one
+  // silently exports a different school — this used to be a hand-written object
+  // that had to be edited in step with four others.
+  const carried = reminderQuery(filters);
 
   return (
     // On a phone the label sits on its own line and the three links form an

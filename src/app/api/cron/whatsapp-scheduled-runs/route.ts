@@ -28,6 +28,7 @@ import {
 } from "@/modules/whatsapp/domain/fee-reminders";
 import { buildInstallmentCalendar } from "@/modules/whatsapp/domain/installment-calendar";
 import { evaluateSendGuards, firstBlockingMessage } from "@/modules/whatsapp/domain/send-guards";
+import { savedAudienceParams } from "@/modules/whatsapp/domain/audience";
 import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
 
 /**
@@ -157,18 +158,18 @@ export async function GET(request: Request) {
       // Rebuild the audience from the saved RULE against today's ledger, exactly
       // as loading the campaign on the screen would. The audience is never
       // stored, so a family who paid this morning is simply absent.
+      // Only what the campaign actually STORED. A key it did not store is left
+      // out so the notice's own preset supplies it — which is what keeps a
+      // campaign saved before the audience/template split naming the families
+      // it has been naming all along. See `savedAudienceFrom`.
       const search = new URLSearchParams({
+        ...savedAudienceParams(saved.filters),
         situation: saved.situation,
         language: saved.language,
-        maxTotalPaid: String(saved.filters.maxTotalPaid),
-        minDueAmount: String(saved.filters.minDueAmount),
-        installments: saved.filters.installments.join(","),
         lastDate: saved.lastDate ? formatDdMmYyyy(saved.lastDate) : "",
         lateFeeAmount: String(saved.lateFeeAmount),
         lateFeeBasis: saved.lateFeeBasis,
       });
-      if (saved.filters.classId) search.set("classId", saved.filters.classId);
-      if (saved.filters.includeRte) search.set("includeRte", "on");
 
       const filters = parseReminderFilters(
         (key) => search.get(key),
@@ -178,6 +179,8 @@ export async function GET(request: Request) {
         ),
         Number(policy?.lateFeeFlatAmount ?? 0),
         calendar.active,
+        null,
+        { nextInstallment: calendar.next?.installmentNo ?? null },
       );
 
       const audience = await loadReminderAudience(supabase, filters, calendar);
