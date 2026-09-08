@@ -50,6 +50,7 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
     sentCount: 0,
     includedByHand: false,
     missingFacts: [],
+    missingFactsLabel: "",
     ...overrides,
   };
 }

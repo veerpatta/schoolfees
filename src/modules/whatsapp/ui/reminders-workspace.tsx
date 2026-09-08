@@ -487,8 +487,11 @@ export function RemindersWorkspace({
                       // Any template can reach any family now, so a family can
                       // be sent a message built around a fact they do not have.
                       // Warned, never silent.
-                      <span className="rounded bg-warning/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning-foreground">
-                        Message needs {candidate.missingFacts.length} missing
+                      <span
+                        title={`This message names ${candidate.missingFactsLabel}, which this family does not have`}
+                        className="rounded bg-warning/20 px-2 py-0.5 text-[10px] font-bold normal-case tracking-normal text-warning-foreground"
+                      >
+                        No {candidate.missingFactsLabel}
                       </span>
                     ) : null}
                   </div>
@@ -607,7 +610,7 @@ export function RemindersWorkspace({
                       ) : null}
                       {candidate.missingFacts.length > 0 ? (
                         <span
-                          title={`This message names ${candidate.missingFacts.length} thing(s) this family does not have`}
+                          title={`This message names ${candidate.missingFactsLabel}, which this family does not have`}
                           className="ml-1.5 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning-foreground"
                         >
                           ⚠

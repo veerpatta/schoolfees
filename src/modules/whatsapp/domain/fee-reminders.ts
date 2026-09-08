@@ -37,6 +37,7 @@ import {
   isPromiseFilter,
   isQuoteBasis,
   isTri,
+  NOTICE_FACT_LABELS,
   NOTICE_FACTS,
   parseIdList,
   presetFor,
@@ -390,6 +391,19 @@ export type ReminderCandidate = {
    * `missingFactsFor`. Empty for almost everybody.
    */
   missingFacts: NoticeFact[];
+  /**
+   * Those same facts as a sentence a person can act on, composed HERE.
+   *
+   * "Message needs a late fee on the ledger" tells the office what to do;
+   * "Message needs 1 missing" tells them only that something is wrong. The
+   * phrase is built server-side rather than in the workspace because the
+   * workspace is a client component and `/protected/reminders` sits under a
+   * gzip ceiling that only ratchets down — six label strings in the browser to
+   * render one of them is the same trade the template bodies already lost.
+   *
+   * Empty string when nothing is missing.
+   */
+  missingFactsLabel: string;
 };
 
 export type ReminderSkipCounts = {
@@ -715,6 +729,19 @@ export function matchesAudienceFilters(
   }
 
   return true;
+}
+
+/**
+ * The missing slots as a sentence, e.g. "a late fee on the ledger".
+ *
+ * Composed here, in a `server-only` module, so the six labels never reach the
+ * browser — see `ReminderCandidate.missingFactsLabel`.
+ */
+export function describeMissingFacts(missing: readonly NoticeFact[]): string {
+  if (missing.length === 0) return "";
+  const named = missing.map((fact) => NOTICE_FACT_LABELS[fact]);
+  if (named.length === 1) return named[0];
+  return `${named.slice(0, -1).join(", ")} and ${named[named.length - 1]}`;
 }
 
 /**
@@ -1204,6 +1231,9 @@ export async function loadReminderAudience(
       // for almost everybody; non-empty is the price of letting any template go
       // to any audience, and the screen says so rather than sending ₹0.
       missingFacts: missingFactsFor(filters.situation, facts, dueAmount),
+      missingFactsLabel: describeMissingFacts(
+        missingFactsFor(filters.situation, facts, dueAmount),
+      ),
     });
 
     for (const situation of SITUATION_KEYS) {
