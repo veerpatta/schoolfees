@@ -510,6 +510,12 @@ express the school's rule and never fired once:
   and the tables behind them.
 - `20260903181330_whatsapp_pay_codes` — a pay link a parent can tap: `/pay/[code]`.
 
+### WhatsApp recovery notices (2026-09-08)
+
+- `20260908093000_whatsapp_campaigns_accept_recovery_notices` — a saved campaign may name
+  the five `_v4` notices (late-fee waiver window, waiver last call, overdue final,
+  promise due, exam clearance). Same shape as `20260903131911`; runs stay unconstrained.
+
 ### Money settles the installments oldest-first (2026-09-05)
 
 - `20260905064847_settlement_pools_oldest_first` — a receipt's `installment_id` is history,

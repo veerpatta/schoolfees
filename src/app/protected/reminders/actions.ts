@@ -2,7 +2,8 @@
 
 import { insertDefaulterContacts } from "@/modules/defaulters/data/contacts";
 import { createAdminClient } from "@/platform/supabase/admin";
-import { requireStaffPermission } from "@/platform/supabase/session";
+import { requireAnyStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
+import { renderNoticeBody } from "@/modules/whatsapp/domain/campaign-bodies";
 import { isAisensyConfigured, sendAisensyCampaignMessage } from "@/modules/whatsapp/data/aisensy";
 import { getFeePolicySummary } from "@/modules/fees/data/policy";
 import {
@@ -27,6 +28,7 @@ import {
 import {
   campaignFor,
   campaignNameFor,
+  describeCampaign,
   isCampaignApproved,
   DEFAULT_LANGUAGE,
   DEFAULT_SITUATION,
@@ -125,8 +127,9 @@ export async function sendRemindersAction(
   // `domain/send-guards` owns them because there are now two ways to start a
   // run, and "the scheduled runner applies every guard the manual path applies"
   // is only true by construction if there is one list. The date rule is in
-  // there: every forward-looking notice needs a date parents can still meet, and
-  // `late_fee_applied` needs none at all because it prints none.
+  // there: every forward-looking notice needs a date parents can still meet;
+  // `late_fee_applied` needs none because it prints none, and `promise_due`
+  // needs none because it prints each family's own.
   const lastDateIso = isoFromDdMmYyyy(filters.lastDate);
   // The facts only the database can answer — quiet hours, the holiday list, the
   // budget, whether this campaign has ever gone out. Best-effort throughout: a
@@ -490,6 +493,40 @@ export type TestSendState = {
   /** AiSensy's own error string, verbatim and unwrapped. */
   providerError?: string;
 };
+
+/**
+ * The test panel's preview, rendered on the server.
+ *
+ * The panel used to render this in the browser, which meant every per-student
+ * template body — twenty-four of them in two languages — shipped in the client
+ * bundle of a route with a gzip ceiling that only ratchets down, so that ONE of
+ * them could be shown. The bodies now live in `domain/campaign-bodies`, which
+ * no `ui/` file may import, and the panel asks here instead.
+ *
+ * Same mapping as the send (`noticeValuesFromSlots`) and same renderer as the
+ * page's preview, so what staff read is what a test would post. Previews an
+ * unapproved notice too: the office needs to read what is awaiting Meta.
+ *
+ * Read-only, and gated on `settings:view` like the page — never `settings:write`,
+ * which is the SEND permission.
+ */
+export async function previewNoticeAction(input: {
+  situation: string;
+  language: string;
+  form: Record<string, string>;
+}): Promise<string | null> {
+  try {
+    await requireAnyStaffPermission(["settings:view", "settings:write"]);
+  } catch {
+    return null;
+  }
+  const situation = isNoticeSituation(input.situation) ? input.situation : DEFAULT_SITUATION;
+  const language = isNoticeLanguage(input.language) ? input.language : DEFAULT_LANGUAGE;
+  const campaign = describeCampaign(situation, language);
+  if (!campaign) return null;
+  const values = noticeValuesFromSlots(situation, input.form ?? {}, campaign.sample);
+  return renderNoticeBody(situation, language, campaign.buildParams(values));
+}
 
 /**
  * One message to a number the office controls, using values the caller chose.

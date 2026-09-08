@@ -14,12 +14,14 @@ Three screens:
 | `/protected/reminders/runs/[runId]` | One press of Send: who it reached, and what came in after. |
 | `/protected/reminders/lists` | The same audience as paper: grouped by class, route or amount, ready to hand out. |
 
-There are **seven notices in two languages, and all fourteen templates are
-approved and Live**. Six `_v2` since 22 Aug — fee due (nothing received),
+There are **twelve notices in two languages, and all twenty-four templates
+are approved and Live**. Six `_v2` since 22 Aug — fee due (nothing received),
 balance (part paid, still owing) and previous session (a carry-forward
 balance); measured live that day: 146, 171 and 51 families. Eight `_v3` since
 2026-09-04 — **due soon, final call, late fee applied, promise lapsed** — the
-four the calendar drives.
+four the calendar drives. Ten `_v4` since 2026-09-08 — **waiver window, waiver
+last call, overdue final, promise due, exam clearance** — the five that exist
+to bring fees in around the late fee.
 
 Every chip is enabled and `campaignFor` hands out every notice. The mechanism
 for a notice that is NOT approved is still there and still tested: a descriptor
@@ -67,7 +69,8 @@ fee balance on it.
 | `src/modules/whatsapp/ui/reminders-workspace.tsx` | Filters, list (cards + table), selection, send |
 | `src/modules/whatsapp/ui/test-send-panel.tsx` | The test panel: editable slots, live preview, raw provider result |
 | `src/modules/whatsapp/ui/notice-picker.tsx` | The notice chips, the language toggle and the date field |
-| `src/modules/whatsapp/domain/campaigns.ts` | **The registry.** Campaign name, slot order, param builder and preview body for each of the six. **No `server-only`** — the live preview runs in the browser |
+| `src/modules/whatsapp/domain/campaigns.ts` | **The registry.** Campaign name, slot order, param builder and Meta sample for each of the twenty-four. **No `server-only`** — the picker and the test panel need names, slots and samples in the browser |
+| `src/modules/whatsapp/domain/campaign-bodies.ts` | Every per-student body, in both languages. **No `ui/` or client file may import it** — the page and `previewNoticeAction` render previews on the server. Same rule and same test as `campaign-bodies-v3.ts` |
 | `src/modules/whatsapp/domain/phone.ts` | `toWhatsappDestination`. Pure, client-safe |
 | `src/modules/whatsapp/data/aisensy.ts` | Campaign API client. `server-only` |
 | `src/modules/whatsapp/domain/fee-reminders.ts` | Audience query and filters. `server-only` — a client component may only `import type` from it |
@@ -423,9 +426,22 @@ to Meta.
 
 | Situation | Who it is about | Slots | Campaigns |
 |---|---|---|---|
-| `fee_due` | Nothing received (`total_paid <= 1100`) and **every** selected installment pending | 6 | `vpps_app_fee_due_hi` · `vpps_app_fee_due_en` |
-| `balance` | Part paid, still owing on **any** selected installment | 6 | `vpps_app_balance_hi` · `vpps_app_balance_en` |
-| `prevyear` | A carry-forward balance with something left on it | 5 | `vpps_app_prevyear_hi` · `vpps_app_prevyear_en` |
+| `fee_due` | Nothing received (`total_paid <= 1100`) and **every** selected installment pending | 7 | `vpps_app_fee_due_hi_v2` · `vpps_app_fee_due_en_v2` |
+| `balance` | Part paid, still owing on **any** selected installment | 7 | `vpps_app_balance_hi_v2` · `vpps_app_balance_en_v2` |
+| `prevyear` | A carry-forward balance with something left on it | 7 | `vpps_app_prevyear_hi_v2` · `vpps_app_prevyear_en_v2` |
+| `upcoming` / `upcoming_final` | The next installment inside the window, nothing overdue; final from T-3 | 7 | `vpps_app_upcoming_*_v3` · `vpps_app_upcoming_final_*_v3` |
+| `late_fee_applied` | The ledger charges a late fee on a passed installment | 7 (own) | `vpps_app_late_fee_applied_*_v3` |
+| `promise_lapsed` | A promised date passed, money still owed | 7 | `vpps_app_promise_lapsed_*_v3` |
+| `late_fee_waiver` / `waiver_last_call` | The ledger charges a late fee AND fees are still on those rows. Slot 7 is the office's waive-by date; the late-fee control is disabled | 7 (waiver) | `vpps_app_late_fee_waiver_*_v4` · `vpps_app_waiver_last_call_*_v4` |
+| `overdue_final` | Fees still pending on any installment the calendar says has passed, late fee or not | 7 | `vpps_app_overdue_final_*_v4` |
+| `promise_due` | A promise falling due today or tomorrow. Prints the family's own date, so no run date and no date guard; exempt from the promise hold-back | 7 | `vpps_app_promise_due_*_v4` |
+| `exam_clearance` | Anything pending on **any** selected installment | 7 | `vpps_app_exam_clearance_*_v4` |
+
+None of the `_v4` five has a family template. A sibling phone gets the
+spokesperson's per-child message, exactly as `late_fee_applied` does today.
+The office honours a waiver **by hand at the counter** — a family who pays
+inside the window still needs someone to press Waive; nothing automatic
+touches money.
 
 **The two current-year notices are mutually exclusive by construction, not by a
 filter someone has to get right.** `maxTotalPaid` is 1100, the academic fee, so at

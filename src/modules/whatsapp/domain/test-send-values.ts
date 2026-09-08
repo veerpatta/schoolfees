@@ -1,4 +1,14 @@
-import type { NoticeSituation, NoticeValues } from "@/modules/whatsapp/domain/campaigns";
+import {
+  describeCampaign,
+  isRunDateFreeSituation,
+  noticeValuesFrom,
+  type NoticeLanguage,
+  type NoticeSettings,
+  type NoticeSituation,
+  type NoticeSubject,
+  type NoticeValues,
+} from "@/modules/whatsapp/domain/campaigns";
+import { lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
 
 /**
  * The one place the positional slot skeleton meets the named `NoticeValues`.
@@ -35,7 +45,69 @@ export const SLOT_VALUE_KEYS: Record<
     lateFeeApplied: "lateFeeApplied",
     totalToPay: "totalToPay",
   },
+  // The waiver pair: two ledger figures, then the waive-by date in slot 7.
+  late_fee_waiver: {
+    contextLine: "installmentPhrase",
+    feesPending: "amountDue",
+    lateFeeApplied: "lateFeeApplied",
+    date: "lastDate",
+  },
+  waiver_last_call: {
+    contextLine: "installmentPhrase",
+    feesPending: "amountDue",
+    lateFeeApplied: "lateFeeApplied",
+    date: "lastDate",
+  },
+  overdue_final: { contextLine: "installmentPhrase", amount: "amountDue", date: "lastDate" },
+  // Slot 4 is the day the office SPOKE with the family, as text; slot 6 is the
+  // date the family gave, which `noticeValuesFrom` puts in `lastDate`.
+  promise_due: { contextLine: "promiseRecordedDate", amount: "amountDue", date: "lastDate" },
+  exam_clearance: { contextLine: "installmentPhrase", amount: "amountDue", date: "lastDate" },
 };
+
+export type OpeningSettings = NoticeSettings;
+
+/**
+ * The values the test panel opens on, for a notice and a language.
+ *
+ * The real top row where we have one, projected through the SAME
+ * `noticeValuesFrom` the send uses; the campaign's own Meta-submitted sample
+ * where we do not, with the screen's date and late-fee phrase laid over it.
+ * Both are true-shaped for that template.
+ *
+ * Shared by the page (which renders the opening preview on the server) and the
+ * panel (which fills its fields from the same values), so the preview the
+ * office first sees is rendered from exactly the fields it can then edit.
+ *
+ * On a notice that prints no run date the screen's date is NOT laid over the
+ * sample: `promise_due` prints the family's own date, and the sample carries
+ * one that agrees with its "spoken on" line.
+ */
+export function openingNoticeValues(
+  settings: OpeningSettings,
+  sample: NoticeSubject | null,
+): NoticeValues {
+  const { situation, language } = settings;
+  if (sample) return noticeValuesFrom(sample, settings);
+  const campaign = describeCampaign(situation, language);
+  const metaSample: NoticeValues = campaign?.sample ?? {
+    parentName: "",
+    studentName: "",
+    studentClass: "",
+  };
+  return {
+    ...metaSample,
+    lastDate:
+      !isRunDateFreeSituation(situation) && settings.lastDate
+        ? settings.lastDate
+        : metaSample.lastDate,
+    lateFeePhrase: lateFeePhrase(
+      settings.lateFeeAmount,
+      settings.lateFeeBasis,
+      language as NoticeLanguage,
+    ),
+  };
+}
 
 /** Slots 1-3 and 7 mean the same thing on every notice. */
 const SHARED_SLOT_KEYS: Readonly<Record<string, keyof NoticeValues>> = {

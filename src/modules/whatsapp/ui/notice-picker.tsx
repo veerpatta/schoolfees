@@ -4,6 +4,8 @@ import Link from "next/link";
 
 import {
   isCampaignApproved,
+  isLedgerQuotedSituation,
+  isRunDateFreeSituation,
   NOTICE_LANGUAGES,
   NOTICE_SITUATIONS,
   type NoticeLanguage,
@@ -69,6 +71,14 @@ const CHIP_BASE =
 
 export function NoticePicker({ filters, counts, dateFieldId, lateFeeWarning }: Props) {
   const isPrevYear = filters.situation === "prevyear";
+  const isWaiver =
+    filters.situation === "late_fee_waiver" || filters.situation === "waiver_last_call";
+  // The late fee on these notices is the LEDGER's figure per family, not a
+  // lever the office sets. The control is replaced by hidden inputs so the
+  // office's last setting still round-trips to the next notice.
+  const ledgerQuoted = isLedgerQuotedSituation(filters.situation);
+  // These print no run-wide date: none at all, or each family's own promise.
+  const runDateFree = isRunDateFreeSituation(filters.situation);
   // Exactly what slot 7 will carry, rendered here so the office reads the
   // sentence rather than inferring it from a number and a dropdown.
   const phrase = lateFeePhrase(filters.lateFeeAmount, filters.lateFeeBasis, filters.language);
@@ -158,56 +168,93 @@ export function NoticePicker({ filters, counts, dateFieldId, lateFeeWarning }: P
           })}
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor={dateFieldId}>
-            {isPrevYear ? "Settle by" : "Last date on the message"}
-          </Label>
-          <Input
-            id={dateFieldId}
-            name="lastDate"
-            inputSize="sm"
-            defaultValue={filters.lastDate}
-            placeholder="DD-MM-YYYY"
-            className="w-36"
-          />
-        </div>
-
-        {/* An amount and a basis, never a free-text box: a typo here is a number
-            a parent will hold the school to. */}
-        <div className="space-y-1.5">
-          <Label htmlFor="lateFeeAmount">Late fee on the message</Label>
-          <div className="flex items-center gap-2">
+        {runDateFree ? (
+          // Hidden, never dropped: the office's date must survive a trip
+          // through a notice that had no use for it.
+          <input type="hidden" name="lastDate" value={filters.lastDate} />
+        ) : (
+          <div className="space-y-1.5">
+            <Label htmlFor={dateFieldId}>
+              {isPrevYear
+                ? "Settle by"
+                : isWaiver
+                  ? "Last date without late fee"
+                  : "Last date on the message"}
+            </Label>
             <Input
-              id="lateFeeAmount"
-              name="lateFeeAmount"
-              type="number"
-              min={0}
+              id={dateFieldId}
+              name="lastDate"
               inputSize="sm"
-              defaultValue={filters.lateFeeAmount}
-              className="w-24"
+              defaultValue={filters.lastDate}
+              placeholder="DD-MM-YYYY"
+              className="w-36"
             />
-            <SelectNative
-              id="lateFeeBasis"
-              name="lateFeeBasis"
-              defaultValue={filters.lateFeeBasis}
-              className="h-9 w-40 text-sm"
-            >
-              {LATE_FEE_BASES.map((entry) => (
-                <option key={entry.value} value={entry.value}>
-                  {entry.label}
-                </option>
-              ))}
-            </SelectNative>
-            <Button type="submit" variant="outline" size="sm">
+          </div>
+        )}
+
+        {ledgerQuoted ? (
+          <>
+            <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
+            <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
+            <Button type="submit" variant="outline" size="sm" className="self-end">
               Apply
             </Button>
+          </>
+        ) : (
+          // An amount and a basis, never a free-text box: a typo here is a number
+          // a parent will hold the school to.
+          <div className="space-y-1.5">
+            <Label htmlFor="lateFeeAmount">Late fee on the message</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="lateFeeAmount"
+                name="lateFeeAmount"
+                type="number"
+                min={0}
+                inputSize="sm"
+                defaultValue={filters.lateFeeAmount}
+                className="w-24"
+              />
+              <SelectNative
+                id="lateFeeBasis"
+                name="lateFeeBasis"
+                defaultValue={filters.lateFeeBasis}
+                className="h-9 w-40 text-sm"
+              >
+                {LATE_FEE_BASES.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </SelectNative>
+              <Button type="submit" variant="outline" size="sm">
+                Apply
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        The message will say:{" "}
-        <span className="font-semibold text-foreground">{phrase}</span>
+        {ledgerQuoted ? (
+          <>
+            The late fee on this notice is{" "}
+            <span className="font-semibold text-foreground">the ledger&rsquo;s figure, per family</span>
+            {" — "}read from the installment balances, never typed here.
+            {runDateFree ? " It prints no date." : ""}
+          </>
+        ) : runDateFree ? (
+          <>
+            The message will say:{" "}
+            <span className="font-semibold text-foreground">{phrase}</span>, and the date on it is{" "}
+            <span className="font-semibold text-foreground">each family&rsquo;s own promised date</span>.
+          </>
+        ) : (
+          <>
+            The message will say:{" "}
+            <span className="font-semibold text-foreground">{phrase}</span>
+          </>
+        )}
       </p>
 
       {lateFeeWarning ? (

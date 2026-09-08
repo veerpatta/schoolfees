@@ -2,16 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import {
   ALL_CAMPAIGNS,
-  campaignFor,
+  describeCampaign,
+  type NoticeLanguage,
   type NoticeSituation,
   type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
 import {
   isMoneySlot,
   noticeValuesFromSlots,
+  openingNoticeValues,
   SLOT_VALUE_KEYS,
   slotFormFromValues,
 } from "@/modules/whatsapp/domain/test-send-values";
+
+/** Approved or not — a pending notice is previewed and tested too. */
+const campaignFor = (situation: NoticeSituation, language: NoticeLanguage) =>
+  describeCampaign(situation, language)!;
 
 /**
  * The test panel's fields and the action's send go through ONE mapping.
@@ -37,6 +43,7 @@ const VALUES: NoticeValues = {
   lateFeeApplied: 1000,
   totalToPay: 19250,
   promisedDate: "28-08-2026",
+  promiseRecordedDate: "20-08-2026",
 };
 
 const SITUATIONS = Object.keys(SLOT_VALUE_KEYS) as NoticeSituation[];
@@ -136,6 +143,77 @@ describe("the test-send slot mapping", () => {
     // Zero and negative money are not a test of anything either.
     expect(noticeValuesFromSlots("fee_due", { amount: "0" }, sample).amountDue).toBe(sample.amountDue);
     expect(noticeValuesFromSlots("fee_due", { amount: "-5" }, sample).amountDue).toBe(sample.amountDue);
+  });
+
+  it("keeps the waiver's date as text, and its two figures as money", () => {
+    const values = noticeValuesFromSlots(
+      "late_fee_waiver",
+      { contextLine: "Installment 2", feesPending: "9125", lateFeeApplied: "1000", date: "20-09-2026" },
+      campaignFor("late_fee_waiver", "en").sample,
+    );
+    expect(values.amountDue).toBe(9125);
+    expect(values.lateFeeApplied).toBe(1000);
+    expect(values.lastDate).toBe("20-09-2026");
+    expect(isMoneySlot("late_fee_waiver", "date")).toBe(false);
+    expect(campaignFor("waiver_last_call", "en").buildParams(values).slice(4)).toEqual([
+      "9,125",
+      "1,000",
+      "20-09-2026",
+    ]);
+  });
+
+  it("keeps promise_due's 'spoken on' date as text in slot 4", () => {
+    const values = noticeValuesFromSlots(
+      "promise_due",
+      { contextLine: "05-09-2026", amount: "9125", date: "10-09-2026" },
+      campaignFor("promise_due", "en").sample,
+    );
+    expect(values.promiseRecordedDate).toBe("05-09-2026");
+    expect(values.lastDate).toBe("10-09-2026");
+    expect(isMoneySlot("promise_due", "contextLine")).toBe(false);
+  });
+
+  describe("openingNoticeValues", () => {
+    const settings = {
+      situation: "fee_due" as NoticeSituation,
+      language: "en" as NoticeLanguage,
+      installments: [1, 2],
+      lastDate: "30-09-2026",
+      lateFeeAmount: 500,
+      lateFeeBasis: "per_installment" as const,
+    };
+
+    it("lays the screen's date and late fee over the Meta sample when the list is empty", () => {
+      const values = openingNoticeValues(settings, null);
+      expect(values.parentName).toBe(campaignFor("fee_due", "en").sample.parentName);
+      expect(values.lastDate).toBe("30-09-2026");
+      expect(values.lateFeePhrase).toBe("Rs. 500 per installment");
+    });
+
+    it("keeps the sample's own date on a notice that prints no run date", () => {
+      // `promise_due`'s sample carries a date that agrees with its "spoken on"
+      // line; the run's date would contradict it.
+      const values = openingNoticeValues({ ...settings, situation: "promise_due" }, null);
+      expect(values.lastDate).toBe(campaignFor("promise_due", "en").sample.lastDate);
+      expect(values.promiseRecordedDate).toBe("05-09-2026");
+    });
+
+    it("projects the real top row through the send's own mapping", () => {
+      const values = openingNoticeValues(settings, {
+        parentName: "Sita Devi",
+        studentName: "Riya",
+        studentClass: "Class 3",
+        dueAmount: 7000,
+        totalPaid: 0,
+        balanceDue: 7000,
+        prevYearBalance: 0,
+        prevSessionLabel: null,
+      });
+      expect(values.parentName).toBe("Sita Devi");
+      expect(values.amountDue).toBe(7000);
+      expect(values.installmentPhrase).toBe("Installment 1 and 2");
+      expect(values.lastDate).toBe("30-09-2026");
+    });
   });
 
   it("keeps what staff typed when it is usable", () => {

@@ -200,7 +200,20 @@ describe("lateFeeStartsOn", () => {
 describe("describeDateGuard", () => {
   const today = "2026-09-03";
 
-  it.each(["upcoming", "upcoming_final", "fee_due", "balance", "promise_lapsed", "prevyear"])(
+  it.each([
+    "upcoming",
+    "upcoming_final",
+    "fee_due",
+    "balance",
+    "promise_lapsed",
+    "prevyear",
+    // The waiver pair print the office's waive-by date, and a waiver "until" a
+    // day already gone is a promise the counter cannot keep.
+    "late_fee_waiver",
+    "waiver_last_call",
+    "overdue_final",
+    "exam_clearance",
+  ])(
     "refuses a date already gone on %s",
     (situation) => {
       const problem = describeDateGuard({
@@ -247,6 +260,22 @@ describe("describeDateGuard", () => {
         lastDateLabel: "",
         today,
       }),
+    ).toBeNull();
+  });
+
+  it("waves promise_due through, because its date is each family's own", () => {
+    // The message prints the promised date from the contact log, per family.
+    // The run has no date on it to guard.
+    expect(
+      describeDateGuard({
+        situation: "promise_due",
+        lastDateIso: "2026-08-25",
+        lastDateLabel: "25-08-2026",
+        today,
+      }),
+    ).toBeNull();
+    expect(
+      describeDateGuard({ situation: "promise_due", lastDateIso: null, lastDateLabel: "", today }),
     ).toBeNull();
   });
 });

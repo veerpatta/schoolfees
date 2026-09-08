@@ -632,7 +632,7 @@ async function sendOne(args: {
       language: args.language ?? filters.language,
       destination_role: destinationRole,
       pay_code: payCode,
-      pay_code_expires_on: lastDateIsoFor(filters),
+      pay_code_expires_on: lastDateIsoFor(filters, candidate),
       sent_by: staffId,
       // Stamped on the claim, so the grouping survives even if this action dies
       // before it can close the run. NOT part of the unique index — that index
@@ -675,10 +675,18 @@ async function sendOne(args: {
 /**
  * The date a pay link stops resolving: the notice's own date.
  *
- * Null on a notice that prints no date — `late_fee_applied` — where there is
- * nothing to expire against, and the link simply stays live until the family
- * pays and the next run stops including them.
+ * On `promise_due` that is the FAMILY's promised date — the message prints no
+ * run date, so the run's `lastDate` would be a date the parent never saw.
+ *
+ * Null on a notice that prints no date at all — `late_fee_applied` — where
+ * there is nothing to expire against, and the link simply stays live until the
+ * family pays and the next run stops including them.
  */
-function lastDateIsoFor(filters: ReminderFilters): string | null {
+function lastDateIsoFor(
+  filters: ReminderFilters,
+  candidate: Pick<ReminderCandidate, "promisedOn">,
+): string | null {
+  if (filters.situation === "promise_due") return candidate.promisedOn ?? null;
+  if (filters.situation === "late_fee_applied") return null;
   return isoFromDdMmYyyy(filters.lastDate);
 }

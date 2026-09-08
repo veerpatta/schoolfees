@@ -3,27 +3,35 @@ import { formatRupeesPlain } from "@/platform/helpers/currency";
 import { lateFeePhrase, type LateFeeBasis } from "@/modules/whatsapp/domain/late-fee";
 
 /**
- * The fourteen approved per-student WhatsApp campaigns: seven fee situations ×
- * two languages. Six `_v2` (Live since 22 Aug 2026) and eight `_v3` (approved
- * by Meta and Live in AiSensy on 2026-09-04).
+ * The per-student WhatsApp campaigns: twelve fee situations × two languages.
+ *
+ * All twenty-four are Live — six `_v2` since 22 Aug 2026, eight `_v3` since
+ * 2026-09-04, ten `_v4` since 2026-09-08. A descriptor for a template Meta has
+ * not approved carries `approved: false` until its AiSensy campaign is Live.
  *
  * One place where a notice's campaign name, slot order, param builder and
- * preview body sit together, so they cannot drift apart. The written contract is
- * `docs/modules/whatsapp-campaign-registry.md` — slot orders and bodies here are
- * copied from it, and it wins if the two ever disagree.
+ * Meta-submitted sample sit together, so they cannot drift apart. The written
+ * contract is `docs/modules/whatsapp-campaign-registry.md` — slot orders here
+ * are copied from it, and it wins if the two ever disagree.
  *
- * Deliberately free of `server-only`: the screen renders a live preview as staff
- * type, so the client bundle reaches this file. It must therefore never
- * value-import `../data/aisensy` — that is both a `server-only` edge that fails
- * the build and a `domain-is-not-pure` violation, whose budget in
- * `quality/architecture-baseline.json` only falls.
+ * The BODIES are not here. They live in `./campaign-bodies`, which no `ui/` or
+ * `src/app` file may import: this module is client-reachable (the picker, the
+ * workspace and the test panel need names, slot orders and samples), and
+ * twenty-four bodies in two languages would be kilobytes of text the browser
+ * never renders, against a route ceiling that only ratchets down. The send
+ * screen's preview and the test panel's preview are both rendered on the
+ * server.
  *
- * Campaign name equals template name for all fourteen, so one string drives both.
- * All fourteen are category UTILITY at ~₹0.145 a message. Meta re-categorises
- * silently — `vpps_waiver_offer_hinglish` went UTILITY → MARKETING fourteen
- * minutes after submission on promotional wording, a 7.5× cost move — so none of
- * these sells anything, and every send is logged with its `campaign_name` so the
- * bill can be reconciled per campaign.
+ * Deliberately free of `server-only`, and it must never value-import
+ * `../data/aisensy` — that is both a `server-only` edge that fails the build
+ * and a `domain-is-not-pure` violation.
+ *
+ * Campaign name equals template name in every case, so one string drives both.
+ * All are category UTILITY at ~₹0.145 a message. Meta re-categorises silently
+ * — `vpps_waiver_offer_hinglish` went UTILITY → MARKETING fourteen minutes
+ * after submission on promotional wording, a 7.5× cost move — so none of these
+ * sells anything, and every send is logged with its `campaign_name` so the bill
+ * can be reconciled per campaign.
  */
 
 export type NoticeSituation =
@@ -33,9 +41,19 @@ export type NoticeSituation =
   | "upcoming"
   | "upcoming_final"
   | "late_fee_applied"
-  | "promise_lapsed";
+  | "promise_lapsed"
+  | "late_fee_waiver"
+  | "waiver_last_call"
+  | "overdue_final"
+  | "promise_due"
+  | "exam_clearance";
 export type NoticeLanguage = "hi" | "en";
 
+/**
+ * Chip order on the screen: the calendar's own sequence, courtesy to firm to
+ * charged to forgiven, with the promise pair together and the two that stand
+ * apart (exams, last session) at the end.
+ */
 export const NOTICE_SITUATIONS = [
   {
     value: "upcoming",
@@ -58,14 +76,39 @@ export const NOTICE_SITUATIONS = [
     hint: "Part paid, a balance still outstanding",
   },
   {
+    value: "overdue_final",
+    label: "Overdue final",
+    hint: "Fees still pending on an installment whose date has passed, named with a final date",
+  },
+  {
     value: "late_fee_applied",
     label: "Late fee applied",
     hint: "A due date has passed and the ledger is charging a late fee",
   },
   {
+    value: "late_fee_waiver",
+    label: "Waiver window",
+    hint: "The ledger's late fee is set aside if the fees arrive by the date on the message",
+  },
+  {
+    value: "waiver_last_call",
+    label: "Waiver last call",
+    hint: "The same families, on the last day the waiver holds",
+  },
+  {
+    value: "promise_due",
+    label: "Promise due",
+    hint: "The date the family gave is today or tomorrow — what was agreed, read back",
+  },
+  {
     value: "promise_lapsed",
     label: "Promise lapsed",
     hint: "The date the family gave has passed and nothing has come in",
+  },
+  {
+    value: "exam_clearance",
+    label: "Exam clearance",
+    hint: "Anyone still owing on the selected installments, before the examinations",
   },
   {
     value: "prevyear",
@@ -94,6 +137,50 @@ export const TEMPLATE_INSTALLMENTS = [1, 2] as const;
 
 export const DEFAULT_SITUATION: NoticeSituation = "fee_due";
 export const DEFAULT_LANGUAGE: NoticeLanguage = "hi";
+
+/**
+ * The notices whose late fee is the LEDGER's figure, per family, rather than
+ * the lever the office sets per run.
+ *
+ * On these the screen disables the late-fee control, `describeLateFeeDrift`
+ * has nothing to warn about, and the context line names the installments the
+ * ledger says carry the fee. Read from `v_workbook_installment_balances`, never
+ * re-derived: the view is the only thing that knows about waivers and the
+ * accrual rule at once.
+ */
+export const LEDGER_QUOTED_SITUATIONS = [
+  "late_fee_applied",
+  "late_fee_waiver",
+  "waiver_last_call",
+] as const satisfies readonly NoticeSituation[];
+
+export function isLedgerQuotedSituation(situation: string): boolean {
+  return (LEDGER_QUOTED_SITUATIONS as readonly string[]).includes(situation);
+}
+
+/**
+ * The notices that print NO run-wide date, so the date guard has nothing to
+ * check and the screen has no date field to show.
+ *
+ * `late_fee_applied` has no date slot at all — the fee is charged, not
+ * threatened. `promise_due` has one, but it is each family's OWN promised date
+ * from the contact log, never the office's pick for the run.
+ */
+export const RUN_DATE_FREE_SITUATIONS = [
+  "late_fee_applied",
+  "promise_due",
+] as const satisfies readonly NoticeSituation[];
+
+export function isRunDateFreeSituation(situation: string): boolean {
+  return (RUN_DATE_FREE_SITUATIONS as readonly string[]).includes(situation);
+}
+
+/**
+ * How far ahead `promise_due` looks: the promised date is today or tomorrow.
+ * Any earlier and the family is inside a promise the office chose to trust;
+ * any later and it is `promise_lapsed`'s business.
+ */
+export const PROMISE_DUE_LOOKAHEAD_DAYS = 1;
 
 /**
  * Which eligibility filters actually change each notice's list, and what they
@@ -131,12 +218,43 @@ export const SITUATION_FILTERS = {
     installments: null,
     minDue: "Fees pending at least",
   },
+  // Same audience as `late_fee_applied`, narrowed to families with fees still
+  // on those rows — a waiver is about paying the fees by a date.
+  late_fee_waiver: {
+    paidSoFar: null,
+    installments: null,
+    minDue: "Fees pending at least",
+  },
+  waiver_last_call: {
+    paidSoFar: null,
+    installments: null,
+    minDue: "Fees pending at least",
+  },
+  // The calendar decides which installments have passed; the office does not
+  // pick them. A family late on any of them is here.
+  overdue_final: {
+    paidSoFar: null,
+    installments: null,
+    minDue: "Overdue at least",
+  },
   // The promise decides who is here. Filtering it by installment would drop
   // families who promised against a bill this notice is not about.
+  promise_due: {
+    paidSoFar: null,
+    installments: null,
+    minDue: "Promised at least",
+  },
   promise_lapsed: {
     paidSoFar: null,
     installments: null,
     minDue: "Promised at least",
+  },
+  // The office picks which installments must be clear before the exams —
+  // ANY selected one still pending puts a family here.
+  exam_clearance: {
+    paidSoFar: null,
+    installments: "Installments to clear",
+    minDue: "Pending at least",
   },
   fee_due: {
     // The threshold splits the two current-year notices; below it, only the
@@ -174,8 +292,18 @@ export const SITUATION_RULE: Record<NoticeSituation, string> = {
     "The same families as Due soon, from three days out. The wording says the late fee starts the day after the date.",
   late_fee_applied:
     "An installment has passed its due date and the ledger is charging a late fee on it. The message quotes the fee, the late fee and the total separately — never added together.",
+  late_fee_waiver:
+    "The ledger is charging a late fee and fees are still pending on those installments. The message says the late fee is not charged if the fees arrive by the date — the office honours that at the counter with Waive.",
+  waiver_last_call:
+    "The same families as Waiver window, sent on or just before the waive-by date. The wording says this is the last date without the late fee, and states the report-card rule.",
+  overdue_final:
+    "Fees still pending on an installment whose due date has passed, whether or not a late fee is on the account. The message names the overdue installments, a final date, and the report-card rule.",
+  promise_due:
+    "The family's last recorded contact was a promise to pay, and that date is today or tomorrow. The message reads back the day the office spoke with them and the date they gave.",
   promise_lapsed:
     "The family's last recorded contact was a promise to pay, that date has passed, and the money has not arrived.",
+  exam_clearance:
+    "Anything still pending on the selected installments. The message says report cards and admit cards are issued only for accounts with no pending fees, and asks for the amount by the date.",
   fee_due: "Nothing received beyond the academic fee, and every selected installment still pending.",
   balance: "Something received, and still owing on at least one of the selected installments. The message quotes the whole balance.",
   // v2 gave this notice a settle-by date and a late-fee line. What stays true is
@@ -200,7 +328,12 @@ export const NOT_THIS_NOTICE: Record<NoticeSituation, string> = {
   fee_due: "already paid something, or nothing pending on those installments",
   balance: "nothing owing on those installments",
   late_fee_applied: "no late fee charged on any installment past its due date",
+  late_fee_waiver: "no late fee charged, or no fees left on the installments that carry one",
+  waiver_last_call: "no late fee charged, or no fees left on the installments that carry one",
+  overdue_final: "nothing pending on any installment whose date has passed",
+  promise_due: "no promise on record falling due today or tomorrow, or nothing still owing against it",
   promise_lapsed: "no lapsed promise on record, or nothing still owing against it",
+  exam_clearance: "nothing pending on the selected installments",
   prevyear: "no balance carried forward from last session",
 };
 
@@ -216,7 +349,7 @@ export function isNoticeLanguage(value: unknown): value is NoticeLanguage {
 }
 
 /**
- * Everything any of the six slot sets can need. Each builder takes only what its
+ * Everything any of the slot sets can need. Each builder takes only what its
  * own template declares, so a value missing for another situation is harmless.
  */
 export type NoticeValues = {
@@ -232,21 +365,26 @@ export type NoticeValues = {
   receivedSoFar?: number;
   /** balance {{5}} */
   balanceDue?: number;
-  /** {{6}} on every notice, already DD-MM-YYYY. Settle-by date on prevyear. */
+  /**
+   * {{6}} on every notice, already DD-MM-YYYY. Settle-by date on prevyear; the
+   * waive-by date in slot 7 on the two waiver notices; the family's OWN
+   * promised date on `promise_due`.
+   */
   lastDate?: string;
   /** prevyear {{4}} — the session the debt came from, e.g. "2025-26". */
   prevSessionLabel?: string;
   /** prevyear {{5}} */
   prevYearBalance?: number;
   /**
-   * {{7}} on every notice. Composed by `domain/late-fee.ts` from an amount and a
-   * basis — never typed free-hand, and never empty: WhatsApp rejects an empty
-   * parameter.
+   * {{7}} on every shared-skeleton notice. Composed by `domain/late-fee.ts`
+   * from an amount and a basis — never typed free-hand, and never empty:
+   * WhatsApp rejects an empty parameter.
    */
   lateFeePhrase?: string;
   /**
-   * `late_fee_applied` {{6}} — the late fee the LEDGER has already charged, read
-   * from `v_workbook_installment_balances.late_fee_pending`. Never re-derived in
+   * `late_fee_applied` {{6}}, and {{6}} on the two waiver notices — the late
+   * fee the LEDGER has already charged, read from
+   * `v_workbook_installment_balances.late_fee_pending`. Never re-derived in
    * TypeScript, and never folded into {{5}}.
    */
   lateFeeApplied?: number;
@@ -261,6 +399,8 @@ export type NoticeValues = {
   totalToPay?: number;
   /** `promise_lapsed` {{4}} — the date the family gave, DD-MM-YYYY. */
   promisedDate?: string;
+  /** `promise_due` {{4}} — the day the office spoke with the family, DD-MM-YYYY. */
+  promiseRecordedDate?: string;
 };
 
 export type CampaignDescriptor = {
@@ -271,7 +411,6 @@ export type CampaignDescriptor = {
   /** Slot names in order. Its length IS the slot count AiSensy enforces. */
   slotOrder: readonly string[];
   buildParams(values: NoticeValues): string[];
-  renderPreview(values: NoticeValues): string;
   /** The values submitted to Meta, so the test panel opens on something real. */
   sample: NoticeValues;
   /**
@@ -283,8 +422,8 @@ export type CampaignDescriptor = {
    * not exist yet returns `400 Campaign does not exist.`, which costs nothing
    * but tells a member of office staff nothing either.
    *
-   * Explicit on all six live campaigns rather than defaulted, so adding a
-   * seventh cannot inherit approval by omission.
+   * Explicit on every descriptor rather than defaulted, so adding one cannot
+   * inherit approval by omission.
    */
   approved: boolean;
   /**
@@ -323,9 +462,9 @@ export function shortClassLabel(label: string): string {
 /* ------------------------------------------------------------- slot builders */
 
 /**
- * ONE slot skeleton for all six campaigns.
+ * ONE slot skeleton for most campaigns.
  *
- * v1 had three shapes, of 6, 6 and 5. v2 collapses them: slots 1-3 and 7 mean
+ * v1 had three shapes, of 6, 6 and 5. v2 collapsed them: slots 1-3 and 7 mean
  * the same thing in every notice, and only 4, 5 and 6 carry situation-specific
  * content under a shared positional meaning — context line, money, date.
  *
@@ -345,7 +484,7 @@ export const SLOT_SKELETON = [
 ] as const;
 
 /**
- * The one notice that does not fit the skeleton.
+ * The first notice that does not fit the skeleton.
  *
  * `late_fee_applied` needs three money slots — fees, late fee, total — and has
  * no room left for a date or a late-fee phrase, because the fee is no longer a
@@ -361,6 +500,24 @@ export const LATE_FEE_APPLIED_SKELETON = [
   "feesPending",
   "lateFeeApplied",
   "totalToPay",
+] as const;
+
+/**
+ * The third shape, for the two waiver notices.
+ *
+ * Fees and the ledger's late fee in two slots, then the waive-by DATE in slot
+ * 7 where every other notice carries a late-fee phrase. There is no phrase
+ * because the fee is a fact on the account, not a lever the office sets — and
+ * no total, because the whole point is that the family need not pay it.
+ */
+export const WAIVER_SKELETON = [
+  "parentName",
+  "studentName",
+  "studentClass",
+  "contextLine",
+  "feesPending",
+  "lateFeeApplied",
+  "date",
 ] as const;
 
 /** Slot money is grouped digits with no symbol — the body supplies the currency word. */
@@ -418,12 +575,13 @@ function prevYearParams(v: NoticeValues, language: NoticeLanguage): string[] {
 }
 
 /**
- * The courtesy and firm pre-due notices reuse the fee_due slot shape exactly.
+ * The courtesy and firm pre-due notices, the overdue final notice and the exam
+ * clearance notice all reuse the fee_due slot shape exactly.
  *
  * They ask for the same seven things about the same kind of debt; what differs
- * is the wording around the late fee, which lives in the body and not in a slot.
- * Sharing the builder is what stops the two drifting into different slot orders
- * for what a parent reads as the same message twice.
+ * is the wording around them, which lives in the body and not in a slot.
+ * Sharing the builder is what stops them drifting into different slot orders
+ * for what a parent reads as the same message in a different tone.
  */
 export function upcomingParams(v: NoticeValues, language: NoticeLanguage): string[] {
   return feeDueParams(v, language);
@@ -460,6 +618,28 @@ export function lateFeeAppliedParams(v: NoticeValues): string[] {
 }
 
 /**
+ * The two waiver notices: the ledger's two figures, then the waive-by date.
+ *
+ * Shared between `late_fee_waiver` and `waiver_last_call` exactly as
+ * `upcomingParams` is shared between the courtesy and firm pre-due notices, so
+ * the two cannot drift into different orders for what a parent reads as the
+ * same message on two days.
+ */
+export function waiverParams(v: NoticeValues): string[] {
+  const fees = Math.max(0, Math.round(Number(v.amountDue ?? 0)));
+  const lateFee = Math.max(0, Math.round(Number(v.lateFeeApplied ?? 0)));
+  return [
+    v.parentName,
+    v.studentName,
+    shortClassLabel(v.studentClass),
+    v.installmentPhrase ?? "",
+    formatRupeesPlain(fees),
+    formatRupeesPlain(lateFee),
+    v.lastDate ?? "",
+  ];
+}
+
+/**
  * `promise_lapsed` names the date the family gave back to them.
  *
  * Slot 4 is the promise, slot 6 the new date. That order is deliberate: the
@@ -479,393 +659,29 @@ export function promiseLapsedParams(v: NoticeValues, language: NoticeLanguage): 
   ];
 }
 
-/* ------------------------------------------------------------------- bodies */
-/* Copied verbatim from docs/modules/whatsapp-campaign-registry.md. WhatsApp
-   sends what Meta approved, not this text — a preview that does not match is
-   worse than no preview, because staff trust it. */
-
-const UPI = "upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank";
-
-function feeDueBodyEn(v: NoticeValues): string {
-  const [p, s, c, phrase, amount, date, fee] = feeDueParams(v, "en");
-  return [
-    "*Fee Notice — Shri Veer Patta Sr. Sec. School*",
-    "",
-    `Dear ${p},`,
-    "",
-    `Student: ${s}`,
-    `Class: ${c}`,
-    `Installment: ${phrase}`,
-    `Amount due: Rs. ${amount}`, // @allow-raw-money-format: verbatim from the Meta-approved English body
-    `Last date: ${date}`,
-    `Late fee after the last date: ${fee}`,
-    "",
-    "Paying on or before the last date avoids the late fee. After that date the late fee above is added to the amount.",
-    "",
-    "Pay at the school fee counter or using this UPI link:",
-    UPI,
-    "",
-    "Please write the student's name with the payment and collect a receipt. If you have already paid, kindly ignore this message.",
-    "",
-    "For any query, call the office on 9352205884.",
-  ].join("\n");
-}
-
-function feeDueBodyHi(v: NoticeValues): string {
-  const [p, s, c, phrase, amount, date, fee] = feeDueParams(v, "hi");
-  return [
-    "*फीस सूचना — श्री वीर पत्ता सी. सै. स्कूल*",
-    "",
-    `प्रिय ${p},`,
-    "",
-    `विद्यार्थी: ${s}`,
-    `कक्षा: ${c}`,
-    `किश्त: ${phrase}`,
-    `देय राशि: रु. ${amount}`,
-    `अंतिम तिथि: ${date}`,
-    `अंतिम तिथि के बाद विलंब शुल्क: ${fee}`,
-    "",
-    "अंतिम तिथि तक फीस जमा करने पर कोई विलंब शुल्क नहीं लगेगा। उसके बाद उपरोक्त दर से विलंब शुल्क जोड़ा जाएगा।",
-    "",
-    "फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:",
-    UPI,
-    "",
-    "भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।",
-    "",
-    "जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।",
-  ].join("\n");
-}
-
-function balanceBodyEn(v: NoticeValues): string {
-  const [p, s, c, received, balance, date, fee] = balanceParams(v, "en");
-  return [
-    "*Fee Balance — Shri Veer Patta Sr. Sec. School*",
-    "",
-    `Dear ${p},`,
-    "",
-    `Student: ${s}`,
-    `Class: ${c}`,
-    `Received so far: Rs. ${received}`, // @allow-raw-money-format: verbatim from the Meta-approved English body
-    `Balance due: Rs. ${balance}`, // @allow-raw-money-format: verbatim from the Meta-approved English body
-    `Next date: ${date}`,
-    `Late fee after the next date: ${fee}`,
-    "",
-    "Thank you for the payment received. Clearing the balance by the next date avoids the late fee.",
-    "",
-    "Pay at the fee counter or using this UPI link:",
-    UPI,
-    "",
-    "If this differs from your own record, please call the office on 9352205884.",
-  ].join("\n");
-}
-
-function balanceBodyHi(v: NoticeValues): string {
-  const [p, s, c, received, balance, date, fee] = balanceParams(v, "hi");
-  return [
-    "*फीस शेष विवरण — श्री वीर पत्ता सी. सै. स्कूल*",
-    "",
-    `प्रिय ${p},`,
-    "",
-    `विद्यार्थी: ${s}`,
-    `कक्षा: ${c}`,
-    `अब तक प्राप्त: रु. ${received}`,
-    `शेष बकाया: रु. ${balance}`,
-    `अगली तिथि: ${date}`,
-    `अगली तिथि के बाद विलंब शुल्क: ${fee}`,
-    "",
-    "प्राप्त भुगतान के लिए धन्यवाद। शेष राशि अगली तिथि तक जमा करने पर कोई विलंब शुल्क नहीं लगेगा।",
-    "",
-    "फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:",
-    UPI,
-    "",
-    "यदि यह विवरण आपके रिकॉर्ड से भिन्न है तो कृपया कार्यालय 9352205884 पर संपर्क करें।",
-  ].join("\n");
-}
-
-function prevYearBodyEn(v: NoticeValues): string {
-  const [p, s, c, session, balance, date, fee] = prevYearParams(v, "en");
-  return [
-    "*Previous Session Balance — Shri Veer Patta Sr. Sec. School*",
-    "",
-    `Dear ${p},`,
-    "",
-    `Student: ${s}`,
-    `Class: ${c}`,
-    `Session: ${session}`,
-    `Balance: Rs. ${balance}`, // @allow-raw-money-format: verbatim from the Meta-approved English body
-    `Settle by: ${date}`,
-    // A bare "Late fee:" on purpose, so the line reads correctly whether the
-    // value is an amount or "not applicable".
-    `Late fee: ${fee}`,
-    "",
-    "This amount is from the previous session and is separate from this year's installments. Please settle it by the date above.",
-    "",
-    "Visit the fee counter or use this UPI link:",
-    UPI,
-    "",
-    "For a full statement, call the office on 9352205884.",
-  ].join("\n");
-}
-
-function prevYearBodyHi(v: NoticeValues): string {
-  const [p, s, c, session, balance, date, fee] = prevYearParams(v, "hi");
-  return [
-    "*पिछले सत्र का शेष — श्री वीर पत्ता सी. सै. स्कूल*",
-    "",
-    `प्रिय ${p},`,
-    "",
-    `विद्यार्थी: ${s}`,
-    `कक्षा: ${c}`,
-    `सत्र: ${session}`,
-    `शेष राशि: रु. ${balance}`,
-    `निपटान की अंतिम तिथि: ${date}`,
-    `विलंब शुल्क: ${fee}`,
-    "",
-    "यह राशि पिछले सत्र की है और इस वर्ष की किश्तों से अलग है। कृपया उपरोक्त तिथि तक निपटान कर दें।",
-    "",
-    "फीस काउंटर पर आएं अथवा इस UPI लिंक का उपयोग करें:",
-    UPI,
-    "",
-    "पूरा विवरण देखने हेतु कार्यालय 9352205884 पर संपर्क करें।",
-  ].join("\n");
-}
-
-/* Written here and into docs/modules/whatsapp-campaign-registry.md together.
-   None of these is approved yet — the descriptors below carry `approved: false`
-   and `campaignFor` refuses them, so a body change here is free until Meta says
-   otherwise. Strictly UTILITY: every line states a fact about this family's
-   account or what to do about it. Nothing is offered, discounted or sold. */
-
-function upcomingBodyEn(v: NoticeValues): string {
-  const [p, s, c, phrase, amount, date, fee] = upcomingParams(v, "en");
-  return [
-    "*Fee Reminder — Shri Veer Patta Sr. Sec. School*",
-    "",
-    `Dear ${p},`,
-    "",
-    `Student: ${s}`,
-    `Class: ${c}`,
-    `Installment: ${phrase}`,
-    `Amount due: Rs. ${amount}`, // @allow-raw-money-format: verbatim from the English body submitted to Meta
-    `Last date: ${date}`,
-    `Late fee after the last date: ${fee}`,
-    "",
-    "The installment above falls due shortly. Paying on or before the last date avoids the late fee.",
-    "",
-    "Pay at the school fee counter or using this UPI link:",
-    UPI,
-    "",
-    "Please write the student's name with the payment and collect a receipt. If you have already paid, kindly ignore this message.",
-    "",
-    "For any query, call the office on 9352205884.",
-  ].join("\n");
-}
-
-function upcomingBodyHi(v: NoticeValues): string {
-  const [p, s, c, phrase, amount, date, fee] = upcomingParams(v, "hi");
-  return [
-    "*फीस स्मरण — श्री वीर पत्ता सी. सै. स्कूल*",
-    "",
-    `प्रिय ${p},`,
-    "",
-    `विद्यार्थी: ${s}`,
-    `कक्षा: ${c}`,
-    `किश्त: ${phrase}`,
-    `देय राशि: रु. ${amount}`,
-    `अंतिम तिथि: ${date}`,
-    `अंतिम तिथि के बाद विलंब शुल्क: ${fee}`,
-    "",
-    "उपरोक्त किश्त शीघ्र ही देय है। अंतिम तिथि तक फीस जमा करने पर कोई विलंब शुल्क नहीं लगेगा।",
-    "",
-    "फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:",
-    UPI,
-    "",
-    "भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।",
-    "",
-    "जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।",
-  ].join("\n");
-}
-
 /**
- * The firm one. Same seven slots, and the only difference a parent sees is that
- * the late fee is described as starting on a specific day rather than as a
- * consequence in general.
- *
- * Meta rejects a body that near-duplicates an approved one, so this is worded
- * differently throughout rather than being the courtesy body with one line
- * changed.
+ * `promise_due` reads the promise back BEFORE the date: slot 4 is the day the
+ * office spoke with the family, slot 6 the date they gave. `noticeValuesFrom`
+ * puts the family's own promised date in `lastDate` for this notice, so the
+ * run's date never reaches the message.
  */
-function upcomingFinalBodyEn(v: NoticeValues): string {
-  const [p, s, c, phrase, amount, date, fee] = upcomingParams(v, "en");
+export function promiseDueParams(v: NoticeValues, language: NoticeLanguage): string[] {
   return [
-    "*Final Fee Reminder — Shri Veer Patta Sr. Sec. School*",
-    "",
-    `Dear ${p},`,
-    "",
-    `Student: ${s}`,
-    `Class: ${c}`,
-    `Installment: ${phrase}`,
-    `Amount payable: Rs. ${amount}`, // @allow-raw-money-format: verbatim from the English body submitted to Meta
-    `Last date: ${date}`,
-    `Late fee from the day after: ${fee}`,
-    "",
-    "Only a few days remain. From the day after the last date shown above, the late fee is added to this account.",
-    "",
-    "Settle at the school fee counter or using this UPI link:",
-    UPI,
-    "",
-    "Kindly mention the student's name with the payment and take a receipt. Ignore this message if the amount has already been paid.",
-    "",
-    "To confirm your record, call the office on 9352205884.",
-  ].join("\n");
-}
-
-function upcomingFinalBodyHi(v: NoticeValues): string {
-  const [p, s, c, phrase, amount, date, fee] = upcomingParams(v, "hi");
-  return [
-    "*अंतिम फीस स्मरण — श्री वीर पत्ता सी. सै. स्कूल*",
-    "",
-    `प्रिय ${p},`,
-    "",
-    `विद्यार्थी: ${s}`,
-    `कक्षा: ${c}`,
-    `किश्त: ${phrase}`,
-    `देय राशि: रु. ${amount}`,
-    `अंतिम तिथि: ${date}`,
-    `अगले दिन से विलंब शुल्क: ${fee}`,
-    "",
-    "अब कुछ ही दिन शेष हैं। उपरोक्त अंतिम तिथि के अगले दिन से इस खाते में विलंब शुल्क जोड़ दिया जाएगा।",
-    "",
-    "फीस काउंटर पर अथवा इस UPI लिंक से निपटान करें:",
-    UPI,
-    "",
-    "भुगतान के साथ विद्यार्थी का नाम अवश्य लिखें तथा रसीद लें। राशि जमा हो चुकी हो तो इस संदेश को अनदेखा करें।",
-    "",
-    "अपना रिकॉर्ड जांचने हेतु कार्यालय 9352205884 पर संपर्क करें।",
-  ].join("\n");
-}
-
-/**
- * Three figures on three lines, never added up for the parent except in the
- * total slot the ledger itself provides.
- *
- * The late fee has its own line because the school's own rule is that a late fee
- * is not a fee: it does not make a family a defaulter and it is not part of
- * `pending_amount`. A message that blurred them would be the first place that
- * rule broke.
- */
-function lateFeeAppliedBodyEn(v: NoticeValues): string {
-  const [p, s, c, phrase, fees, lateFeeAmount, total] = lateFeeAppliedParams(v);
-  return [
-    "*Late Fee Applied — Shri Veer Patta Sr. Sec. School*",
-    "",
-    `Dear ${p},`,
-    "",
-    `Student: ${s}`,
-    `Class: ${c}`,
-    `Installment: ${phrase}`,
-    `Fees pending: Rs. ${fees}`, // @allow-raw-money-format: verbatim from the English body submitted to Meta
-    `Late fee applied: Rs. ${lateFeeAmount}`, // @allow-raw-money-format: verbatim from the English body submitted to Meta
-    `Total to pay: Rs. ${total}`, // @allow-raw-money-format: verbatim from the English body submitted to Meta
-    "",
-    "The last date for the installment above has passed, and the late fee shown is now on this account. Please clear the total at the earliest.",
-    "",
-    "Pay at the school fee counter or using this UPI link:",
-    UPI,
-    "",
-    "Please write the student's name with the payment and collect a receipt. If you have already paid, kindly ignore this message.",
-    "",
-    "For any query, call the office on 9352205884.",
-  ].join("\n");
-}
-
-function lateFeeAppliedBodyHi(v: NoticeValues): string {
-  const [p, s, c, phrase, fees, lateFeeAmount, total] = lateFeeAppliedParams(v);
-  return [
-    "*विलंब शुल्क लागू — श्री वीर पत्ता सी. सै. स्कूल*",
-    "",
-    `प्रिय ${p},`,
-    "",
-    `विद्यार्थी: ${s}`,
-    `कक्षा: ${c}`,
-    `किश्त: ${phrase}`,
-    `शेष फीस: रु. ${fees}`,
-    `लागू विलंब शुल्क: रु. ${lateFeeAmount}`,
-    `कुल देय: रु. ${total}`,
-    "",
-    "उपरोक्त किश्त की अंतिम तिथि निकल चुकी है तथा दर्शाया गया विलंब शुल्क इस खाते में जुड़ चुका है। कृपया कुल राशि शीघ्र जमा करें।",
-    "",
-    "फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:",
-    UPI,
-    "",
-    "भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।",
-    "",
-    "जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।",
-  ].join("\n");
-}
-
-/**
- * Reads back the date the family themselves gave.
- *
- * That is the whole force of this notice, and also why it must never go to
- * somebody who did not make the promise: `promise_lapsed` is the only notice
- * whose audience comes from `defaulter_contacts` rather than the ledger alone.
- */
-function promiseLapsedBodyEn(v: NoticeValues): string {
-  const [p, s, c, promised, amount, date, fee] = promiseLapsedParams(v, "en");
-  return [
-    "*Fee Payment Follow-up — Shri Veer Patta Sr. Sec. School*",
-    "",
-    `Dear ${p},`,
-    "",
-    `Student: ${s}`,
-    `Class: ${c}`,
-    `Date given: ${promised}`,
-    `Amount pending: Rs. ${amount}`, // @allow-raw-money-format: verbatim from the English body submitted to Meta
-    `New date: ${date}`,
-    `Late fee after the new date: ${fee}`,
-    "",
-    "Our record shows this payment was expected by the date given above and has not reached us. Kindly pay by the new date shown.",
-    "",
-    "Pay at the school fee counter or using this UPI link:",
-    UPI,
-    "",
-    "If the amount has already been paid, please ignore this message and call the office so the record can be corrected.",
-    "",
-    "For any query, call the office on 9352205884.",
-  ].join("\n");
-}
-
-function promiseLapsedBodyHi(v: NoticeValues): string {
-  const [p, s, c, promised, amount, date, fee] = promiseLapsedParams(v, "hi");
-  return [
-    "*फीस भुगतान अनुवर्ती सूचना — श्री वीर पत्ता सी. सै. स्कूल*",
-    "",
-    `प्रिय ${p},`,
-    "",
-    `विद्यार्थी: ${s}`,
-    `कक्षा: ${c}`,
-    `दी गई तिथि: ${promised}`,
-    `शेष राशि: रु. ${amount}`,
-    `नई तिथि: ${date}`,
-    `नई तिथि के बाद विलंब शुल्क: ${fee}`,
-    "",
-    "हमारे रिकॉर्ड के अनुसार यह भुगतान उपरोक्त दी गई तिथि तक अपेक्षित था और अब तक प्राप्त नहीं हुआ है। कृपया दर्शाई गई नई तिथि तक जमा करें।",
-    "",
-    "फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:",
-    UPI,
-    "",
-    "यदि राशि जमा हो चुकी है तो इस संदेश को अनदेखा करें तथा रिकॉर्ड सुधार हेतु कार्यालय को सूचित करें।",
-    "",
-    "जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।",
-  ].join("\n");
+    v.parentName,
+    v.studentName,
+    shortClassLabel(v.studentClass),
+    v.promiseRecordedDate ?? "",
+    money(v.amountDue),
+    v.lastDate ?? "",
+    lateFee(v, language),
+  ];
 }
 
 /* ----------------------------------------------------------------- registry */
 
 /**
  * Samples exactly as submitted to Meta, so the test panel opens on something
- * real and every slot — including the new one — is exercised.
+ * real and every slot is exercised.
  *
  * Per LANGUAGE, not per situation. v1 shared one sample object between hi and
  * en, so the Hindi panel opened on English text and the Hindi slot values were
@@ -874,8 +690,7 @@ function promiseLapsedBodyHi(v: NoticeValues): string {
  * `studentClass` stays `"Class 2"` / `"Nursery"` rather than the doc's
  * transliteration: the sample must be what this app would really send, and
  * `shortClassLabel` does not transliterate. See its comment.
- */
-/**
+ *
  * A FULL record over `NoticeSituation`, on purpose: a situation added without a
  * sample fails typecheck here rather than shipping a campaign whose test panel
  * opens on nothing.
@@ -1024,10 +839,112 @@ const SAMPLES: Record<NoticeSituation, Record<NoticeLanguage, NoticeValues>> = {
       lateFeePhrase: "रु. 1,000 प्रति किश्त",
     },
   },
+  late_fee_waiver: {
+    // The same ledger shape as `late_fee_applied`, with the waive-by date where
+    // that notice prints the total.
+    en: {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      installmentPhrase: "Installment 2",
+      amountDue: 9125,
+      lateFeeApplied: 1000,
+      lastDate: "20-09-2026",
+    },
+    hi: {
+      parentName: "रमेश लाल गुर्जर",
+      studentName: "आराध्या गुर्जर",
+      studentClass: "Class 2",
+      installmentPhrase: "किश्त 2",
+      amountDue: 9125,
+      lateFeeApplied: 1000,
+      lastDate: "20-09-2026",
+    },
+  },
+  waiver_last_call: {
+    en: {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      installmentPhrase: "Installment 2",
+      amountDue: 9125,
+      lateFeeApplied: 1000,
+      lastDate: "20-09-2026",
+    },
+    hi: {
+      parentName: "रमेश लाल गुर्जर",
+      studentName: "आराध्या गुर्जर",
+      studentClass: "Class 2",
+      installmentPhrase: "किश्त 2",
+      amountDue: 9125,
+      lateFeeApplied: 1000,
+      lastDate: "20-09-2026",
+    },
+  },
+  overdue_final: {
+    en: {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      installmentPhrase: "Installment 2",
+      amountDue: 9125,
+      lastDate: "20-09-2026",
+      lateFeePhrase: "Rs. 1,000 per installment", // @allow-raw-money-format: the literal sample submitted to Meta
+    },
+    hi: {
+      parentName: "रमेश लाल गुर्जर",
+      studentName: "आराध्या गुर्जर",
+      studentClass: "Class 2",
+      installmentPhrase: "किश्त 2",
+      amountDue: 9125,
+      lastDate: "20-09-2026",
+      lateFeePhrase: "रु. 1,000 प्रति किश्त",
+    },
+  },
+  promise_due: {
+    en: {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      promiseRecordedDate: "05-09-2026",
+      amountDue: 9125,
+      lastDate: "10-09-2026",
+      lateFeePhrase: "Rs. 1,000 per installment", // @allow-raw-money-format: the literal sample submitted to Meta
+    },
+    hi: {
+      parentName: "रमेश लाल गुर्जर",
+      studentName: "आराध्या गुर्जर",
+      studentClass: "Class 2",
+      promiseRecordedDate: "05-09-2026",
+      amountDue: 9125,
+      lastDate: "10-09-2026",
+      lateFeePhrase: "रु. 1,000 प्रति किश्त",
+    },
+  },
+  exam_clearance: {
+    en: {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      installmentPhrase: "Installment 1 and 2",
+      amountDue: 9125,
+      lastDate: "15-09-2026",
+      lateFeePhrase: "Rs. 1,000 per installment", // @allow-raw-money-format: the literal sample submitted to Meta
+    },
+    hi: {
+      parentName: "रमेश लाल गुर्जर",
+      studentName: "आराध्या गुर्जर",
+      studentClass: "Class 2",
+      installmentPhrase: "किश्त 1 एवं 2",
+      amountDue: 9125,
+      lastDate: "15-09-2026",
+      lateFeePhrase: "रु. 1,000 प्रति किश्त",
+    },
+  },
 };
 
 /**
- * The fourteen Live campaigns.
+ * Every per-student campaign.
  *
  * `_v2` six, Live since 22 Aug: the un-suffixed six from 21 August are
  * superseded — no late-fee slot, and no settlement date on the prev-year notice
@@ -1035,10 +952,12 @@ const SAMPLES: Record<NoticeSituation, Record<NoticeLanguage, NoticeValues>> = {
  * for 30 days. The app must never point at them again.
  *
  * `_v3` eight, approved by Meta and Live in AiSensy on 2026-09-04: the four
- * calendar-driven notices in both languages. They lived in
- * `./campaign-bodies-v3` while unapproved, for the bundle reason recorded on
- * `PENDING_CAMPAIGNS` below, and moved here the day `campaignFor` was allowed
- * to hand them out.
+ * calendar-driven notices in both languages.
+ *
+ * `_v4` ten, submitted to Meta on 2026-09-08 and approved the same day, each
+ * with an API campaign of the same name set Live: the late-fee waiver pair,
+ * the overdue final notice, the promise-due reminder and the exam clearance
+ * notice. `approved` is pinned per name by `APPROVED_NAMES` in the test.
  */
 const CAMPAIGNS: CampaignDescriptor[] = [
   {
@@ -1047,7 +966,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_fee_due_hi_v2",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => feeDueParams(v, "hi"),
-    renderPreview: feeDueBodyHi,
     sample: SAMPLES.fee_due.hi,
     approved: true,
     audience: "student",
@@ -1058,7 +976,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_fee_due_en_v2",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => feeDueParams(v, "en"),
-    renderPreview: feeDueBodyEn,
     sample: SAMPLES.fee_due.en,
     approved: true,
     audience: "student",
@@ -1069,7 +986,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_balance_hi_v2",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => balanceParams(v, "hi"),
-    renderPreview: balanceBodyHi,
     sample: SAMPLES.balance.hi,
     approved: true,
     audience: "student",
@@ -1080,7 +996,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_balance_en_v2",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => balanceParams(v, "en"),
-    renderPreview: balanceBodyEn,
     sample: SAMPLES.balance.en,
     approved: true,
     audience: "student",
@@ -1091,7 +1006,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_prevyear_hi_v2",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => prevYearParams(v, "hi"),
-    renderPreview: prevYearBodyHi,
     sample: SAMPLES.prevyear.hi,
     approved: true,
     audience: "student",
@@ -1102,7 +1016,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_prevyear_en_v2",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => prevYearParams(v, "en"),
-    renderPreview: prevYearBodyEn,
     sample: SAMPLES.prevyear.en,
     approved: true,
     audience: "student",
@@ -1114,7 +1027,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_upcoming_hi_v3",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => upcomingParams(v, "hi"),
-    renderPreview: upcomingBodyHi,
     sample: SAMPLES.upcoming.hi,
     approved: true,
     audience: "student",
@@ -1125,7 +1037,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_upcoming_en_v3",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => upcomingParams(v, "en"),
-    renderPreview: upcomingBodyEn,
     sample: SAMPLES.upcoming.en,
     approved: true,
     audience: "student",
@@ -1136,7 +1047,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_upcoming_final_hi_v3",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => upcomingParams(v, "hi"),
-    renderPreview: upcomingFinalBodyHi,
     sample: SAMPLES.upcoming_final.hi,
     approved: true,
     audience: "student",
@@ -1147,7 +1057,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_upcoming_final_en_v3",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => upcomingParams(v, "en"),
-    renderPreview: upcomingFinalBodyEn,
     sample: SAMPLES.upcoming_final.en,
     approved: true,
     audience: "student",
@@ -1158,7 +1067,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_late_fee_applied_hi_v3",
     slotOrder: LATE_FEE_APPLIED_SKELETON,
     buildParams: lateFeeAppliedParams,
-    renderPreview: lateFeeAppliedBodyHi,
     sample: SAMPLES.late_fee_applied.hi,
     approved: true,
     audience: "student",
@@ -1169,7 +1077,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_late_fee_applied_en_v3",
     slotOrder: LATE_FEE_APPLIED_SKELETON,
     buildParams: lateFeeAppliedParams,
-    renderPreview: lateFeeAppliedBodyEn,
     sample: SAMPLES.late_fee_applied.en,
     approved: true,
     audience: "student",
@@ -1180,7 +1087,6 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_promise_lapsed_hi_v3",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => promiseLapsedParams(v, "hi"),
-    renderPreview: promiseLapsedBodyHi,
     sample: SAMPLES.promise_lapsed.hi,
     approved: true,
     audience: "student",
@@ -1191,58 +1097,134 @@ const CAMPAIGNS: CampaignDescriptor[] = [
     campaignName: "vpps_app_promise_lapsed_en_v3",
     slotOrder: SLOT_SKELETON,
     buildParams: (v) => promiseLapsedParams(v, "en"),
-    renderPreview: promiseLapsedBodyEn,
     sample: SAMPLES.promise_lapsed.en,
+    approved: true,
+    audience: "student",
+  },
+
+  /* The `_v4` ten, Live since 2026-09-08 — see the file header. */
+  {
+    situation: "late_fee_waiver",
+    language: "hi",
+    campaignName: "vpps_app_late_fee_waiver_hi_v4",
+    slotOrder: WAIVER_SKELETON,
+    buildParams: waiverParams,
+    sample: SAMPLES.late_fee_waiver.hi,
+    approved: true,
+    audience: "student",
+  },
+  {
+    situation: "late_fee_waiver",
+    language: "en",
+    campaignName: "vpps_app_late_fee_waiver_en_v4",
+    slotOrder: WAIVER_SKELETON,
+    buildParams: waiverParams,
+    sample: SAMPLES.late_fee_waiver.en,
+    approved: true,
+    audience: "student",
+  },
+  {
+    situation: "waiver_last_call",
+    language: "hi",
+    campaignName: "vpps_app_waiver_last_call_hi_v4",
+    slotOrder: WAIVER_SKELETON,
+    buildParams: waiverParams,
+    sample: SAMPLES.waiver_last_call.hi,
+    approved: true,
+    audience: "student",
+  },
+  {
+    situation: "waiver_last_call",
+    language: "en",
+    campaignName: "vpps_app_waiver_last_call_en_v4",
+    slotOrder: WAIVER_SKELETON,
+    buildParams: waiverParams,
+    sample: SAMPLES.waiver_last_call.en,
+    approved: true,
+    audience: "student",
+  },
+  {
+    situation: "overdue_final",
+    language: "hi",
+    campaignName: "vpps_app_overdue_final_hi_v4",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => upcomingParams(v, "hi"),
+    sample: SAMPLES.overdue_final.hi,
+    approved: true,
+    audience: "student",
+  },
+  {
+    situation: "overdue_final",
+    language: "en",
+    campaignName: "vpps_app_overdue_final_en_v4",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => upcomingParams(v, "en"),
+    sample: SAMPLES.overdue_final.en,
+    approved: true,
+    audience: "student",
+  },
+  {
+    situation: "promise_due",
+    language: "hi",
+    campaignName: "vpps_app_promise_due_hi_v4",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => promiseDueParams(v, "hi"),
+    sample: SAMPLES.promise_due.hi,
+    approved: true,
+    audience: "student",
+  },
+  {
+    situation: "promise_due",
+    language: "en",
+    campaignName: "vpps_app_promise_due_en_v4",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => promiseDueParams(v, "en"),
+    sample: SAMPLES.promise_due.en,
+    approved: true,
+    audience: "student",
+  },
+  {
+    situation: "exam_clearance",
+    language: "hi",
+    campaignName: "vpps_app_exam_clearance_hi_v4",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => upcomingParams(v, "hi"),
+    sample: SAMPLES.exam_clearance.hi,
+    approved: true,
+    audience: "student",
+  },
+  {
+    situation: "exam_clearance",
+    language: "en",
+    campaignName: "vpps_app_exam_clearance_en_v4",
+    slotOrder: SLOT_SKELETON,
+    buildParams: (v) => upcomingParams(v, "en"),
+    sample: SAMPLES.exam_clearance.en,
     approved: true,
     audience: "student",
   },
 ];
 
-type PendingCampaign = {
-  situation: NoticeSituation;
-  language: NoticeLanguage;
-  campaignName: string;
-};
-
-/**
- * Notices whose bodies are written but which Meta has not approved.
- *
- * Empty since 2026-09-04, when the last eight went Live — and kept, because the
- * next notice will start life here. A NAME and a situation, nothing more: while
- * a notice is pending, its body, samples and descriptor live in a sibling
- * module that this file deliberately does NOT import.
- *
- * The reason is the browser. This module is client-reachable, because the screen
- * previews the message live as staff type. But a preview is only ever rendered
- * for a campaign `campaignFor` returned, and `campaignFor` returns approved
- * campaigns only — so an unapproved body in here is provably dead text on every
- * load of the send screen, against a ceiling in
- * `quality/route-bundle-baseline.json` that only ratchets down. When the eight
- * `_v3` notices were pending that came to ~1.1 KB gzip.
- *
- * What the client genuinely needs for a pending notice is this table: enough to
- * show the chip, disable it, and name the campaign that is not Live yet.
- */
-const PENDING_CAMPAIGNS: readonly PendingCampaign[] = [];
-
 /**
  * Every registered per-student campaign, approved or not.
  *
- * Today that is the same fourteen as `APPROVED_CAMPAIGNS`. The contract test
- * walks this rather than the approved list so a pending descriptor, when one
- * exists again, still has its slot count and order checked.
+ * The contract test walks this rather than the approved list so a pending
+ * descriptor still has its slot count and order checked. Since the bodies moved
+ * to `./campaign-bodies` a pending descriptor costs the browser a name, a slot
+ * order and a sample — which is exactly what the picker needs to show its chip
+ * disabled and say which campaign is not Live yet.
  */
 export const ALL_CAMPAIGNS: readonly CampaignDescriptor[] = CAMPAIGNS;
 
-/** The sendable descriptors, with their bodies. */
+/** The sendable descriptors. */
 export const APPROVED_CAMPAIGNS: readonly CampaignDescriptor[] = CAMPAIGNS.filter(
   (entry) => entry.approved,
 );
 
 /**
  * The descriptor for a notice regardless of approval, or null when none is
- * registered. For tests and a server-side preview. Never a path to sending:
- * use `campaignFor`.
+ * registered. For tests, the preview and the test panel. Never a path to
+ * sending: use `campaignFor`.
  */
 export function describeCampaign(
   situation: NoticeSituation,
@@ -1284,14 +1266,7 @@ export function campaignNameFor(
   situation: NoticeSituation,
   language: NoticeLanguage,
 ): string | null {
-  const approved = CAMPAIGNS.find(
-    (entry) => entry.situation === situation && entry.language === language,
-  );
-  if (approved) return approved.campaignName;
-  const pending = PENDING_CAMPAIGNS.find(
-    (entry) => entry.situation === situation && entry.language === language,
-  );
-  return pending?.campaignName ?? null;
+  return describeCampaign(situation, language)?.campaignName ?? null;
 }
 
 /**
@@ -1310,19 +1285,14 @@ export function campaignFor(
   situation: NoticeSituation,
   language: NoticeLanguage,
 ): CampaignDescriptor {
-  const found = CAMPAIGNS.find(
-    (entry) => entry.situation === situation && entry.language === language && entry.approved,
-  );
-  if (found) return found;
+  const found = describeCampaign(situation, language);
+  if (found?.approved) return found;
 
   // Written but not approved: a different failure with a different fix, so it
   // says so rather than reading as a missing registry entry.
-  const pending = PENDING_CAMPAIGNS.find(
-    (entry) => entry.situation === situation && entry.language === language,
-  );
-  if (pending) {
+  if (found) {
     throw new Error(
-      `The ${situation} notice is awaiting Meta approval: ${pending.campaignName} is written but not Live yet. It cannot be sent until the template is approved in AiSensy and the app's campaign registry marks it approved.`,
+      `The ${situation} notice is awaiting Meta approval: ${found.campaignName} is written but not Live yet. It cannot be sent until the template is approved in AiSensy and the app's campaign registry marks it approved.`,
     );
   }
 
@@ -1355,20 +1325,28 @@ export type NoticeSubject = {
    * What the LEDGER has already charged in late fees on the passed installments,
    * from `v_workbook_installment_balances.late_fee_pending`.
    *
-   * Optional because only `late_fee_applied` reads it, and zero rather than
-   * undefined for a family with no late fee — the notice would not be about them
-   * either way, but a missing figure must not render as an empty money slot.
+   * Optional because only the ledger-quoted notices read it, and zero rather
+   * than undefined for a family with no late fee — the notice would not be
+   * about them either way, but a missing figure must not render as an empty
+   * money slot.
    */
   lateFeeApplied?: number;
   /**
-   * The installments actually carrying that late fee — `late_fee_applied`'s
-   * context line names THESE, not the run's active set. On 2026-09-04 the
-   * calendar's active pair was [1, 2]; a family late only on installment 2
+   * The installments actually carrying that late fee — the ledger-quoted
+   * notices' context line names THESE, not the run's active set. On 2026-09-04
+   * the calendar's active pair was [1, 2]; a family late only on installment 2
    * must not be told "Installment 1 and 2".
    */
   lateFeeInstallments?: number[];
-  /** The date this family gave, ISO. Only `promise_lapsed` reads it. */
+  /**
+   * The passed installments this family still owes fees on — `overdue_final`
+   * names these, for the same reason.
+   */
+  overdueInstallments?: number[];
+  /** The date this family gave, ISO. `promise_lapsed` and `promise_due` read it. */
   promisedOn?: string | null;
+  /** The IST date the office spoke with the family, ISO. Only `promise_due` reads it. */
+  promiseContactedOn?: string | null;
 };
 
 export type NoticeSettings = {
@@ -1380,6 +1358,24 @@ export type NoticeSettings = {
   lateFeeBasis: LateFeeBasis;
 };
 
+/**
+ * Which installments the context line names, per notice.
+ *
+ * The ledger-quoted notices name the installments the late fee is ON, which
+ * the ledger decided; `overdue_final` names the passed installments still owed
+ * on, which the calendar decided; every other notice names the ones the run is
+ * about, which the office chose. Same slot, three different facts.
+ */
+function contextInstallments(subject: NoticeSubject, settings: NoticeSettings): number[] {
+  if (isLedgerQuotedSituation(settings.situation) && subject.lateFeeInstallments?.length) {
+    return subject.lateFeeInstallments;
+  }
+  if (settings.situation === "overdue_final" && subject.overdueInstallments?.length) {
+    return subject.overdueInstallments;
+  }
+  return settings.installments;
+}
+
 export function noticeValuesFrom(
   subject: NoticeSubject,
   settings: NoticeSettings,
@@ -1388,26 +1384,26 @@ export function noticeValuesFrom(
     parentName: subject.parentName,
     studentName: subject.studentName,
     studentClass: subject.studentClass,
-    // `late_fee_applied` names the installments the late fee is ON, which the
-    // ledger decided; every other notice names the ones the run is about, which
-    // the office chose. Same slot, two different facts.
-    installmentPhrase:
-      settings.situation === "late_fee_applied" && subject.lateFeeInstallments?.length
-        ? installmentPhrase(subject.lateFeeInstallments, settings.language)
-        : installmentPhrase(settings.installments, settings.language),
+    installmentPhrase: installmentPhrase(contextInstallments(subject, settings), settings.language),
     amountDue: subject.dueAmount,
     receivedSoFar: subject.totalPaid,
     balanceDue: subject.balanceDue,
-    lastDate: settings.lastDate,
+    // `promise_due` prints the family's OWN date, never the run's. Every other
+    // notice prints what the office picked.
+    lastDate:
+      settings.situation === "promise_due"
+        ? formatDdMmYyyy(subject.promisedOn ?? null)
+        : settings.lastDate,
     prevSessionLabel: subject.prevSessionLabel ?? "",
     prevYearBalance: subject.prevYearBalance,
     lateFeePhrase: lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, settings.language),
-    // The ledger's figure, passed through untouched. `late_fee_applied` is the
-    // one notice whose late fee is a fact rather than a lever, so it never goes
+    // The ledger's figure, passed through untouched. On the ledger-quoted
+    // notices the late fee is a fact rather than a lever, so it never goes
     // through `lateFeePhrase` and the screen does not let it be edited.
     lateFeeApplied: subject.lateFeeApplied ?? 0,
     totalToPay: subject.dueAmount + (subject.lateFeeApplied ?? 0),
     promisedDate: formatDdMmYyyy(subject.promisedOn ?? null),
+    promiseRecordedDate: formatDdMmYyyy(subject.promiseContactedOn ?? null),
   };
 }
 

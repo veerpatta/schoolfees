@@ -1,10 +1,12 @@
 # WhatsApp campaign registry
 
-Twenty-four Meta-approved templates, each with a Live AiSensy API campaign of
-the same name: fourteen per-student notices covering seven fee situations in
-Hindi and English, eight family notices, and two receipt notices. Every reminder
-carries a **settable late fee**, because the late fee is what actually moves a
-family from "next week" to today.
+Thirty-four Meta-approved templates, each with a Live AiSensy API campaign of
+the same name: twenty-four per-student notices covering twelve fee situations
+in Hindi and English, eight family notices, and two receipt notices. The ten
+per-student `_v4` templates — five recovery situations — were submitted and
+went Live on 2026-09-08. Every reminder carries a **settable late fee**, because
+the late fee is what actually moves a family from "next week" to today — except
+the three that quote the ledger's own.
 
 This document is the contract `src/modules/whatsapp/domain/campaigns.ts` and
 `src/modules/whatsapp/domain/campaign-bodies-v3.ts` honour: campaign name, slot
@@ -971,6 +973,364 @@ Samples: `रमेश लाल गुर्जर` · `आराध्या �
 `9,125` · `03-09-2026` · `9,125`
 
 Note this body has no UPI link. Nothing is being asked for.
+
+## The `_v4` set — submitted and Live 2026-09-08
+
+Ten more per-student templates covering five recovery situations in Hindi and
+English. Written for one job: bringing fees in faster around the late fee. The
+office chose, on 2026-09-08, that the waiver is honoured by hand at the counter
+(the cashier presses Waive when a family pays inside the window — nothing
+automatic touches money), and that three of the bodies may state the school's
+report-card rule.
+
+All ten were submitted through the AiSensy dashboard on 2026-09-08 as UTILITY
+with a **Call office** button. Meta approved all ten within the hour, every one
+still UTILITY, and each has an API campaign of the same name set Live. Every
+descriptor carries `approved: true`, pinned by name in
+`tests/unit/whatsapp-campaigns.test.ts`. Check the category again before the
+next billing cycle — re-categorisation is silent.
+
+| Campaign | Language | Situation | Slots | Skeleton |
+|---|---|---|---|---|
+| `vpps_app_late_fee_waiver_hi_v4` | Hindi | The ledger charges a late fee; it is set aside if the fees arrive by a date | 7 | **waiver** |
+| `vpps_app_late_fee_waiver_en_v4` | English | same | 7 | **waiver** |
+| `vpps_app_waiver_last_call_hi_v4` | Hindi | The same families, on the last day the waiver holds | 7 | **waiver** |
+| `vpps_app_waiver_last_call_en_v4` | English | same | 7 | **waiver** |
+| `vpps_app_overdue_final_hi_v4` | Hindi | Fees still pending on an installment whose date has passed, late fee waived or not | 7 | shared |
+| `vpps_app_overdue_final_en_v4` | English | same | 7 | shared |
+| `vpps_app_promise_due_hi_v4` | Hindi | The family's own promised date is today or tomorrow | 7 | shared |
+| `vpps_app_promise_due_en_v4` | English | same | 7 | shared |
+| `vpps_app_exam_clearance_hi_v4` | Hindi | Anything pending on the selected installments, before the examinations | 7 | shared |
+| `vpps_app_exam_clearance_en_v4` | English | same | 7 | shared |
+
+All ten are category **UTILITY**, type TEXT, header empty, buttons = **Call
+office** `+919352205884` only — matching what actually went Live on 2026-09-04
+(the app passes no pay code to AiSensy today, so a dynamic URL button would be
+an unfilled variable). Every line states a fact about this family's account or
+what to do about it. Nothing is offered, discounted or sold: "the late fee is
+not charged if the fees arrive by the date" is a payment term, not a promotion,
+and it is worded as one.
+
+### The waiver skeleton
+
+Two of the five do not fit the shared shape. They quote the ledger's late fee
+and a date, and have no late-fee *phrase* — the fee is a fact on the account,
+not a lever.
+
+| Slot | Contents |
+|---|---|
+| `{{1}}` | Parent name |
+| `{{2}}` | Student name |
+| `{{3}}` | Class |
+| `{{4}}` | Installment phrase — the installments carrying the late fee, as `late_fee_applied` names them |
+| `{{5}}` | **Fees pending** — `pending_amount` on those rows, fees only |
+| `{{6}}` | **Late fee on the account** — `late_fee_pending`, read from the ledger |
+| `{{7}}` | **The waive-by date** — the office's choice, DD-MM-YYYY |
+
+The two waiver notices share it exactly, as `upcoming` and `upcoming_final`
+share theirs, so a test can assert they send identical values with different
+wording. The late-fee control on screen is disabled for both (the figure is the
+ledger's), and the date guard refuses a date already gone.
+
+### The three on the shared skeleton
+
+| Slot | overdue_final | promise_due | exam_clearance |
+|---|---|---|---|
+| `{{4}}` | installment phrase — the **passed** installments this family still owes on | **the date the office spoke with the family** (`defaulter_contacts.contacted_at`) | installment phrase — the installments selected on screen |
+| `{{5}}` | fees pending on those passed installments | amount pending | fees pending on the selected installments |
+| `{{6}}` | the final date | **the date the family gave** — per family, never the run's date | the clear-by date |
+| `{{7}}` | the late-fee phrase | the late-fee phrase | the late-fee phrase |
+
+`promise_due` prints no run date at all: slot 6 is each family's own promise,
+so the date guard waves it through as it does `late_fee_applied`, and the pay
+link expires on the promised date rather than a run-wide one. It is also the
+second notice exempt from the promise hold-back — a family inside their promise
+window is exactly who it is for.
+
+### The report-card sentence
+
+Three bodies (`waiver_last_call`, `overdue_final`, `exam_clearance`) carry the
+school's rule that report cards and examination admit cards are issued only for
+accounts with no pending fees. The owner chose it on 2026-09-08. An approved
+body cannot be edited, so it has to be true policy on the day it is submitted.
+
+### Bodies to submit
+
+#### `vpps_app_late_fee_waiver_en_v4`
+
+```
+*Late Fee Notice — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Student: {{2}}
+Class: {{3}}
+Installment: {{4}}
+Fees pending: Rs. {{5}}
+Late fee on this account: Rs. {{6}}
+Last date without late fee: {{7}}
+
+The late fee shown above will not be charged if the fees pending are received on or before the last date shown. From the day after that date, the fees and the late fee are both payable.
+
+Pay at the school fee counter or using this UPI link:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+Please write the student's name with the payment and collect a receipt. If you have already paid, kindly ignore this message.
+
+For any query, call the office on 9352205884.
+```
+
+Samples: `Ramesh Lal Gurjar` · `Aaradhya Gurjar` · `2` · `Installment 2` ·
+`9,125` · `1,000` · `20-09-2026`
+
+#### `vpps_app_late_fee_waiver_hi_v4`
+
+```
+*विलंब शुल्क सूचना — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कक्षा: {{3}}
+किश्त: {{4}}
+शेष फीस: रु. {{5}}
+इस खाते पर विलंब शुल्क: रु. {{6}}
+बिना विलंब शुल्क की अंतिम तिथि: {{7}}
+
+यदि शेष फीस उपरोक्त अंतिम तिथि तक प्राप्त हो जाती है तो दर्शाया गया विलंब शुल्क नहीं लिया जाएगा। उस तिथि के अगले दिन से फीस और विलंब शुल्क दोनों देय होंगे।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।
+
+जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
+```
+
+Samples: `रमेश लाल गुर्जर` · `आराध्या गुर्जर` · `2` · `किश्त 2` · `9,125` ·
+`1,000` · `20-09-2026`
+
+#### `vpps_app_waiver_last_call_en_v4`
+
+```
+*Last Date Without Late Fee — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Student: {{2}}
+Class: {{3}}
+Installment: {{4}}
+Fees pending: Rs. {{5}}
+Late fee held back: Rs. {{6}}
+Last date: {{7}}
+
+The date above is the last date on which the fees pending can be received without the late fee. From the day after, the late fee shown is added to this account. Report cards and examination admit cards are issued only for accounts with no pending fees.
+
+Settle at the school fee counter or using this UPI link:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+Kindly mention the student's name with the payment and take a receipt. Ignore this message if the amount has already been paid.
+
+To confirm your record, call the office on 9352205884.
+```
+
+Samples: as the waiver notice, with `20-09-2026` as the last date.
+
+#### `vpps_app_waiver_last_call_hi_v4`
+
+```
+*बिना विलंब शुल्क की अंतिम तिथि — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कक्षा: {{3}}
+किश्त: {{4}}
+शेष फीस: रु. {{5}}
+रोका गया विलंब शुल्क: रु. {{6}}
+अंतिम तिथि: {{7}}
+
+उपरोक्त तिथि शेष फीस को बिना विलंब शुल्क जमा करने की अंतिम तिथि है। उसके अगले दिन से दर्शाया गया विलंब शुल्क इस खाते में जोड़ दिया जाएगा। रिपोर्ट कार्ड एवं परीक्षा प्रवेश पत्र केवल उन्हीं विद्यार्थियों को दिए जाते हैं जिनकी कोई फीस बकाया नहीं है।
+
+फीस काउंटर पर अथवा इस UPI लिंक से निपटान करें:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+भुगतान के साथ विद्यार्थी का नाम अवश्य लिखें तथा रसीद लें। राशि जमा हो चुकी हो तो इस संदेश को अनदेखा करें।
+
+अपना रिकॉर्ड जांचने हेतु कार्यालय 9352205884 पर संपर्क करें।
+```
+
+#### `vpps_app_overdue_final_en_v4`
+
+```
+*Final Fee Notice — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Student: {{2}}
+Class: {{3}}
+Installment overdue: {{4}}
+Amount overdue: Rs. {{5}}
+Final date: {{6}}
+Late fee on this installment: {{7}}
+
+The due date for the installment above has passed and the amount remains unpaid. Please clear it by the final date shown. Report cards and examination admit cards are issued only for accounts with no pending fees.
+
+Pay at the school fee counter or using this UPI link:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+Please write the student's name with the payment and collect a receipt. If you have already paid, kindly ignore this message.
+
+For any query, call the office on 9352205884.
+```
+
+Samples: `Ramesh Lal Gurjar` · `Aaradhya Gurjar` · `2` · `Installment 2` ·
+`9,125` · `20-09-2026` · `Rs. 1,000 per installment`
+
+#### `vpps_app_overdue_final_hi_v4`
+
+```
+*अंतिम फीस सूचना — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कक्षा: {{3}}
+बकाया किश्त: {{4}}
+बकाया राशि: रु. {{5}}
+अंतिम तिथि: {{6}}
+इस किश्त पर विलंब शुल्क: {{7}}
+
+उपरोक्त किश्त की देय तिथि निकल चुकी है और राशि अब तक जमा नहीं हुई है। कृपया दर्शाई गई अंतिम तिथि तक जमा करें। रिपोर्ट कार्ड एवं परीक्षा प्रवेश पत्र केवल उन्हीं विद्यार्थियों को दिए जाते हैं जिनकी कोई फीस बकाया नहीं है।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।
+
+जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
+```
+
+Samples: `रमेश लाल गुर्जर` · `आराध्या गुर्जर` · `2` · `किश्त 2` · `9,125` ·
+`20-09-2026` · `रु. 1,000 प्रति किश्त`
+
+#### `vpps_app_promise_due_en_v4`
+
+```
+*Payment Date Reminder — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Student: {{2}}
+Class: {{3}}
+Spoken on: {{4}}
+Amount pending: Rs. {{5}}
+Date agreed: {{6}}
+Late fee after the date agreed: {{7}}
+
+Our record shows that on the date above you agreed to pay the amount pending by the date shown. Kindly pay on or before that date.
+
+Pay at the school fee counter or using this UPI link:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+If the amount has already been paid, please ignore this message and call the office so the record can be corrected.
+
+For any query, call the office on 9352205884.
+```
+
+Samples: `Ramesh Lal Gurjar` · `Aaradhya Gurjar` · `2` · `05-09-2026` · `9,125` ·
+`10-09-2026` · `Rs. 1,000 per installment`
+
+#### `vpps_app_promise_due_hi_v4`
+
+```
+*भुगतान तिथि स्मरण — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कक्षा: {{3}}
+बातचीत की तिथि: {{4}}
+शेष राशि: रु. {{5}}
+तय की गई तिथि: {{6}}
+तय तिथि के बाद विलंब शुल्क: {{7}}
+
+हमारे रिकॉर्ड के अनुसार उपरोक्त बातचीत की तिथि को आपने शेष राशि तय की गई तिथि तक जमा करने की सहमति दी थी। कृपया उस तिथि तक जमा कर दें।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+यदि राशि जमा हो चुकी है तो इस संदेश को अनदेखा करें तथा रिकॉर्ड सुधार हेतु कार्यालय को सूचित करें।
+
+जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
+```
+
+Samples: `रमेश लाल गुर्जर` · `आराध्या गुर्जर` · `2` · `05-09-2026` · `9,125` ·
+`10-09-2026` · `रु. 1,000 प्रति किश्त`
+
+#### `vpps_app_exam_clearance_en_v4`
+
+```
+*Fee Clearance Before Examination — Shri Veer Patta Sr. Sec. School*
+
+Dear {{1}},
+
+Student: {{2}}
+Class: {{3}}
+Installments pending: {{4}}
+Fees pending: Rs. {{5}}
+Clear by: {{6}}
+Late fee on pending installments: {{7}}
+
+Examinations are approaching. Report cards and examination admit cards are issued only for accounts with no pending fees, so please clear the amount above by the date shown.
+
+Pay at the school fee counter or using this UPI link:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+Please write the student's name with the payment and collect a receipt. If you have already paid, kindly ignore this message.
+
+For any query, call the office on 9352205884.
+```
+
+Samples: `Ramesh Lal Gurjar` · `Aaradhya Gurjar` · `2` · `Installment 1 and 2` ·
+`9,125` · `15-09-2026` · `Rs. 1,000 per installment`
+
+#### `vpps_app_exam_clearance_hi_v4`
+
+```
+*परीक्षा से पूर्व फीस निपटान — श्री वीर पत्ता सी. सै. स्कूल*
+
+प्रिय {{1}},
+
+विद्यार्थी: {{2}}
+कक्षा: {{3}}
+शेष किश्तें: {{4}}
+शेष फीस: रु. {{5}}
+निपटान की तिथि: {{6}}
+शेष किश्तों पर विलंब शुल्क: {{7}}
+
+परीक्षाएँ निकट हैं। रिपोर्ट कार्ड एवं परीक्षा प्रवेश पत्र केवल उन्हीं विद्यार्थियों को दिए जाते हैं जिनकी कोई फीस बकाया नहीं है, अतः कृपया उपरोक्त राशि दर्शाई गई तिथि तक जमा करें।
+
+फीस काउंटर पर अथवा इस UPI लिंक से जमा करें:
+upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank
+
+भुगतान करते समय विद्यार्थी का नाम अवश्य लिखें तथा रसीद प्राप्त करें। यदि भुगतान हो चुका है तो इस संदेश को अनदेखा करें।
+
+जानकारी हेतु कार्यालय 9352205884 पर संपर्क करें।
+```
+
+Samples: `रमेश लाल गुर्जर` · `आराध्या गुर्जर` · `2` · `किश्त 1 एवं 2` · `9,125` ·
+`15-09-2026` · `रु. 1,000 प्रति किश्त`
+
+### Where the bodies live in code
+
+Since 2026-09-08 **no per-student body is in the client bundle.** They all sit
+in `src/modules/whatsapp/domain/campaign-bodies.ts`, which no `ui/` or
+`src/app` file may import (the same rule as `campaign-bodies-v3.ts`, enforced
+by the same test). The send screen's preview was already server-rendered; the
+test panel now asks a server action for its preview instead of rendering it in
+the browser. That took every existing body out of `/protected/reminders`, which
+is what made room for ten more without raising the route's ceiling.
 
 ## The two buttons every `_v3` template carries
 

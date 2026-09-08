@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { renderNoticePreview } from "@/modules/whatsapp/domain/campaign-bodies";
 import {
   ALL_CAMPAIGNS,
   APPROVED_CAMPAIGNS,
@@ -11,9 +12,12 @@ import {
   describeCampaign,
   installmentPhrase,
   isCampaignApproved,
+  LEDGER_QUOTED_SITUATIONS,
   noticeValuesFrom,
+  RUN_DATE_FREE_SITUATIONS,
   shortClassLabel,
   type NoticeSettings,
+  type NoticeSituation,
   type NoticeSubject,
   type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
@@ -42,7 +46,23 @@ const VALUES: NoticeValues = {
   lateFeeApplied: 1000,
   totalToPay: 19250,
   promisedDate: "28-08-2026",
+  promiseRecordedDate: "20-08-2026",
 };
+
+const SITUATIONS: readonly NoticeSituation[] = [
+  "fee_due",
+  "balance",
+  "prevyear",
+  "upcoming",
+  "upcoming_final",
+  "late_fee_applied",
+  "promise_lapsed",
+  "late_fee_waiver",
+  "waiver_last_call",
+  "overdue_final",
+  "promise_due",
+  "exam_clearance",
+];
 
 /**
  * The slot counts the registry document records, per campaign.
@@ -66,38 +86,62 @@ const EXPECTED_SLOTS: Record<string, number> = {
   vpps_app_late_fee_applied_en_v3: 7,
   vpps_app_promise_lapsed_hi_v3: 7,
   vpps_app_promise_lapsed_en_v3: 7,
+  vpps_app_late_fee_waiver_hi_v4: 7,
+  vpps_app_late_fee_waiver_en_v4: 7,
+  vpps_app_waiver_last_call_hi_v4: 7,
+  vpps_app_waiver_last_call_en_v4: 7,
+  vpps_app_overdue_final_hi_v4: 7,
+  vpps_app_overdue_final_en_v4: 7,
+  vpps_app_promise_due_hi_v4: 7,
+  vpps_app_promise_due_en_v4: 7,
+  vpps_app_exam_clearance_hi_v4: 7,
+  vpps_app_exam_clearance_en_v4: 7,
 };
 
 /**
- * The fourteen that may actually be posted.
+ * The twenty-four that may actually be posted.
  *
  * Pinned as a LIST rather than a count, so approving a template is a visible
  * one-line diff in this file and never something that happens by a descriptor
  * being added with the wrong default. The eight `_v3` names joined on
- * 2026-09-04, the day Meta approved them and their AiSensy campaigns went Live.
+ * 2026-09-04, the day Meta approved them and their AiSensy campaigns went Live;
+ * the ten `_v4` on 2026-09-08, the day they were submitted.
  */
 const APPROVED_NAMES = [
   "vpps_app_balance_en_v2",
   "vpps_app_balance_hi_v2",
+  "vpps_app_exam_clearance_en_v4",
+  "vpps_app_exam_clearance_hi_v4",
   "vpps_app_fee_due_en_v2",
   "vpps_app_fee_due_hi_v2",
   "vpps_app_late_fee_applied_en_v3",
   "vpps_app_late_fee_applied_hi_v3",
+  "vpps_app_late_fee_waiver_en_v4",
+  "vpps_app_late_fee_waiver_hi_v4",
+  "vpps_app_overdue_final_en_v4",
+  "vpps_app_overdue_final_hi_v4",
   "vpps_app_prevyear_en_v2",
   "vpps_app_prevyear_hi_v2",
+  "vpps_app_promise_due_en_v4",
+  "vpps_app_promise_due_hi_v4",
   "vpps_app_promise_lapsed_en_v3",
   "vpps_app_promise_lapsed_hi_v3",
   "vpps_app_upcoming_en_v3",
   "vpps_app_upcoming_final_en_v3",
   "vpps_app_upcoming_final_hi_v3",
   "vpps_app_upcoming_hi_v3",
+  "vpps_app_waiver_last_call_en_v4",
+  "vpps_app_waiver_last_call_hi_v4",
 ];
 
 describe("the registered campaigns", () => {
-  it("covers seven situations in two languages, and nothing else", () => {
-    expect(ALL_CAMPAIGNS).toHaveLength(14);
+  it("covers twelve situations in two languages, and nothing else", () => {
+    expect(ALL_CAMPAIGNS).toHaveLength(24);
     expect(ALL_CAMPAIGNS.map((c) => c.campaignName).sort()).toEqual(
       Object.keys(EXPECTED_SLOTS).sort(),
+    );
+    expect([...new Set(ALL_CAMPAIGNS.map((c) => c.situation))].sort()).toEqual(
+      [...SITUATIONS].sort(),
     );
   });
 
@@ -110,26 +154,33 @@ describe("the registered campaigns", () => {
     }
   });
 
-  it("keeps exactly the fourteen live campaigns sendable", () => {
+  it("keeps exactly the live campaigns sendable", () => {
     expect(APPROVED_CAMPAIGNS.map((c) => c.campaignName).sort()).toEqual(APPROVED_NAMES);
   });
 
-  it("hands out every registered campaign now that all fourteen are Live", () => {
-    // Until 2026-09-04 the eight `_v3` were written and disabled, and this test
-    // proved `campaignFor` refused them. It now proves the opposite for every
-    // name, through every door the screen and the send path use — so a notice
-    // cannot be approved on one and pending on another.
-    //
-    // The refusal itself is still exercised: the guard that stops an unapproved
-    // notice reaching AiSensy is pinned in tests/unit/whatsapp-send-guards.test.ts
-    // ("blocks a notice Meta has not approved"), and the unregistered case is
-    // just below.
-    for (const campaign of ALL_CAMPAIGNS) {
-      expect(campaign.approved).toBe(true);
+  it("hands out every approved campaign through every door", () => {
+    // Through every door the screen and the send path use — so a notice cannot
+    // be approved on one and pending on another.
+    for (const campaign of APPROVED_CAMPAIGNS) {
       expect(isCampaignApproved(campaign.situation, campaign.language)).toBe(true);
       expect(campaignFor(campaign.situation, campaign.language).campaignName).toBe(
         campaign.campaignName,
       );
+      expect(campaignNameFor(campaign.situation, campaign.language)).toBe(campaign.campaignName);
+      expect(describeCampaign(campaign.situation, campaign.language)).toBe(campaign);
+    }
+  });
+
+  it("has nothing pending, and the pending path still refuses to send", () => {
+    // All twenty-four are Live since 2026-09-08. The refusal itself is still
+    // exercised on a descriptor flipped off in memory: the send log is keyed
+    // on the campaign name, so the screen still needs the name; the picker
+    // still needs the descriptor to show the chip disabled; and only
+    // `campaignFor` — the one path to sending — must refuse. The guard that
+    // stops an unapproved notice reaching AiSensy is pinned separately in
+    // tests/unit/whatsapp-send-guards.test.ts.
+    expect(ALL_CAMPAIGNS.filter((campaign) => !campaign.approved)).toEqual([]);
+    for (const campaign of ALL_CAMPAIGNS) {
       expect(campaignNameFor(campaign.situation, campaign.language)).toBe(campaign.campaignName);
       expect(describeCampaign(campaign.situation, campaign.language)).toBe(campaign);
     }
@@ -150,32 +201,91 @@ describe("the registered campaigns", () => {
       prevSessionLabel: null,
       lateFeeApplied: 1000,
       lateFeeInstallments: [2],
+      overdueInstallments: [1, 2],
     };
     const settings = (situation: NoticeSettings["situation"]): NoticeSettings => ({
       situation,
       language: "en",
-      installments: [1, 2],
+      installments: [1, 2, 3],
       lastDate: "20-10-2026",
       lateFeeAmount: 1000,
       lateFeeBasis: "per_installment",
     });
 
-    expect(noticeValuesFrom(subject, settings("late_fee_applied")).installmentPhrase).toBe(
-      "Installment 2",
+    // The ledger-quoted three name the installments the fee is ON.
+    for (const situation of LEDGER_QUOTED_SITUATIONS) {
+      expect(noticeValuesFrom(subject, settings(situation)).installmentPhrase).toBe(
+        "Installment 2",
+      );
+    }
+    // The overdue notice names the passed installments still owed on.
+    expect(noticeValuesFrom(subject, settings("overdue_final")).installmentPhrase).toBe(
+      "Installment 1 and 2",
     );
     // Every other notice is about the installments the OFFICE chose.
     expect(noticeValuesFrom(subject, settings("fee_due")).installmentPhrase).toBe(
-      "Installment 1 and 2",
+      "Installment 1, 2 and 3",
     );
-    expect(noticeValuesFrom(subject, settings("upcoming")).installmentPhrase).toBe(
-      "Installment 1 and 2",
+    expect(noticeValuesFrom(subject, settings("exam_clearance")).installmentPhrase).toBe(
+      "Installment 1, 2 and 3",
     );
     // And a late fee with no installments recorded falls back rather than
     // printing an empty slot.
     expect(
       noticeValuesFrom({ ...subject, lateFeeInstallments: [] }, settings("late_fee_applied"))
         .installmentPhrase,
-    ).toBe("Installment 1 and 2");
+    ).toBe("Installment 1, 2 and 3");
+  });
+
+  it("prints the family's own promised date on promise_due, never the run's", () => {
+    const subject: NoticeSubject = {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      dueAmount: 9125,
+      totalPaid: 0,
+      balanceDue: 9125,
+      prevYearBalance: 0,
+      prevSessionLabel: null,
+      promisedOn: "2026-09-10",
+      promiseContactedOn: "2026-09-05",
+    };
+    const settings: NoticeSettings = {
+      situation: "promise_due",
+      language: "en",
+      installments: [1, 2],
+      lastDate: "30-09-2026",
+      lateFeeAmount: 1000,
+      lateFeeBasis: "per_installment",
+    };
+    const values = noticeValuesFrom(subject, settings);
+    expect(values.lastDate).toBe("10-09-2026");
+    expect(values.promiseRecordedDate).toBe("05-09-2026");
+    expect(describeCampaign("promise_due", "en")!.buildParams(values)).toEqual([
+      "Ramesh Lal Gurjar",
+      "Aaradhya Gurjar",
+      "2",
+      "05-09-2026",
+      "9,125",
+      "10-09-2026",
+      "Rs. 1,000 per installment",
+    ]);
+    // Every other notice prints the run's date.
+    expect(noticeValuesFrom(subject, { ...settings, situation: "fee_due" }).lastDate).toBe(
+      "30-09-2026",
+    );
+  });
+
+  it("lists exactly the notices that print no run date", () => {
+    // `late_fee_applied` has no date slot; `promise_due` prints each family's
+    // own. The waiver pair are deliberately NOT here — their slot 7 is the
+    // office's waive-by date, and the guard must refuse one already gone.
+    expect([...RUN_DATE_FREE_SITUATIONS]).toEqual(["late_fee_applied", "promise_due"]);
+    expect([...LEDGER_QUOTED_SITUATIONS]).toEqual([
+      "late_fee_applied",
+      "late_fee_waiver",
+      "waiver_last_call",
+    ]);
   });
 
   it.each(Object.entries(EXPECTED_SLOTS))("%s sends exactly %i params", (name, slots) => {
@@ -244,20 +354,30 @@ describe("the registered campaigns", () => {
     }
   });
 
-  it("keeps one slot skeleton across every notice but late_fee_applied", () => {
+  it("keeps three slot skeletons and no more", () => {
     // The whole point of v2. Three shapes were three chances to get an order
     // wrong; one shape is checkable in a line.
     //
-    // `late_fee_applied` is the single documented exception: three money slots
-    // and no date, because the fee has been charged rather than threatened. It
-    // is asserted separately below rather than being allowed to widen this set,
-    // so a SECOND stray shape still fails here.
-    const shapes = new Set(
-      ALL_CAMPAIGNS.filter((c) => c.situation !== "late_fee_applied").map((c) =>
-        c.slotOrder.join(","),
-      ),
+    // Two documented exceptions: `late_fee_applied` (three money slots, no
+    // date) and the waiver pair (two ledger figures, then the waive-by date).
+    // Each is asserted separately below rather than being allowed to widen
+    // this set, so a FOURTH stray shape still fails here.
+    const shared = new Set(
+      ALL_CAMPAIGNS.filter(
+        (c) => !(LEDGER_QUOTED_SITUATIONS as readonly string[]).includes(c.situation),
+      ).map((c) => c.slotOrder.join(",")),
     );
-    expect(shapes.size).toBe(1);
+    expect(shared.size).toBe(1);
+
+    const waiver = new Set(
+      ALL_CAMPAIGNS.filter(
+        (c) => c.situation === "late_fee_waiver" || c.situation === "waiver_last_call",
+      ).map((c) => c.slotOrder.join(",")),
+    );
+    expect(waiver.size).toBe(1);
+    expect([...waiver][0]).toBe(
+      "parentName,studentName,studentClass,contextLine,feesPending,lateFeeApplied,date",
+    );
   });
 
   it("gives late_fee_applied its own skeleton, in ledger order", () => {
@@ -308,6 +428,30 @@ describe("the registered campaigns", () => {
     expect(stale[6]).toBe("10,125");
   });
 
+  it("sends the waiver pair the ledger's two figures and then the date", () => {
+    // Fees and the late fee stay separate for the same reason as above, and
+    // the waive-by date sits where every other notice carries a late-fee
+    // phrase. Both waiver notices send the identical seven values and differ
+    // only in wording, exactly as the courtesy and firm pre-due notices do.
+    for (const language of ["hi", "en"] as const) {
+      const window = describeCampaign("late_fee_waiver", language)!;
+      const lastCall = describeCampaign("waiver_last_call", language)!;
+      expect(window.buildParams(VALUES)).toEqual([
+        "Ramesh Lal Gurjar",
+        "Aaradhya Gurjar",
+        "2",
+        "Installment 1 and 2",
+        "18,250",
+        "1,000",
+        "25-08-2026",
+      ]);
+      expect(lastCall.buildParams(VALUES)).toEqual(window.buildParams(VALUES));
+      expect(renderNoticePreview("late_fee_waiver", language, VALUES)).not.toBe(
+        renderNoticePreview("waiver_last_call", language, VALUES),
+      );
+    }
+  });
+
   it("puts the promised date in slot 4 and the new date in slot 6", () => {
     // The order carries the whole force of the notice: what was agreed, then
     // what is now being asked. Reversed, it reads as the school moving the date.
@@ -322,32 +466,47 @@ describe("the registered campaigns", () => {
     ]);
   });
 
-  it("sends upcoming and upcoming_final the same seven values", () => {
+  it("sends upcoming, upcoming_final, overdue_final and exam_clearance the same seven values", () => {
     // They differ only in wording. A slot difference between them would mean the
     // office reading one preview and a parent getting the other shape.
     for (const language of ["hi", "en"] as const) {
       const courtesy = describeCampaign("upcoming", language)!;
-      const firm = describeCampaign("upcoming_final", language)!;
-      expect(courtesy.buildParams(VALUES)).toEqual(firm.buildParams(VALUES));
-      expect(courtesy.renderPreview(VALUES)).not.toBe(firm.renderPreview(VALUES));
+      for (const situation of ["upcoming_final", "overdue_final", "exam_clearance"] as const) {
+        const other = describeCampaign(situation, language)!;
+        expect(other.buildParams(VALUES)).toEqual(courtesy.buildParams(VALUES));
+        expect(renderNoticePreview(situation, language, VALUES)).not.toBe(
+          renderNoticePreview("upcoming", language, VALUES),
+        );
+      }
     }
   });
 
   it("matches hi and en on everything except the words", () => {
-    for (const situation of [
-      "fee_due",
-      "balance",
-      "prevyear",
-      "upcoming",
-      "upcoming_final",
-      "late_fee_applied",
-      "promise_lapsed",
-    ] as const) {
+    for (const situation of SITUATIONS) {
       const hi = describeCampaign(situation, "hi")!;
       const en = describeCampaign(situation, "en")!;
       expect(hi.slotOrder).toEqual(en.slotOrder);
       expect(hi.buildParams(VALUES)).toEqual(en.buildParams(VALUES));
-      expect(hi.renderPreview(VALUES)).not.toBe(en.renderPreview(VALUES));
+      expect(renderNoticePreview(situation, "hi", VALUES)).not.toBe(
+        renderNoticePreview(situation, "en", VALUES),
+      );
+    }
+  });
+
+  it("words every English body differently, so Meta does not read them as duplicates", () => {
+    const bodies = SITUATIONS.map((situation) => renderNoticePreview(situation, "en", VALUES));
+    expect(new Set(bodies).size).toBe(bodies.length);
+  });
+
+  it("keeps every body free of promotional wording", () => {
+    // `vpps_waiver_offer_hinglish` went UTILITY → MARKETING in fourteen minutes
+    // on "Good news" and "avail". A payment term is not a promotion, and the
+    // bodies must read that way to a reviewer.
+    for (const situation of SITUATIONS) {
+      const body = renderNoticePreview(situation, "en", VALUES)!.toLowerCase();
+      for (const word of ["good news", "offer", "avail", "benefit", "discount"]) {
+        expect(body).not.toContain(word);
+      }
     }
   });
 
@@ -374,7 +533,7 @@ describe("the registered campaigns", () => {
   });
 
   it("previews the body the parent will actually read", () => {
-    const preview = campaignFor("fee_due", "hi").renderPreview(VALUES);
+    const preview = renderNoticePreview("fee_due", "hi", VALUES)!;
     expect(preview).toContain("फीस सूचना");
     expect(preview).toContain("कक्षा: 2");
     expect(preview).toContain("देय राशि: रु. 18,250");
@@ -382,6 +541,12 @@ describe("the registered campaigns", () => {
     expect(preview).toContain("अंतिम तिथि के बाद विलंब शुल्क: Rs. 1,000 per installment");
     // The UPI link is part of the approved body, not a link the app adds.
     expect(preview).toContain("upi://pay?pa=shriveerpattassecsch.68347408@hdfcbank");
+
+    // The waiver reads the ledger's late fee and the waive-by date.
+    const waiver = renderNoticePreview("late_fee_waiver", "en", VALUES)!;
+    expect(waiver).toContain("Late fee on this account: Rs. 1,000");
+    expect(waiver).toContain("Last date without late fee: 25-08-2026");
+    expect(waiver).not.toContain("Total to pay");
   });
 });
 

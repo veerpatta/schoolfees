@@ -354,6 +354,13 @@ describe("reminder audience — which notice, which families", () => {
       upcoming_final: 0,
       late_fee_applied: 0,
       promise_lapsed: 0,
+      // The 2026-09-08 five. Exam clearance is "anything pending on the
+      // selected installments", so both current-year families are on it.
+      overdue_final: 0,
+      late_fee_waiver: 0,
+      waiver_last_call: 0,
+      promise_due: 0,
+      exam_clearance: 2,
     });
     // Only the selected one produces candidates.
     expect(audience.candidates).toHaveLength(1);
@@ -619,7 +626,113 @@ describe("reminder audience — late_fee_applied reads the ledger", () => {
   });
 });
 
+describe("reminder audience — the waiver pair read the ledger too", () => {
+  it("takes a family with a late fee AND fees still on those installments", async () => {
+    const audience = await load(
+      {
+        financials: [student("late"), student("clean")],
+        installmentBalances: [lateFeeRow("late", { pending_amount: 9125, late_fee_pending: 1000 })],
+      },
+      { situation: "late_fee_waiver" },
+    );
+
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["late"]);
+    // Fees in dueAmount, the late fee alongside — never added together.
+    expect(audience.candidates[0]!.dueAmount).toBe(9125);
+    expect(audience.candidates[0]!.lateFeeApplied).toBe(1000);
+    expect(audience.counts.waiver_last_call).toBe(1);
+  });
+
+  it("leaves out a family who paid the fees late and owes only the late fee", async () => {
+    // Nothing to pay "by the date" — the waiver would be waiving a fee against
+    // a payment that has already happened. That family gets late_fee_applied.
+    const audience = await load(
+      {
+        financials: [student("paid-late", { inst1_pending: 0, inst2_pending: 0, total_paid: 9000 })],
+        installmentBalances: [lateFeeRow("paid-late", { pending_amount: 0 })],
+      },
+      { situation: "late_fee_waiver" },
+    );
+
+    expect(audience.counts.late_fee_waiver).toBe(0);
+    expect(audience.counts.waiver_last_call).toBe(0);
+    expect(audience.counts.late_fee_applied).toBe(1);
+  });
+});
+
+describe("reminder audience — overdue_final follows the calendar", () => {
+  it("takes a family with fees pending on a passed installment, late fee or not", async () => {
+    // Installment 1 has passed (2026-04-20), installment 2 is six days out.
+    // A family late on 1 is overdue; a family owing only 2 is not.
+    const audience = await load(
+      {
+        financials: [
+          student("behind", { inst1_pending: 5000, inst2_pending: 4000 }),
+          student("on-time", { inst1_pending: 0, inst2_pending: 4000, total_paid: 5000 }),
+        ],
+      },
+      { situation: "overdue_final" },
+      CALENDAR_INST2_DUE_SOON,
+    );
+
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["behind"]);
+    // The figure is what is overdue, not the whole balance.
+    expect(audience.candidates[0]!.dueAmount).toBe(5000);
+    expect(audience.candidates[0]!.overdueInstallments).toEqual([1]);
+  });
+
+  it("reaches nobody when the session has no schedule", async () => {
+    const audience = await load({ financials: [student("a")] }, { situation: "overdue_final" });
+    expect(audience.counts.overdue_final).toBe(0);
+  });
+});
+
+describe("reminder audience — exam_clearance honours the installment filter", () => {
+  it("takes anyone with something pending on ANY selected installment", async () => {
+    const owesOnTwo = student("owes-2", { total_paid: 9000, inst1_pending: 0, inst2_pending: 4000 });
+    const notDueYet = student("later", {
+      total_paid: 9000,
+      inst1_pending: 0,
+      inst2_pending: 0,
+      inst3_pending: 6000,
+    });
+    const tables = { financials: [owesOnTwo, notDueYet] };
+
+    const narrow = await load(tables, { situation: "exam_clearance", installments: [1, 2] });
+    expect(narrow.candidates.map((c) => c.studentId)).toEqual(["owes-2"]);
+    expect(narrow.candidates[0]!.dueAmount).toBe(4000);
+
+    const wide = await load(tables, { situation: "exam_clearance", installments: [1, 2, 3] });
+    expect(wide.candidates.map((c) => c.studentId).sort()).toEqual(["later", "owes-2"]);
+    // The figure is the pending sum over the SELECTED installments only.
+    expect(wide.candidates.find((c) => c.studentId === "later")!.dueAmount).toBe(6000);
+  });
+});
+
 describe("reminder audience — promises", () => {
+  it("puts promise_due on a family whose promised date is today or tomorrow", async () => {
+    const tomorrow = addDays(TODAY, 1);
+    const audience = await load(
+      {
+        financials: [student("soon"), student("later")],
+        contacts: [
+          contact("soon", "promised_pay", tomorrow, "2026-07-03T18:30:00Z"),
+          contact("later", "promised_pay", addDays(TODAY, 5)),
+        ],
+      },
+      { situation: "promise_due" },
+    );
+
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["soon"]);
+    expect(audience.candidates[0]!.promisedOn).toBe(tomorrow);
+    // 18:30 UTC is midnight IST: "spoken on" names the IST day, 4 July.
+    expect(audience.candidates[0]!.promiseContactedOn).toBe("2026-07-04");
+    // Not held back as "inside a promise" — this notice is about the promise.
+    expect(audience.skipped.promiseOpen).toBe(0);
+    // The family five days out is still inside their promise, and still held.
+    expect(audience.counts.promise_due).toBe(1);
+  });
+
   it("holds a family back from every other notice while their promise is live", async () => {
     const future = addDays(TODAY, 5);
     const audience = await load({

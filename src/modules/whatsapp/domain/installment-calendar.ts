@@ -1,4 +1,5 @@
 import { addIsoDays, daysBetweenIsoDates } from "@/platform/helpers/date";
+import { isRunDateFreeSituation } from "@/modules/whatsapp/domain/campaigns";
 
 /**
  * Which installments the calendar says are worth a reminder today.
@@ -190,6 +191,14 @@ export function lateFeeStartsOn(dueDate: string): string | null {
  *   there would block the one notice whose whole subject is that a date has
  *   already gone.
  *
+ * - `promise_due` prints a date, but it is each family's OWN promised date from
+ *   the contact log, never the run's. The run has no date to guard.
+ *
+ * Both are listed in `RUN_DATE_FREE_SITUATIONS` in the registry, which is the
+ * one place that decides. The waiver pair are NOT there: their slot 7 is the
+ * office's waive-by date, and a waiver "until" a day already gone is a promise
+ * the counter cannot keep.
+ *
  * Returns the sentence to show the office, or null when the date is fine. Pure,
  * so `tests/unit/whatsapp-reminder-calendar.test.ts` can pin every branch
  * without a Supabase client.
@@ -204,8 +213,8 @@ export function describeDateGuard(args: {
 }): string | null {
   const { situation, lastDateIso, lastDateLabel, today } = args;
 
-  // No date on the message means no date to check.
-  if (situation === "late_fee_applied") return null;
+  // No run date on the message means no date to check.
+  if (isRunDateFreeSituation(situation)) return null;
 
   if (!lastDateIso) return "Pick a last date for this notice before sending.";
   if (lastDateIso < today) {

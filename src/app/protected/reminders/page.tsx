@@ -26,15 +26,17 @@ import {
   type ReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
 import {
-  campaignFor,
   campaignNameFor,
   installmentPhrase,
+  isLedgerQuotedSituation,
   NOTICE_SITUATIONS,
   noticeValuesFrom,
   NOT_THIS_NOTICE,
   SITUATION_RULE,
   TEMPLATE_INSTALLMENTS,
 } from "@/modules/whatsapp/domain/campaigns";
+import { renderNoticePreview } from "@/modules/whatsapp/domain/campaign-bodies";
+import { openingNoticeValues } from "@/modules/whatsapp/domain/test-send-values";
 import {
   listCampaigns,
   loadRanScheduleSlots,
@@ -167,27 +169,34 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     basis: filters.lateFeeBasis,
     ledgerAmount: ledgerLateFee,
     isCarryForward: filters.situation === "prevyear",
+    // The late fee on these notices IS the ledger's, per family. The control
+    // is disabled and there is nothing to drift from.
+    isLedgerQuoted: isLedgerQuotedSituation(filters.situation),
   });
   /**
    * The message the top family on the list would receive, rendered here rather
-   * than in the browser.
+   * than in the browser — the bodies live in `domain/campaign-bodies`, which
+   * the client bundle never reaches.
    *
-   * `campaignFor` throws for a notice awaiting Meta approval, so this is
-   * deliberately guarded: a hand-edited `?situation=` must leave the screen
-   * standing with no preview, not blank it. Same descriptor as the send path,
-   * so the preview and the message cannot quote different values.
+   * Rendered for an unapproved notice too: the office needs to read what is
+   * awaiting Meta. Same descriptor and same builder as the send path, so the
+   * preview and the message cannot quote different values. Null only when the
+   * list is empty or nothing is registered for a hand-edited `?situation=`.
    */
   const previewSample = audience.candidates[0] ?? null;
-  let previewBody: string | null = null;
-  if (previewSample) {
-    try {
-      previewBody = campaignFor(filters.situation, filters.language).renderPreview(
+  const previewBody = previewSample
+    ? renderNoticePreview(
+        filters.situation,
+        filters.language,
         noticeValuesFrom(previewSample, filters),
-      );
-    } catch {
-      previewBody = null;
-    }
-  }
+      )
+    : null;
+  // The test panel's opening preview, from the SAME values its fields open on.
+  const testPreview = renderNoticePreview(
+    filters.situation,
+    filters.language,
+    openingNoticeValues(filters, previewSample),
+  );
 
   /**
    * The scheduled slots that have arrived and not gone out.
@@ -310,6 +319,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           installments={filters.installments}
           lateFeeAmount={filters.lateFeeAmount}
           lateFeeBasis={filters.lateFeeBasis}
+          initialPreview={testPreview}
         />
       </CollapsibleSection>
 

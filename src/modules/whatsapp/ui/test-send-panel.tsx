@@ -1,31 +1,40 @@
 "use client";
 
-import { useActionState, useState, type ChangeEvent, type ReactNode } from "react";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import { MessageCircle } from "lucide-react";
 
 import {
+  previewNoticeAction,
   sendTestReminderAction,
   type TestSendState,
 } from "@/app/protected/reminders/actions";
 import {
-  campaignFor,
-  isCampaignApproved,
+  DEFAULT_LANGUAGE,
+  DEFAULT_SITUATION,
+  describeCampaign,
   isNoticeLanguage,
   isNoticeSituation,
   NOTICE_LANGUAGES,
   NOTICE_SITUATIONS,
-  noticeValuesFrom,
+  type CampaignDescriptor,
   type NoticeLanguage,
   type NoticeSituation,
   type NoticeSubject,
-  type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
-import { lateFeePhrase, type LateFeeBasis } from "@/modules/whatsapp/domain/late-fee";
+import type { LateFeeBasis } from "@/modules/whatsapp/domain/late-fee";
 import { toWhatsappDestination } from "@/modules/whatsapp/domain/phone";
 import {
   isMoneySlot,
-  noticeValuesFromSlots,
+  openingNoticeValues,
   slotFormFromValues,
+  type OpeningSettings,
 } from "@/modules/whatsapp/domain/test-send-values";
 import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
 import { Button } from "@/ui/primitives/button";
@@ -36,8 +45,8 @@ import { SelectNative } from "@/ui/primitives/select-native";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 
 /**
- * Send one message to a number the office controls, for any of the seven
- * notices in either language.
+ * Send one message to a number the office controls, for any registered notice
+ * in either language.
  *
  * The panel has its own notice and language pickers, opening on the screen's.
  * Testing another template used to mean changing the notice ABOVE — which
@@ -45,14 +54,16 @@ import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
  * office read that as "I can't test the other templates".
  *
  * The fields are driven by that campaign's `slotOrder`, so the panel can test
- * the shared 7-slot skeleton and `late_fee_applied`'s own without knowing
- * anything about either. The raw result is the point: a rejected campaign name
- * and a bad number both read as "it didn't work", and only the HTTP status, the
- * campaign echoed back and the provider's own error string tell them apart.
+ * the shared 7-slot skeleton, `late_fee_applied`'s own and the waiver pair's
+ * without knowing anything about any of them. The raw result is the point: a
+ * rejected campaign name and a bad number both read as "it didn't work", and
+ * only the HTTP status, the campaign echoed back and the provider's own error
+ * string tell them apart.
  *
- * Slot fields ↔ named values go through `domain/test-send-values.ts`, the same
- * function the action uses — so the preview here and the message that is sent
- * cannot disagree, on any notice.
+ * The PREVIEW is rendered on the server. It used to be rendered here, which
+ * put every template body in the client bundle of a route with a gzip ceiling
+ * so that one of them could be shown. `previewNoticeAction` goes through the
+ * same slot mapping the send uses, so what is previewed is what a test posts.
  */
 
 type Props = {
@@ -74,15 +85,24 @@ type Props = {
    * — reads, so the opening values are exactly what that family would be sent.
    */
   sample: NoticeSubject | null;
+  /**
+   * The body for the opening values, rendered by the page on the server so the
+   * panel never paints empty. From the same `openingNoticeValues` the fields
+   * are filled from.
+   */
+  initialPreview: string | null;
 };
 
 const IDLE_TEST: TestSendState = { status: "idle" };
 
+/** How long after the last keystroke the server is asked for a fresh preview. */
+const PREVIEW_DEBOUNCE_MS = 250;
+
 /**
  * Human labels for the slot names the registry declares.
  *
- * Every notice but `late_fee_applied` shares one 7-slot skeleton, so the labels
- * are per-slot-name and the SITUATION decides what slots 4-6 are called.
+ * Most notices share one 7-slot skeleton, so the labels are per-slot-name and
+ * the SITUATION decides what slots 4-6 are called.
  */
 const SLOT_LABELS: Record<string, string> = {
   parentName: "Name on the message",
@@ -92,49 +112,54 @@ const SLOT_LABELS: Record<string, string> = {
   amount: "Amount",
   date: "Date (DD-MM-YYYY)",
   lateFeePhrase: "Late fee phrase",
-  // `late_fee_applied` is the one notice off the shared skeleton: three money
-  // slots and no date, because the fee is charged rather than threatened.
+  // `late_fee_applied` and the waiver pair are off the shared skeleton: the
+  // ledger's figures in their own slots, because the fee is charged rather
+  // than threatened.
   feesPending: "Fees pending",
   lateFeeApplied: "Late fee applied",
   totalToPay: "Total to pay",
 };
 
-/** What slots 4, 5 and 6 actually mean, per notice. */
+/** What slots 4, 5 and 6 (and 7, on the waiver pair) actually mean, per notice. */
 const SITUATION_SLOT_LABELS: Record<NoticeSituation, Record<string, string>> = {
   upcoming: { contextLine: "Installment", amount: "Amount due", date: "Last date (DD-MM-YYYY)" },
   upcoming_final: { contextLine: "Installment", amount: "Amount payable", date: "Last date (DD-MM-YYYY)" },
   fee_due: { contextLine: "Installment", amount: "Amount due", date: "Last date (DD-MM-YYYY)" },
   balance: { contextLine: "Received so far", amount: "Balance due", date: "Next date (DD-MM-YYYY)" },
   late_fee_applied: { contextLine: "Installment" },
+  late_fee_waiver: {
+    contextLine: "Installment",
+    lateFeeApplied: "Late fee on the account",
+    date: "Last date without late fee (DD-MM-YYYY)",
+  },
+  waiver_last_call: {
+    contextLine: "Installment",
+    lateFeeApplied: "Late fee held back",
+    date: "Last date (DD-MM-YYYY)",
+  },
+  overdue_final: { contextLine: "Installment overdue", amount: "Amount overdue", date: "Final date (DD-MM-YYYY)" },
+  promise_due: { contextLine: "Spoken on (DD-MM-YYYY)", amount: "Amount pending", date: "Date agreed (DD-MM-YYYY)" },
   promise_lapsed: { contextLine: "Date given (DD-MM-YYYY)", amount: "Amount pending", date: "New date (DD-MM-YYYY)" },
+  exam_clearance: { contextLine: "Installments pending", amount: "Fees pending", date: "Clear by (DD-MM-YYYY)" },
   prevyear: { contextLine: "Session", amount: "Balance", date: "Settle by (DD-MM-YYYY)" },
 };
 
-type OpeningSettings = {
-  situation: NoticeSituation;
-  language: NoticeLanguage;
-  lastDate: string;
-  installments: number[];
-  lateFeeAmount: number;
-  lateFeeBasis: LateFeeBasis;
-};
+/** Opening field values, from the same projection the send uses. */
+function fieldsFrom(settings: OpeningSettings, sample: NoticeSubject | null): Record<string, string> {
+  return slotFormFromValues(settings.situation, openingNoticeValues(settings, sample));
+}
 
 /**
- * Opening values: the real top row where we have one, projected through the
- * SAME `noticeValuesFrom` the send uses; the campaign's own Meta-submitted
- * sample where we do not, with the screen's date and late-fee phrase laid over
- * it. Both are true-shaped for that template.
+ * The descriptor for the panel's choice, approved or not — a pending notice is
+ * still worth previewing, and the Send button says why it cannot go. Falls back
+ * to the default notice rather than throwing: a hand-edited `?situation=` must
+ * not blank the screen inside a client render.
  */
-function valuesFrom(settings: OpeningSettings, sample: NoticeSubject | null): Record<string, string> {
-  const { situation, language } = settings;
-  const values: NoticeValues = sample
-    ? noticeValuesFrom(sample, settings)
-    : {
-        ...campaignFor(situation, language).sample,
-        lastDate: settings.lastDate || campaignFor(situation, language).sample.lastDate,
-        lateFeePhrase: lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, language),
-      };
-  return slotFormFromValues(situation, values);
+function descriptorFor(situation: NoticeSituation, language: NoticeLanguage): CampaignDescriptor {
+  return (
+    describeCampaign(situation, language) ??
+    describeCampaign(DEFAULT_SITUATION, DEFAULT_LANGUAGE)!
+  );
 }
 
 export function TestSendPanel({
@@ -146,6 +171,7 @@ export function TestSendPanel({
   lateFeeAmount,
   lateFeeBasis,
   sample,
+  initialPreview,
 }: Props) {
   // The panel's own choice, opening on the screen's. The page keys this
   // component on the screen's notice, so a change up there resets it.
@@ -153,7 +179,7 @@ export function TestSendPanel({
     situation,
     language,
   });
-  const campaign = campaignFor(choice.situation, choice.language);
+  const campaign = descriptorFor(choice.situation, choice.language);
   const settings: OpeningSettings = {
     situation: choice.situation,
     language: choice.language,
@@ -163,16 +189,17 @@ export function TestSendPanel({
     lateFeeBasis,
   };
   const [testPhone, setTestPhone] = useState("");
-  const [form, setForm] = useState<Record<string, string>>(() => valuesFrom(settings, sample));
+  const [form, setForm] = useState<Record<string, string>>(() => fieldsFrom(settings, sample));
+  const [preview, setPreview] = useState<string | null>(initialPreview);
   const [testState, testFormAction] = useActionState(sendTestReminderAction, IDLE_TEST);
 
   // A different template has different slots, so the fields are refilled from
   // the same top row (or that campaign's sample) rather than carried across.
   const choose = (next: Partial<typeof choice>) => {
     const merged = { ...choice, ...next };
-    if (!isCampaignApproved(merged.situation, merged.language)) return;
+    if (!describeCampaign(merged.situation, merged.language)) return;
     setChoice(merged);
-    setForm(valuesFrom({ ...settings, ...merged }, sample));
+    setForm(fieldsFrom({ ...settings, ...merged }, sample));
   };
 
   // No `refreshOnSuccess`: a test writes nothing, so re-running the audience
@@ -187,12 +214,37 @@ export function TestSendPanel({
   const set = (slot: string) => (event: ChangeEvent<HTMLInputElement>) =>
     setForm((previous) => ({ ...previous, [slot]: event.target.value }));
 
-  // The skeleton is positional; `NoticeValues` is named. The one function that
-  // joins them is shared with the action, so what is previewed here is what is
-  // sent — on every notice, not just the three the first version covered.
-  const preview = campaign.renderPreview(
-    noticeValuesFromSlots(choice.situation, form, campaign.sample),
-  );
+  // The preview, from the server, a beat after the last keystroke. The
+  // request counter drops a slow response that arrives after a newer one, so
+  // the preview never shows an older draft than the fields.
+  const requestNo = useRef(0);
+  const skipFirst = useRef(true);
+  useEffect(() => {
+    // The opening preview came from the page, rendered from these very values;
+    // asking again on mount would only repaint the same text.
+    if (skipFirst.current) {
+      skipFirst.current = false;
+      return;
+    }
+    const mine = ++requestNo.current;
+    const timer = window.setTimeout(() => {
+      // Both outcomes handled, never discarded: a preview that fails to
+      // render keeps the last one on screen rather than blanking it, and the
+      // fields the office typed are still there to send.
+      previewNoticeAction({
+        situation: choice.situation,
+        language: choice.language,
+        form,
+      }).then(
+        (body) => {
+          if (mine === requestNo.current) setPreview(body);
+        },
+        () => undefined,
+      );
+    }, PREVIEW_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [choice, form]);
+
   const destination = toWhatsappDestination(testPhone);
 
   return (
@@ -238,7 +290,7 @@ export function TestSendPanel({
         </div>
         <p className="self-end text-xs text-muted-foreground">
           <strong className="font-mono">{campaign.campaignName}</strong>, {campaign.slotOrder.length}{" "}
-          slots.
+          slots.{campaign.approved ? "" : " Awaiting Meta approval — preview only."}
         </p>
       </div>
 
@@ -293,7 +345,7 @@ export function TestSendPanel({
           What will arrive
         </div>
         <pre className="whitespace-pre-wrap break-words font-sans text-sm text-muted-foreground">
-          {preview}
+          {preview ?? "Rendering the preview…"}
         </pre>
         <p className="mt-2 text-xs text-muted-foreground">
           A copy of the approved template for preview only — WhatsApp sends whatever Meta approved,
@@ -308,13 +360,13 @@ export function TestSendPanel({
           variant="outline"
           idleLabel="Send test"
           pendingLabel="Sending…"
-          disabled={!canTest || !destination}
+          disabled={!canTest || !destination || !campaign.approved}
         />
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setForm(valuesFrom(settings, sample))}
+          onClick={() => setForm(fieldsFrom(settings, sample))}
         >
           Fill from top row
         </Button>

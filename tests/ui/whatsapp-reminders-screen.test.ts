@@ -29,6 +29,7 @@ const PANEL = "src/modules/whatsapp/ui/test-send-panel.tsx";
 const PAGE = "src/app/protected/reminders/page.tsx";
 const ACTIONS = "src/app/protected/reminders/actions.ts";
 const CAMPAIGNS = "src/modules/whatsapp/domain/campaigns.ts";
+const BODIES = "src/modules/whatsapp/domain/campaign-bodies.ts";
 const PICKER = "src/modules/whatsapp/ui/notice-picker.tsx";
 const CONTEXT = "src/modules/whatsapp/data/reminder-context.ts";
 
@@ -129,22 +130,30 @@ describe("WhatsApp reminders on a phone", () => {
       "upcoming_final",
       "late_fee_applied",
       "promise_lapsed",
+      "late_fee_waiver",
+      "waiver_last_call",
+      "overdue_final",
+      "promise_due",
+      "exam_clearance",
     ]) {
       expect(source.slice(source.indexOf("SITUATION_FILTERS"))).toContain(`${situation}:`);
       expect(source.slice(source.indexOf("SITUATION_RULE"))).toContain(`${situation}:`);
     }
   });
 
-  it("keeps the family and receipt template bodies out of the browser", () => {
-    // `campaign-bodies-v3.ts` holds the family and receipt bodies, which only
-    // the server sends and no screen previews — so every byte of them in the
-    // client bundle is provably unreachable text against a ceiling that only
-    // ratchets down. (It held the eight pending per-student bodies too until
-    // 2026-09-04, when they were approved and moved into campaigns.ts, and the
-    // 1084 gzip bytes this once saved were paid back on purpose.)
+  it("keeps every template body out of the browser", () => {
+    // `campaign-bodies-v3.ts` holds the family and receipt bodies, and since
+    // 2026-09-08 `campaign-bodies.ts` holds every per-student body too. Only
+    // the server renders any of them — the send screen's preview is a
+    // server-rendered prop and the test panel asks a server action — so every
+    // byte of them in the client bundle is provably unreachable text against a
+    // ceiling that only ratchets down. Moving the per-student bodies out is
+    // what made room for the ten `_v4` notices without raising it.
     //
-    // The module header says "nothing in src/app or src/modules/**/ui may
-    // import this file". A comment is not a guard; this is.
+    // The module headers say "nothing in src/app or src/modules/**/ui may
+    // import this file". A comment is not a guard; this is. `src/app/**/
+    // actions.ts` files are server actions and may import them — the page's
+    // preview and the panel's preview both go through one.
     const offenders: string[] = [];
     for (const dir of ["src/app", "src/modules"]) {
       for (const file of walk(dir)) {
@@ -152,10 +161,25 @@ describe("WhatsApp reminders on a phone", () => {
         // Only the surfaces that reach a browser. `domain/` and `data/` may
         // import it freely, and so may tests.
         if (!file.includes("/ui/") && !file.startsWith("src/app")) continue;
-        if (readFileSync(file, "utf8").includes("campaign-bodies-v3")) offenders.push(file);
+        // A server component or a server action renders on the server; a
+        // client component is the browser. `"use client"` is the line.
+        const source = readFileSync(file, "utf8");
+        const isClient = /^\s*["']use client["']/m.test(source);
+        if (!isClient && (file.endsWith("/page.tsx") || file.endsWith("/actions.ts"))) continue;
+        if (/campaign-bodies(-v3)?["']/.test(source)) offenders.push(file);
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("previews the test panel through a server action, never in the browser", () => {
+    // The panel used to import `campaignFor(...).renderPreview`, which pulled
+    // every body into the client bundle so that one could be shown.
+    const panel = read(PANEL);
+    expect(panel).toContain("previewNoticeAction");
+    expect(panel).not.toContain("renderPreview");
+    expect(panel).not.toContain("renderNoticePreview");
+    expect(panel).not.toContain("campaign-bodies");
   });
 
   it("passes the calendar to the audience, and derives the date banner from it", () => {
@@ -228,8 +252,10 @@ describe("WhatsApp reminders on a phone", () => {
 describe("WhatsApp reminders template", () => {
   it("keeps one renderer for the message body", () => {
     // Two copies of the template would drift, and the preview would start
-    // promising something the parent never receives.
-    expect(read(CAMPAIGNS)).toContain("फीस सूचना");
+    // promising something the parent never receives. The bodies live in
+    // `campaign-bodies.ts`; the registry carries names, slots and samples only.
+    expect(read(BODIES)).toContain("फीस सूचना");
+    expect(read(CAMPAIGNS)).not.toContain("फीस सूचना");
     expect(read(WORKSPACE)).not.toContain("फीस सूचना");
     expect(read(PANEL)).not.toContain("फीस सूचना");
     expect(read(PICKER)).not.toContain("फीस सूचना");

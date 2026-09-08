@@ -20,17 +20,20 @@ import {
 } from "@/modules/whatsapp/domain/installment-calendar";
 import {
   campaignNameFor,
+  isLedgerQuotedSituation,
   noticeValuesFrom,
   DEFAULT_LANGUAGE,
   DEFAULT_SITUATION,
   isNoticeLanguage,
   isNoticeSituation,
+  PROMISE_DUE_LOOKAHEAD_DAYS,
   TEMPLATE_INSTALLMENTS,
   type NoticeLanguage,
   type NoticeSituation,
   type NoticeValues,
 } from "@/modules/whatsapp/domain/campaigns";
 import { campaignNamesForNotice } from "@/modules/whatsapp/domain/family-notice";
+import { daysBetweenIsoDates } from "@/platform/helpers/date";
 
 /**
  * Who is eligible for a WhatsApp fee reminder, and what the message says.
@@ -264,8 +267,19 @@ export type ReminderCandidate = {
   lateFeeFeesPending: number;
   /** The installments carrying that late fee, for the notice's context line. */
   lateFeeInstallments: number[];
+  /**
+   * The passed installments this family still owes fees on, per the calendar
+   * — `overdue_final` names these. Late fee or not: a family whose late fee
+   * was waived is still overdue on the fees.
+   */
+  overdueInstallments: number[];
   /** The date this family gave, when their latest contact was a promise. */
   promisedOn: string | null;
+  /**
+   * The IST date the office spoke with the family for that promise, ISO.
+   * `promise_due` reads it back to them as "spoken on".
+   */
+  promiseContactedOn: string | null;
   /**
    * The language THIS family reads, from `student_collection_flags`. Null means
    * they have never been asked, so the run's language applies.
@@ -576,8 +590,13 @@ export async function loadReminderAudience(
     upcoming_final: 0,
     fee_due: 0,
     balance: 0,
+    overdue_final: 0,
     late_fee_applied: 0,
+    late_fee_waiver: 0,
+    waiver_last_call: 0,
+    promise_due: 0,
     promise_lapsed: 0,
+    exam_clearance: 0,
     prevyear: 0,
   };
   const today = istToday();
@@ -642,6 +661,24 @@ export async function loadReminderAudience(
     const promisedOn = promise?.promisedOn ?? null;
     const promiseLapsed = Boolean(promisedOn && promisedOn < today);
     const promiseOpen = Boolean(promisedOn && promisedOn >= today);
+    // Inside the promise AND close enough to read it back: today or tomorrow.
+    // Earlier than that the office chose to trust the family and leave them
+    // alone; later than that it is `promise_lapsed`'s business.
+    const promiseDaysAway = promisedOn ? daysBetweenIsoDates(today, promisedOn) : null;
+    const promiseDueSoon =
+      promiseOpen && promiseDaysAway !== null && promiseDaysAway <= PROMISE_DUE_LOOKAHEAD_DAYS;
+
+    // The passed installments this family still owes FEES on, whatever the
+    // late fee is doing. `overdue_final` is about the fees, so a waived late
+    // fee does not take a family off it — and a late fee with no fees behind
+    // it (fees paid late, fee still pending) does not put them on it.
+    const overdueInstallments = calendar.passed.filter(
+      (installment) => pendingFor(row, installment) > 0,
+    );
+    const overdueAmount = overdueInstallments.reduce(
+      (sum, installment) => sum + pendingFor(row, installment),
+      0,
+    );
 
     // The courtesy notice is about ONE installment: the next one due inside the
     // window. "Nothing overdue" is what separates it from `fee_due` — a family
@@ -664,29 +701,45 @@ export async function loadReminderAudience(
       // The ledger, not the calendar, decides this one: a fee is only "applied"
       // if the view says it is pending. A waived one is correctly absent.
       late_fee_applied: lateFeeApplied > 0,
+      // The waiver is about paying the FEES by a date, so it needs both: a
+      // late fee the ledger is charging, and fees still on those rows. A family
+      // who paid the fees late and owes only the late fee has nothing to pay
+      // by the date, and gets `late_fee_applied` instead.
+      late_fee_waiver: lateFeeApplied > 0 && (applied?.feesPending ?? 0) > 0,
+      waiver_last_call: lateFeeApplied > 0 && (applied?.feesPending ?? 0) > 0,
+      // The calendar decides: fees still pending on a date that has gone.
+      overdue_final: overdueInstallments.length > 0,
+      // A promise falling due, with money still owed against it.
+      promise_due: promiseDueSoon && (balanceDue > 0 || prevYearBalance > 0),
       // A promise that came and went, with money still owed against it.
       promise_lapsed: promiseLapsed && (balanceDue > 0 || prevYearBalance > 0),
+      // ANY selected installment still pending — the office picks which ones
+      // must be clear before the exams.
+      exam_clearance: perInstallment.some((amount) => amount > 0),
       prevyear: prevYearBalance > 0,
     };
 
     // What this notice will actually quote.
     //
-    // `late_fee_applied` quotes the FEES on the passed installments — never
-    // fees plus the late fee. The three figures reach the message in three
-    // separate slots because the ledger keeps them in three separate columns,
-    // and a late fee has never made a family a defaulter here.
+    // The ledger-quoted notices (`late_fee_applied` and the waiver pair) quote
+    // the FEES on the passed installments — never fees plus the late fee. The
+    // figures reach the message in separate slots because the ledger keeps
+    // them in separate columns, and a late fee has never made a family a
+    // defaulter here.
     const dueAmount =
-      filters.situation === "fee_due"
+      filters.situation === "fee_due" || filters.situation === "exam_clearance"
         ? feeDueAmount
         : filters.situation === "balance"
           ? balanceDue
           : filters.situation === "upcoming" || filters.situation === "upcoming_final"
             ? upcomingPending
-            : filters.situation === "late_fee_applied"
+            : isLedgerQuotedSituation(filters.situation)
               ? (applied?.feesPending ?? 0)
-              : filters.situation === "promise_lapsed"
-                ? balanceDue
-                : prevYearBalance;
+              : filters.situation === "overdue_final"
+                ? overdueAmount
+                : filters.situation === "promise_lapsed" || filters.situation === "promise_due"
+                  ? balanceDue
+                  : prevYearBalance;
 
     // 'collectable': on the roll, or gone but still owing against what they paid.
     if (!(row.record_status === "active" || totalPaid > 0)) {
@@ -802,11 +855,17 @@ export async function loadReminderAudience(
 
     // The family has already said when they will pay, and that day has not come.
     //
-    // Held back from every notice except the one that exists precisely for a
-    // promise that did not hold. Applied here, with the cadence rules, because
-    // it is the same kind of thing: a human decision the office can see and
-    // reverse, not the ledger saying nothing is owed.
-    if (promiseOpen && filters.situation !== "promise_lapsed") {
+    // Held back from every notice except the two that are ABOUT the promise:
+    // `promise_lapsed`, for one that did not hold, and `promise_due`, which
+    // reads the promise back on the day before it falls due. Applied here,
+    // with the cadence rules, because it is the same kind of thing: a human
+    // decision the office can see and reverse, not the ledger saying nothing
+    // is owed.
+    if (
+      promiseOpen &&
+      filters.situation !== "promise_lapsed" &&
+      filters.situation !== "promise_due"
+    ) {
       skipped.promiseOpen += 1;
       pause("promise_open", promisedOn);
       continue;
@@ -858,7 +917,9 @@ export async function loadReminderAudience(
       lateFeeApplied,
       lateFeeFeesPending: applied?.feesPending ?? 0,
       lateFeeInstallments: applied?.installments ?? [],
+      overdueInstallments,
       promisedOn,
+      promiseContactedOn: istDateOf(promise?.contactedAt ?? null),
       preferredLanguage: flags?.preferredLanguage ?? null,
       // The number NOT being used. `destination` already picked the better of
       // the two, so this is whichever one it did not take.
@@ -888,8 +949,13 @@ const SITUATION_KEYS: readonly NoticeSituation[] = [
   "upcoming_final",
   "fee_due",
   "balance",
+  "overdue_final",
   "late_fee_applied",
+  "late_fee_waiver",
+  "waiver_last_call",
+  "promise_due",
   "promise_lapsed",
+  "exam_clearance",
   "prevyear",
 ];
 
@@ -1184,6 +1250,20 @@ async function loadNoCallStudentIds(
 
 export function istToday(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
+
+/**
+ * The IST calendar date of a timestamp, or null when it cannot be read.
+ *
+ * `defaulter_contacts.contacted_at` is a UTC timestamp; a call logged at 11 pm
+ * IST is the next day in UTC, and "spoken on" must name the day the office
+ * remembers.
+ */
+export function istDateOf(timestamp: string | null | undefined): string | null {
+  if (!timestamp) return null;
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 }
 
 async function loadSentToday(
