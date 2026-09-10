@@ -160,14 +160,18 @@ describe("what the office taps, measured at 390px", () => {
     const source = read(AUDIENCE);
     expect(source).toContain("sentence.headline");
     expect(source).toContain("sentence.claim");
-    expect(source).toContain("sentence.notes");
+    // The notes carry the Dashboard reconciliation too, composed server-side
+    // and merged before rendering — so the rendered line is `notes`, not
+    // `sentence.notes`.
+    expect(source).toContain("...sentence.notes, ...describeTileMoney(filters, audience.money)");
+    expect(source).toContain("{notes.join(");
     // One live region around all three, so a screen reader hears one update
     // rather than three.
-    const region = source.slice(
-      source.indexOf('aria-live="polite"'),
-      source.indexOf("sentence.notes"),
-    );
+    const start = source.indexOf('aria-live="polite"');
+    const region = source.slice(start, source.indexOf("{notes.join(", start));
     expect(region).toContain("flex flex-col gap-1");
+    expect(region).toContain("sentence.headline");
+    expect(region).toContain("sentence.claim");
   });
 });
 

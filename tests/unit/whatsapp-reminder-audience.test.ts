@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_REMINDER_FILTERS,
   describeMissingFacts,
+  describeTileMoney,
   loadReminderAudience,
   missingFactsFor,
   type CandidateFacts,
@@ -865,6 +866,127 @@ describe("reminder audience — the tile counts", () => {
     const excluded = await load(tables, { excludeStudentIds: ["both"] });
     expect(excluded.tileCounts.byInstallment[0]).toBe(0);
     expect(excluded.excludedByHand).toBe(1);
+  });
+});
+
+/**
+ * Every rupee owed on the selected tiles is either on the list or in a named
+ * bucket, so the screen can reconcile its figure with the Dashboard's.
+ *
+ * Measured live on 2026-09-10: ₹27,80,517 owed on installments 1 and 2 across
+ * the school, ₹22,90,084 on the list, and the ₹4,90,433 between them split
+ * exactly into no usable number, do-not-call, cadence and RTE. The office read
+ * the two figures and asked whether something was broken; this is the answer.
+ */
+describe("reminder audience — where the money on the tiles sits", () => {
+  const reachable = student("on-list"); // 5000 / 4000
+  const noPhone = student("no-phone", { father_phone: null, mother_phone: null });
+  const rte = student("rte", { admission_no: "RTE-0001" });
+  const flagged = student("flagged");
+  const paused = student("paused");
+  const otherClass = student("elsewhere", { class_id: "class-2", class_label: "Class 2" });
+  const left = student("left", { record_status: "left", total_paid: 0 });
+  const clear = student("clear", { inst1_pending: 0, inst2_pending: 0, total_paid: 9000 });
+
+  const tables = {
+    financials: [reachable, noPhone, rte, flagged, paused, otherClass, left, clear],
+    flags: [{ student_id: "paused", whatsapp_cadence: "never", whatsapp_snoozed_until: null }],
+    carryForward: [carried("on-list", 2500), carried("left", 99999)],
+  };
+
+  it("names every bucket, and the buckets plus the list equal what the school is owed", async () => {
+    // The stub answers the no-call read with nothing, so "flagged" stays on
+    // the list here; the no-call bucket is pinned separately below.
+    const audience = await load(tables);
+    const onList = audience.candidates.reduce((sum, c) => sum + c.dueAmount, 0);
+    const { money } = audience;
+
+    // Six collectable families owe 9,000 each on tiles 1 and 2. "left" is not
+    // collectable and "clear" owes nothing on the tiles, so neither counts.
+    expect(money.owedByEveryone).toBe(54000);
+    expect(money.unreachable).toBe(9000);
+    expect(money.rte).toBe(9000);
+    expect(money.heldBack).toBe(9000);
+    expect(money.otherClass).toBe(0);
+    expect(money.removedByHand).toBe(0);
+    expect(
+      onList + money.unreachable + money.rte + money.noCall + money.heldBack + money.otherClass,
+    ).toBe(money.owedByEveryone);
+
+    // Last session's money across the same collectable families — never the
+    // family who left having never paid.
+    expect(money.carryForward).toBe(2500);
+  });
+
+  it("puts a class filter's and a hand-exclusion's money in their own buckets", async () => {
+    const audience = await load(tables, { classId: "class-1", excludeStudentIds: ["on-list"] });
+    expect(audience.money.otherClass).toBe(9000);
+    expect(audience.money.removedByHand).toBe(9000);
+    // Still owed by the school, whatever this list does with it.
+    expect(audience.money.owedByEveryone).toBe(54000);
+  });
+
+  it("counts the minimum as the office's own setting", async () => {
+    const audience = await load(tables, { minDueAmount: 20000 });
+    // Everybody reachable owes 9,000, under the minimum: held back, not clear.
+    expect(audience.candidates).toHaveLength(0);
+    expect(audience.money.heldBack).toBe(9000 * 3 + 9000);
+  });
+
+  it("says the reconciliation in words, and nothing when there is nothing to say", () => {
+    const notes = describeTileMoney(
+      { lastYear: false },
+      {
+        owedByEveryone: 2780517,
+        unreachable: 323333,
+        rte: 25375,
+        noCall: 67000,
+        heldBack: 74725,
+        otherClass: 0,
+        removedByHand: 0,
+        carryForward: 411400,
+      },
+    );
+    expect(notes).toEqual([
+      "Across the school ₹27,80,517 is owed on these installments; ₹4,90,433 of it is not on this list — no usable number ₹3,23,333, do-not-call ₹67,000, held back by your settings ₹74,725, RTE ₹25,375.",
+      "Last session's ₹4,11,400 is the Last year tile — the Dashboard's overdue figure includes it.",
+    ]);
+
+    // Nothing away and nothing carried: no standing "₹0 elsewhere".
+    expect(
+      describeTileMoney(
+        { lastYear: false },
+        {
+          owedByEveryone: 9000,
+          unreachable: 0,
+          rte: 0,
+          noCall: 0,
+          heldBack: 0,
+          otherClass: 0,
+          removedByHand: 0,
+          carryForward: 0,
+        },
+      ),
+    ).toEqual([]);
+
+    // On the Last-year tile the carry-forward IS the list, so no second note.
+    expect(
+      describeTileMoney(
+        { lastYear: true },
+        {
+          owedByEveryone: 411400,
+          unreachable: 50000,
+          rte: 0,
+          noCall: 0,
+          heldBack: 0,
+          otherClass: 0,
+          removedByHand: 0,
+          carryForward: 411400,
+        },
+      ),
+    ).toEqual([
+      "Across the school ₹4,11,400 is owed on last session's balance; ₹50,000 of it is not on this list — no usable number ₹50,000.",
+    ]);
   });
 });
 

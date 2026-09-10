@@ -52,6 +52,7 @@ import {
   type Tri,
 } from "@/modules/whatsapp/domain/audience";
 import { daysBetweenIsoDates } from "@/platform/helpers/date";
+import { formatInr } from "@/platform/helpers/currency";
 
 /**
  * Who is eligible for a WhatsApp fee reminder, and what the message says.
@@ -467,6 +468,40 @@ export type TileCounts = {
   lastYear: number;
 };
 
+/**
+ * Where the money on the selected tiles actually sits, so the screen can
+ * reconcile its figure with the Dashboard's to the rupee.
+ *
+ * The office reads "₹22,90,084" on this list and "₹31,91,917 overdue" on the
+ * Dashboard and asks whether something is broken. Nothing is: the Dashboard
+ * counts every collectable family, and a WhatsApp list cannot reach the ones
+ * with no usable number, flagged do-not-call, or held back by the office's own
+ * settings — and last session's balance is its own tile. Measured live on
+ * 2026-09-10: ₹27,80,517 owed on installments 1 and 2, ₹4,90,433 of it out of
+ * reach, ₹4,11,400 carried forward. Every rupee of the gap has a name here.
+ */
+export type TileMoney = {
+  /** Fees on the selected tiles owed by every collectable family, reachable or not. */
+  owedByEveryone: number;
+  /** …with no usable number. */
+  unreachable: number;
+  /** …left out because they are RTE (unless the office included them). */
+  rte: number;
+  /** …flagged do-not-call. */
+  noCall: number;
+  /** …held back by the office's own settings: promise, cadence, snooze, minimum. */
+  heldBack: number;
+  /** …in a class other than the one picked. */
+  otherClass: number;
+  /** …dropped by hand for this run. */
+  removedByHand: number;
+  /**
+   * Last session's balance across the same collectable families — the money
+   * the Last year tile is about, which the Dashboard folds into "overdue".
+   */
+  carryForward: number;
+};
+
 export type ReminderAudience = {
   candidates: ReminderCandidate[];
   skipped: ReminderSkipCounts;
@@ -508,6 +543,8 @@ export type ReminderAudience = {
    * hand-picked, that tile's number IS the list.
    */
   tileCounts: TileCounts;
+  /** Where the money on the selected tiles sits — see `TileMoney`. */
+  money: TileMoney;
   /**
    * How many families ON THE CURRENT LIST each template would have to quote a
    * missing fact at.
@@ -952,6 +989,16 @@ export async function loadReminderAudience(
   const candidates: ReminderCandidate[] = [];
   const classCounts = new Map<string, ClassOption>();
   const tileCounts: TileCounts = { byInstallment: [0, 0, 0, 0], lastYear: 0 };
+  const money: TileMoney = {
+    owedByEveryone: 0,
+    unreachable: 0,
+    rte: 0,
+    noCall: 0,
+    heldBack: 0,
+    otherClass: 0,
+    removedByHand: 0,
+    carryForward: 0,
+  };
   // How many of the final candidates each template would have to quote a
   // missing fact at. Zero for almost every combination; non-zero is what the
   // template chips warn about now that they no longer gate the audience.
@@ -1075,28 +1122,40 @@ export async function loadReminderAudience(
     // has just overruled by typing their admission number is not a hold-back.
     const namedByHand = filters.includeStudentIds.includes(row.student_id);
 
+    // 'collectable': on the roll, or gone but still owing against what they
+    // paid — the Dashboard's own money rule, so the reconciliation below counts
+    // the same families the Dashboard does.
+    const collectable = row.record_status === "active" || totalPaid > 0;
+    // The money this family owes on the selected tiles, wherever it ends up:
+    // on the list, or in one of the named buckets below.
+    const owesOnTiles = collectable && matchesTiles ? dueAmount : 0;
+    money.owedByEveryone += owesOnTiles;
+    if (collectable) money.carryForward += prevYearBalance;
+
     // Dropped by hand. Wins over everything, including an include, and applied
     // before the counters so an excluded family is not reported as skipped by a
     // filter they in fact matched.
     if (filters.excludeStudentIds.includes(row.student_id)) {
       excludedByHand += 1;
+      money.removedByHand += owesOnTiles;
       continue;
     }
 
-    // 'collectable': on the roll, or gone but still owing against what they paid.
-    if (!(row.record_status === "active" || totalPaid > 0)) {
+    if (!collectable) {
       skipped.leftAndNeverPaid += 1;
       continue;
     }
 
     if (noCallIds.has(row.student_id)) {
       skipped.noCallFlagged += 1;
+      money.noCall += owesOnTiles;
       continue;
     }
 
     const admissionNo = String(row.admission_no ?? "");
     if (!filters.includeRte && /RTE/i.test(admissionNo)) {
       skipped.rteStudent += 1;
+      money.rte += owesOnTiles;
       continue;
     }
 
@@ -1136,6 +1195,7 @@ export async function loadReminderAudience(
       } else {
         skipped.phoneUnusable += 1;
       }
+      money.unreachable += owesOnTiles;
       continue;
     }
 
@@ -1212,8 +1272,12 @@ export async function loadReminderAudience(
       // family who does owe on them but quotes less than was asked for — ₹0
       // included, which is what a family owing only a late fee quotes — is the
       // one the minimum actually held back.
-      if (matchesTiles) skipped.belowMinimum += 1;
-      else skipped.installmentsClear += 1;
+      if (matchesTiles) {
+        skipped.belowMinimum += 1;
+        money.heldBack += owesOnTiles;
+      } else {
+        skipped.installmentsClear += 1;
+      }
       continue;
     }
 
@@ -1225,10 +1289,14 @@ export async function loadReminderAudience(
       else classCounts.set(row.class_id, { classId: row.class_id, label: studentClass, count: 1 });
     }
 
-    if (!inClass) continue;
+    if (!inClass) {
+      money.otherClass += owesOnTiles;
+      continue;
+    }
 
     if (holdBack) {
       skipped[HOLD_BACK_COUNTER[holdBack.reason]] += 1;
+      money.heldBack += owesOnTiles;
       paused.push({
         studentId: row.student_id,
         admissionNo,
@@ -1320,8 +1388,62 @@ export async function loadReminderAudience(
     paused,
     classOptions: [...classCounts.values()].sort((a, b) => a.label.localeCompare(b.label)),
     tileCounts,
+    money,
     noticeGaps,
   };
+}
+
+/**
+ * The reconciliation, in words, for the sentence on the screen.
+ *
+ * "Across the school ₹27,80,517 is owed on these installments; ₹4,90,433 of it
+ * is not on this list — no usable number ₹3,23,333, …" — so the office can put
+ * this list beside the Dashboard's overdue figure and see every rupee of the
+ * difference named, rather than asking whether something is broken. Composed
+ * here, in the `server-only` module, and appended to `describeAudience`'s notes
+ * by the builder — a server component — so it costs the client bundle nothing.
+ *
+ * Says nothing when there is nothing to reconcile: an empty note is not a
+ * standing "₹0 elsewhere" on every load.
+ */
+export function describeTileMoney(
+  filters: Pick<AudienceFilters, "lastYear">,
+  money: TileMoney,
+): string[] {
+  const notes: string[] = [];
+  const away =
+    money.unreachable +
+    money.rte +
+    money.noCall +
+    money.heldBack +
+    money.otherClass +
+    money.removedByHand;
+  const subject = filters.lastYear ? "last session's balance" : "these installments";
+
+  if (money.owedByEveryone > 0 && away > 0) {
+    const parts = [
+      money.unreachable > 0 ? `no usable number ${formatInr(money.unreachable)}` : null,
+      money.noCall > 0 ? `do-not-call ${formatInr(money.noCall)}` : null,
+      money.heldBack > 0 ? `held back by your settings ${formatInr(money.heldBack)}` : null,
+      money.rte > 0 ? `RTE ${formatInr(money.rte)}` : null,
+      money.otherClass > 0 ? `other classes ${formatInr(money.otherClass)}` : null,
+      money.removedByHand > 0 ? `removed by hand ${formatInr(money.removedByHand)}` : null,
+    ].filter((entry): entry is string => Boolean(entry));
+    notes.push(
+      `Across the school ${formatInr(money.owedByEveryone)} is owed on ${subject}; ${formatInr(away)} of it is not on this list — ${parts.join(", ")}.`,
+    );
+  }
+
+  // The Dashboard's "overdue" folds last session's balance in; this list keeps
+  // it on its own tile. Saying so is what stops "32 lakhs there, 23 here" from
+  // reading as a bug.
+  if (!filters.lastYear && money.carryForward > 0) {
+    notes.push(
+      `Last session's ${formatInr(money.carryForward)} is the Last year tile — the Dashboard's overdue figure includes it.`,
+    );
+  }
+
+  return notes;
 }
 
 /** Which skip counter each hold-back reason lands in. */

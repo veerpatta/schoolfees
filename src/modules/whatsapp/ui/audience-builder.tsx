@@ -27,7 +27,11 @@ import {
   describeInstallmentTile,
   type InstallmentCalendar,
 } from "@/modules/whatsapp/domain/installment-calendar";
-import type { ReminderAudience, ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
+import {
+  describeTileMoney,
+  type ReminderAudience,
+  type ReminderFilters,
+} from "@/modules/whatsapp/domain/fee-reminders";
 import type { StudentBrief } from "@/modules/whatsapp/data/student-lookup";
 import { CarriedFilterFields } from "@/modules/whatsapp/ui/carried-filter-fields";
 
@@ -286,6 +290,11 @@ export function AudienceBuilder({
     heldByCadence: audience.paused.filter((family) => family.reason !== "promise_open").length,
     className: classLabel,
   });
+  // The reconciliation with the Dashboard, composed server-side (this is a
+  // server component, and `fee-reminders` is `server-only`), so the office
+  // sees every rupee of the difference named without a byte reaching the
+  // client bundle.
+  const notes = [...sentence.notes, ...describeTileMoney(filters, audience.money)];
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3.5 shadow-sm md:rounded-lg md:p-4">
@@ -325,9 +334,9 @@ export function AudienceBuilder({
         <p className="text-[12.5px] font-semibold leading-snug text-foreground">
           {sentence.claim}
         </p>
-        {sentence.notes.length > 0 ? (
+        {notes.length > 0 ? (
           <p className="text-[11.5px] leading-snug text-muted-foreground">
-            {sentence.notes.join(" ")}
+            {notes.join(" ")}
           </p>
         ) : null}
       </div>

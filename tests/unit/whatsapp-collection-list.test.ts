@@ -95,6 +95,16 @@ function audience(overrides: Partial<ReminderAudience> = {}): ReminderAudience {
     paused: [],
     classOptions: [],
     tileCounts: { byInstallment: [0, 0, 0, 0], lastYear: 0 },
+    money: {
+      owedByEveryone: 0,
+      unreachable: 0,
+      rte: 0,
+      noCall: 0,
+      heldBack: 0,
+      otherClass: 0,
+      removedByHand: 0,
+      carryForward: 0,
+    },
     noticeGaps: {
       upcoming: 0,
       upcoming_final: 0,
