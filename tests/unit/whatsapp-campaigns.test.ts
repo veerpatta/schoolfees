@@ -186,10 +186,14 @@ describe("the registered campaigns", () => {
     }
   });
 
-  it("names the installments carrying the late fee, not the run's active set", () => {
-    // The calendar's active pair on 2026-09-04 was [1, 2]. A family late only on
-    // installment 2 was reading "Installment 1 and 2 / Fees pending: Rs. 9,125",
-    // which is the one line a parent checks against their receipt book.
+  it("names the selected tiles in slot {{4}} on every notice", () => {
+    // Until 2026-09-10 the ledger-quoted three named the rows carrying a late
+    // fee and `overdue_final` named the passed rows, so the same slot could
+    // describe a different set of installments than the amount beside it. The
+    // fees, the late fee and the line naming them are all derived from the one
+    // selection now, and a family late on 1 and 2 with only tile 2 selected
+    // reads "Installment 2 / Fees pending" for installment 2 — the one line a
+    // parent checks against their receipt book.
     const subject: NoticeSubject = {
       parentName: "Ramesh Lal Gurjar",
       studentName: "Aaradhya Gurjar",
@@ -203,38 +207,74 @@ describe("the registered campaigns", () => {
       lateFeeInstallments: [2],
       overdueInstallments: [1, 2],
     };
-    const settings = (situation: NoticeSettings["situation"]): NoticeSettings => ({
+    const settings = (
+      situation: NoticeSettings["situation"],
+      installments: number[] = [2],
+    ): NoticeSettings => ({
       situation,
       language: "en",
-      installments: [1, 2, 3],
+      installments,
       lastDate: "20-10-2026",
       lateFeeAmount: 1000,
       lateFeeBasis: "per_installment",
     });
 
-    // The ledger-quoted three name the installments the fee is ON.
-    for (const situation of LEDGER_QUOTED_SITUATIONS) {
+    for (const situation of [
+      ...LEDGER_QUOTED_SITUATIONS,
+      "overdue_final",
+      "fee_due",
+      "exam_clearance",
+    ] as const) {
       expect(noticeValuesFrom(subject, settings(situation)).installmentPhrase).toBe(
         "Installment 2",
       );
+      expect(noticeValuesFrom(subject, settings(situation, [1, 2, 3])).installmentPhrase).toBe(
+        "Installment 1, 2 and 3",
+      );
     }
-    // The overdue notice names the passed installments still owed on.
-    expect(noticeValuesFrom(subject, settings("overdue_final")).installmentPhrase).toBe(
-      "Installment 1 and 2",
-    );
-    // Every other notice is about the installments the OFFICE chose.
-    expect(noticeValuesFrom(subject, settings("fee_due")).installmentPhrase).toBe(
-      "Installment 1, 2 and 3",
-    );
-    expect(noticeValuesFrom(subject, settings("exam_clearance")).installmentPhrase).toBe(
-      "Installment 1, 2 and 3",
-    );
-    // And a late fee with no installments recorded falls back rather than
-    // printing an empty slot.
+    // Nothing on the subject changes the line: the ledger's rows and the
+    // calendar's rows are facts about the family, not about what was asked.
     expect(
-      noticeValuesFrom({ ...subject, lateFeeInstallments: [] }, settings("late_fee_applied"))
-        .installmentPhrase,
-    ).toBe("Installment 1, 2 and 3");
+      noticeValuesFrom(
+        { ...subject, lateFeeInstallments: [], overdueInstallments: [] },
+        settings("late_fee_applied"),
+      ).installmentPhrase,
+    ).toBe("Installment 2");
+  });
+
+  it("names the previous session in slot {{4}} on a Last-year audience", () => {
+    // There is no installment to name; the balance is last session's.
+    const subject: NoticeSubject = {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      dueAmount: 8000,
+      totalPaid: 0,
+      balanceDue: 0,
+      prevYearBalance: 8000,
+      prevSessionLabel: "2025-26",
+    };
+    const settings = (language: NoticeSettings["language"]): NoticeSettings => ({
+      situation: "fee_due",
+      language,
+      installments: [],
+      lastYear: true,
+      lastDate: "30-09-2026",
+      lateFeeAmount: 0,
+      lateFeeBasis: "none",
+    });
+
+    expect(noticeValuesFrom(subject, settings("en")).installmentPhrase).toBe(
+      "Previous session 2025-26",
+    );
+    expect(noticeValuesFrom(subject, settings("hi")).installmentPhrase).toBe(
+      "पिछला सत्र 2025-26",
+    );
+    // WhatsApp rejects an empty parameter, so a row with no source label still
+    // gets the words.
+    expect(
+      noticeValuesFrom({ ...subject, prevSessionLabel: null }, settings("en")).installmentPhrase,
+    ).toBe("Previous session");
   });
 
   it("prints the family's own promised date on promise_due, never the run's", () => {

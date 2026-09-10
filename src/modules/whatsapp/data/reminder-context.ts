@@ -21,9 +21,9 @@
  * 2. `preDueWindowDays` is parsed BEFORE the calendar, because the calendar
  *    depends on it. A cheap second parse beats a calendar built on the wrong
  *    window.
- * 3. The calendar is passed INTO `loadReminderAudience`. Without it `upcoming`,
- *    `upcoming_final` and `late_fee_applied` reach nobody, and the installment
- *    default silently reverts to the hardcoded pair.
+ * 3. The calendar is passed INTO `loadReminderAudience`. Without it nothing is
+ *    overdue, the courtesy templates have no "next" fact, and the tiles open
+ *    on installment 1 alone.
  * 4. `getFeePolicySummary({ useAdmin: true })` — a headless caller without that
  *    flag resolves every RTE / Staff Child / 3rd Child student to no discount at
  *    all, and fails quiet rather than loud.
@@ -33,6 +33,7 @@ import "server-only";
 import { getFeePolicySummary } from "@/modules/fees/data/policy";
 import {
   buildInstallmentCalendar,
+  defaultInstallmentsFor,
   type InstallmentCalendar,
 } from "@/modules/whatsapp/domain/installment-calendar";
 import {
@@ -112,13 +113,12 @@ export async function resolveReminderContext(
     sessionLabel,
     remembered?.lastDate || formatDdMmYyyy(upcoming ?? null),
     remembered?.lateFeeAmount ?? ledgerLateFee,
-    calendar.active,
+    // 5. What the tiles open on: every installment past its due date. The
+    //    calendar's answer, not a constant, so October's screen knows about
+    //    installment 3.
+    defaultInstallmentsFor(calendar),
     remembered?.lateFeeBasis ?? null,
-    // 5. The courtesy presets are about the ONE installment falling due next,
-    //    not the active set. Without this they open on every active
-    //    installment, and "Due soon" quietly becomes "Fee due".
     {
-      nextInstallment: calendar.next?.installmentNo ?? null,
       // 6. What the SCHOOL charges, not what was last typed. `ledger` mode
       //    quotes this to a family the ledger has not charged yet, which is
       //    exactly who a forward-looking notice is warning.

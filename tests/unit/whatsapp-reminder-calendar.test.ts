@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildInstallmentCalendar,
   DEFAULT_PRE_DUE_WINDOW_DAYS,
+  defaultInstallmentsFor,
   describeDateGuard,
+  describeInstallmentTile,
   FINAL_NOTICE_DAYS_BEFORE_DUE,
   isFinalNoticeWindow,
   lateFeeStartsOn,
@@ -28,6 +30,81 @@ const SCHEDULE = [
   { dueDate: "2026-10-20" },
   { dueDate: "2027-01-20" },
 ];
+
+describe("defaultInstallmentsFor — what the tiles open on", () => {
+  it("opens on every installment past its due date", () => {
+    // 2026-09-10: installments 1 and 2 have passed, 3 is in October.
+    const calendar = buildInstallmentCalendar({ schedule: SCHEDULE, today: "2026-09-10" });
+    expect(defaultInstallmentsFor(calendar)).toEqual([1, 2]);
+  });
+
+  it("opens on the one falling due next before the first date has passed", () => {
+    const calendar = buildInstallmentCalendar({ schedule: SCHEDULE, today: "2026-04-12" });
+    expect(defaultInstallmentsFor(calendar)).toEqual([1]);
+  });
+
+  it("opens on installment 1, never on nothing, when the session has no schedule", () => {
+    // Zero tiles is not a state: the quoted amount is derived from the tiles,
+    // and an empty set would quote ₹0 to everybody.
+    const calendar = buildInstallmentCalendar({ schedule: [], today: "2026-09-10" });
+    expect(defaultInstallmentsFor(calendar)).toEqual([1]);
+  });
+
+  it("opens on installment 1 before the first date and outside the window", () => {
+    const calendar = buildInstallmentCalendar({ schedule: SCHEDULE, today: "2026-03-01" });
+    expect(defaultInstallmentsFor(calendar)).toEqual([1]);
+  });
+});
+
+describe("describeInstallmentTile — due or overdue is the calendar's fact", () => {
+  const calendar = buildInstallmentCalendar({ schedule: SCHEDULE, today: "2026-10-12" });
+
+  it("says overdue since the due date once it has passed", () => {
+    expect(describeInstallmentTile(1, calendar)).toEqual({
+      installmentNo: 1,
+      state: "passed",
+      dueDate: "2026-04-20",
+      label: "Overdue since 20-04-2026",
+    });
+  });
+
+  it("says due, with the date, for one inside the pre-due window", () => {
+    // 12 October, installment 3 due on the 20th: eight days out, inside the
+    // ten-day window.
+    expect(describeInstallmentTile(3, calendar)).toMatchObject({
+      state: "upcoming",
+      label: "Due 20-10-2026",
+    });
+  });
+
+  it("says due, with the date, for one still months away", () => {
+    expect(describeInstallmentTile(4, calendar)).toMatchObject({
+      state: "future",
+      label: "Due 20-01-2027",
+    });
+  });
+
+  it("says due today on the day itself", () => {
+    const onTheDay = buildInstallmentCalendar({ schedule: SCHEDULE, today: "2026-10-20" });
+    expect(describeInstallmentTile(3, onTheDay)).toMatchObject({ state: "today", label: "Due today" });
+    // And the calendar counts that day as passed — the late fee starts tomorrow,
+    // but the tile is already the money being chased.
+    expect(onTheDay.passed).toContain(3);
+  });
+
+  it("says so when the schedule has no date for it", () => {
+    const partial = buildInstallmentCalendar({
+      schedule: [{ dueDate: "2026-04-20" }],
+      today: "2026-09-10",
+    });
+    expect(describeInstallmentTile(4, partial)).toEqual({
+      installmentNo: 4,
+      state: "unknown",
+      dueDate: null,
+      label: "No due date on file",
+    });
+  });
+});
 
 describe("readInstallmentSchedule", () => {
   it("numbers installments by array position, not by parsing a label", () => {

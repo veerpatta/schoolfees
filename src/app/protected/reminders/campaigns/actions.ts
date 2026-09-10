@@ -15,7 +15,6 @@ import {
   DEFAULT_SITUATION,
   isNoticeLanguage,
   isNoticeSituation,
-  TEMPLATE_INSTALLMENTS,
 } from "@/modules/whatsapp/domain/campaigns";
 import {
   DEFAULT_LATE_FEE_BASIS,
@@ -63,43 +62,30 @@ export async function saveCampaignAction(
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
   };
 
-  const installments = String(formData.get("installments") ?? TEMPLATE_INSTALLMENTS.join(","))
-    .split(",")
-    .map((value) => Number(value.trim()))
-    .filter((value) => value >= 1 && value <= 4);
-
   /**
    * The whole audience, from the form.
    *
    * `savedAudienceFrom` rather than an object literal, so the ONE reader of a
-   * stored campaign's audience is also the one writer's shape. A field the form
-   * does not carry is stored as null, meaning "take the notice's preset" — the
-   * same thing it means for a row written before the audience was split from
-   * the template.
+   * stored campaign's audience is also the one writer's shape — and the
+   * `installments` value (`1,2` or `last_year`) goes through the same reader
+   * the URL uses. A field the form does not carry takes the default a bare
+   * screen opens on.
    *
    * Hand-picked students are deliberately absent: a saved campaign is a
    * standing rule a nightly cron replays, and an included student bypasses both
    * the filters and their reminder cadence.
    */
-  const filters: SavedCampaignFilters = savedAudienceFrom(
-    isNoticeSituation(rawSituation) ? rawSituation : DEFAULT_SITUATION,
-    {
-      maxTotalPaid: formData.get("maxTotalPaid"),
-      minTotalPaid: formData.get("minTotalPaid"),
-      minDueAmount: number("minDueAmount", 1),
-      installments: installments.length > 0 ? installments : [...TEMPLATE_INSTALLMENTS],
-      installmentMatch: formData.get("installmentMatch"),
-      lateFee: formData.get("lateFee"),
-      overdue: formData.get("overdue"),
-      carryForward: formData.get("carryForward"),
-      promise: formData.get("promise"),
-      // Present on every form since the split, and the marker that says this row
-      // is a new-format one rather than a legacy five-key blob.
-      quote: formData.get("quote"),
-      classId: String(formData.get("classId") ?? "").trim() || null,
-      includeRte: formData.get("includeRte") === "on",
-    },
-  );
+  const filters: SavedCampaignFilters = savedAudienceFrom({
+    installments: formData.get("installments"),
+    installmentMatch: formData.get("installmentMatch"),
+    paid: formData.get("paid"),
+    minDueAmount: number("minDueAmount", 1),
+    lateFee: formData.get("lateFee"),
+    promise: formData.get("promise"),
+    skipOverdue: formData.get("skipOverdue") === "on",
+    classId: String(formData.get("classId") ?? "").trim() || null,
+    includeRte: formData.get("includeRte") === "on",
+  });
 
   // Stored as ISO so Postgres can hold it as a date; the screen formats it back.
   const lastDate = isoFromDdMmYyyy(String(formData.get("lastDate") ?? ""));

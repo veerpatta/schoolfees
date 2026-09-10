@@ -4,6 +4,10 @@ import {
   DEFAULT_REMINDER_FILTERS,
   parseReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
+import {
+  reminderQuery,
+  REMINDER_QUERY_KEYS,
+} from "@/modules/whatsapp/domain/audience";
 import { DEFAULT_LANGUAGE, DEFAULT_SITUATION } from "@/modules/whatsapp/domain/campaigns";
 
 /**
@@ -33,35 +37,163 @@ const fromForm = (entries: Record<string, string>) => {
   };
 };
 
+/** What a bare screen parses to, given what the tiles open on. */
+const expectedDefaults = (sessionLabel: string, installments: number[]) => ({
+  sessionLabel,
+  installments,
+  lastYear: false,
+  installmentMatch: "all",
+  paid: "any",
+  minDueAmount: DEFAULT_REMINDER_FILTERS.minDueAmount,
+  lateFee: "any",
+  promise: "skip_open",
+  skipOverdue: false,
+  classId: null,
+  includeRte: false,
+  includeStudentIds: [],
+  excludeStudentIds: [],
+  lateFeeSource: "custom",
+  policyLateFeeAmount: 0,
+  situation: DEFAULT_SITUATION,
+  language: DEFAULT_LANGUAGE,
+  lastDate: "",
+  lateFeeAmount: 0,
+  lateFeeBasis: DEFAULT_REMINDER_FILTERS.lateFeeBasis,
+  preDueWindowDays: DEFAULT_REMINDER_FILTERS.preDueWindowDays,
+});
+
 describe("parseReminderFilters", () => {
   it("falls back to the shared defaults when nothing is supplied", () => {
     const filters = parseReminderFilters(fromQuery({}), "2026-27");
 
-    expect(filters).toEqual({
-      sessionLabel: "2026-27",
-      maxTotalPaid: DEFAULT_REMINDER_FILTERS.maxTotalPaid,
-      installments: [...DEFAULT_REMINDER_FILTERS.installments],
-      minDueAmount: DEFAULT_REMINDER_FILTERS.minDueAmount,
-      classId: null,
-      includeRte: false,
-      minTotalPaid: null,
-      installmentMatch: "all",
-      lateFee: "any",
-      overdue: "any",
-      carryForward: "any",
-      promise: "skip_open",
-      quote: "selected",
-      includeStudentIds: [],
-      excludeStudentIds: [],
-      lateFeeSource: "custom",
-      policyLateFeeAmount: 0,
-      situation: DEFAULT_SITUATION,
-      language: DEFAULT_LANGUAGE,
-      lastDate: "",
-      lateFeeAmount: 0,
-      lateFeeBasis: DEFAULT_REMINDER_FILTERS.lateFeeBasis,
-      preDueWindowDays: DEFAULT_REMINDER_FILTERS.preDueWindowDays,
-    });
+    // The tiles open on what the caller passes — the calendar's passed set in
+    // production — and on installment 1 when nothing is passed at all.
+    expect(filters).toEqual(expectedDefaults("2026-27", [1]));
+  });
+
+  it("opens the tiles on the calendar's default, never on a constant", () => {
+    // `resolveReminderContext` passes `defaultInstallmentsFor(calendar)`. Before
+    // 2026-09-10 this was a hardcoded [1, 2], true in August and silently wrong
+    // from October.
+    const filters = parseReminderFilters(fromQuery({}), "2026-27", undefined, undefined, [1, 2, 3]);
+
+    expect(filters.installments).toEqual([1, 2, 3]);
+    expect(filters.lastYear).toBe(false);
+  });
+
+  it("reads `last_year` as the Last-year tile, which clears the four", () => {
+    const filters = parseReminderFilters(fromQuery({ installments: "last_year" }), "2026-27");
+
+    expect(filters.lastYear).toBe(true);
+    expect(filters.installments).toEqual([]);
+  });
+
+  it("lets `last_year` win over installments named beside it", () => {
+    // One key carries both, so no URL can mean both. A hand-edited
+    // `last_year,2` is Last year, not a third state.
+    const filters = parseReminderFilters(fromQuery({ installments: "last_year,2" }), "2026-27");
+
+    expect(filters.lastYear).toBe(true);
+    expect(filters.installments).toEqual([]);
+  });
+
+  it("opens on the default for a blank, absent or garbage installment value", () => {
+    // Zero tiles is not a state — the quoted amount is derived from the tiles,
+    // and an empty set would quote ₹0 to everybody. Until 2026-09-10 a blank
+    // meant "no installment constraint"; that state is retired. And garbage
+    // (`0,9,banana` from a hand-edited URL) must never be read as a choice.
+    for (const value of ["", "   ", "0,9,banana"]) {
+      const filters = parseReminderFilters(fromQuery({ installments: value }), "2026-27", undefined, undefined, [1, 2]);
+      expect(filters.installments).toEqual([1, 2]);
+      expect(filters.lastYear).toBe(false);
+    }
+  });
+
+  it("sorts and deduplicates the tiles, and drops anything outside 1-4", () => {
+    const filters = parseReminderFilters(fromQuery({ installments: "3,1,3,9" }), "2026-27");
+
+    expect(filters.installments).toEqual([1, 3]);
+  });
+
+  it("reads the paid-so-far band, and falls back on anything else", () => {
+    expect(parseReminderFilters(fromQuery({ paid: "nothing" }), "2026-27").paid).toBe("nothing");
+    expect(parseReminderFilters(fromQuery({ paid: "part" }), "2026-27").paid).toBe("part");
+    expect(parseReminderFilters(fromQuery({ paid: "everything" }), "2026-27").paid).toBe("any");
+  });
+
+  it("falls back to the promise hold-back on a value from before the tiles", () => {
+    // `open` and `none` were promise filters until 2026-09-10. A bookmark
+    // carrying one lands on the default rather than on nobody.
+    expect(parseReminderFilters(fromQuery({ promise: "open" }), "2026-27").promise).toBe("skip_open");
+    expect(parseReminderFilters(fromQuery({ promise: "none" }), "2026-27").promise).toBe("skip_open");
+    expect(parseReminderFilters(fromQuery({ promise: "lapsed" }), "2026-27").promise).toBe("lapsed");
+    expect(parseReminderFilters(fromQuery({ promise: "due_soon" }), "2026-27").promise).toBe("due_soon");
+  });
+
+  it("only counts the exact 'on' checkbox value for the two checkboxes", () => {
+    expect(parseReminderFilters(fromQuery({ includeRte: "true" }), "2026-27").includeRte).toBe(false);
+    expect(parseReminderFilters(fromQuery({ includeRte: "on" }), "2026-27").includeRte).toBe(true);
+    expect(parseReminderFilters(fromQuery({ skipOverdue: "true" }), "2026-27").skipOverdue).toBe(false);
+    expect(parseReminderFilters(fromQuery({ skipOverdue: "on" }), "2026-27").skipOverdue).toBe(true);
+  });
+
+  it("ignores the keys retired on 2026-09-10, and never re-emits them", () => {
+    // `maxTotalPaid`, `minTotalPaid`, `overdue`, `carryForward` and `quote` are
+    // not in `REMINDER_QUERY_KEYS`, so nothing reads them and a link that still
+    // carries them lands on exactly what a bare link does.
+    const stale = {
+      maxTotalPaid: "500",
+      minTotalPaid: "1100",
+      overdue: "yes",
+      carryForward: "yes",
+      quote: "session",
+    };
+    const parsed = parseReminderFilters(fromQuery(stale), "2026-27");
+    expect(parsed).toEqual(parseReminderFilters(fromQuery({}), "2026-27"));
+
+    const query = reminderQuery(parsed);
+    for (const key of Object.keys(stale)) {
+      expect(query.has(key)).toBe(false);
+      expect(REMINDER_QUERY_KEYS as readonly string[]).not.toContain(key);
+    }
+  });
+
+  it("round-trips through the query string it emits — tiles and Last year alike", () => {
+    // The tile hrefs, the notice picker and every form on the screen are built
+    // on `reminderQuery`; a key it emits differently from how the parser reads
+    // it is a key that resets under the office's hands.
+    const supplied = {
+      installments: "2,3",
+      installmentMatch: "any",
+      paid: "part",
+      minDueAmount: "250",
+      lateFee: "yes",
+      promise: "lapsed",
+      skipOverdue: "on",
+      classId: "class-7",
+      includeRte: "on",
+      include: "s1,s2",
+      exclude: "s3",
+      situation: "balance",
+      language: "en",
+      lastDate: "20-10-2026",
+      lateFeeAmount: "500",
+      lateFeeBasis: "flat",
+      lateFeeSource: "ledger",
+      preDueWindowDays: "7",
+    };
+    const parsed = parseReminderFilters(fromQuery(supplied), "2026-27");
+    const query = reminderQuery(parsed);
+    expect(parseReminderFilters((key) => query.get(key), "2026-27")).toEqual(parsed);
+
+    const lastYear = parseReminderFilters(
+      fromQuery({ ...supplied, installments: "last_year" }),
+      "2026-27",
+    );
+    expect(lastYear.lastYear).toBe(true);
+    const lastYearQuery = reminderQuery(lastYear);
+    expect(lastYearQuery.get("installments")).toBe("last_year");
+    expect(parseReminderFilters((key) => lastYearQuery.get(key), "2026-27")).toEqual(lastYear);
   });
 
   it("opens the late fee on the real policy, so the message agrees with the receipt", () => {
@@ -136,20 +268,26 @@ describe("parseReminderFilters", () => {
   });
 
   it("reads a missing number as its default, not as zero", () => {
-    // `Number(formData.get(key))` is 0 for an absent field, and 0 here means
-    // "paid at most nothing" — an audience of nobody, reported to the office as
-    // "none of the selected students are still eligible".
+    // `Number(formData.get(key))` is 0 for an absent field, and a minimum of 0
+    // lets a nil quote through — a message telling a parent they owe ₹0.
     const filters = parseReminderFilters(fromForm({ classId: "abc" }), "2026-27");
 
-    expect(filters.maxTotalPaid).toBe(DEFAULT_REMINDER_FILTERS.maxTotalPaid);
+    expect(filters.minDueAmount).toBe(DEFAULT_REMINDER_FILTERS.minDueAmount);
+  });
+
+  it("reads a negative minimum as absent", () => {
+    const filters = parseReminderFilters(fromQuery({ minDueAmount: "-10" }), "2026-27");
+
     expect(filters.minDueAmount).toBe(DEFAULT_REMINDER_FILTERS.minDueAmount);
   });
 
   it("gives the query string and the form the same answer", () => {
     const entries = {
-      maxTotalPaid: "500",
+      paid: "nothing",
       minDueAmount: "250",
       installments: "1,2,3",
+      installmentMatch: "any",
+      lateFee: "no",
       classId: " class-7 ",
       includeRte: "on",
     };
@@ -162,7 +300,7 @@ describe("parseReminderFilters", () => {
   it("honours what was actually supplied", () => {
     const filters = parseReminderFilters(
       fromForm({
-        maxTotalPaid: "0",
+        paid: "part",
         minDueAmount: "5000",
         installments: "3",
         classId: " class-7 ",
@@ -172,63 +310,12 @@ describe("parseReminderFilters", () => {
     );
 
     expect(filters).toEqual({
-      sessionLabel: "TEST-2026-27",
-      maxTotalPaid: 0,
-      installments: [3],
+      ...expectedDefaults("TEST-2026-27", [3]),
+      paid: "part",
       minDueAmount: 5000,
       classId: "class-7",
       includeRte: true,
-      minTotalPaid: null,
-      installmentMatch: "all",
-      lateFee: "any",
-      overdue: "any",
-      carryForward: "any",
-      promise: "skip_open",
-      quote: "selected",
-      includeStudentIds: [],
-      excludeStudentIds: [],
-      lateFeeSource: "custom",
-      policyLateFeeAmount: 0,
-      situation: DEFAULT_SITUATION,
-      language: DEFAULT_LANGUAGE,
-      lastDate: "",
-      lateFeeAmount: 0,
-      lateFeeBasis: DEFAULT_REMINDER_FILTERS.lateFeeBasis,
-      preDueWindowDays: DEFAULT_REMINDER_FILTERS.preDueWindowDays,
     });
-  });
-
-  it("drops installments outside 1-4 and falls back when none survive", () => {
-    const filters = parseReminderFilters(fromQuery({ installments: "0,9,banana" }), "2026-27");
-
-    expect(filters.installments).toEqual([...DEFAULT_REMINDER_FILTERS.installments]);
-  });
-
-  it("reads a blank paid-so-far as no limit, and a negative minimum as absent", () => {
-    // The two behave differently ON PURPOSE. "Paid so far, at most" is an
-    // OPTIONAL ceiling whose field says "blank: no ceiling", so a blank is the
-    // office deliberately removing it — a fallback there would silently put
-    // 1100 back and quietly shrink the list. The minimum is not optional, so a
-    // value that cannot be a minimum falls back rather than becoming zero.
-    const filters = parseReminderFilters(
-      fromQuery({ maxTotalPaid: "   ", minDueAmount: "-10" }),
-      "2026-27",
-    );
-
-    expect(filters.maxTotalPaid).toBeNull();
-    expect(filters.minDueAmount).toBe(DEFAULT_REMINDER_FILTERS.minDueAmount);
-  });
-
-  it("clears every installment when the form posts an empty set, but not on garbage", () => {
-    // Unticking all four boxes posts `installments=`, which is a real answer —
-    // no installment constraint at all. A hand-edited `0,9,banana` is not: it
-    // falls back to the preset rather than widening the audience to everybody.
-    expect(parseReminderFilters(fromQuery({ installments: "" }), "2026-27").installments).toEqual(
-      [],
-    );
-    expect(
-      parseReminderFilters(fromQuery({ installments: "0,9,banana" }), "2026-27").installments,
-    ).toEqual([...DEFAULT_REMINDER_FILTERS.installments]);
   });
 
   it("carries the notice and the language through", () => {
@@ -269,10 +356,5 @@ describe("parseReminderFilters", () => {
     expect(parseReminderFilters(fromQuery(entries), "2026-27")).toEqual(
       parseReminderFilters(fromForm(entries), "2026-27"),
     );
-  });
-
-  it("only counts the exact 'on' checkbox value as include-RTE", () => {
-    expect(parseReminderFilters(fromQuery({ includeRte: "true" }), "2026-27").includeRte).toBe(false);
-    expect(parseReminderFilters(fromQuery({ includeRte: "on" }), "2026-27").includeRte).toBe(true);
   });
 });

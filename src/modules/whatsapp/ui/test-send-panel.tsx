@@ -72,8 +72,9 @@ type Props = {
   situation: NoticeSituation;
   language: NoticeLanguage;
   lastDate: string;
-  /** The screen's installment set; the context line is composed from it per notice. */
+  /** The screen's tiles; slot {{4}} names them, or the previous session on Last year. */
   installments: number[];
+  lastYear: boolean;
   /** The screen's late-fee lever, composed into slot 7 in the panel's language. */
   lateFeeAmount: number;
   lateFeeBasis: LateFeeBasis;
@@ -168,6 +169,7 @@ export function TestSendPanel({
   language,
   lastDate,
   installments,
+  lastYear,
   lateFeeAmount,
   lateFeeBasis,
   sample,
@@ -185,6 +187,7 @@ export function TestSendPanel({
     language: choice.language,
     lastDate,
     installments,
+    lastYear,
     lateFeeAmount,
     lateFeeBasis,
   };

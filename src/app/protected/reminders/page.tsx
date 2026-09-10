@@ -29,11 +29,9 @@ import {
   campaignNameFor,
   installmentPhrase,
   isLedgerQuotedSituation,
-  NOTICE_SITUATIONS,
   noticeValuesFrom,
-  TEMPLATE_INSTALLMENTS,
 } from "@/modules/whatsapp/domain/campaigns";
-import { QUOTE_BASES, reminderQuery } from "@/modules/whatsapp/domain/audience";
+import { DEFAULT_MAX_TOTAL_PAID, reminderQuery } from "@/modules/whatsapp/domain/audience";
 import { AudienceBuilder } from "@/modules/whatsapp/ui/audience-builder";
 import { CarriedFilterFields } from "@/modules/whatsapp/ui/carried-filter-fields";
 import { NoticePicker } from "@/modules/whatsapp/ui/notice-picker";
@@ -151,14 +149,6 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   // `parseReminderFilters` falls back rather than throws to avoid.
   const campaignName = campaignNameFor(filters.situation, filters.language) ?? "";
   const providerReady = isAisensyConfigured();
-  // Only the fee_due template names its installments in fixed-ish wording; the
-  // warning is meaningless for the other two.
-  const wordingMismatch =
-    filters.situation === "fee_due" &&
-    (filters.installments.length !== TEMPLATE_INSTALLMENTS.length ||
-      !TEMPLATE_INSTALLMENTS.every((installment: number) =>
-        filters.installments.includes(installment),
-      ));
   const pickedIso = isoFromDdMmYyyy(filters.lastDate);
   // No prevyear exception any more: v2 gave that notice a settle-by date too.
   // `describeDateGuard`, not a bare comparison: the rule is per notice.
@@ -233,9 +223,6 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     today,
   );
 
-  const situationLabel =
-    NOTICE_SITUATIONS.find((entry) => entry.value === filters.situation)?.label ?? "Notice";
-
   /**
    * The students the office named by hand, and any search that did not resolve
    * to exactly one person.
@@ -264,37 +251,50 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     .filter((brief): brief is NonNullable<typeof brief> => Boolean(brief));
 
   /**
-   * One sentence saying who is on the list, composed from the FILTERS.
+   * One sentence saying who is on the list, composed from the TILES and the
+   * narrowing controls.
    *
    * It used to be `SITUATION_RULE[situation]` — one line per notice, describing
    * the audience that notice defined for itself. The notice does not define one
    * any more, so a fixed sentence per notice would now be a description of
    * something that is not happening.
    */
-  const quoteLabel =
-    QUOTE_BASES.find((entry) => entry.value === filters.quote)?.label ?? "the pending amount";
+  const installmentsPhrase = installmentPhrase(filters.installments, "en").toLowerCase();
+  const scopeSentence = filters.lastYear
+    ? "Owing something from last session (carried forward)"
+    : filters.installments.length === 1
+      ? `Still owing on ${installmentsPhrase}`
+      : `Still owing on ${filters.installmentMatch === "all" ? "every one of" : "any of"} ${installmentsPhrase}`;
+  const classLabel =
+    audience.classOptions.find((option) => option.classId === filters.classId)?.label ?? null;
   const audienceRule = [
-    filters.installments.length > 0
-      ? `${filters.installmentMatch === "all" ? "Every one of" : "At least one of"} ${installmentPhrase(filters.installments, "en").toLowerCase()} still carrying fees`
-      : "Any installment",
-    filters.maxTotalPaid !== null ? `paid at most ${formatInr(filters.maxTotalPaid)}` : null,
-    filters.minTotalPaid !== null ? `paid more than ${formatInr(filters.minTotalPaid)}` : null,
+    scopeSentence,
+    filters.paid === "nothing"
+      ? `nothing paid yet (at most ${formatInr(DEFAULT_MAX_TOTAL_PAID)} received)`
+      : filters.paid === "part"
+        ? `part paid (more than ${formatInr(DEFAULT_MAX_TOTAL_PAID)} received)`
+        : null,
     filters.lateFee !== "any"
-      ? `${filters.lateFee === "yes" ? "with" : "without"} a late fee on the ledger`
+      ? `${filters.lateFee === "yes" ? "with" : "without"} a late fee on the ledger for those installments`
       : null,
-    filters.overdue !== "any"
-      ? `${filters.overdue === "yes" ? "past" : "not past"} a due date`
-      : null,
-    filters.carryForward !== "any"
-      ? `${filters.carryForward === "yes" ? "with" : "without"} a balance from last session`
-      : null,
-    `and ${quoteLabel.toLowerCase()} of at least ${formatInr(filters.minDueAmount)}`,
+    filters.skipOverdue ? "not already overdue on an earlier installment" : null,
+    filters.promise === "lapsed"
+      ? "whose promise has lapsed"
+      : filters.promise === "due_soon"
+        ? "whose promise falls due today or tomorrow"
+        : filters.promise === "any"
+          ? "promises ignored"
+          : null,
+    classLabel ? `in ${classLabel}` : null,
+    `and owing at least ${formatInr(filters.minDueAmount)} on that`,
   ]
     .filter(Boolean)
     .join(", ");
 
-  /** What the amount on each row is, given the basis the office chose. */
-  const amountNote = `The amount on each card is ${quoteLabel.toLowerCase()} — the figure the message will quote.`;
+  /** What the amount on each row is — derived from the tiles, never chosen. */
+  const amountNote = filters.lastYear
+    ? "The amount on each card is what is left of last session's balance — the figure the message will quote."
+    : `The amount on each card is the fees still pending on ${installmentsPhrase} — the figure the message will quote.`;
 
   /**
    * `?exclude=` with a trailing separator, so a row's Remove link is this plus
@@ -391,13 +391,9 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
               excluded={excludedBriefs}
               matches={matches}
               searchQuery={findQuery}
-              // The SAME values the audience was counted with, so a shortcut
-              // chip reading 92 lands on that exact 92.
-              calendarArgs={{
-                activeInstallments:
-                  calendar.active.length > 0 ? calendar.active : TEMPLATE_INSTALLMENTS,
-                nextInstallment: calendar.next?.installmentNo ?? null,
-              }}
+              // The SAME calendar the audience was counted with, so a tile's
+              // label describes the state its count was built on.
+              calendar={calendar}
               addAction={addReminderStudentAction}
             />
           }
@@ -429,23 +425,12 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           // `noticeValuesFrom` projection the send does, so its opening values
           // are exactly what the top family would be sent.
           installments={filters.installments}
+          lastYear={filters.lastYear}
           lateFeeAmount={filters.lateFeeAmount}
           lateFeeBasis={filters.lateFeeBasis}
           initialPreview={testPreview}
         />
       </CollapsibleSection>
-
-      {wordingMismatch ? (
-        <OfficeNotice
-          title="The message will not match your filter"
-          tone="warning"
-          className="max-md:order-2"
-        >
-          The {situationLabel.toLowerCase()} notice names the installments it is about. You have
-          filtered on installment {filters.installments.join(", ")}, so the message will say
-          &ldquo;{installmentPhrase(filters.installments, "en")}&rdquo; — check that is what you mean.
-        </OfficeNotice>
-      ) : null}
 
       {/* Four paragraphs of standing explanation is a desk read. The phone gets
           the one line that changes a decision, from the note above the list. */}

@@ -92,16 +92,14 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
 function filters(overrides: Partial<ReminderFilters> = {}): ReminderFilters {
   return {
     sessionLabel: "TEST-2026-27",
-    maxTotalPaid: 0,
-    minTotalPaid: null,
     installments: [1, 2],
+    lastYear: false,
     installmentMatch: "all",
+    paid: "any",
     minDueAmount: 1,
     lateFee: "any",
-    overdue: "any",
-    carryForward: "any",
     promise: "skip_open",
-    quote: "selected",
+    skipOverdue: false,
     classId: null,
     includeRte: false,
     includeStudentIds: [],
@@ -212,13 +210,14 @@ describe("executeReminderRun with the family templates Live", () => {
         candidate({ studentId: "a", lateFeeApplied: 1000, lateFeeInstallments: [2] }),
         candidate({ studentId: "b", lateFeeApplied: 1000, lateFeeInstallments: [2] }),
       ],
-      { situation: "late_fee_applied", language: "en" },
+      { situation: "late_fee_applied", language: "en", installments: [2] },
     );
 
     expect(send).toHaveBeenCalledTimes(1);
     const posted = send.mock.calls[0]![0] as { campaignName: string; templateParams: string[] };
     expect(posted.campaignName).toBe("vpps_app_late_fee_applied_en_v3");
-    // And the context line names the installment carrying the fee, not [1, 2].
+    // And the context line names the SELECTED tile — the same rows the fees
+    // and the late fee were scoped to by the audience.
     expect(posted.templateParams[3]).toBe("Installment 2");
   });
 

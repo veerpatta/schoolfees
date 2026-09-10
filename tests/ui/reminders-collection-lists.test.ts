@@ -66,20 +66,21 @@ describe("the list follows the filter", () => {
     expect(read(LISTS_PAGE)).toContain("const CARRIED_PARAMS = REMINDER_QUERY_KEYS");
 
     // And that list really does hold every audience-shaping key.
-    const keys = read(AUDIENCE).slice(read(AUDIENCE).indexOf("REMINDER_QUERY_KEYS = ["));
+    const source = read(AUDIENCE);
+    const keys = source.slice(
+      source.indexOf("REMINDER_QUERY_KEYS = ["),
+      source.indexOf("] as const", source.indexOf("REMINDER_QUERY_KEYS = [")),
+    );
     for (const name of [
       "situation",
       "language",
       "installments",
       "installmentMatch",
-      "maxTotalPaid",
-      "minTotalPaid",
+      "paid",
       "minDueAmount",
       "lateFee",
-      "overdue",
-      "carryForward",
       "promise",
-      "quote",
+      "skipOverdue",
       "preDueWindowDays",
       "classId",
       "includeRte",
@@ -87,6 +88,11 @@ describe("the list follows the filter", () => {
       "exclude",
     ]) {
       expect(keys).toContain(`"${name}"`);
+    }
+    // Retired on 2026-09-10 with the presets. A key here is a key the lists
+    // page would carry and nothing would read.
+    for (const name of ["maxTotalPaid", "minTotalPaid", "overdue", "carryForward", "quote"]) {
+      expect(keys).not.toContain(`"${name}"`);
     }
   });
 

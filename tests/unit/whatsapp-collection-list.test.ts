@@ -94,17 +94,7 @@ function audience(overrides: Partial<ReminderAudience> = {}): ReminderAudience {
     unreachable: [],
     paused: [],
     classOptions: [],
-    counts: {
-      everyone: 0,
-      nothing_paid: 0,
-      part_paid: 0,
-      overdue: 0,
-      late_fee: 0,
-      not_due_yet: 0,
-      promised_now: 0,
-      promise_broken: 0,
-      last_session: 0,
-    },
+    tileCounts: { byInstallment: [0, 0, 0, 0], lastYear: 0 },
     noticeGaps: {
       upcoming: 0,
       upcoming_final: 0,

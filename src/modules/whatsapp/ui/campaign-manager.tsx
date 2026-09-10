@@ -6,7 +6,6 @@ import { useActionState, useState } from "react";
 import {
   NOTICE_LANGUAGES,
   NOTICE_SITUATIONS,
-  TEMPLATE_INSTALLMENTS,
   type NoticeSituation,
 } from "@/modules/whatsapp/domain/campaigns";
 import { parseCampaignSchedule } from "@/modules/whatsapp/domain/campaign-schedule";
@@ -20,7 +19,14 @@ import { Notice } from "@/ui/primitives/notice";
 import { SelectNative } from "@/ui/primitives/select-native";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 import { formatInr } from "@/platform/helpers/currency";
-import { savedAudienceParams } from "@/modules/whatsapp/domain/audience";
+import {
+  INSTALLMENT_MATCHES,
+  LAST_YEAR_TOKEN,
+  PAID_OPTIONS,
+  PROMISE_OPTIONS,
+  savedAudienceParams,
+  TRI_OPTIONS,
+} from "@/modules/whatsapp/domain/audience";
 import { formatDdMmYyyy } from "@/platform/helpers/date";
 
 /**
@@ -64,9 +70,8 @@ const IDLE: CampaignFormState = { status: "idle" };
 
 /** The send screen, with this campaign's settings already applied. */
 export function campaignHref(campaign: SavedCampaign): string {
-  // Only what the campaign STORED. A key it did not store is left out so the
-  // notice's preset supplies it on the other side — which is what keeps a
-  // campaign saved before the audience/template split naming the same families.
+  // Every audience key, explicitly — `installments` as `last_year` for a
+  // Last-year campaign — so the send screen opens on exactly the saved rule.
   const params = new URLSearchParams(savedAudienceParams(campaign.filters));
   params.set("situation", campaign.situation);
   params.set("language", campaign.language);
@@ -155,9 +160,11 @@ export function CampaignManager({
                       {campaign.filters.classId
                         ? ` · ${classOptions.find((c) => c.classId === campaign.filters.classId)?.label ?? "one class"}`
                         : " · All classes"}
-                      {campaign.filters.installments?.length
-                        ? ` · Inst ${campaign.filters.installments.join(" & ")}`
-                        : ""}
+                      {campaign.filters.lastYear
+                        ? " · Last year"
+                        : campaign.filters.installments?.length
+                          ? ` · Inst ${campaign.filters.installments.join(" & ")}${campaign.filters.installments.length > 1 ? ` (${campaign.filters.installmentMatch})` : ""}`
+                          : ""}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Late fee on the message:{" "}
@@ -309,17 +316,39 @@ export function CampaignManager({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="installments">Installments</Label>
+              <Label htmlFor="installments">Owing on</Label>
               <SelectNative
                 id="installments"
                 name="installments"
-                defaultValue={(open?.filters.installments ?? [...TEMPLATE_INSTALLMENTS]).join(",")}
+                defaultValue={
+                  open?.filters.lastYear
+                    ? LAST_YEAR_TOKEN
+                    : (open?.filters.installments ?? []).join(",") || "1,2"
+                }
               >
-                <option value="1,2">1 and 2</option>
-                <option value="1">1 only</option>
-                <option value="2">2 only</option>
-                <option value="1,2,3">1, 2 and 3</option>
-                <option value="3">3 only</option>
+                <option value="1">Installment 1</option>
+                <option value="2">Installment 2</option>
+                <option value="3">Installment 3</option>
+                <option value="4">Installment 4</option>
+                <option value="1,2">Installments 1 and 2</option>
+                <option value="1,2,3">Installments 1, 2 and 3</option>
+                <option value="1,2,3,4">All four installments</option>
+                <option value={LAST_YEAR_TOKEN}>Last year (carried forward)</option>
+              </SelectNative>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cInstallmentMatch">When more than one</Label>
+              <SelectNative
+                id="cInstallmentMatch"
+                name="installmentMatch"
+                defaultValue={open?.filters.installmentMatch ?? "all"}
+              >
+                {INSTALLMENT_MATCHES.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
               </SelectNative>
             </div>
 
@@ -426,14 +455,25 @@ export function CampaignManager({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="cMaxTotalPaid">Paid so far threshold</Label>
-              <Input
-                id="cMaxTotalPaid"
-                name="maxTotalPaid"
-                type="number"
-                min={0}
-                defaultValue={open?.filters.maxTotalPaid ?? ""}
-              />
+              <Label htmlFor="cPaid">Paid so far</Label>
+              <SelectNative id="cPaid" name="paid" defaultValue={open?.filters.paid ?? "any"}>
+                {PAID_OPTIONS.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </SelectNative>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cLateFee">Late fee on the ledger</Label>
+              <SelectNative id="cLateFee" name="lateFee" defaultValue={open?.filters.lateFee ?? "any"}>
+                {TRI_OPTIONS.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </SelectNative>
             </div>
 
             <div className="space-y-1.5">
@@ -447,7 +487,31 @@ export function CampaignManager({
               />
             </div>
 
-            <div className="flex items-end gap-3">
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="cPromise">Promise to pay</Label>
+              <SelectNative
+                id="cPromise"
+                name="promise"
+                defaultValue={open?.filters.promise ?? "skip_open"}
+              >
+                {PROMISE_OPTIONS.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </SelectNative>
+            </div>
+
+            <div className="flex flex-col justify-end gap-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="skipOverdue"
+                  defaultChecked={open?.filters.skipOverdue ?? false}
+                  className="size-4 rounded border-border-strong"
+                />
+                Skip families already overdue on an earlier installment
+              </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

@@ -7,10 +7,10 @@ import {
 } from "@/modules/whatsapp/domain/fee-reminders";
 import {
   buildInstallmentCalendar,
+  describeInstallmentTile,
   type InstallmentCalendar,
 } from "@/modules/whatsapp/domain/installment-calendar";
 import { addDays } from "@/modules/whatsapp/domain/reminder-cadence";
-import { presetFor } from "@/modules/whatsapp/domain/audience";
 
 /**
  * Who actually gets messaged.
@@ -19,6 +19,12 @@ import { presetFor } from "@/modules/whatsapp/domain/audience";
  * decision — ledger first, then the office's own cadence — is testable with a
  * stub and no database. These rules decide whether a real parent is nagged
  * daily or never hears from us, and both failures look fine on screen.
+ *
+ * The audience is the installment TILES since 2026-09-10: which installments
+ * a family still owes on, or last session's balance. Every case below asks
+ * that question directly. The template never appears in an audience decision
+ * here, and a test that needs `situation` to get a family on or off the list
+ * is a test of the shape this replaced.
  */
 
 const SESSION = "TEST-2026-27";
@@ -108,41 +114,29 @@ function student(id: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Tiles 1 and 2, owing on both — what the screen opens on in September. */
 const filters = {
   ...DEFAULT_REMINDER_FILTERS,
   sessionLabel: SESSION,
   lastDate: "25-08-2026",
   lateFeeAmount: 1000,
+  installments: [1, 2],
 };
 
-/**
- * Build a run the way the screen does: the notice's PRESET, then whatever the
- * test overrides on top.
- *
- * Since 2026-09-08 the notice does not gate the audience — the filters do — so
- * "who does `late_fee_applied` reach" is now "who does its preset reach", which
- * is exactly what `parseReminderFilters` resolves for a link that names a
- * notice and no filters. Spreading the preset here keeps every case below
- * asking the question it was written to ask.
- */
 const load = (
   tables: Tables,
   overrides: Partial<typeof filters> = {},
   calendar?: InstallmentCalendar,
-) => {
-  const situation = overrides.situation ?? filters.situation;
-  const preset = presetFor(situation, {
-    activeInstallments:
-      calendar && calendar.active.length > 0 ? calendar.active : filters.installments,
-    nextInstallment: calendar?.next?.installmentNo ?? null,
-  });
-  return loadReminderAudience(
+) =>
+  loadReminderAudience(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     stubClient(tables) as any,
-    { ...filters, ...preset, ...overrides },
+    { ...filters, ...overrides },
     calendar,
   );
-};
+
+/** The Last-year tile. */
+const LAST_YEAR = { lastYear: true, installments: [] as number[] };
 
 /**
  * A calendar with installment 1 already passed and installment 2 six days out.
@@ -308,10 +302,10 @@ describe("reminder audience — the office's own settings", () => {
   });
 });
 
-describe("reminder audience — which notice, which families", () => {
+describe("reminder audience — which tiles, which families", () => {
   // Nothing received: only the academic fee landed, so both installments stand.
   const owesEverything = student("owes", { total_paid: 500 });
-  // Part paid: past the academic-fee threshold, still carrying installment 2.
+  // Part paid: past the academic-fee threshold, cleared 1, still carrying 2.
   const partPaid = student("part", { total_paid: 9000, inst1_pending: 0, inst2_pending: 4000 });
   // Fully paid this year, but last year is still open.
   const prevOnly = student("prev", {
@@ -323,33 +317,34 @@ describe("reminder audience — which notice, which families", () => {
   const everyone = { financials: [owesEverything, partPaid, prevOnly] };
   const withCarryForward = { ...everyone, carryForward: [carried("prev", 20000)] };
 
-  it("fee_due takes only the families who have paid nothing", async () => {
-    const audience = await load(everyone, { situation: "fee_due" });
+  it("owing on both of 1 and 2 is the default, and quotes the fees on both", async () => {
+    const audience = await load(everyone);
 
     expect(audience.candidates.map((c) => c.studentId)).toEqual(["owes"]);
-    // 5000 + 4000 across the two selected installments.
+    // 5000 + 4000 across the two selected tiles — derived, never chosen.
     expect(audience.candidates[0]!.dueAmount).toBe(9000);
   });
 
-  it("balance takes the families fee_due excludes, and never both", async () => {
-    const audience = await load(everyone, { situation: "balance" });
+  it("'nothing paid yet' and 'part paid' partition the list, and never overlap", async () => {
+    // The old fee_due / balance split, as one control. Measured at zero overlap
+    // on the live session, and it must stay that way.
+    const nothing = await load(everyone, { paid: "nothing" });
+    expect(nothing.candidates.map((c) => c.studentId)).toEqual(["owes"]);
 
-    expect(audience.candidates.map((c) => c.studentId)).toEqual(["part"]);
-    // What is still owed this session, and what has been received so far.
-    expect(audience.candidates[0]!.dueAmount).toBe(4000);
-    expect(audience.candidates[0]!.totalPaid).toBe(9000);
+    const part = await load(everyone, { paid: "part", installmentMatch: "any" });
+    expect(part.candidates.map((c) => c.studentId)).toEqual(["part"]);
+    // Fees on the selected tiles — installment 1 is clear, so installment 2's.
+    expect(part.candidates[0]!.dueAmount).toBe(4000);
+    expect(part.candidates[0]!.totalPaid).toBe(9000);
 
-    // The two current-year notices partition the list — measured at zero
-    // overlap on the live session, and it must stay that way.
-    const feeDue = await load(everyone, { situation: "fee_due" });
-    const overlap = feeDue.candidates
+    const overlap = nothing.candidates
       .map((c) => c.studentId)
-      .filter((id) => audience.candidates.some((c) => c.studentId === id));
+      .filter((id) => part.candidates.some((c) => c.studentId === id));
     expect(overlap).toEqual([]);
   });
 
-  it("prevyear quotes what is LEFT of last session, not the original", async () => {
-    const audience = await load(withCarryForward, { situation: "prevyear" });
+  it("Last year quotes what is LEFT of last session, not the original", async () => {
+    const audience = await load(withCarryForward, LAST_YEAR);
 
     expect(audience.candidates.map((c) => c.studentId)).toEqual(["prev"]);
     expect(audience.candidates[0]!.dueAmount).toBe(20000);
@@ -357,55 +352,24 @@ describe("reminder audience — which notice, which families", () => {
   });
 
   it("drops a family whose carry-forward has been cleared", async () => {
-    const audience = await load(
-      { ...everyone, carryForward: [carried("prev", 0)] },
-      { situation: "prevyear" },
-    );
+    const audience = await load({ ...everyone, carryForward: [carried("prev", 0)] }, LAST_YEAR);
 
     expect(audience.candidates).toHaveLength(0);
   });
 
-  it("counts every audience shortcut in one pass, whichever one is applied", async () => {
-    const audience = await load(withCarryForward, { situation: "fee_due" });
-
-    // Keyed by SHORTCUT since 2026-09-09, not by notice. The chips are named
-    // for the audience they describe now — "Nothing paid yet", not "Fee due" —
-    // because twelve notice-named audience chips sat under twelve notice-named
-    // template chips and nothing said which row changed what.
-    //
-    // The calendar-driven ones read zero: this fixture has no installment
-    // schedule, no applied late fee and no contact history, which is the shape
-    // of a session before any due date has passed.
-    expect(audience.counts).toEqual({
-      // Anything outstanding at all, whoever they are — the shortcut no notice
-      // could ever express, which is why it is new.
-      everyone: 2,
-      nothing_paid: 1,
-      part_paid: 1,
-      last_session: 1,
-      not_due_yet: 0,
-      late_fee: 0,
-      overdue: 0,
-      promised_now: 0,
-      promise_broken: 0,
-    });
-    // Only the applied filter set produces candidates.
-    expect(audience.candidates).toHaveLength(1);
-  });
-
-  it("lets one family qualify for a current-year notice AND prev-year", async () => {
+  it("lets one family qualify for a current-year tile AND Last year", async () => {
     // The 47-family case the send-log index was widened for.
     const both = {
       financials: [owesEverything],
       carryForward: [carried("owes", 12000)],
     };
 
-    expect((await load(both, { situation: "fee_due" })).candidates).toHaveLength(1);
-    expect((await load(both, { situation: "prevyear" })).candidates).toHaveLength(1);
+    expect((await load(both)).candidates).toHaveLength(1);
+    expect((await load(both, LAST_YEAR)).candidates).toHaveLength(1);
   });
 
-  it("keeps the installment filter honest on the balance notice", async () => {
-    // Measured live: 87 of the 258 families on the balance notice were fully
+  it("keeps the installment filter honest under 'any of them'", async () => {
+    // Measured live: 87 of the 258 families on the old balance notice were fully
     // paid up on installments 1 and 2 and owed only 3 and 4 — money not due
     // until October and January. The filter said "installments pending: 1 and 2"
     // and did nothing, so the office was chasing families who owed nothing yet.
@@ -419,180 +383,128 @@ describe("reminder audience — which notice, which families", () => {
     });
     const tables = { financials: [owesOnTwo, notDueYet] };
 
-    const overdue = await load(tables, { situation: "balance", installments: [1, 2] });
+    const overdue = await load(tables, { installmentMatch: "any", installments: [1, 2] });
     expect(overdue.candidates.map((c) => c.studentId)).toEqual(["owes-2"]);
 
-    // Widen the filter and the second family comes back — the control works in
-    // both directions, it is not a hardcoded "1 and 2".
-    const everything = await load(tables, { situation: "balance", installments: [1, 2, 3] });
+    // Add tile 3 and the second family comes back — the control works in both
+    // directions, it is not a hardcoded "1 and 2".
+    const everything = await load(tables, { installmentMatch: "any", installments: [1, 2, 3] });
     expect(everything.candidates.map((c) => c.studentId).sort()).toEqual(["later", "owes-2"]);
 
-    // The AMOUNT is still the whole balance. The filter chooses who to chase;
-    // the approved body says "Balance due", which means all of it.
-    expect(everything.candidates.find((c) => c.studentId === "later")!.dueAmount).toBe(12000);
+    // And the AMOUNT is the fees on the SELECTED tiles — installment 3's 6,000,
+    // not the whole 12,000 balance. The message names the same rows it quotes.
+    expect(everything.candidates.find((c) => c.studentId === "later")!.dueAmount).toBe(6000);
   });
 
-  it("asks for ANY selected installment on balance, and ALL of them on fee_due", async () => {
-    // Different questions, deliberately. On fee_due nothing has been received,
-    // so "installments 1 and 2 are pending" means both. On balance the family
-    // HAS paid something, and someone who cleared 1 but still owes 2 is exactly
-    // who the notice is for — `every` would drop them.
+  it("asks for EVERY selected tile under 'all', and at least one under 'any'", async () => {
+    // Different questions, deliberately. "All" is the default the office chose:
+    // on tiles 1 and 2 it means both still owed. Somebody who cleared 1 but
+    // still owes 2 is exactly who "any" is for — "all" drops them.
     const clearedOne = student("half", { total_paid: 9000, inst1_pending: 0, inst2_pending: 4000 });
-    const paidNothingOnOne = student("none-1", { total_paid: 0, inst1_pending: 0, inst2_pending: 4000 });
 
-    const balance = await load({ financials: [clearedOne] }, { situation: "balance" });
-    expect(balance.candidates.map((c) => c.studentId)).toEqual(["half"]);
+    const any = await load({ financials: [clearedOne] }, { installmentMatch: "any" });
+    expect(any.candidates.map((c) => c.studentId)).toEqual(["half"]);
 
-    const feeDue = await load({ financials: [paidNothingOnOne] }, { situation: "fee_due" });
-    expect(feeDue.candidates).toHaveLength(0);
+    const all = await load({ financials: [clearedOne] }, { installmentMatch: "all" });
+    expect(all.candidates).toHaveLength(0);
   });
 
-  it("gives the previous-session preset no installment filter at all", async () => {
-    // That balance is last year's: it has no installments, no due date and no
-    // late fee. The notice used to IGNORE the installment control; since the
-    // audience was split from the template there is nothing to ignore — the
-    // preset simply carries an empty set, so the family is on the list whatever
-    // installments the office had selected on the notice they came from.
+  it("ignores the installments on Last year, and last year's money on the installments", async () => {
+    // Last session's balance has no installments. Selecting it is the whole
+    // question; whatever tiles were on before are cleared by construction.
     const tables = {
       financials: [student("prev-only", { total_paid: 20000, inst1_pending: 0, inst2_pending: 0 })],
       carryForward: [carried("prev-only", 8000)],
     };
 
-    const audience = await load(tables, { situation: "prevyear" });
-    expect(audience.candidates.map((c) => c.studentId)).toEqual(["prev-only"]);
-    expect(audience.candidates[0]!.dueAmount).toBe(8000);
+    const lastYear = await load(tables, LAST_YEAR);
+    expect(lastYear.candidates.map((c) => c.studentId)).toEqual(["prev-only"]);
+    expect(lastYear.candidates[0]!.dueAmount).toBe(8000);
 
-    // And an installment filter the office sets DELIBERATELY now applies here
-    // like anywhere else — that is the point of the split. This family owes
-    // nothing on installment 1, so naming it empties the list.
-    const narrowed = await load(tables, { situation: "prevyear", installments: [1] });
-    expect(narrowed.candidates).toHaveLength(0);
+    // Tile 1 alone: this family owes nothing on it, whatever last year says.
+    const tileOne = await load(tables, { installments: [1] });
+    expect(tileOne.candidates).toHaveLength(0);
   });
 
   it("never lets last year's balance into a current-year figure", async () => {
     // The ₹20,000 trap: outstanding_amount folds the carry-forward in, so a
-    // fee_due notice built from it would bill last year twice.
-    const audience = await load(
-      { financials: [owesEverything], carryForward: [carried("owes", 20000)] },
-      { situation: "fee_due" },
-    );
+    // notice built from it would bill last year twice.
+    const audience = await load({
+      financials: [owesEverything],
+      carryForward: [carried("owes", 20000)],
+    });
 
     expect(audience.candidates[0]!.dueAmount).toBe(9000);
     expect(audience.candidates[0]!.prevYearBalance).toBe(20000);
   });
 });
 
+describe("reminder audience — due or overdue is the calendar's fact", () => {
+  it("labels a tile from the calendar, so nothing asks the office which it is", () => {
+    expect(describeInstallmentTile(1, CALENDAR_INST2_DUE_SOON).label).toBe(
+      "Overdue since 20-04-2026",
+    );
+    expect(describeInstallmentTile(2, CALENDAR_INST2_DUE_SOON).label).toBe("Due 20-07-2026");
+  });
 
-describe("reminder audience — the calendar decides the installments", () => {
-  it("puts a family on `upcoming` when the next installment is pending and nothing is behind", async () => {
+  it("selecting a passed tile IS the overdue list", async () => {
+    // Installment 1 has passed (2026-04-20), installment 2 is six days out.
+    // A family late on 1 is overdue; a family owing only 2 is not.
     const audience = await load(
       {
         financials: [
-          student("soon", { inst1_pending: 0, inst2_pending: 4000, total_paid: 5000 }),
+          student("behind", { inst1_pending: 5000, inst2_pending: 4000 }),
+          student("on-time", { inst1_pending: 0, inst2_pending: 4000, total_paid: 5000 }),
         ],
       },
-      { situation: "upcoming", installments: [2] },
+      { installments: [1] },
       CALENDAR_INST2_DUE_SOON,
     );
 
-    expect(audience.candidates.map((c) => c.studentId)).toEqual(["soon"]);
-    // The figure is the NEXT installment alone, not the whole balance: the
-    // courtesy notice asks for the bill that is about to fall due.
-    expect(audience.candidates[0]!.dueAmount).toBe(4000);
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["behind"]);
+    expect(audience.candidates[0]!.dueAmount).toBe(5000);
+    expect(audience.candidates[0]!.overdueInstallments).toEqual([1]);
   });
 
-  it("keeps a family already overdue off the courtesy notice", async () => {
-    // The whole point of "nothing overdue". A family late on installment 1 must
+  it("keeps a family already overdue off a courtesy list when asked to", async () => {
+    // The old `upcoming` rule, opted into. A family late on installment 1 must
     // get the late-fee notice, not a polite note about installment 2 — sending
     // the courtesy one would tell them the school had not noticed.
-    const audience = await load(
-      {
-        financials: [
-          student("behind", { inst1_pending: 5000, inst2_pending: 4000, total_paid: 0 }),
-        ],
-      },
-      { situation: "upcoming", installments: [2] },
-      CALENDAR_INST2_DUE_SOON,
-    );
-
-    expect(audience.candidates).toHaveLength(0);
-    expect(audience.counts.not_due_yet).toBe(0);
-  });
-
-  it("keeps a family off the courtesy notice while a late fee is on the account", async () => {
-    // Fees cleared but the late fee still pending: the ledger says this family
-    // is late, so the courtesy wording would be wrong even though every
-    // installment reads zero.
-    const audience = await load(
-      {
-        financials: [
-          student("fee-owing", { inst1_pending: 0, inst2_pending: 4000, total_paid: 5000 }),
-        ],
-        installmentBalances: [lateFeeRow("fee-owing", { pending_amount: 0 })],
-      },
-      { situation: "upcoming", installments: [2] },
-      CALENDAR_INST2_DUE_SOON,
-    );
-
-    expect(audience.counts.not_due_yet).toBe(0);
-    // `late_fee_applied` reads 0 rather than 1, and that is the preset counts
-    // becoming honest rather than a family going missing. The old counts were
-    // taken BEFORE the minimum was applied, so they promised families the list
-    // then dropped: this family's fees are clear, so the notice would quote
-    // ₹0 and the ₹1 minimum has always excluded them from the list itself.
-    // Now the button's number is what clicking it gives you. To reach a family
-    // who owes only a late fee, set "Quoted amount at least" to 0.
-    expect(audience.counts.late_fee).toBe(0);
-  });
-
-  it("gives `upcoming_final` the same audience as `upcoming`, whatever the date", async () => {
-    // The three-day window used to live HERE, emptying the final-call list
-    // outside it. That is a fact about the RUN, not about a family, and as an
-    // audience gate it made the template impossible to use deliberately. It
-    // moved to `evaluateSendGuards` as the overridable `final_window_closed`,
-    // where an admin can send early on purpose and the reason lands on the run.
     const tables = {
-      financials: [student("soon", { inst1_pending: 0, inst2_pending: 4000, total_paid: 5000 })],
+      financials: [
+        student("soon", { inst1_pending: 0, inst2_pending: 4000, total_paid: 5000 }),
+        student("behind", { inst1_pending: 5000, inst2_pending: 4000, total_paid: 0 }),
+      ],
     };
 
-    // Six days out: both presets reach the family.
-    const early = await load(tables, { situation: "upcoming" }, CALENDAR_INST2_DUE_SOON);
-    expect(early.counts.not_due_yet).toBe(1);
-    expect(early.counts.not_due_yet).toBe(1);
+    const courtesy = await load(tables, { installments: [2], skipOverdue: true }, CALENDAR_INST2_DUE_SOON);
+    expect(courtesy.candidates.map((c) => c.studentId)).toEqual(["soon"]);
+    // The figure is the tile alone — the bill that is about to fall due.
+    expect(courtesy.candidates[0]!.dueAmount).toBe(4000);
 
-    // Two days out: unchanged.
-    const late = await load(
-      tables,
-      { situation: "upcoming_final" },
-      buildInstallmentCalendar({
-        schedule: [{ dueDate: "2026-04-20" }, { dueDate: "2026-07-20" }],
-        today: "2026-07-18",
-      }),
-    );
-    expect(late.counts.not_due_yet).toBe(1);
-    expect(late.counts.not_due_yet).toBe(1);
-    expect(late.candidates.map((c) => c.studentId)).toEqual(["soon"]);
+    // Without the checkbox, everyone owing on 2 is on the list.
+    const plain = await load(tables, { installments: [2] }, CALENDAR_INST2_DUE_SOON);
+    expect(plain.candidates.map((c) => c.studentId).sort()).toEqual(["behind", "soon"]);
   });
 
-  it("reaches nobody on the calendar notices when the session has no schedule", async () => {
-    // A valid state, not a crash: Fee Setup has not been published yet.
-    const audience = await load(
-      { financials: [student("a")] },
-      { situation: "upcoming" },
-    );
-    expect(audience.counts.not_due_yet).toBe(0);
-    expect(audience.candidates).toHaveLength(0);
+  it("treats nothing as overdue when the session has no schedule", async () => {
+    // A valid state, not a crash: Fee Setup has not been published yet. With
+    // no dates, no installment has passed, so "skip already overdue" holds
+    // nobody back and the tile reads "No due date on file".
+    const audience = await load({ financials: [student("a")] }, { installments: [2], skipOverdue: true });
+    expect(audience.candidates).toHaveLength(1);
+    expect(audience.candidates[0]!.overdueInstallments).toEqual([]);
   });
 });
 
-describe("reminder audience — late_fee_applied reads the ledger", () => {
-  it("takes only families the view says are carrying a pending late fee", async () => {
+describe("reminder audience — the late fee is read from the ledger, on the selected tiles", () => {
+  it("'late fee: yes' takes only families the view says are carrying one", async () => {
     const audience = await load(
       {
         financials: [student("late"), student("clean")],
         installmentBalances: [lateFeeRow("late")],
       },
-      { situation: "late_fee_applied" },
+      { lateFee: "yes" },
     );
 
     expect(audience.candidates.map((c) => c.studentId)).toEqual(["late"]);
@@ -606,12 +518,12 @@ describe("reminder audience — late_fee_applied reads the ledger", () => {
     // a parent reads would be the first crack in that rule.
     const audience = await load(
       {
-        financials: [student("late")],
+        financials: [student("late", { inst1_pending: 9125 })],
         installmentBalances: [
           lateFeeRow("late", { pending_amount: 9125, late_fee_pending: 1000, total_pending: 10125 }),
         ],
       },
-      { situation: "late_fee_applied" },
+      { installments: [1], lateFee: "yes" },
     );
 
     const candidate = audience.candidates[0]!;
@@ -620,7 +532,7 @@ describe("reminder audience — late_fee_applied reads the ledger", () => {
     expect(candidate.dueAmount).not.toBe(10125);
   });
 
-  it("sums a family late on more than one installment", async () => {
+  it("sums a family late on more than one selected installment", async () => {
     const audience = await load(
       {
         financials: [student("late")],
@@ -634,13 +546,45 @@ describe("reminder audience — late_fee_applied reads the ledger", () => {
           }),
         ],
       },
-      { situation: "late_fee_applied" },
+      { lateFee: "yes" },
     );
 
     const candidate = audience.candidates[0]!;
     expect(candidate.lateFeeApplied).toBe(2000);
     expect(candidate.dueAmount).toBe(9000);
     expect(candidate.lateFeeInstallments).toEqual([1, 2]);
+  });
+
+  it("scopes the late fee to the SELECTED tile, like the fees", async () => {
+    // "Installment 2 only" for a family late on 1 and 2 must quote installment
+    // 2's late fee beside installment 2's fees — not a two-installment late fee
+    // beside one row's fees, which is what the message read until 2026-09-10.
+    const tables = {
+      financials: [student("late")],
+      installmentBalances: [
+        lateFeeRow("late", { installment_no: 1, pending_amount: 5000, late_fee_pending: 1000 }),
+        lateFeeRow("late", {
+          installment_no: 2,
+          due_date: "2026-07-20",
+          pending_amount: 4000,
+          late_fee_pending: 1000,
+        }),
+      ],
+    };
+
+    const tileTwo = await load(tables, { installments: [2] });
+    expect(tileTwo.candidates[0]!.dueAmount).toBe(4000);
+    expect(tileTwo.candidates[0]!.lateFeeApplied).toBe(1000);
+    expect(tileTwo.candidates[0]!.lateFeeFeesPending).toBe(4000);
+    expect(tileTwo.candidates[0]!.lateFeeInstallments).toEqual([2]);
+
+    // And the filter reads the same scope: a fee on installment 1 does not
+    // make a family "carrying a late fee" on a list about installment 3.
+    const tileThree = await load(
+      { financials: [student("late", { inst3_pending: 6000 })], installmentBalances: tables.installmentBalances },
+      { installments: [3], lateFee: "yes" },
+    );
+    expect(tileThree.candidates).toHaveLength(0);
   });
 
   it("ignores a carry-forward row, which never accrues a late fee", async () => {
@@ -651,10 +595,10 @@ describe("reminder audience — late_fee_applied reads the ledger", () => {
         financials: [student("cf")],
         installmentBalances: [lateFeeRow("cf", { is_carry_forward: true })],
       },
-      { situation: "late_fee_applied" },
+      { lateFee: "yes" },
     );
 
-    expect(audience.counts.late_fee).toBe(0);
+    expect(audience.candidates).toHaveLength(0);
   });
 
   it("ignores a late fee on an installment the calendar says has not passed", async () => {
@@ -665,102 +609,35 @@ describe("reminder audience — late_fee_applied reads the ledger", () => {
         financials: [student("early")],
         installmentBalances: [lateFeeRow("early", { due_date: "2099-01-01" })],
       },
-      { situation: "late_fee_applied" },
+      { lateFee: "yes" },
     );
 
-    expect(audience.counts.late_fee).toBe(0);
-  });
-});
-
-describe("reminder audience — the waiver pair read the ledger too", () => {
-  it("takes a family with a late fee AND fees still on those installments", async () => {
-    const audience = await load(
-      {
-        financials: [student("late"), student("clean")],
-        installmentBalances: [lateFeeRow("late", { pending_amount: 9125, late_fee_pending: 1000 })],
-      },
-      { situation: "late_fee_waiver" },
-    );
-
-    expect(audience.candidates.map((c) => c.studentId)).toEqual(["late"]);
-    // Fees in dueAmount, the late fee alongside — never added together.
-    expect(audience.candidates[0]!.dueAmount).toBe(9125);
-    expect(audience.candidates[0]!.lateFeeApplied).toBe(1000);
-    expect(audience.counts.late_fee).toBe(1);
+    expect(audience.candidates).toHaveLength(0);
   });
 
-  it("leaves out a family who paid the fees late and owes only the late fee", async () => {
-    // Nothing to pay "by the date" — the waiver would be waiving a fee against
-    // a payment that has already happened. That family gets late_fee_applied.
-    const audience = await load(
-      {
-        financials: [student("paid-late", { inst1_pending: 0, inst2_pending: 0, total_paid: 9000 })],
-        installmentBalances: [lateFeeRow("paid-late", { pending_amount: 0 })],
-      },
-      { situation: "late_fee_waiver" },
-    );
+  it("keeps a family who owes only a late fee off the list until the minimum says otherwise", async () => {
+    // Fees cleared, late fee still pending: the quoted figure is ₹0 and the ₹1
+    // minimum has always excluded them. To reach them, set the minimum to 0 —
+    // and the tile count says so, because it applies the minimum too.
+    const tables = {
+      financials: [student("paid-late", { inst1_pending: 0, inst2_pending: 0, total_paid: 9000 })],
+      installmentBalances: [lateFeeRow("paid-late", { pending_amount: 0 })],
+    };
 
-    expect(audience.counts.late_fee).toBe(0);
-    expect(audience.counts.late_fee).toBe(0);
-    // 0, not 1: see the note on the courtesy-notice test above. The preset
-    // counts now apply the minimum, so they promise exactly what clicking the
-    // button delivers — and the ₹1 minimum has always kept a family whose fees
-    // are clear off the list itself.
-    expect(audience.counts.late_fee).toBe(0);
-  });
-});
+    const withMinimum = await load(tables, { installments: [1], lateFee: "yes" });
+    expect(withMinimum.candidates).toHaveLength(0);
+    expect(withMinimum.skipped.belowMinimum).toBe(1);
+    expect(withMinimum.tileCounts.byInstallment[0]).toBe(0);
 
-describe("reminder audience — overdue_final follows the calendar", () => {
-  it("takes a family with fees pending on a passed installment, late fee or not", async () => {
-    // Installment 1 has passed (2026-04-20), installment 2 is six days out.
-    // A family late on 1 is overdue; a family owing only 2 is not.
-    const audience = await load(
-      {
-        financials: [
-          student("behind", { inst1_pending: 5000, inst2_pending: 4000 }),
-          student("on-time", { inst1_pending: 0, inst2_pending: 4000, total_paid: 5000 }),
-        ],
-      },
-      { situation: "overdue_final" },
-      CALENDAR_INST2_DUE_SOON,
-    );
-
-    expect(audience.candidates.map((c) => c.studentId)).toEqual(["behind"]);
-    // The figure is what is overdue, not the whole balance.
-    expect(audience.candidates[0]!.dueAmount).toBe(5000);
-    expect(audience.candidates[0]!.overdueInstallments).toEqual([1]);
-  });
-
-  it("reaches nobody when the session has no schedule", async () => {
-    const audience = await load({ financials: [student("a")] }, { situation: "overdue_final" });
-    expect(audience.counts.overdue).toBe(0);
-  });
-});
-
-describe("reminder audience — exam_clearance honours the installment filter", () => {
-  it("takes anyone with something pending on ANY selected installment", async () => {
-    const owesOnTwo = student("owes-2", { total_paid: 9000, inst1_pending: 0, inst2_pending: 4000 });
-    const notDueYet = student("later", {
-      total_paid: 9000,
-      inst1_pending: 0,
-      inst2_pending: 0,
-      inst3_pending: 6000,
-    });
-    const tables = { financials: [owesOnTwo, notDueYet] };
-
-    const narrow = await load(tables, { situation: "exam_clearance", installments: [1, 2] });
-    expect(narrow.candidates.map((c) => c.studentId)).toEqual(["owes-2"]);
-    expect(narrow.candidates[0]!.dueAmount).toBe(4000);
-
-    const wide = await load(tables, { situation: "exam_clearance", installments: [1, 2, 3] });
-    expect(wide.candidates.map((c) => c.studentId).sort()).toEqual(["later", "owes-2"]);
-    // The figure is the pending sum over the SELECTED installments only.
-    expect(wide.candidates.find((c) => c.studentId === "later")!.dueAmount).toBe(6000);
+    const noMinimum = await load(tables, { installments: [1], lateFee: "yes", minDueAmount: 0 });
+    expect(noMinimum.candidates.map((c) => c.studentId)).toEqual(["paid-late"]);
+    expect(noMinimum.candidates[0]!.dueAmount).toBe(0);
+    expect(noMinimum.candidates[0]!.lateFeeApplied).toBe(1000);
   });
 });
 
 describe("reminder audience — promises", () => {
-  it("puts promise_due on a family whose promised date is today or tomorrow", async () => {
+  it("'promise due today or tomorrow' finds exactly those families", async () => {
     const tomorrow = addDays(TODAY, 1);
     const audience = await load(
       {
@@ -770,20 +647,18 @@ describe("reminder audience — promises", () => {
           contact("later", "promised_pay", addDays(TODAY, 5)),
         ],
       },
-      { situation: "promise_due" },
+      { promise: "due_soon" },
     );
 
     expect(audience.candidates.map((c) => c.studentId)).toEqual(["soon"]);
     expect(audience.candidates[0]!.promisedOn).toBe(tomorrow);
     // 18:30 UTC is midnight IST: "spoken on" names the IST day, 4 July.
     expect(audience.candidates[0]!.promiseContactedOn).toBe("2026-07-04");
-    // Not held back as "inside a promise" — this notice is about the promise.
+    // Not held back as "inside a promise" — this list is about the promise.
     expect(audience.skipped.promiseOpen).toBe(0);
-    // The family five days out is still inside their promise, and still held.
-    expect(audience.counts.promised_now).toBe(1);
   });
 
-  it("holds a family back from every other notice while their promise is live", async () => {
+  it("holds a family back from every ordinary list while their promise is live", async () => {
     const future = addDays(TODAY, 5);
     const audience = await load({
       financials: [student("promised"), student("other")],
@@ -800,20 +675,19 @@ describe("reminder audience — promises", () => {
     expect(held?.returnsOn).toBe(future);
   });
 
-  it("still lets promise_lapsed through to a family with a live promise", async () => {
-    // Not that it reaches them — a live promise has not lapsed — but the hold
-    // must not be what excludes them, or the notice could never fire.
+  it("does not hold a live promise back from the 'promise lapsed' list — it just is not lapsed", async () => {
+    // The hold must not be what excludes them, or the list could never fire.
     const future = addDays(TODAY, 5);
     const audience = await load(
       {
         financials: [student("promised")],
         contacts: [contact("promised", "promised_pay", future)],
       },
-      { situation: "promise_lapsed" },
+      { promise: "lapsed" },
     );
 
     expect(audience.skipped.promiseOpen).toBe(0);
-    expect(audience.counts.promise_broken).toBe(0);
+    expect(audience.candidates).toHaveLength(0);
   });
 
   it("takes a family whose promised date has gone with money still owing", async () => {
@@ -823,7 +697,7 @@ describe("reminder audience — promises", () => {
         financials: [student("lapsed")],
         contacts: [contact("lapsed", "promised_pay", past)],
       },
-      { situation: "promise_lapsed" },
+      { promise: "lapsed" },
     );
 
     expect(audience.candidates.map((c) => c.studentId)).toEqual(["lapsed"]);
@@ -831,7 +705,7 @@ describe("reminder audience — promises", () => {
   });
 
   it("leaves out a family who paid after their promise lapsed", async () => {
-    // The ledger is applied first, as always: nothing owing means the notice is
+    // The ledger is applied first, as always: nothing owing means the list is
     // not about them, whatever the contact log says.
     const past = addDays(TODAY, -3);
     const audience = await load(
@@ -841,10 +715,10 @@ describe("reminder audience — promises", () => {
         ],
         contacts: [contact("paid", "promised_pay", past)],
       },
-      { situation: "promise_lapsed" },
+      { promise: "lapsed" },
     );
 
-    expect(audience.counts.promise_broken).toBe(0);
+    expect(audience.candidates).toHaveLength(0);
   });
 
   it("reads only the LATEST contact, so a later call ends an older promise", async () => {
@@ -866,12 +740,100 @@ describe("reminder audience — promises", () => {
 });
 
 /**
+ * Each tile's number must be exactly who that tile alone would reach. A tile
+ * that reads 201 and lands on 190 is a tile the office stops trusting, and the
+ * whole card then goes back to being guesswork.
+ */
+describe("reminder audience — the tile counts", () => {
+  const owesBoth = student("both"); // 5000 / 4000
+  const owesTwo = student("two", { total_paid: 6000, inst1_pending: 0, inst2_pending: 4000 });
+  const owesThree = student("three", {
+    total_paid: 10000,
+    inst1_pending: 0,
+    inst2_pending: 0,
+    inst3_pending: 6000,
+  });
+  const tables = {
+    financials: [owesBoth, owesTwo, owesThree],
+    carryForward: [carried("three", 2500)],
+  };
+
+  it("counts every tile in one pass, whichever tiles are selected", async () => {
+    const audience = await load(tables);
+
+    expect(audience.tileCounts).toEqual({ byInstallment: [1, 2, 1, 0], lastYear: 1 });
+    // Only the selected tiles produce candidates: both of 1 and 2.
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["both"]);
+  });
+
+  it("makes one selected tile's count equal the list", async () => {
+    for (const installment of [1, 2, 3]) {
+      const audience = await load(tables, { installments: [installment] });
+      expect(audience.candidates).toHaveLength(audience.tileCounts.byInstallment[installment - 1]!);
+    }
+    const lastYear = await load(tables, LAST_YEAR);
+    expect(lastYear.candidates).toHaveLength(lastYear.tileCounts.lastYear);
+  });
+
+  it("applies the narrowing controls to every tile's count", async () => {
+    // "Part paid" drops the family who has paid nothing from every tile.
+    const part = await load(tables, { paid: "part" });
+    expect(part.tileCounts.byInstallment).toEqual([0, 1, 1, 0]);
+
+    // A minimum drops a tile whose fees fall under it.
+    const minimum = await load(tables, { minDueAmount: 5000 });
+    expect(minimum.tileCounts.byInstallment).toEqual([1, 0, 1, 0]);
+    expect(minimum.tileCounts.lastYear).toBe(0);
+  });
+
+  it("applies the class and the hold-backs before counting", async () => {
+    const otherClass = await load(tables, { classId: "another-class" });
+    expect(otherClass.tileCounts).toEqual({ byInstallment: [0, 0, 0, 0], lastYear: 0 });
+    // The dropdown still offers the class the families ARE in.
+    expect(otherClass.classOptions.map((option) => option.classId)).toEqual(["class-1"]);
+
+    const heldBack = await load({
+      ...tables,
+      flags: [{ student_id: "both", whatsapp_cadence: "never", whatsapp_snoozed_until: null }],
+    });
+    expect(heldBack.tileCounts.byInstallment[0]).toBe(0);
+    expect(heldBack.paused.map((family) => family.studentId)).toEqual(["both"]);
+  });
+
+  it("does not let a courtesy-list setting zero the overdue tiles", async () => {
+    // "Skip already overdue" is dropped by the tile hrefs the moment a passed
+    // tile is selected, so the counts must read it the same way — or every
+    // overdue tile would read 0 while the office is looking at a courtesy list.
+    const audience = await load(
+      { financials: [student("behind")] },
+      { installments: [2], skipOverdue: true },
+      CALENDAR_INST2_DUE_SOON,
+    );
+
+    expect(audience.tileCounts.byInstallment[0]).toBe(1);
+    expect(audience.tileCounts.byInstallment[1]).toBe(0);
+    expect(audience.candidates).toHaveLength(0);
+  });
+
+  it("counts a hand-picked family on every tile, and an excluded one on none", async () => {
+    const included = await load(tables, { includeStudentIds: ["three"] });
+    // "three" owes nothing on 1 or 2, but named by hand they are on the list
+    // whatever tile is selected — so every tile's number includes them.
+    expect(included.tileCounts.byInstallment).toEqual([2, 3, 1, 1]);
+
+    const excluded = await load(tables, { excludeStudentIds: ["both"] });
+    expect(excluded.tileCounts.byInstallment[0]).toBe(0);
+    expect(excluded.excludedByHand).toBe(1);
+  });
+});
+
+/**
  * The unreachable list feeds two screens that want different breadths.
  *
  * `/protected/reminders/unreachable` wants EVERY family with no usable number:
- * a family with no phone is unreachable whichever notice is selected, and that
+ * a family with no phone is unreachable whichever tile is selected, and that
  * page exists to get the record fixed. The collection lists want only the ones
- * the current notice is actually about.
+ * the current list is actually about.
  *
  * `matchesNotice` is how one array serves both. If it were ever implemented by
  * moving the push later in the loop, the unreachable page would silently shrink
@@ -881,9 +843,10 @@ describe("unreachable families", () => {
   const noPhone = (id: string, overrides: Record<string, unknown> = {}) =>
     student(id, { father_phone: null, mother_phone: null, ...overrides });
 
-  it("lists a family with no number even when this notice is not about them", async () => {
+  it("lists a family with no number even when this list is not about them", async () => {
     const audience = await load({
-      // Nothing pending on installments 1 and 2, so `fee_due` is not about them.
+      // Nothing pending on installments 1 and 2, so the default tiles are not
+      // about them.
       financials: [noPhone("clear", { inst1_pending: 0, inst2_pending: 0 })],
     });
 
@@ -891,18 +854,18 @@ describe("unreachable families", () => {
     expect(audience.unreachable[0]!.matchesNotice).toBe(false);
   });
 
-  it("flags one the notice IS about, so the collection list can pick it up", async () => {
+  it("flags one the list IS about, so the collection list can pick it up", async () => {
     const audience = await load({ financials: [noPhone("owing")] });
 
     expect(audience.unreachable[0]!.matchesNotice).toBe(true);
   });
 
-  it("does not count an unreachable family towards the notice chips", async () => {
-    // The counts are what the picker shows as reachable per notice. A family we
-    // cannot message must not inflate them.
+  it("does not count an unreachable family on any tile", async () => {
+    // The counts are what the tiles show as reachable. A family we cannot
+    // message must not inflate them.
     const audience = await load({ financials: [noPhone("owing")] });
 
-    expect(audience.counts.nothing_paid).toBe(0);
+    expect(audience.tileCounts).toEqual({ byInstallment: [0, 0, 0, 0], lastYear: 0 });
   });
 
   it("keeps an unreachable family out of candidates, paused and every skip count", async () => {
@@ -930,7 +893,7 @@ describe("unreachable families", () => {
     expect(audience.unreachable).toHaveLength(0);
   });
 
-  it("respects the class filter when deciding whether the notice is about them", async () => {
+  it("respects the class filter when deciding whether the list is about them", async () => {
     const audience = await load(
       { financials: [noPhone("owing")] },
       { classId: "another-class" },

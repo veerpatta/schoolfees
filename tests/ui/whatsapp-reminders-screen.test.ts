@@ -90,7 +90,10 @@ describe("WhatsApp reminders on a phone", () => {
     // feature has shipped that bug once. Every form now renders ONE component
     // over ONE key list, and declares only what it owns.
     expect((read(PICKER).match(/<CarriedFilterFields/g) ?? []).length).toBe(1);
-    expect((read(AUDIENCE_BUILDER).match(/<CarriedFilterFields/g) ?? []).length).toBe(3);
+    // The Narrow-down form and the add-a-student form. The tiles are links,
+    // built on the same `reminderQuery`, so they carry everything by
+    // construction and need no hidden inputs.
+    expect((read(AUDIENCE_BUILDER).match(/<CarriedFilterFields/g) ?? []).length).toBe(2);
 
     // The send form too -- the action rebuilds the audience from what it posts.
     expect(read(SEND_PAGE)).toContain("sendFormFields={<CarriedFilterFields filters={filters} />}");
@@ -101,39 +104,47 @@ describe("WhatsApp reminders on a phone", () => {
     expect(read(AUDIENCE_BUILDER)).toContain("except={FILTER_FORM_KEYS}");
   });
 
-  it("shows every filter on every notice, and mounts the panel twice", () => {
-    // The inverse of the rule this screen used to follow. `SITUATION_FILTERS`
-    // HID the installment, paid-so-far and minimum controls on any notice whose
-    // rule ignored them -- honest while the notice decided the audience, and a
-    // cage the moment it stopped. Every filter now applies to every template,
-    // so every filter is shown.
+  it("puts the tiles first and folds everything else under Narrow down", () => {
+    // The audience is the installment tiles — links built on `reminderQuery`,
+    // so every other key carries — and the narrowing controls are the ONLY
+    // named inputs the audience form owns. A control that reappears here is a
+    // control the office has to explain again.
     const source = read(AUDIENCE_BUILDER);
 
-    expect(source).not.toMatch(/import[^;]*SITUATION_FILTERS/);
+    expect(source).toContain("installmentTileHref(");
+    expect(source).toContain("lastYearTileHref(");
+    expect(source).toContain("installmentMatchHref(");
+    expect(source).toContain("describeInstallmentTile(");
     for (const name of [
-      "maxTotalPaid",
-      "minTotalPaid",
+      "paid",
       "minDueAmount",
-      "installments",
-      "installmentMatch",
+      "lateFee",
       "promise",
-      "quote",
+      "skipOverdue",
       "classId",
       "includeRte",
     ]) {
       expect(source).toContain(`name="${name}"`);
     }
-    // The three yes/no/either filters share one renderer, so their names reach
-    // the markup through it rather than as literals.
-    for (const name of ["lateFee", "overdue", "carryForward"]) {
-      expect(source).toContain(`tri("${name}"`);
+    // Retired on 2026-09-10: the presets, the chips, the quote basis, the two
+    // paid-so-far thresholds and the yes/no/either facts the tiles now state.
+    for (const gone of [
+      'name="maxTotalPaid"',
+      'name="minTotalPaid"',
+      'name="quote"',
+      'name="overdue"',
+      'name="carryForward"',
+      "presetFor",
+      "AUDIENCE_SHORTCUTS",
+      "shortcutHref",
+      "matchingShortcut",
+      "NOTICE_SITUATIONS",
+    ]) {
+      expect(source).not.toContain(gone);
     }
-    expect(source).toContain('name={key}');
-
-    // Collapsed behind a disclosure on a phone, the desk grid above md. Both
-    // sit in the DOM at every viewport, which is what `idPrefix` is for.
-    expect((source.match(/<FilterFields/g) ?? []).length).toBe(2);
-    expect(source).toContain('idPrefix="m-"');
+    // Still a server component: a byte of client JS here is a byte against a
+    // ceiling that only ratchets down.
+    expect(source).not.toMatch(/^\s*["']use client["']/m);
   });
 
   it("keeps the template from deciding who is on the list", () => {
@@ -145,25 +156,24 @@ describe("WhatsApp reminders on a phone", () => {
     // The old gate, by name. `qualifies[filters.situation]` was the single
     // expression that made "any template to any audience" impossible.
     expect(audience).not.toContain("qualifies[filters.situation]");
-    // The amount is a chosen basis, not a switch on the template.
-    expect(audience).toContain("quotedAmountFor(filters.quote");
+    // The amount is DERIVED from the tiles — not a switch on the template, and
+    // not a basis chosen beside the filters either.
+    expect(audience).toContain("quotedAmountFor(filters, facts)");
+    expect(audience).not.toContain("filters.quote");
+    expect(audience).not.toMatch(/import[^;]*presetFor/);
+    // And the ledger late fee the account-balance notices print is scoped to
+    // the same tiles as the fees.
+    expect(audience).toContain("lateFeeOnSelected(filters, facts)");
   });
 
-  it("keeps the per-notice tables covering every notice", () => {
-    // `NOTICE_FACTS` and `presetFor` are keyed by NoticeSituation, so a
-    // thirteenth campaign cannot be added without deciding two things: which of
-    // its slots need a fact the family may not have, and what audience its
-    // preset starts from.
-    //
-    // Repointed from `SITUATION_FILTERS` / `SITUATION_RULE`, which answered
-    // "which families is this notice about" — a question the notice stopped
-    // being allowed to answer on 2026-09-08.
+  it("keeps the per-notice fact table covering every notice, and nothing else per notice", () => {
+    // `NOTICE_FACTS` is keyed by NoticeSituation, so a thirteenth campaign
+    // cannot be added without deciding which of its slots need a fact the
+    // family may not have. It is the ONE per-notice table left in the audience
+    // module: the presets went on 2026-09-10, and `campaigns.ts` reaches this
+    // file only as a type.
     const source = read(AUDIENCE);
     const facts = source.slice(source.indexOf("NOTICE_FACTS: Record"));
-    const preset = source.slice(
-      source.indexOf("export function presetFor"),
-      source.indexOf("export const DEFAULT_MAX_TOTAL_PAID"),
-    );
 
     for (const situation of [
       "fee_due",
@@ -180,8 +190,12 @@ describe("WhatsApp reminders on a phone", () => {
       "exam_clearance",
     ]) {
       expect(facts).toContain(`${situation}:`);
-      expect(preset).toContain(`case "${situation}":`);
     }
+    // The history comment may name it; the module may not define it.
+    expect(source).not.toContain("function presetFor");
+    expect(source).not.toContain("AUDIENCE_SHORTCUTS =");
+    expect(source).toMatch(/import type \{ NoticeSituation \} from "@\/modules\/whatsapp\/domain\/campaigns"/);
+    expect(source).not.toMatch(/import \{[^}]*\} from "@\/modules\/whatsapp\/domain\/campaigns"/);
   });
 
   it("keeps every template body out of the browser", () => {
@@ -243,9 +257,10 @@ describe("WhatsApp reminders on a phone", () => {
 
     expect(context).toContain("buildInstallmentCalendar");
     expect(context).toMatch(/loadReminderAudience\(\s*supabase,\s*filters,\s*calendar\s*\)/);
-    // The calendar's active set must reach the parser, or the installment
-    // default is still a constant.
-    expect(context).toContain("calendar.active");
+    // The calendar's own default must reach the parser, or the tiles open on
+    // a constant.
+    expect(context).toContain("defaultInstallmentsFor(calendar)");
+    expect(context).not.toContain("calendar.active");
     // The window is parsed BEFORE the calendar that depends on it.
     expect(context).toContain("preDueWindowDays");
 
@@ -284,12 +299,13 @@ describe("WhatsApp reminders on a phone", () => {
     expect(href).not.toContain("shortcutHref");
     expect(read(PICKER)).not.toContain("AUDIENCE_SHORTCUTS");
 
-    // And the audience row is named for the AUDIENCE, never for a notice —
-    // twelve notice-named chips under twelve notice-named template chips is
-    // the confusion this replaced.
+    // And the audience row is the installment tiles — nothing on it is named
+    // for a notice, and nothing on it reads one. Twelve notice-named chips
+    // under twelve notice-named template chips is the confusion this replaced.
     const builder = read(AUDIENCE_BUILDER);
-    expect(builder).toContain("shortcutHref(filters, entry.key, calendarArgs)");
+    expect(builder).toContain("installmentTileHref(filters, installment, calendar)");
     expect(builder).not.toContain("NOTICE_SITUATIONS");
+    expect(builder).not.toContain("filters.situation");
   });
 
   it("renders the desk table only above md", () => {

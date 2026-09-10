@@ -8,46 +8,52 @@ import { Input } from "@/ui/primitives/input";
 import { Label } from "@/ui/primitives/label";
 import { SelectNative } from "@/ui/primitives/select-native";
 import { cn } from "@/platform/utils";
+import { formatInr } from "@/platform/helpers/currency";
 import {
-  AUDIENCE_SHORTCUTS,
+  DEFAULT_MAX_TOTAL_PAID,
   INSTALLMENT_MATCHES,
-  matchingShortcut,
+  installmentMatchHref,
+  installmentTileHref,
+  lastYearTileHref,
+  PAID_OPTIONS,
   PROMISE_OPTIONS,
-  QUOTE_BASES,
   reminderQuery,
-  shortcutHref,
   TRI_OPTIONS,
-  type AudienceShortcutKey,
   type ReminderQueryKey,
 } from "@/modules/whatsapp/domain/audience";
+import {
+  defaultInstallmentsFor,
+  describeInstallmentTile,
+  type InstallmentCalendar,
+} from "@/modules/whatsapp/domain/installment-calendar";
 import type { ReminderAudience, ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
 import type { StudentBrief } from "@/modules/whatsapp/data/student-lookup";
 import { CarriedFilterFields } from "@/modules/whatsapp/ui/carried-filter-fields";
 
 /**
- * Who gets this message — stated as filters, on every template, always visible.
+ * Who gets this message — the installment tiles, and nothing the template
+ * decides.
+ *
+ * ONE main control: Inst 1 · 2 · 3 · 4 · Last year. Each tile says what the
+ * calendar makes of it ("Overdue since 20-04-2026", "Due 20-10-2026") and how
+ * many families it alone would reach, so due-versus-overdue is read off the
+ * tile rather than asked for as a filter. Tap to select; two or more tiles
+ * bring up "owing on all of them / any of them". Everything else — class, paid
+ * so far, a late fee on the ledger, a minimum, the promise hold-back — sits
+ * folded under "Narrow down", because those are the questions the office asks
+ * rarely and the tiles are the one it asks every day.
+ *
+ * Until 2026-09-10 this card carried nine audience chips (each borrowing a
+ * TEMPLATE's old audience as a preset) and twelve controls, most of them
+ * yes/no/either facts nobody could explain without knowing the rule they were
+ * extracted from. The owner's words were "very confusing", and the owner's
+ * mental model was installment-first, so this is installment-first.
  *
  * A SERVER component, and that is not a style choice. `/protected/reminders`
- * has ~480 gzip bytes of headroom against its ceiling in
- * `quality/route-bundle-baseline.json`, and that file's rule is that ceilings
- * ratchet down. Everything here is a GET form, a `<Link>` or a server action —
- * none of which needs a byte of client JavaScript — so the whole audience
- * builder costs the browser nothing. `holdoutControl` and `listActions` already
- * follow the same rule for the same reason.
- *
- * Three things this replaced, all consequences of the template having gated the
- * audience until 2026-09-08:
- *
- * - **Controls hidden per notice.** `SITUATION_FILTERS` hid the installment,
- *   paid-so-far and minimum fields on any notice whose rule ignored them, so
- *   the office could not see the levers it was not allowed to pull. Every
- *   filter now applies to every template.
- * - **A count on each template chip.** That count WAS the template's audience.
- *   The counts now belong to the presets, which is the only thing they can
- *   honestly describe.
- * - **No way to name a family.** Include and exclude ride the query string, so
- *   the send action rebuilds the identical list and the collection lists print
- *   it.
+ * sits ~1000 gzip bytes under its ceiling in `quality/route-bundle-baseline.json`,
+ * and that file's rule is that ceilings ratchet down. Everything here is a
+ * `<Link>`, a GET form or a server action — none of which needs a byte of
+ * client JavaScript — so the whole audience builder costs the browser nothing.
  */
 
 type Props = {
@@ -64,13 +70,12 @@ type Props = {
   /** What was typed, echoed back beside the matches. */
   searchQuery: string;
   /**
-   * What today makes of the fee calendar — the same values `presetFor` needs.
-   *
-   * Passed in rather than recomputed: a shortcut's href has to describe the
-   * SAME filters the audience was counted with, or a chip reading 92 lands on
-   * a different 92.
+   * What today makes of the fee calendar — the same one the audience was
+   * counted with. Passed in rather than recomputed: a tile's label has to
+   * describe the SAME state its count was built on, or a tile reading
+   * "Overdue" and 201 lands on a different 201.
    */
-  calendarArgs: { activeInstallments: readonly number[]; nextInstallment: number | null };
+  calendar: InstallmentCalendar;
   /**
    * The add-a-student action, passed in rather than imported — see the same
    * note on `NoticePicker`. `src/modules/**` may not reach into `src/app/**`,
@@ -109,211 +114,63 @@ function Field({
 const CONTROL = "h-11 w-full text-[13px] md:h-9";
 
 /**
- * The filter controls, mounted twice — behind a disclosure on a phone, as the
- * desk grid above `md`.
- *
- * `idPrefix` is load-bearing, not decoration: both branches sit in the DOM at
- * every viewport, so without it every `<Label htmlFor>` would point at a
- * duplicated id. The two copies live in two separate `<form>` elements, so only
- * the one actually submitted contributes to the query string. Mounting twice
- * costs the browser nothing now that this renders on the server.
+ * One tile. The whole surface is the tap target, and a tile whose tap would
+ * leave zero tiles selected is rendered inert rather than as a link — zero
+ * tiles is not a state, because the quoted amount is derived from them.
  */
-function FilterFields({
-  filters,
-  classOptions,
-  idPrefix,
+function Tile({
+  href,
+  selected,
+  title,
+  subtitle,
+  count,
 }: {
-  filters: ReminderFilters;
-  classOptions: ReminderAudience["classOptions"];
-  idPrefix: string;
+  href: string | null;
+  selected: boolean;
+  title: string;
+  subtitle: string;
+  count: number;
 }) {
-  const tri = (
-    key: "lateFee" | "overdue" | "carryForward",
-    label: string,
-    hint?: string,
-  ) => (
-    <Field id={`${idPrefix}${key}`} label={label} hint={hint}>
-      <SelectNative
-        id={`${idPrefix}${key}`}
-        name={key}
-        defaultValue={filters[key]}
-        className={CONTROL}
-      >
-        {TRI_OPTIONS.map((entry) => (
-          <option key={entry.value} value={entry.value}>
-            {entry.label}
-          </option>
-        ))}
-      </SelectNative>
-    </Field>
+  const className = cn(
+    "focus-ring flex min-h-[3.75rem] min-w-0 flex-col justify-center gap-0.5 rounded-xl border px-3 py-2 text-left transition-colors md:min-h-14",
+    selected
+      ? "border-accent bg-accent/12 text-foreground"
+      : "border-border bg-card text-foreground hover:border-border-strong",
+    count === 0 && !selected && "opacity-60",
   );
-
+  const body = (
+    <>
+      <span className="flex w-full items-baseline justify-between gap-2">
+        <span className="whitespace-nowrap text-[13px] font-extrabold">{title}</span>
+        <span
+          className={cn(
+            "tabular-nums text-[12px] font-extrabold",
+            selected ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {count}
+        </span>
+      </span>
+      <span className="truncate text-[10.5px] leading-tight text-muted-foreground">{subtitle}</span>
+    </>
+  );
+  if (href === null) {
+    return (
+      <span aria-current="true" aria-disabled="true" className={className}>
+        {body}
+      </span>
+    );
+  }
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 md:grid-cols-4 lg:grid-cols-6">
-      <Field
-        id={`${idPrefix}installmentMatch`}
-        label="Installments still carrying fees"
-        className="col-span-2 lg:col-span-3"
-      >
-        <div className="flex flex-wrap items-center gap-1.5">
-          {[1, 2, 3, 4].map((installment) => {
-            const on = filters.installments.includes(installment);
-            return (
-              // The whole pill is the tap target. A 16px box is not one, and
-              // this row is the control the office reaches for most.
-              <label
-                key={installment}
-                className={cn(
-                  "focus-within:ring-accent/40 flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2 text-[12.5px] font-bold transition-colors focus-within:ring-2 md:min-h-9",
-                  on
-                    ? "border-accent bg-accent/10 text-foreground"
-                    : "border-border bg-card text-muted-foreground",
-                )}
-              >
-                <input
-                  type="checkbox"
-                  name="installments"
-                  value={String(installment)}
-                  defaultChecked={on}
-                  className="size-3.5 rounded border-border-strong accent-accent"
-                />
-                {installment}
-              </label>
-            );
-          })}
-          {/* "all" is "nothing has been received on any of these"; "any" is
-              "still owing on at least one". Asking the wrong one is what put 87
-              fully paid-up families on the live balance list. */}
-          <SelectNative
-            id={`${idPrefix}installmentMatch`}
-            name="installmentMatch"
-            defaultValue={filters.installmentMatch}
-            className="h-11 w-full text-[13px] md:h-9 md:w-44"
-          >
-            {INSTALLMENT_MATCHES.map((entry) => (
-              <option key={entry.value} value={entry.value}>
-                {entry.label}
-              </option>
-            ))}
-          </SelectNative>
-        </div>
-      </Field>
-
-      <Field
-        id={`${idPrefix}quote`}
-        label="Message quotes"
-        hint="The figure the parent reads."
-        className="col-span-2 lg:col-span-3"
-      >
-        <SelectNative
-          id={`${idPrefix}quote`}
-          name="quote"
-          defaultValue={filters.quote}
-          className={CONTROL}
-        >
-          {QUOTE_BASES.map((entry) => (
-            <option key={entry.value} value={entry.value}>
-              {entry.label}
-            </option>
-          ))}
-        </SelectNative>
-      </Field>
-
-      <Field id={`${idPrefix}maxTotalPaid`} label="Paid so far, at most" hint="Blank: no ceiling.">
-        <Input
-          id={`${idPrefix}maxTotalPaid`}
-          name="maxTotalPaid"
-          type="number"
-          min={0}
-          inputMode="numeric"
-          placeholder="no limit"
-          defaultValue={filters.maxTotalPaid ?? ""}
-          className={CONTROL}
-        />
-      </Field>
-
-      <Field id={`${idPrefix}minTotalPaid`} label="Paid so far, over" hint="Blank: no floor.">
-        <Input
-          id={`${idPrefix}minTotalPaid`}
-          name="minTotalPaid"
-          type="number"
-          min={0}
-          inputMode="numeric"
-          placeholder="no limit"
-          defaultValue={filters.minTotalPaid ?? ""}
-          className={CONTROL}
-        />
-      </Field>
-
-      <Field id={`${idPrefix}minDueAmount`} label="Quoted amount at least">
-        <Input
-          id={`${idPrefix}minDueAmount`}
-          name="minDueAmount"
-          type="number"
-          min={0}
-          inputMode="numeric"
-          defaultValue={filters.minDueAmount}
-          className={CONTROL}
-        />
-      </Field>
-
-      {tri("lateFee", "Late fee charged")}
-      {tri("overdue", "Past a due date")}
-      {tri("carryForward", "Last session's balance")}
-
-      <Field
-        id={`${idPrefix}promise`}
-        label="Promise to pay"
-        hint="The office's own contact log."
-        className="col-span-2"
-      >
-        <SelectNative
-          id={`${idPrefix}promise`}
-          name="promise"
-          defaultValue={filters.promise}
-          className={CONTROL}
-        >
-          {PROMISE_OPTIONS.map((entry) => (
-            <option key={entry.value} value={entry.value}>
-              {entry.label}
-            </option>
-          ))}
-        </SelectNative>
-      </Field>
-
-      <Field id={`${idPrefix}classId`} label="Class" className="col-span-2">
-        <SelectNative
-          id={`${idPrefix}classId`}
-          name="classId"
-          defaultValue={filters.classId ?? ""}
-          className={CONTROL}
-        >
-          <option value="">All classes</option>
-          {/* Counted before the class filter is applied, so picking a class does
-              not empty the dropdown that picked it. */}
-          {classOptions.map((option) => (
-            <option key={option.classId} value={option.classId}>
-              {option.label} ({option.count})
-            </option>
-          ))}
-        </SelectNative>
-      </Field>
-
-      <div className="col-span-2 flex items-center justify-between gap-3 md:col-span-4 lg:col-span-6">
-        <label className="flex min-h-11 items-center gap-2 text-[12.5px] font-semibold md:min-h-0">
-          <input
-            type="checkbox"
-            name="includeRte"
-            defaultChecked={filters.includeRte}
-            className="size-4 rounded border-border-strong accent-accent"
-          />
-          Include RTE students
-        </label>
-        <Button type="submit" variant="primary" size="sm" className="h-11 px-6 md:h-9">
-          Apply
-        </Button>
-      </div>
-    </div>
+    <Link
+      href={href}
+      scroll={false}
+      prefetch={false}
+      aria-current={selected ? "true" : undefined}
+      className={className}
+    >
+      {body}
+    </Link>
   );
 }
 
@@ -366,11 +223,9 @@ export function AudienceBuilder({
   excluded,
   matches,
   searchQuery,
-  calendarArgs,
+  calendar,
   addAction,
 }: Props) {
-  /** Which shortcut the current filters are, or null when narrowed by hand. */
-  const activeShortcut: AudienceShortcutKey | null = matchingShortcut(filters, calendarArgs);
   /** Drop `id` from a comma list in the query string, keeping everything else. */
   const without = (key: "include" | "exclude", id: string) => {
     const source = key === "include" ? filters.includeStudentIds : filters.excludeStudentIds;
@@ -378,19 +233,31 @@ export function AudienceBuilder({
     return `?${reminderQuery(filters, { [key]: next.join(",") || null }).toString()}`;
   };
 
-  const summary = [
-    filters.installments.length > 0
-      ? `Inst ${filters.installments.join("+")} ${filters.installmentMatch === "all" ? "all" : "any"}`
-      : "any installment",
-    filters.maxTotalPaid !== null ? `paid ≤ ${filters.maxTotalPaid}` : null,
-    filters.minTotalPaid !== null ? `paid > ${filters.minTotalPaid}` : null,
-    filters.lateFee !== "any" ? `late fee ${filters.lateFee}` : null,
-    filters.overdue !== "any" ? `overdue ${filters.overdue}` : null,
-    filters.carryForward !== "any" ? `carry-forward ${filters.carryForward}` : null,
-    audience.classOptions.find((option) => option.classId === filters.classId)?.label ?? null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const selectedInstallments = filters.lastYear ? [] : filters.installments;
+  const calendarDefault = defaultInstallmentsFor(calendar);
+  // The courtesy-notice rule only means something when nothing selected has
+  // passed its date; on a passed tile everybody is overdue by definition, and
+  // the tile hrefs drop the key there for the same reason.
+  const offerSkipOverdue =
+    !filters.lastYear &&
+    selectedInstallments.length > 0 &&
+    selectedInstallments.every((installment) => !calendar.passed.includes(installment));
+
+  const classLabel =
+    audience.classOptions.find((option) => option.classId === filters.classId)?.label ?? null;
+  const narrowing = [
+    classLabel,
+    filters.paid !== "any"
+      ? (PAID_OPTIONS.find((entry) => entry.value === filters.paid)?.label ?? null)
+      : null,
+    filters.lateFee !== "any" ? `late fee: ${filters.lateFee}` : null,
+    filters.minDueAmount > 1 ? `at least ${formatInr(filters.minDueAmount)}` : null,
+    filters.promise !== "skip_open"
+      ? (PROMISE_OPTIONS.find((entry) => entry.value === filters.promise)?.label ?? null)
+      : null,
+    filters.skipOverdue ? "not overdue on anything earlier" : null,
+    filters.includeRte ? "RTE included" : null,
+  ].filter((entry): entry is string => Boolean(entry));
 
   const handPicked = included.length + excluded.length;
 
@@ -407,93 +274,200 @@ export function AudienceBuilder({
           Who gets it
         </h3>
         <p className="text-[11.5px] text-muted-foreground">
-          Only these filters decide the list. Changing the message above never changes it.
+          Pick the installments they still owe on. Changing the message above never changes the list.
         </p>
       </div>
 
-      {/* --------------------------------------------------- audience shortcuts */}
-      {/* Named for WHO they describe, not for a notice. Until 2026-09-09 these
-          were twelve chips carrying the twelve NOTICE names, sitting directly
-          under twelve template chips carrying the same twelve names — so "Fee
-          due" appeared twice on one screen meaning two different things, and
-          nothing on the page said which row changed the message and which
-          changed the list. Eight honest names and an "Everyone who owes" that
-          no notice could ever express.
-
-          `no-scrollbar` because Windows Chrome paints a persistent grey bar
-          under an `overflow-x-auto` row; above `md` it wraps instead. */}
-      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
-        {AUDIENCE_SHORTCUTS.map((entry) => {
-          const active = entry.key === activeShortcut;
-          const count = audience.counts[entry.key] ?? 0;
+      {/* ------------------------------------------------------------- tiles */}
+      {/* Two columns on a phone, five across at the desk. Each tile is the
+          whole tap target; the count is who THAT tile alone would reach under
+          the same narrowing, class and hold-backs as the list — so with one
+          tile selected, its number is the list. */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+        {[1, 2, 3, 4].map((installment) => {
+          const tile = describeInstallmentTile(installment, calendar);
           return (
-            <Link
-              key={entry.key}
-              href={shortcutHref(filters, entry.key, calendarArgs)}
-              scroll={false}
-              prefetch={false}
-              title={entry.hint}
-              aria-current={active ? "true" : undefined}
-              className={cn(
-                "focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[12px] font-bold transition-colors",
-                active
-                  ? "border-accent bg-accent/12 text-foreground"
-                  : "border-border bg-surface-2 text-foreground hover:border-border-strong",
-                count === 0 && !active && "opacity-45",
-              )}
-            >
-              <span className="whitespace-nowrap">{entry.label}</span>
-              <span
-                className={cn(
-                  "tabular-nums text-[11px] font-extrabold",
-                  active ? "text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {count}
-              </span>
-            </Link>
+            <Tile
+              key={installment}
+              href={installmentTileHref(filters, installment, calendar)}
+              selected={selectedInstallments.includes(installment)}
+              title={`Installment ${installment}`}
+              subtitle={tile.label}
+              count={audience.tileCounts.byInstallment[installment - 1] ?? 0}
+            />
           );
         })}
-        {/* Nothing matches, so the office narrowed it by hand. Saying so beats
-            leaving every chip unselected for no visible reason. */}
-        {activeShortcut === null ? (
-          <span className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-accent bg-accent/12 px-3.5 text-[12px] font-bold text-foreground">
-            Custom
-            <span className="tabular-nums text-[11px] font-extrabold">
-              {audience.candidates.length}
-            </span>
-          </span>
-        ) : null}
+        <Tile
+          href={lastYearTileHref(filters, calendarDefault)}
+          selected={filters.lastYear}
+          title="Last year"
+          subtitle="Carried forward from last session"
+          count={audience.tileCounts.lastYear}
+        />
       </div>
 
-      {/* ------------------------------------------------------------ filters */}
-      {/* Collapsed on a phone with the applied summary on the tab, because ten
-          controls above a 300-card list is nine screens of scrolling before the
-          first family. Open on the desk, where there is room. */}
-      <details className="md:hidden">
-        <summary className="focus-ring flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 text-[12.5px] font-bold text-foreground">
-          <span>Filters</span>
+      {/* "Owing on all of them" is the default — the office asked for it — and
+          the difference is not small: 187 against 345 on installments 1 and 2
+          the day this shipped. Only shown when it can mean anything. */}
+      {selectedInstallments.length > 1 ? (
+        <div
+          role="group"
+          aria-label="How many of the selected installments they must still owe on"
+          className="inline-flex w-fit overflow-hidden rounded-lg border border-border"
+        >
+          {INSTALLMENT_MATCHES.map((entry) => {
+            const active = entry.value === filters.installmentMatch;
+            return (
+              <Link
+                key={entry.value}
+                href={installmentMatchHref(filters, entry.value)}
+                scroll={false}
+                prefetch={false}
+                aria-current={active ? "true" : undefined}
+                className={cn(
+                  "focus-ring inline-flex min-h-11 items-center px-3.5 text-[12px] font-bold transition-colors md:min-h-9",
+                  active
+                    ? "bg-accent/12 text-foreground"
+                    : "bg-card text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {entry.label}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* ------------------------------------------------------- narrow down */}
+      {/* Folded on every viewport. Open by itself the moment any of it is
+          applied, so a narrowed list never hides the fact; the summary line
+          carries what is applied either way. */}
+      <details open={narrowing.length > 0} className="border-t border-border pt-3">
+        <summary className="focus-ring flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-1 text-[12.5px] font-bold text-foreground md:min-h-0">
+          <span>Narrow down</span>
           <span className="max-w-[62%] truncate text-[11px] font-semibold text-muted-foreground">
-            {summary}
+            {narrowing.length > 0 ? narrowing.join(" · ") : "Every class, whatever they have paid"}
           </span>
         </summary>
-        <form method="get" className="pt-3.5">
-          <FilterFields
-            filters={filters}
-            classOptions={audience.classOptions}
-            idPrefix="m-"
-          />
-          <CarriedFilterFields
-            filters={filters}
-            except={FILTER_FORM_KEYS}
-          />
+        <form method="get" className="pt-3">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 md:grid-cols-4">
+            <Field id="classId" label="Class">
+              <SelectNative
+                id="classId"
+                name="classId"
+                defaultValue={filters.classId ?? ""}
+                className={CONTROL}
+              >
+                <option value="">All classes</option>
+                {/* Counted before the class filter is applied, so picking a class
+                    does not empty the dropdown that picked it. */}
+                {audience.classOptions.map((option) => (
+                  <option key={option.classId} value={option.classId}>
+                    {option.label} ({option.count})
+                  </option>
+                ))}
+              </SelectNative>
+            </Field>
+
+            <Field
+              id="paid"
+              label="Paid so far"
+              hint={`Nothing yet is at most ${formatInr(DEFAULT_MAX_TOTAL_PAID)} received.`}
+            >
+              <SelectNative id="paid" name="paid" defaultValue={filters.paid} className={CONTROL}>
+                {PAID_OPTIONS.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </SelectNative>
+            </Field>
+
+            <Field
+              id="lateFee"
+              label="Late fee on the ledger"
+              hint="On the selected installments."
+            >
+              <SelectNative
+                id="lateFee"
+                name="lateFee"
+                defaultValue={filters.lateFee}
+                className={CONTROL}
+              >
+                {TRI_OPTIONS.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </SelectNative>
+            </Field>
+
+            <Field id="minDueAmount" label="Owing at least">
+              <Input
+                id="minDueAmount"
+                name="minDueAmount"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                defaultValue={filters.minDueAmount}
+                className={CONTROL}
+              />
+            </Field>
+
+            <Field
+              id="promise"
+              label="Promise to pay"
+              hint="From the office's own contact log."
+              className="col-span-2"
+            >
+              <SelectNative
+                id="promise"
+                name="promise"
+                defaultValue={filters.promise}
+                className={CONTROL}
+              >
+                {PROMISE_OPTIONS.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </SelectNative>
+            </Field>
+
+            <div className="col-span-2 flex flex-col justify-end gap-1.5">
+              {offerSkipOverdue ? (
+                <label className="flex min-h-11 items-center gap-2 text-[12.5px] font-semibold md:min-h-0">
+                  <input
+                    type="checkbox"
+                    name="skipOverdue"
+                    defaultChecked={filters.skipOverdue}
+                    className="size-4 rounded border-border-strong accent-accent"
+                  />
+                  Skip families already overdue on an earlier installment
+                </label>
+              ) : null}
+              <label className="flex min-h-11 items-center gap-2 text-[12.5px] font-semibold md:min-h-0">
+                <input
+                  type="checkbox"
+                  name="includeRte"
+                  defaultChecked={filters.includeRte}
+                  className="size-4 rounded border-border-strong accent-accent"
+                />
+                Include RTE students
+              </label>
+            </div>
+
+            <div className="col-span-2 flex justify-end md:col-span-4">
+              <Button type="submit" variant="primary" size="sm" className="h-11 px-6 md:h-9">
+                Apply
+              </Button>
+            </div>
+          </div>
+          {/* The tiles are NOT this form's keys, so they ride along as hidden
+              inputs and pressing Apply cannot reset them. */}
+          <CarriedFilterFields filters={filters} except={FILTER_FORM_KEYS} />
         </form>
       </details>
-
-      <form method="get" className="hidden md:block">
-        <FilterFields filters={filters} classOptions={audience.classOptions} idPrefix="" />
-        <CarriedFilterFields filters={filters} except={FILTER_FORM_KEYS} />
-      </form>
 
       {/* ---------------------------------------------------- by hand */}
       {/* A disclosure, not an always-open block. On a phone the search field,
@@ -617,22 +591,17 @@ export function AudienceBuilder({
 }
 
 /**
- * The keys the filter form owns. Everything else rides along as a hidden input,
- * or pressing Apply would reset the notice, the language, the deadline and the
- * hand-picked students — none of which the office chose, all of which a parent
- * then reads.
+ * The keys the Narrow-down form owns. Everything else — the tiles, the notice,
+ * the language, the deadline, the hand-picked students — rides along as a
+ * hidden input, or pressing Apply would reset choices the office made, all of
+ * which a parent then reads.
  */
 const FILTER_FORM_KEYS = [
-  "installments",
-  "installmentMatch",
-  "maxTotalPaid",
-  "minTotalPaid",
+  "paid",
   "minDueAmount",
   "lateFee",
-  "overdue",
-  "carryForward",
   "promise",
-  "quote",
+  "skipOverdue",
   "classId",
   "includeRte",
 ] as const satisfies readonly ReminderQueryKey[];

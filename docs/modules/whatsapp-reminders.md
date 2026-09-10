@@ -74,6 +74,8 @@ fee balance on it.
 | `src/modules/whatsapp/domain/phone.ts` | `toWhatsappDestination`. Pure, client-safe |
 | `src/modules/whatsapp/data/aisensy.ts` | Campaign API client. `server-only` |
 | `src/modules/whatsapp/domain/fee-reminders.ts` | Audience query and filters. `server-only` — a client component may only `import type` from it |
+| `src/modules/whatsapp/domain/audience.ts` | **Who gets it**: the filter shape, the one list of query keys, the serialiser, the tile hrefs and the saved-campaign reader. Browser-safe |
+| `src/modules/whatsapp/ui/audience-builder.tsx` | The installment tiles, "Narrow down" and add-or-remove-students. A SERVER component — see the byte rule below |
 | `src/modules/whatsapp/domain/installment-calendar.ts` | What today makes of the fee calendar, and the per-notice date guard. Pure, **no `server-only`** |
 | `src/modules/whatsapp/domain/delivery-report.ts` | Reading the AiSensy CSV, and matching it onto sends. Pure |
 | `src/modules/whatsapp/data/delivery-store.ts` | Delivery writes, stuck-row reconciliation, seen-but-not-paid |
@@ -124,12 +126,12 @@ fee balance on it.
   family for siblings — so `loadSentToday` reads both
   (`campaignNamesForNotice`), and `executeReminderRun` skips anyone already
   logged today before grouping, because the index only ever sees one name.
-- **The notice, the language and the date live in the query string**, never in
-  client state. The notice changes the audience, and `sendRemindersAction`
-  re-derives that audience from the very same parser — a choice the action could
-  not see would message a different set of families than the office ticked. It
-  also makes each notice linkable and the back button work, the same rule the
-  Dashboard boards follow.
+- **The tiles, the notice, the language and the date live in the query
+  string**, never in client state. The tiles change the audience — the notice
+  never does — and `sendRemindersAction` re-derives that audience from the
+  very same parser: a choice the action could not see would message a
+  different set of families than the office ticked. It also makes each list
+  linkable and the back button work, the same rule the Dashboard boards follow.
 - **Every form on the screen carries all three.** The picker owns the date
   field but the filters are a separate `<form>`; without hidden copies, pressing
   Apply would drop the notice, the language and the deadline out of the URL and
@@ -424,7 +426,12 @@ cannot drift apart. `docs/modules/whatsapp-campaign-registry.md` is the ground
 truth it was copied from — the approved bodies and the slot orders as submitted
 to Meta.
 
-| Situation | Who it is about | Slots | Campaigns |
+The second column is what the WORDING assumes about the family reading it —
+not who receives it. Since 2026-09-10 the installment tiles decide that (see
+"Who gets it" below), and a template pointed at a family who cannot fill its
+slots is warned about, never refused.
+
+| Situation | What the wording assumes | Slots | Campaigns |
 |---|---|---|---|
 | `fee_due` | Nothing received (`total_paid <= 1100`) and **every** selected installment pending | 7 | `vpps_app_fee_due_hi_v2` · `vpps_app_fee_due_en_v2` |
 | `balance` | Part paid, still owing on **any** selected installment | 7 | `vpps_app_balance_hi_v2` · `vpps_app_balance_en_v2` |
@@ -452,40 +459,52 @@ owe this year. That is why the send log is keyed per campaign — under the old
 one-a-day index the current-year notice claimed the day and the previous-session
 notice could never reach them at all.
 
-### The eligibility filters are per notice
+### Who gets it — the installment tiles
 
-Ticking, unticking, Select all, Clear, the per-family cadence and the snooze all
-work exactly as they did on the single template — they are notice-agnostic and
-always were. The **filters** are not: `SITUATION_FILTERS` in
-`domain/campaigns.ts` declares which ones each notice honours, and what they are
-called there.
+Card 2 is one row of tiles: **Installment 1 · 2 · 3 · 4 · Last year**. Each
+tile says what the calendar makes of it — "Overdue since 20-04-2026", "Due
+20-10-2026", "Due today", "No due date on file" — and how many families it
+alone would reach. Tap to select; two or more bring up **owing on all of them**
+(the default) or **any of them**. Live on 2026-09-10 that was 187 against 345
+on installments 1 and 2, so the toggle is not decoration. The Last-year tile is
+exclusive with the four: both ride the one query key `installments`, as the
+token `last_year`, so no URL can carry both.
 
-| Control | `fee_due` | `balance` | `prevyear` |
-|---|---|---|---|
-| Paid so far | "at most" — the threshold | "over" — the same threshold, other side | hidden |
-| Installments | "Installments pending" — **all** selected | "Still owing on" — **any** selected | hidden |
-| Minimum | "Due at least" | "Balance at least" | "Carry-forward at least" |
-| Class · Include RTE | yes | yes | yes |
+"Owing on" an installment is what a cashier would collect against it — fees
+still pending, or a late fee the ledger charges on that row. The **amount the
+message quotes is derived** from the tiles (fees on the selected installments,
+or the carry-forward remainder), and so is the ledger late fee the
+account-balance notices print: "Installment 2 only" for a family late on 1 and
+2 quotes installment 2's late fee beside installment 2's fees. A family who
+paid the fees late and owes only the late fee quotes ₹0 in fees, so the ₹1
+minimum keeps them off an ordinary list; a minimum of 0 reaches them.
 
-Two rules, both learned the hard way:
+Everything else sits folded under **Narrow down**: class (with counts), paid so
+far (either / nothing yet / part), a late fee on the ledger (either / yes / no,
+on the selected installments), a minimum, the promise select (skip families
+inside a promise — the default — or only lapsed / only due today-tomorrow /
+ignore), include RTE, and — only when every selected tile is still ahead of its
+date — "skip families already overdue on an earlier installment", which is the
+old courtesy-notice rule opted into rather than inferred from the template.
 
-- **A control a notice ignores is hidden, not disabled.** The installment
-  dropdown used to sit on all three while only `fee_due` honoured it. Measured
-  live: 87 of the 258 families on the balance list were fully paid up on
-  installments 1 and 2 and owed only 3 and 4 — ₹7,77,075 not due until October
-  and January. The office read "Installments pending: 1 and 2" and was chasing
-  money nobody owed yet. With the filter applied the list is 171.
-- **Hiding a control must never drop its value.** Each hidden one is replaced by
-  a hidden input carrying the same name, so an installment choice made on
-  `fee_due` survives a trip through `prevyear` and is still there coming back.
+The screen still says the rule out loud under the tiles — "Still owing on every
+one of installment 1 and 2, and owing at least ₹1 on that" — because a list of
+exclusion counts only answers "why is this family missing" if you already know
+what the list is looking for.
 
-`some` on `balance` and `every` on `fee_due` is deliberate: on `fee_due` nothing
-has been received, so "1 and 2" means both; on `balance` a family who cleared
-installment 1 and still owes 2 is exactly who the notice is for.
+What this replaced, for the record: until 2026-09-08 the notice gated the
+audience (`SITUATION_FILTERS` hid the controls a notice ignored — measured
+live, 87 of 258 families on the balance list owed only installments 3 and 4,
+₹7,77,075 not due until October); until 2026-09-10 the split kept each notice's
+old audience as a preset behind nine chips plus twelve controls, most of them
+yes/no/either facts nobody could explain without knowing the rule they came
+from. The owner's words were "very confusing". The tiles are installment-first
+because that is how the office thinks about the money.
 
-The screen says the rule out loud under the filter grid — "Who is on this
-list: …" — because a list of exclusion counts only answers "why is this family
-missing" if you already know what the notice is looking for.
+A bookmark from before the tiles that still carries `maxTotalPaid`,
+`minTotalPaid`, `overdue`, `carryForward` or `quote` is not broken: nothing
+reads those keys, they vanish on the first navigation, and the list opens on
+the calendar's default. `promise=open|none` falls back to the hold-back.
 
 ### Four things that are easy to break
 

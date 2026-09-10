@@ -130,15 +130,6 @@ export const NOTICE_LANGUAGES = [
   { value: "en", label: "English" },
 ] as const satisfies ReadonlyArray<{ value: NoticeLanguage; label: string }>;
 
-/**
- * The installments the `fee_due` audience checks by default.
- *
- * Lives here, not with the audience, because it is a fact about what the message
- * says: the fee_due template names the installments in slot {{4}}, so the filter
- * and the phrase must come from one place.
- */
-export const TEMPLATE_INSTALLMENTS = [1, 2] as const;
-
 export const DEFAULT_SITUATION: NoticeSituation = "fee_due";
 export const DEFAULT_LANGUAGE: NoticeLanguage = "hi";
 
@@ -203,7 +194,10 @@ export const PROMISE_DUE_LOOKAHEAD_DAYS = 1;
  * - `SITUATION_FILTERS` → nothing. Every filter shows on every template.
  * - `SITUATION_RULE` → a sentence composed from the FILTERS, on the send page.
  * - `NOT_THIS_NOTICE` → "did not match these filters", one wording for all.
- * - The audiences themselves → `presetFor`, as one-tap starting points.
+ * - The audiences themselves → `presetFor`, as one-tap starting points — and
+ *   on 2026-09-10 those went too, along with `TEMPLATE_INSTALLMENTS` and the
+ *   per-notice `contextInstallments`. The audience is the installment tiles
+ *   now, and slot {{4}} names the tiles the office selected on every notice.
  *
  * The per-notice table that remains is `NOTICE_FACTS` in `domain/audience.ts`:
  * which of a template's SLOTS need a fact the family may not have. That is a
@@ -1225,7 +1219,13 @@ export type NoticeSubject = {
 export type NoticeSettings = {
   situation: NoticeSituation;
   language: NoticeLanguage;
+  /** The selected tiles. Slot {{4}} names exactly these, on every notice. */
   installments: number[];
+  /**
+   * The Last-year tile. Slot {{4}} names the previous session instead of an
+   * installment, because that balance has no installment to name.
+   */
+  lastYear?: boolean;
   lastDate: string;
   lateFeeAmount: number;
   lateFeeBasis: LateFeeBasis;
@@ -1249,21 +1249,19 @@ export type NoticeSettings = {
 };
 
 /**
- * Which installments the context line names, per notice.
+ * Slot {{4}} — the context line.
  *
- * The ledger-quoted notices name the installments the late fee is ON, which
- * the ledger decided; `overdue_final` names the passed installments still owed
- * on, which the calendar decided; every other notice names the ones the run is
- * about, which the office chose. Same slot, three different facts.
+ * Names the tiles the office selected, on EVERY notice. Until 2026-09-10 the
+ * ledger-quoted notices named the rows carrying a late fee and `overdue_final`
+ * named the passed rows, so the same slot could describe a different set of
+ * installments than the amount beside it. Now the fees, the late fee and the
+ * line naming them are all derived from the one selection, so they describe
+ * the same rows by construction. The Last-year tile has no installment to
+ * name, so it names the session instead.
  */
-function contextInstallments(subject: NoticeSubject, settings: NoticeSettings): number[] {
-  if (isLedgerQuotedSituation(settings.situation) && subject.lateFeeInstallments?.length) {
-    return subject.lateFeeInstallments;
-  }
-  if (settings.situation === "overdue_final" && subject.overdueInstallments?.length) {
-    return subject.overdueInstallments;
-  }
-  return settings.installments;
+function contextLine(subject: NoticeSubject, settings: NoticeSettings): string {
+  if (settings.lastYear) return sessionPhrase(subject.prevSessionLabel, settings.language);
+  return installmentPhrase(settings.installments, settings.language);
 }
 
 /**
@@ -1333,7 +1331,7 @@ export function noticeValuesFrom(
     parentName: subject.parentName,
     studentName: subject.studentName,
     studentClass: subject.studentClass,
-    installmentPhrase: installmentPhrase(contextInstallments(subject, settings), settings.language),
+    installmentPhrase: contextLine(subject, settings),
     amountDue: subject.dueAmount,
     receivedSoFar: subject.totalPaid,
     balanceDue: subject.balanceDue,
@@ -1377,4 +1375,20 @@ export function installmentPhrase(
   if (sorted.length === 1) return `${word} ${sorted[0]}`;
   const last = sorted[sorted.length - 1];
   return `${word} ${sorted.slice(0, -1).join(", ")} ${and} ${last}`;
+}
+
+/**
+ * "Previous session 2025-26" / "पिछला सत्र 2025-26" — what slot {{4}} says on
+ * a Last-year audience, where there is no installment to name.
+ *
+ * Never empty: WhatsApp rejects an empty parameter, so a family whose
+ * carry-forward row carries no source label still gets the words.
+ */
+export function sessionPhrase(
+  sessionLabel: string | null | undefined,
+  language: NoticeLanguage = "en",
+): string {
+  const words = language === "hi" ? "पिछला सत्र" : "Previous session";
+  const label = String(sessionLabel ?? "").trim();
+  return label ? `${words} ${label}` : words;
 }

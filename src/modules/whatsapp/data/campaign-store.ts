@@ -49,13 +49,11 @@ export type SavedCampaign = {
 };
 
 /**
- * The audience a saved campaign carries.
+ * The audience a saved campaign carries: the tiles and the narrowing controls.
  *
- * `SavedAudience` from `domain/audience`, which also knows how to read a row
- * written before the audience was split from the template — those carry five
- * keys, three of which the engine of the day applied only on some notices.
- * Reading them back verbatim would narrow a scheduled run that has been going
- * out untouched for weeks.
+ * `SavedAudience` from `domain/audience`, read through the same
+ * `savedAudienceFrom` the save action writes with, so the one reader is also
+ * the one writer's shape.
  */
 export type SavedCampaignFilters = SavedAudience;
 
@@ -101,10 +99,7 @@ function toCampaign(row: any): SavedCampaign {
     name: String(row.name),
     situation: isNoticeSituation(row.situation) ? row.situation : DEFAULT_SITUATION,
     language: isNoticeLanguage(row.language) ? row.language : DEFAULT_LANGUAGE,
-    filters: savedAudienceFrom(
-      isNoticeSituation(row.situation) ? row.situation : DEFAULT_SITUATION,
-      raw,
-    ),
+    filters: savedAudienceFrom(raw),
     lastDate: row.last_date ? String(row.last_date) : null,
       lateFeeAmount: Number(row.late_fee_amount ?? 0),
     lateFeeBasis: isLateFeeBasis(row.late_fee_basis) ? row.late_fee_basis : DEFAULT_LATE_FEE_BASIS,

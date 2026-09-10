@@ -26,7 +26,10 @@ import {
   parseReminderFilters,
   resolveCurrentSessionLabel,
 } from "@/modules/whatsapp/domain/fee-reminders";
-import { buildInstallmentCalendar } from "@/modules/whatsapp/domain/installment-calendar";
+import {
+  buildInstallmentCalendar,
+  defaultInstallmentsFor,
+} from "@/modules/whatsapp/domain/installment-calendar";
 import { evaluateSendGuards, firstBlockingMessage } from "@/modules/whatsapp/domain/send-guards";
 import { savedAudienceParams } from "@/modules/whatsapp/domain/audience";
 import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
@@ -158,10 +161,10 @@ export async function GET(request: Request) {
       // Rebuild the audience from the saved RULE against today's ledger, exactly
       // as loading the campaign on the screen would. The audience is never
       // stored, so a family who paid this morning is simply absent.
-      // Only what the campaign actually STORED. A key it did not store is left
-      // out so the notice's own preset supplies it — which is what keeps a
-      // campaign saved before the audience/template split naming the families
-      // it has been naming all along. See `savedAudienceFrom`.
+      // `savedAudienceParams` emits every key — including `installments` as
+      // `last_year` for a Last-year campaign, without which the rule would
+      // replay on the calendar's default and chase this year's installments
+      // under last year's wording.
       const search = new URLSearchParams({
         ...savedAudienceParams(saved.filters),
         situation: saved.situation,
@@ -178,10 +181,9 @@ export async function GET(request: Request) {
           calendar.next?.dueDate ?? calendar.timings[calendar.timings.length - 1]?.dueDate ?? null,
         ),
         Number(policy?.lateFeeFlatAmount ?? 0),
-        calendar.active,
+        defaultInstallmentsFor(calendar),
         null,
         {
-          nextInstallment: calendar.next?.installmentNo ?? null,
           // `ledger` mode quotes this to a family with nothing charged yet.
           policyLateFeeAmount: Number(policy?.lateFeeFlatAmount ?? 0),
         },

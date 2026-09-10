@@ -28,16 +28,23 @@ Fee reminders and the message templates behind them.
   situation decides only what is written and which campaign is billed. Do not
   reintroduce a per-situation branch in `loadReminderAudience`; that is the
   shape this replaced.
-- **The audience chips are named for the AUDIENCE, never for a notice.**
-  `AUDIENCE_SHORTCUTS` in `domain/audience.ts`. For one day they carried the
-  twelve NOTICE names and sat directly under twelve template chips carrying the
-  same twelve names, so "Fee due" appeared twice on one screen meaning two
-  different things and nothing said which row changed the message and which
-  changed the list. Naming them for who they describe also deduplicates them —
-  the waiver pair and `late_fee_applied` are one audience, `upcoming` and
-  `upcoming_final` are another — and makes room for "Everyone who owes", which
-  no notice could express. The two cards are numbered **1 What it says** and
-  **2 Who gets it** for the same reason.
+- **The audience is the installment tiles.** Inst 1 · 2 · 3 · 4 · Last year,
+  in `ui/audience-builder.tsx` on `domain/audience.ts`. Whether a tile is due
+  or overdue is the CALENDAR's fact (`describeInstallmentTile`), so the tile
+  says it and nothing asks for it as a filter. Two or more tiles bring up
+  "owing on all of them" (the default — 187 on 1+2 the day it shipped) or "any
+  of them" (345). Until 2026-09-10 the card carried nine audience chips, each
+  borrowing a TEMPLATE's old audience as a preset, and twelve controls, most of
+  them yes/no/either facts nobody could explain without knowing the rule they
+  were extracted from; the owner's words were "very confusing". Everything
+  that is left sits under "Narrow down": class, paid so far, a late fee on the
+  ledger, a minimum, the promise hold-back, RTE. The two cards are numbered
+  **1 What it says** and **2 Who gets it** because they used to be one.
+- **Per-tile counts are counted after the hold-backs**, under the same
+  narrowing controls and class as the list, so with one tile selected and
+  nobody hand-picked that tile's number IS the list. `holdBackFor` was
+  extracted from the loop for exactly this: a count the hold-backs then shrink
+  is a count the office stops trusting.
 - **A template is never dimmed for not fitting the audience.** Pointing a
   message at families who cannot fill its slots is the freedom this feature
   exists to give; a greyed chip reads as "unavailable". The ⚠ count says what is
@@ -53,15 +60,23 @@ Fee reminders and the message templates behind them.
   the installment, paid-so-far and minimum controls on a notice whose rule
   ignored them. That was honest while the notice gated the audience and a cage
   the moment it stopped. The table is gone; the audience builder shows them all.
-- **The notices keep their audiences as PRESETS** (`presetFor`), and an absent
-  query parameter falls back to the selected notice's preset. That is what makes
-  every link, bookmark and saved campaign written before the split still name
-  the same families. A preset button DROPS the audience keys; switching template
-  keeps them. Getting that backwards rebuilds the list under the office's hands.
-- **The amount is a chosen basis, not a consequence of the template.**
-  `filters.quote` decides which figure the message quotes; it was a
-  `switch (filters.situation)`, which is precisely why the two could not be
-  separated. `ledger_fees` still quotes FEES only — never fees plus the late fee.
+- **There are no presets.** An absent `installments` opens on the calendar's
+  passed set (`defaultInstallmentsFor`); every other key opens on
+  `DEFAULT_AUDIENCE_FILTERS`. The template supplies nothing about the list.
+  Keys from before 2026-09-10 — `maxTotalPaid`, `minTotalPaid`, `overdue`,
+  `carryForward`, `quote` — are not in `REMINDER_QUERY_KEYS`, so nothing reads
+  them and they vanish on the first navigation; `promise=open|none` falls back
+  to `skip_open`. A tile href carries the hand-picked students; the office is
+  refining a list, not rebuilding one.
+- **The amount is DERIVED from the tiles, never chosen.** `quotedAmountFor` —
+  fees still pending on the selected installments, or the carry-forward
+  remainder on Last year. The ledger late fee the three account-balance
+  notices print is scoped to the same tiles (`lateFeeOnSelected`), so
+  "Installment 2 only" for a family late on 1 and 2 quotes installment 2's late
+  fee beside installment 2's fees — `loadAppliedLateFees` keeps the figures per
+  row for this. Fees only, never fees plus the late fee. It was a six-way
+  "quote basis" beside the filters, and before that a `switch` on the
+  template; both let the amount and the audience describe different rows.
 - **A template pointed at families who cannot fill its slots WARNS, never
   refuses.** `NOTICE_FACTS` says what each message needs from the family reading
   it; `missingFactsFor` counts what is absent, the chips and the rows show it,
@@ -79,10 +94,12 @@ Fee reminders and the message templates behind them.
   collection lists print it.
 - **A saved campaign stores no hand-picked students.** It is a standing rule a
   nightly cron replays, and an included student bypasses the cadence, so
-  persisting one would message that family every night. `savedAudienceFrom` also
-  reads a pre-split row the way its own engine did — `maxTotalPaid` was a
-  ceiling on `fee_due`, a floor on `balance` and inert on the other ten — or a
-  scheduled run that has gone out untouched for weeks would quietly narrow.
+  persisting one would message that family every night. `savedAudienceFrom`
+  reads every key concretely and has no legacy branch — production held zero
+  rows when the tiles shipped on 2026-09-10 — and `savedAudienceParams` emits
+  every key, `installments=last_year` included, or a Last-year campaign would
+  replay on the calendar's default and chase this year's installments under
+  last year's wording.
 - **One list of query keys** (`REMINDER_QUERY_KEYS`) and one serialiser
   (`reminderQuery`). There were five hand-written copies — three forms, the
   picker's `hrefWith`, the collection-list links — and a key added to four of the
@@ -91,17 +108,20 @@ Fee reminders and the message templates behind them.
   only the keys it owns. The send action rebuilds the audience from what the
   form posts, so a key missing there messages a different set of families than
   the office ticked.
-- **`installments=` (present, empty) means "no installment constraint";
-  an absent key means "take the preset".** The four checkboxes share one name,
-  so the readers join a repeated key with a comma rather than taking the first —
-  `readerFor` and `filtersFromForm` both, or ticking 1 and 2 reads as 1 alone.
-  Garbage (`0,9,banana`) falls back rather than widening to everybody.
+- **`installments` carries the tiles, and the token `last_year` IS the
+  Last-year tile.** One key, so Last year and the installments are exclusive by
+  construction — no URL can carry both. Absent, blank or garbage
+  (`0,9,banana`) opens on the calendar's default: zero tiles is not a state,
+  because the quoted amount is derived from them and an empty set would quote
+  ₹0. `parseInstallmentsValue` is the one reader, for the URL, the posted form
+  and a saved campaign alike. The readers still join a repeated key with a
+  comma rather than taking the first — `readerFor` and `filtersFromForm` both.
 
 - **One audience resolution, three callers.** `data/reminder-context.ts` is the only place the drain, the policy read and the filter parse happen. The send screen, the collection lists and the lists export all go through it, because two copies of this feature's parsing have already disagreed in production.
 - **The collection lists are per STUDENT.** Family grouping is for messages; a class teacher collects from children, and siblings sit in different classes.
 - **The send screen gains no client JavaScript.** `/protected/reminders` has ~800 gzip bytes of headroom; every download, share and copy control lives on `/protected/reminders/lists`.
 - Cadence decides who is due a reminder. It exists so staff stop unticking the same families by hand every day.
-- **The calendar decides the installments, not a constant.** `TEMPLATE_INSTALLMENTS` is the last-resort fallback for a session with no readable schedule; the default comes from `buildInstallmentCalendar` and is resolved once, in `parseReminderFilters`, so the filter and the slot {{4}} phrase cannot disagree.
+- **The calendar decides the installments, not a constant.** `defaultInstallmentsFor(calendar)` — every installment past its due date, else the next, else 1 — is resolved once, in `parseReminderFilters`, so the filter, the quoted amount and the slot {{4}} phrase cannot disagree. Slot {{4}} names the selected tiles on EVERY notice (the previous session on Last year); the per-notice `contextInstallments` and `TEMPLATE_INSTALLMENTS` are gone.
 - **A late fee is read, never derived.** `late_fee_applied` quotes `v_workbook_installment_balances.late_fee_pending`. The view is the only thing that knows about waivers and the accrual rule at once — recomputing it in TypeScript is the trap `waive_late_fee` fell into from the other side.
 - **Fees and the late fee reach the message in separate slots.** `pending_amount` is fees, `late_fee_pending` is the late fee, and only `total_pending` adds them. A message folding the first two together would be the first place "a late fee is not a fee" broke.
 - **One phone, one message.** The audience is derived per student because the ledger and the send log are keyed that way, but `sendFamily` groups by destination. Siblings get `covered_by_sibling` rows carrying the messaged sibling's `provider_message_id`, so the unique index, the cadence gap and the run outcomes all still work per student. Since 2026-09-04 a phone with siblings gets the family template on fee_due, balance and upcoming (`domain/family-notice.ts` decides; `late_fee_applied` stays per-child until its date and total slots have a source), and every row carries the name of the message that went — so "already messaged today" reads BOTH names a notice can log under. `app_settings.whatsapp_one_message_per_family = 'false'` switches the grouping off (one message per child, as before 2026-09-05); both the Send button and the cron read it through `data/reminder-settings.ts`.

@@ -1,4 +1,4 @@
-import { addIsoDays, daysBetweenIsoDates } from "@/platform/helpers/date";
+import { addIsoDays, daysBetweenIsoDates, formatDdMmYyyy } from "@/platform/helpers/date";
 import { isRunDateFreeSituation } from "@/modules/whatsapp/domain/campaigns";
 
 /**
@@ -144,6 +144,61 @@ export function buildInstallmentCalendar(args: {
     timings,
     windowDays,
   };
+}
+
+/**
+ * What the installment tiles open on when the query string says nothing.
+ *
+ * Every installment the calendar says has passed — that is the money the office
+ * is chasing on any ordinary day, and it is what the screen used to open on
+ * through `calendar.active`. Before the first due date it is the one falling
+ * due next; a session with no readable schedule falls back to installment 1
+ * rather than to nothing, because zero tiles is not a state: the amount a
+ * message quotes is derived from the tiles, and an empty set would quote ₹0.
+ */
+export function defaultInstallmentsFor(
+  calendar: Pick<InstallmentCalendar, "passed" | "next">,
+): number[] {
+  if (calendar.passed.length > 0) return [...calendar.passed];
+  if (calendar.next) return [calendar.next.installmentNo];
+  return [1];
+}
+
+export type InstallmentTileState = "passed" | "today" | "upcoming" | "future" | "unknown";
+
+/** One installment as the audience tile row shows it. */
+export type InstallmentTile = {
+  installmentNo: number;
+  state: InstallmentTileState;
+  /** `YYYY-MM-DD`, or null when the schedule has no readable date for it. */
+  dueDate: string | null;
+  /** "Overdue since 20-04-2026" · "Due today" · "Due 20-10-2026" · "No due date on file". */
+  label: string;
+};
+
+/**
+ * Due-versus-overdue is a fact about the CALENDAR, not a filter.
+ *
+ * A family owing on installment 1 today is overdue on it because 20-04-2026 has
+ * gone, not because somebody ticked "overdue". So the tile says which it is and
+ * the office picks the installment; there is nothing else to get right.
+ */
+export function describeInstallmentTile(
+  installmentNo: number,
+  calendar: Pick<InstallmentCalendar, "timings" | "upcoming">,
+): InstallmentTile {
+  const timing = calendar.timings.find((entry) => entry.installmentNo === installmentNo);
+  if (!timing) {
+    return { installmentNo, state: "unknown", dueDate: null, label: "No due date on file" };
+  }
+  const date = formatDdMmYyyy(timing.dueDate);
+  const base = { installmentNo, dueDate: timing.dueDate };
+  if (timing.daysUntilDue < 0) return { ...base, state: "passed", label: `Overdue since ${date}` };
+  if (timing.daysUntilDue === 0) return { ...base, state: "today", label: "Due today" };
+  if (calendar.upcoming.includes(installmentNo)) {
+    return { ...base, state: "upcoming", label: `Due ${date}` };
+  }
+  return { ...base, state: "future", label: `Due ${date}` };
 }
 
 /**

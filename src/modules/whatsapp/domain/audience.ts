@@ -1,44 +1,42 @@
 /**
- * WHO gets a reminder, stated as filters rather than inferred from WHICH
+ * WHO gets a reminder — stated as installments, never inferred from WHICH
  * message is going out.
  *
- * Until 2026-09-08 the notice did both jobs. `situation` picked the campaign
- * AND gated the audience — `qualifies[situation]` in `fee-reminders.ts` — so
- * "Fee due" meant 92 families, "Balance" meant 196 and "Overdue final" meant
- * 299, and there was no way to say "send the overdue wording to the 92". Worse,
- * `SITUATION_FILTERS` HID the installment, paid-so-far and minimum controls on
- * any notice whose rule ignored them, so the office could not even see the
- * levers it was not allowed to pull.
+ * The audience is the tile row: **Inst 1 · 2 · 3 · 4 · Last year**. A family
+ * is on the list when they still owe fees on the selected installments (every
+ * one of them, or any one — the office says which), or on last session's
+ * carried-forward balance. Whether an installment is due or overdue is a fact
+ * about the calendar, so the tile SAYS it rather than asking for it as a
+ * filter. The amount the message quotes is derived from the same tiles — fees
+ * still pending on the selected installments, or what is left of the
+ * carry-forward — and so is the late fee the ledger-quoted notices print.
  *
- * The split is now explicit:
- *
- * - **The template decides what the message SAYS.** Nothing else.
- * - **These filters decide who it GOES TO.** Every one of them applies on every
- *   template, always visible, always overridable.
- * - **`quote` decides which figure the message names.** It used to be a
- *   `switch` on the situation, which is exactly why the two could not be
- *   separated.
- *
- * The notices keep their old audiences as PRESETS (`presetFor`). An absent
- * query parameter falls back to the selected notice's preset, so every link
- * that existed before this change still resolves to the same families and the
- * screen still opens on something sensible. An explicit parameter always wins.
+ * Until 2026-09-10 this file also carried the twelve templates' old audiences
+ * as presets (`presetFor`), nine audience shortcut chips built on them, a
+ * six-way "quote basis", two paid-so-far thresholds and three yes/no/either
+ * facts. An absent query key fell back to the selected TEMPLATE's preset, so
+ * the message still shaped the list invisibly, and the office reported the
+ * card as "very confusing". All of that is gone. What is left under "Narrow
+ * down" is the four things that were genuinely asked for — class, paid so far,
+ * a late fee on the ledger, a minimum — plus the promise hold-back the contact
+ * log drives.
  *
  * Browser-safe on purpose — no `server-only`, no Supabase, no `fetch`. The
- * notice picker, the audience builder and the collection-list links all need to
- * build the same query string, and a fifth copy of "which keys travel" is how a
+ * audience builder, the notice picker and the collection-list links all build
+ * the same query string, and a second copy of "which keys travel" is how a
  * teacher's sheet ends up naming families the send screen never showed.
  */
 
 import type { NoticeSituation } from "@/modules/whatsapp/domain/campaigns";
 
 /**
- * Whether EVERY named installment must still carry fees, or any one of them.
+ * Whether EVERY selected installment must still carry fees, or any one of them.
  *
  * Not decoration. "Nothing has been received" (`all`) and "still owing on one of
  * these" (`any`) are different questions, and asking the wrong one is what put
  * 87 fully-paid-up families on the live balance list, chased for installments
- * that were not due for another two months.
+ * that were not due for another two months. Live on 2026-09-10, installments 1
+ * and 2 read 187 families under `all` and 345 under `any`.
  */
 export type InstallmentMatch = "all" | "any";
 
@@ -46,49 +44,27 @@ export type InstallmentMatch = "all" | "any";
 export type Tri = "any" | "yes" | "no";
 
 /**
+ * What has been received this session. `nothing` is at most the academic fee
+ * (`DEFAULT_MAX_TOTAL_PAID`), `part` is anything over it. The two are
+ * complements, so a family cannot fall in both bands or in neither.
+ */
+export type PaidFilter = "any" | "nothing" | "part";
+
+/**
  * What the office's own contact log says about this family's last promise.
  *
  * `skip_open` is the default and is NOT the same as `any`: a family who has
  * already told the office when they will pay is held back, because chasing
  * inside their own promise window is how a promise that was going to hold stops
- * holding. `any` is the deliberate override.
+ * holding. `lapsed` and `due_soon` are the only way the promise notices can be
+ * targeted — nothing on the ledger distinguishes "promised and lapsed" from
+ * "owing", so the two stay reachable here.
  */
-export type PromiseFilter = "skip_open" | "any" | "open" | "due_soon" | "lapsed" | "none";
-
-/**
- * Which figure the message names.
- *
- * Was a `switch (filters.situation)` buried in `loadReminderAudience`. Lifting
- * it out is what makes "any template to any audience" safe: the overdue wording
- * sent to a fee-due audience can still quote the fee-due figure, because the
- * two are now separate choices rather than one.
- */
-export type QuoteBasis =
-  /** Fees still pending on the installments named in the filter. */
-  | "selected"
-  /** Everything still owed across this session's four installments. */
-  | "session"
-  /** Fees still pending on installments whose due date has passed. */
-  | "overdue"
-  /** Fees on the one installment the calendar says falls due next. */
-  | "next"
-  /** Fees on the rows the ledger is charging a late fee on. */
-  | "ledger_fees"
-  /** What is left of last session's carried-forward balance. */
-  | "prev_year";
-
-export const QUOTE_BASES = [
-  { value: "selected", label: "Fees on the selected installments" },
-  { value: "session", label: "Whole session balance" },
-  { value: "overdue", label: "Overdue installments only" },
-  { value: "next", label: "The next installment due" },
-  { value: "ledger_fees", label: "Fees on the late-fee rows" },
-  { value: "prev_year", label: "Last session's carry-forward" },
-] as const satisfies ReadonlyArray<{ value: QuoteBasis; label: string }>;
+export type PromiseFilter = "skip_open" | "any" | "due_soon" | "lapsed";
 
 export const INSTALLMENT_MATCHES = [
-  { value: "all", label: "all of them pending" },
-  { value: "any", label: "any of them pending" },
+  { value: "all", label: "owing on all of them" },
+  { value: "any", label: "owing on any of them" },
 ] as const satisfies ReadonlyArray<{ value: InstallmentMatch; label: string }>;
 
 export const TRI_OPTIONS = [
@@ -97,13 +73,17 @@ export const TRI_OPTIONS = [
   { value: "no", label: "No" },
 ] as const satisfies ReadonlyArray<{ value: Tri; label: string }>;
 
+export const PAID_OPTIONS = [
+  { value: "any", label: "Either" },
+  { value: "nothing", label: "Nothing paid yet" },
+  { value: "part", label: "Part paid" },
+] as const satisfies ReadonlyArray<{ value: PaidFilter; label: string }>;
+
 export const PROMISE_OPTIONS = [
   { value: "skip_open", label: "Skip families inside a promise" },
-  { value: "any", label: "Ignore promises entirely" },
-  { value: "due_soon", label: "Promise falls due today or tomorrow" },
-  { value: "lapsed", label: "Promise has lapsed" },
-  { value: "open", label: "Inside an open promise" },
-  { value: "none", label: "No promise on record" },
+  { value: "lapsed", label: "Only a promise that has lapsed" },
+  { value: "due_soon", label: "Only a promise due today or tomorrow" },
+  { value: "any", label: "Ignore promises" },
 ] as const satisfies ReadonlyArray<{ value: PromiseFilter; label: string }>;
 
 export function isInstallmentMatch(value: unknown): value is InstallmentMatch {
@@ -114,15 +94,15 @@ export function isTri(value: unknown): value is Tri {
   return value === "any" || value === "yes" || value === "no";
 }
 
+export function isPaidFilter(value: unknown): value is PaidFilter {
+  return value === "any" || value === "nothing" || value === "part";
+}
+
 export function isPromiseFilter(value: unknown): value is PromiseFilter {
   return (
     typeof value === "string" &&
     PROMISE_OPTIONS.some((entry) => entry.value === value)
   );
-}
-
-export function isQuoteBasis(value: unknown): value is QuoteBasis {
-  return typeof value === "string" && QUOTE_BASES.some((entry) => entry.value === value);
 }
 
 /**
@@ -133,22 +113,32 @@ export function isQuoteBasis(value: unknown): value is QuoteBasis {
  * browser and that one is `server-only`.
  */
 export type AudienceFilters = {
+  /**
+   * The selected installment tiles, 1-4, sorted and deduplicated. Empty ONLY
+   * when `lastYear` is set — zero tiles is not a state the parser produces.
+   */
   installments: number[];
+  /**
+   * The "Last year" tile: a balance carried forward from the previous session.
+   * Exclusive with the installments by construction — both ride the ONE query
+   * key `installments`, as the token `last_year` — so no URL can carry both.
+   */
+  lastYear: boolean;
   installmentMatch: InstallmentMatch;
-  /** Null means no ceiling — the office is not splitting on what was received. */
-  maxTotalPaid: number | null;
-  /** Null means no floor. Set, it means "has actually paid something". */
-  minTotalPaid: number | null;
+  paid: PaidFilter;
   /** The quoted figure must be at least this. Zero lets a nil quote through. */
   minDueAmount: number;
-  /** Is the LEDGER charging a late fee on any passed installment? */
+  /** Is the LEDGER charging a late fee on one of the SELECTED installments? */
   lateFee: Tri;
-  /** Are fees still pending on an installment whose due date has gone? */
-  overdue: Tri;
-  /** Is there a balance carried forward from last session? */
-  carryForward: Tri;
   promise: PromiseFilter;
-  quote: QuoteBasis;
+  /**
+   * Skip families already overdue on an EARLIER installment. Only offered when
+   * every selected tile is still ahead of its date — a courtesy note about
+   * installment 3 to a family already late on 2 is the wrong message, and this
+   * is how the office keeps them off it. Meaningless on a passed tile, where
+   * everybody on the list is overdue by definition, so the tile hrefs drop it.
+   */
+  skipOverdue: boolean;
   classId: string | null;
   includeRte: boolean;
   /**
@@ -166,235 +156,81 @@ export type AudienceFilters = {
 };
 
 /**
- * The audience each notice used to define for itself, kept as a one-tap preset.
+ * Where every audience control opens before the office touches it.
  *
- * Every entry here reproduces what `qualifies[situation]` did before the split,
- * so an existing link, a saved campaign and yesterday's bookmark all still name
- * the same families. Two deliberate differences, both narrowings that only
- * remove a message nobody should have been sent:
- *
- * - `upcoming_final` no longer carries the global three-day window. That was a
- *   property of the RUN, not of a family, so it belonged on the template's
- *   compatibility note rather than in the audience. The chip says so.
- * - `promise_due` and `promise_lapsed` require the quoted figure to clear the
- *   minimum like every other notice, rather than accepting a family whose
- *   session balance is nil because their debt is last year's.
- *
- * `activeInstallments` is the calendar's own answer for today, passed in rather
- * than hardcoded — the same rule `parseReminderFilters` follows, and for the
- * same reason: the filter and the "Installment 1 and 2" phrase in the message
- * must not be able to disagree.
+ * `installments` is EMPTY here and means "unresolved": `parseReminderFilters`
+ * substitutes the calendar's own default (`defaultInstallmentsFor`) — every
+ * installment past its due date today — and a caller that builds filters from
+ * this constant directly gets "all four" from `quotedAmountFor`, never ₹0.
  */
-export function presetFor(
-  situation: NoticeSituation,
-  args: { activeInstallments: readonly number[]; nextInstallment: number | null },
-): Omit<AudienceFilters, "classId" | "includeRte" | "includeStudentIds" | "excludeStudentIds"> {
-  const active = [...args.activeInstallments];
-
-  // An EMPTY installment set means "no installment constraint", which is what
-  // most of these notices had: the old engine only consulted `filters.installments`
-  // on `fee_due`, `balance` and `exam_clearance`. Giving the other nine the
-  // active pair would silently narrow them — `prevyear` in particular, whose
-  // balance is last session's and has no installments at all.
-  const base = {
-    installments: [] as number[],
-    installmentMatch: "all" as InstallmentMatch,
-    maxTotalPaid: null,
-    minTotalPaid: null,
-    minDueAmount: 1,
-    lateFee: "any" as Tri,
-    overdue: "any" as Tri,
-    carryForward: "any" as Tri,
-    promise: "skip_open" as PromiseFilter,
-    quote: "selected" as QuoteBasis,
-  };
-
-  switch (situation) {
-    // A courtesy note about ONE installment that has not fallen due yet, and
-    // nothing behind it. "Nothing overdue" is the whole difference between this
-    // and `fee_due` — a family already late on installment 2 must get the
-    // late-fee notice, not a polite note about installment 3.
-    case "upcoming":
-    case "upcoming_final":
-      // No installment filter: `quote: "next"` plus the minimum already says
-      // "fees still on the one falling due", which is what the old rule meant.
-      return { ...base, overdue: "no", lateFee: "no", quote: "next" };
-
-    // Nothing received beyond the academic fee, and EVERY selected installment
-    // still pending.
-    case "fee_due":
-      return {
-        ...base,
-        installments: active,
-        maxTotalPaid: DEFAULT_MAX_TOTAL_PAID,
-        installmentMatch: "all",
-      };
-
-    // Something received, and still owing on at least one of them.
-    case "balance":
-      return {
-        ...base,
-        installments: active,
-        minTotalPaid: DEFAULT_MAX_TOTAL_PAID,
-        installmentMatch: "any",
-        quote: "session",
-      };
-
-    case "overdue_final":
-      return { ...base, overdue: "yes", quote: "overdue" };
-
-    // The ledger decides these three: a fee actually pending on a passed row.
-    case "late_fee_applied":
-    case "late_fee_waiver":
-    case "waiver_last_call":
-      return { ...base, lateFee: "yes", quote: "ledger_fees" };
-
-    case "promise_due":
-      return { ...base, promise: "due_soon", quote: "session" };
-
-    case "promise_lapsed":
-      return { ...base, promise: "lapsed", quote: "session" };
-
-    // The office picks which installments must be clear before the exams, and
-    // ANY of them still pending puts a family here.
-    case "exam_clearance":
-      return { ...base, installments: active, installmentMatch: "any" };
-
-    // Last year's balance has no installments and never accrues a late fee.
-    case "prevyear":
-      return { ...base, carryForward: "yes", quote: "prev_year" };
-  }
-}
-
-
-/**
- * The audience shortcuts, named for WHO they describe.
- *
- * These are filter presets, and until 2026-09-09 they were rendered as twelve
- * chips carrying the twelve NOTICE names — right beside twelve template chips
- * carrying the same twelve names. "Fee due" appeared twice on one screen
- * meaning two different things, and the office could not tell the row that
- * changes the message from the row that changes the list.
- *
- * So they are named for the audience now, and deduplicated: three notices
- * (`late_fee_applied` and the waiver pair) share one audience, and so do
- * `upcoming` / `upcoming_final`. `exam_clearance` is `fee_due`'s filter set
- * with `any` instead of `all`, which the installment control already says
- * better than a chip can. Twelve look-alike chips become eight honest ones,
- * plus "Everyone who owes" — the shortcut nobody could reach before, because
- * no NOTICE meant "no constraints at all".
- *
- * `from` is the situation whose preset supplies the filters, so there is still
- * exactly ONE definition of each audience and `presetFor` remains the only
- * place it lives.
- */
-export const AUDIENCE_SHORTCUTS = [
-  {
-    key: "everyone",
-    label: "Everyone who owes",
-    hint: "Every collectable family with anything still outstanding this session",
-    from: null,
-  },
-  {
-    key: "nothing_paid",
-    label: "Nothing paid yet",
-    hint: "Nothing received beyond the academic fee, every selected installment pending",
-    from: "fee_due",
-  },
-  {
-    key: "part_paid",
-    label: "Part paid, still owing",
-    hint: "Something received, still owing on at least one selected installment",
-    from: "balance",
-  },
-  {
-    key: "overdue",
-    label: "Past a due date",
-    hint: "Fees still pending on an installment whose due date has gone",
-    from: "overdue_final",
-  },
-  {
-    key: "late_fee",
-    label: "Carrying a late fee",
-    hint: "The ledger is charging a late fee on a passed installment",
-    from: "late_fee_applied",
-  },
-  {
-    key: "not_due_yet",
-    label: "Not due yet",
-    hint: "An installment falls due inside the window and nothing earlier is owed",
-    from: "upcoming",
-  },
-  {
-    key: "promised_now",
-    label: "Promised, due now",
-    hint: "The family's promised date is today or tomorrow",
-    from: "promise_due",
-  },
-  {
-    key: "promise_broken",
-    label: "Promise broken",
-    hint: "The promised date has passed and the money has not arrived",
-    from: "promise_lapsed",
-  },
-  {
-    key: "last_session",
-    label: "Owes from last session",
-    hint: "A balance carried forward with something left on it",
-    from: "prevyear",
-  },
-] as const satisfies ReadonlyArray<{
-  key: string;
-  label: string;
-  hint: string;
-  from: NoticeSituation | null;
-}>;
-
-export type AudienceShortcutKey = (typeof AUDIENCE_SHORTCUTS)[number]["key"];
-
-/**
- * The filters one shortcut stands for.
- *
- * `everyone` is the only one not delegated to a notice's preset, because no
- * notice ever meant "no constraint at all": anything still outstanding on this
- * session's four installments, whoever they are and whatever they have paid.
- */
-export function shortcutFilters(
-  key: AudienceShortcutKey,
-  args: { activeInstallments: readonly number[]; nextInstallment: number | null },
-): Omit<AudienceFilters, "classId" | "includeRte" | "includeStudentIds" | "excludeStudentIds"> {
-  const entry = AUDIENCE_SHORTCUTS.find((option) => option.key === key);
-  if (!entry || entry.from === null) {
-    return {
-      installments: [],
-      installmentMatch: "all",
-      maxTotalPaid: null,
-      minTotalPaid: null,
-      minDueAmount: 1,
-      lateFee: "any",
-      overdue: "any",
-      carryForward: "any",
-      promise: "skip_open",
-      quote: "session",
-    };
-  }
-  return presetFor(entry.from, args);
-}
+export const DEFAULT_AUDIENCE_FILTERS: AudienceFilters = {
+  installments: [],
+  lastYear: false,
+  installmentMatch: "all",
+  paid: "any",
+  minDueAmount: 1,
+  lateFee: "any",
+  promise: "skip_open",
+  skipOverdue: false,
+  classId: null,
+  includeRte: false,
+  includeStudentIds: [],
+  excludeStudentIds: [],
+};
 
 /**
  * Families who have paid at most this much have effectively paid nothing — it
- * is the academic fee and nothing else has landed.
+ * is the academic fee and nothing else has landed. The `paid` filter's
+ * threshold.
  *
- * Lives here rather than in `fee-reminders.ts` so the presets above and the
- * browser-side builder can both read it without reaching into a `server-only`
- * module. `fee-reminders.ts` re-exports it for its existing callers.
+ * Lives here rather than in `fee-reminders.ts` so the browser-side builder can
+ * read it without reaching into a `server-only` module. `fee-reminders.ts`
+ * re-exports it for its existing callers.
  */
 export const DEFAULT_MAX_TOTAL_PAID = 1100;
+
+/** The one token that puts the Last-year tile in the `installments` key. */
+export const LAST_YEAR_TOKEN = "last_year";
+
+/**
+ * The ONE reader for the `installments` value, whether it came off a query
+ * string, a posted form or a saved campaign's JSON.
+ *
+ * `last_year` anywhere in the value wins and clears the four. Numbers 1-4 are
+ * kept, sorted and deduplicated. Anything else — absent, blank, `0,9,banana`
+ * from a hand-edited URL — returns null so the caller can open on the
+ * calendar's default rather than on nobody. Garbage must never be read as a
+ * deliberate choice.
+ */
+export function parseInstallmentsValue(
+  raw: string | null | undefined,
+): { installments: number[]; lastYear: boolean } | null {
+  if (raw === null || raw === undefined) return null;
+  const tokens = raw
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+  if (tokens.includes(LAST_YEAR_TOKEN)) return { installments: [], lastYear: true };
+  const installments = [
+    ...new Set(
+      tokens
+        .map((token) => Number(token))
+        .filter((value) => Number.isInteger(value) && value >= 1 && value <= 4),
+    ),
+  ].sort((a, b) => a - b);
+  if (installments.length === 0) return null;
+  return { installments, lastYear: false };
+}
+
+/** The `installments` value that `parseInstallmentsValue` reads back to `scope`. */
+export function installmentsValue(scope: Pick<AudienceFilters, "installments" | "lastYear">): string {
+  return scope.lastYear ? LAST_YEAR_TOKEN : scope.installments.join(",");
+}
 
 /**
  * A per-family fact a template's slots depend on.
  *
- * Now that any template can go to any audience, a template can be pointed at a
+ * Any template can go to any audience, so a template can be pointed at a
  * family who does not have the fact its wording is built around: "Late fee
  * applied" to a family with no late fee renders ₹0, "Promise due" to a family
  * with no promise renders a blank date. The screen WARNS rather than refuses —
@@ -440,6 +276,10 @@ export const NOTICE_FACTS: Record<NoticeSituation, readonly NoticeFact[]> = {
  *
  * `campaignId` is here because it travels; it is not a filter and changes
  * nobody's eligibility.
+ *
+ * Keys a link may still carry from before 2026-09-10 — `maxTotalPaid`,
+ * `minTotalPaid`, `overdue`, `carryForward`, `quote` — are not here, so nothing
+ * reads them, nothing re-emits them, and they vanish on the first navigation.
  */
 export const REMINDER_QUERY_KEYS = [
   "situation",
@@ -451,14 +291,11 @@ export const REMINDER_QUERY_KEYS = [
   "preDueWindowDays",
   "installments",
   "installmentMatch",
-  "maxTotalPaid",
-  "minTotalPaid",
+  "paid",
   "minDueAmount",
   "lateFee",
-  "overdue",
-  "carryForward",
   "promise",
-  "quote",
+  "skipOverdue",
   "classId",
   "includeRte",
   "include",
@@ -486,11 +323,10 @@ export type ReminderQuerySource = AudienceFilters & {
  * The whole state of the screen as a query string, with anything you name
  * overridden.
  *
- * Emits every key explicitly, including the ones equal to a preset's value.
- * That is the point: once a parameter is in the URL it stops following the
- * notice, so switching template keeps the audience the office built rather than
- * silently rebuilding it from the new template's preset. Choosing a PRESET is
- * how you go back to a notice's own audience, and that path drops the keys.
+ * Emits every key explicitly, including the ones equal to a default. That is
+ * the point: a TEMPLATE chip changes only the message keys and a TILE changes
+ * only the audience keys, and neither can reset the other's half because both
+ * halves are always in the URL.
  */
 export function reminderQuery(
   source: ReminderQuerySource,
@@ -509,99 +345,81 @@ export function reminderQuery(
   set("lateFeeBasis", source.lateFeeBasis);
   set("lateFeeSource", source.lateFeeSource);
   set("preDueWindowDays", String(source.preDueWindowDays));
-  // Always emitted, empty included. An absent key means "take the notice's
-  // preset"; `installments=` means "the office unticked all four", which is a
-  // real choice — no installment constraint at all — and must survive a round
-  // trip. Every other key can safely collapse an empty value to absent.
-  params.set("installments", source.installments.join(","));
+  set("installments", installmentsValue(source));
   set("installmentMatch", source.installmentMatch);
-  set("maxTotalPaid", source.maxTotalPaid === null ? null : String(source.maxTotalPaid));
-  set("minTotalPaid", source.minTotalPaid === null ? null : String(source.minTotalPaid));
+  set("paid", source.paid);
   set("minDueAmount", String(source.minDueAmount));
   set("lateFee", source.lateFee);
-  set("overdue", source.overdue);
-  set("carryForward", source.carryForward);
   set("promise", source.promise);
-  set("quote", source.quote);
+  set("skipOverdue", source.skipOverdue ? "on" : null);
   set("classId", source.classId);
   set("includeRte", source.includeRte ? "on" : null);
   set("include", source.includeStudentIds.join(","));
   set("exclude", source.excludeStudentIds.join(","));
 
   for (const [key, value] of Object.entries(override)) {
-    // An explicit empty string on `installments` is a real value ("none of the
-    // four"); every other empty means absent.
-    if (key === "installments" && typeof value === "string") params.set(key, value);
-    else set(key as ReminderQueryKey, value ?? null);
+    set(key as ReminderQueryKey, value ?? null);
   }
 
   return params;
 }
 
 /**
- * The href for an audience shortcut: the shortcut's own filters, and NOTHING
- * about the message.
+ * The href that toggles one installment tile.
  *
- * The mirror image of `hrefWith` in the notice picker, and the pair is the
- * whole point: a TEMPLATE chip changes only what is said, a SHORTCUT chip
- * changes only who hears it. Neither ever reaches into the other's half, so
- * the office can answer the two questions in either order without one
- * silently undoing the other.
+ * Built on `reminderQuery`, so the template, the language, the date, the late
+ * fee, the class, the narrowing controls AND the hand-picked students all
+ * carry: the office is refining a list, not rebuilding one. Tapping a tile
+ * while Last year is on leaves Last year — the two share one key.
+ *
+ * Returns null when the tap would leave zero tiles, which is not a state; the
+ * builder renders that tile as selected-and-inert. `skipOverdue` is dropped
+ * the moment the selection touches a passed installment, because "not overdue
+ * on anything" and "owing on an installment whose date has gone" cannot both
+ * be true of a family, and a hidden filter that empties the list is exactly
+ * the kind of thing this screen must not do.
  */
-export function shortcutHref(
-  source: ReminderQuerySource,
-  key: AudienceShortcutKey,
-  args: { activeInstallments: readonly number[]; nextInstallment: number | null },
-): string {
-  const filters = shortcutFilters(key, args);
-  const params = reminderQuery(source, {
-    installments: filters.installments.join(","),
-    installmentMatch: filters.installmentMatch,
-    maxTotalPaid: filters.maxTotalPaid === null ? null : String(filters.maxTotalPaid),
-    minTotalPaid: filters.minTotalPaid === null ? null : String(filters.minTotalPaid),
-    minDueAmount: String(filters.minDueAmount),
-    lateFee: filters.lateFee,
-    overdue: filters.overdue,
-    carryForward: filters.carryForward,
-    promise: filters.promise,
-    quote: filters.quote,
-    // Hand-picked students are a decision about THIS list, so a shortcut that
-    // rebuilds the list drops them. The office can always add them back, and
-    // silently carrying somebody into an audience they were never chosen for
-    // is the worse surprise.
-    include: null,
-    exclude: null,
+export function installmentTileHref(
+  filters: ReminderQuerySource,
+  installmentNo: number,
+  calendar: { passed: readonly number[] },
+): string | null {
+  const selected = filters.lastYear ? [] : filters.installments;
+  const next = selected.includes(installmentNo)
+    ? selected.filter((value) => value !== installmentNo)
+    : [...selected, installmentNo].sort((a, b) => a - b);
+  if (next.length === 0) return null;
+  const touchesPassed = next.some((value) => calendar.passed.includes(value));
+  const params = reminderQuery(filters, {
+    installments: next.join(","),
+    skipOverdue: touchesPassed ? null : filters.skipOverdue ? "on" : null,
   });
   return `?${params.toString()}`;
 }
 
 /**
- * Does the current filter set match a shortcut exactly?
+ * The href that toggles the Last-year tile.
  *
- * Drives the "Custom" state: when nothing matches, the office has narrowed the
- * list by hand and the screen says so rather than leaving every chip looking
- * unselected for no visible reason.
+ * On: the one token, and `skipOverdue` dropped — last session's balance has no
+ * installment to be overdue on. Off: back to the calendar's own default rather
+ * than to an empty set, for the same reason `installmentTileHref` returns null.
  */
-export function matchingShortcut(
-  filters: AudienceFilters,
-  args: { activeInstallments: readonly number[]; nextInstallment: number | null },
-): AudienceShortcutKey | null {
-  for (const entry of AUDIENCE_SHORTCUTS) {
-    const candidate = shortcutFilters(entry.key, args);
-    const same =
-      candidate.installments.join(",") === filters.installments.join(",") &&
-      candidate.installmentMatch === filters.installmentMatch &&
-      candidate.maxTotalPaid === filters.maxTotalPaid &&
-      candidate.minTotalPaid === filters.minTotalPaid &&
-      candidate.minDueAmount === filters.minDueAmount &&
-      candidate.lateFee === filters.lateFee &&
-      candidate.overdue === filters.overdue &&
-      candidate.carryForward === filters.carryForward &&
-      candidate.promise === filters.promise &&
-      candidate.quote === filters.quote;
-    if (same) return entry.key;
-  }
-  return null;
+export function lastYearTileHref(
+  filters: ReminderQuerySource,
+  calendarDefault: readonly number[],
+): string {
+  const params = filters.lastYear
+    ? reminderQuery(filters, { installments: calendarDefault.join(",") })
+    : reminderQuery(filters, { installments: LAST_YEAR_TOKEN, skipOverdue: null });
+  return `?${params.toString()}`;
+}
+
+/** The href for "owing on all of them" / "owing on any of them". */
+export function installmentMatchHref(
+  filters: ReminderQuerySource,
+  match: InstallmentMatch,
+): string {
+  return `?${reminderQuery(filters, { installmentMatch: match }).toString()}`;
 }
 
 /** A comma list of ids out of the query string, deduped and trimmed. */
@@ -618,13 +436,8 @@ export function parseIdList(raw: string | null): string[] {
 }
 
 /**
- * What a SAVED campaign stores about its audience.
- *
- * Every field is nullable, and null does not mean "no limit" — it means **not
- * stored**, so the notice's own preset supplies it. That distinction is what
- * lets a campaign saved before 2026-09-08 keep naming the families it always
- * named: those rows carry only five keys, and the four they do not carry have
- * to come from somewhere that agrees with the engine they were saved against.
+ * What a SAVED campaign stores about its audience: the tiles and the narrowing
+ * controls, every one of them concrete.
  *
  * Hand-picked students are deliberately NOT here. A saved campaign is a
  * standing rule that a nightly cron replays; an included student bypasses the
@@ -632,110 +445,85 @@ export function parseIdList(raw: string | null): string[] {
  * every night forever. Include and exclude are decisions about today.
  */
 export type SavedAudience = {
-  maxTotalPaid: number | null;
-  minTotalPaid: number | null;
+  installments: number[];
+  lastYear: boolean;
+  installmentMatch: InstallmentMatch;
+  paid: PaidFilter;
   minDueAmount: number;
-  installments: number[] | null;
-  installmentMatch: InstallmentMatch | null;
-  lateFee: Tri | null;
-  overdue: Tri | null;
-  carryForward: Tri | null;
-  promise: PromiseFilter | null;
-  quote: QuoteBasis | null;
+  lateFee: Tri;
+  promise: PromiseFilter;
+  skipOverdue: boolean;
   classId: string | null;
   includeRte: boolean;
 };
 
 /**
- * Read a stored campaign's audience, honouring what the engine of its day did.
+ * Read a stored campaign's audience.
  *
- * A row written since the split carries `quote` and every other key, and is
- * read back verbatim.
+ * Every key it does not carry, or carries with a value the guards reject,
+ * takes the default — the same default a bare screen opens on. `installments`
+ * is accepted as an array of numbers, a comma string or the `last_year` token,
+ * through the same reader the URL uses, so a rule saved from the manager and a
+ * rule pasted from a link cannot disagree.
  *
- * A row written BEFORE it carries five keys, three of which the old engine
- * applied only on some notices — `maxTotalPaid` decided `fee_due` and `balance`
- * and was inert everywhere else, and `installments` decided those two plus
- * `exam_clearance`. Passing them through unconditionally would narrow a
- * scheduled `overdue_final` run that has been going out untouched for weeks:
- * the office would not have changed anything, and fewer parents would be
- * chased. So a legacy row drops the keys its own engine ignored, and the preset
- * fills the rest.
- *
- * On `balance` the old rule was `totalPaid > maxTotalPaid` — a FLOOR, stored
- * under the ceiling's name because one field did both jobs. It moves to
- * `minTotalPaid` here, which is the same comparison under an honest name.
+ * There is no legacy branch. Production held zero rows when the audience moved
+ * to tiles on 2026-09-10, so nothing written by the old engine exists to read.
  */
-export function savedAudienceFrom(
-  situation: NoticeSituation,
-  raw: Record<string, unknown>,
-): SavedAudience {
-  const numberOrNull = (value: unknown): number | null => {
-    if (value === null || value === undefined || value === "") return null;
+export function savedAudienceFrom(raw: Record<string, unknown>): SavedAudience {
+  const number = (value: unknown, fallback: number): number => {
+    if (value === null || value === undefined || value === "") return fallback;
     const parsed = Number(value);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
   };
-  const installments = Array.isArray(raw.installments)
-    ? (raw.installments as unknown[]).map(Number).filter((value) => value >= 1 && value <= 4)
-    : null;
-
-  const base: SavedAudience = {
-    maxTotalPaid: null,
-    minTotalPaid: null,
-    minDueAmount: numberOrNull(raw.minDueAmount) ?? 1,
-    installments: installments && installments.length > 0 ? installments : null,
-    installmentMatch: null,
-    lateFee: null,
-    overdue: null,
-    carryForward: null,
-    promise: null,
-    quote: null,
-    classId: typeof raw.classId === "string" && raw.classId ? raw.classId : null,
-    includeRte: raw.includeRte === true,
-  };
-
-  if (isQuoteBasis(raw.quote)) {
-    return {
-      ...base,
-      maxTotalPaid: numberOrNull(raw.maxTotalPaid),
-      minTotalPaid: numberOrNull(raw.minTotalPaid),
-      installmentMatch: isInstallmentMatch(raw.installmentMatch) ? raw.installmentMatch : null,
-      lateFee: isTri(raw.lateFee) ? raw.lateFee : null,
-      overdue: isTri(raw.overdue) ? raw.overdue : null,
-      carryForward: isTri(raw.carryForward) ? raw.carryForward : null,
-      promise: isPromiseFilter(raw.promise) ? raw.promise : null,
-      quote: raw.quote,
-    };
-  }
-
-  // Legacy. `maxTotalPaid` meant a ceiling on `fee_due` and a floor on
-  // `balance`; it was inert on the other ten notices.
-  const storedPaid = numberOrNull(raw.maxTotalPaid);
-  const paidApplies = situation === "fee_due" || situation === "balance";
-  const installmentsApply =
-    situation === "fee_due" || situation === "balance" || situation === "exam_clearance";
+  const installmentsRaw = Array.isArray(raw.installments)
+    ? (raw.installments as unknown[]).map(String).join(",")
+    : typeof raw.installments === "string"
+      ? raw.installments
+      : null;
+  const tiles =
+    raw.lastYear === true
+      ? { installments: [], lastYear: true }
+      : (parseInstallmentsValue(installmentsRaw) ?? {
+          installments: [...DEFAULT_AUDIENCE_FILTERS.installments],
+          lastYear: false,
+        });
 
   return {
-    ...base,
-    maxTotalPaid: paidApplies && situation === "fee_due" ? storedPaid : null,
-    minTotalPaid: paidApplies && situation === "balance" ? storedPaid : null,
-    installments: installmentsApply ? base.installments : null,
+    installments: tiles.installments,
+    lastYear: tiles.lastYear,
+    installmentMatch: isInstallmentMatch(raw.installmentMatch)
+      ? raw.installmentMatch
+      : DEFAULT_AUDIENCE_FILTERS.installmentMatch,
+    paid: isPaidFilter(raw.paid) ? raw.paid : DEFAULT_AUDIENCE_FILTERS.paid,
+    minDueAmount: number(raw.minDueAmount, DEFAULT_AUDIENCE_FILTERS.minDueAmount),
+    lateFee: isTri(raw.lateFee) ? raw.lateFee : DEFAULT_AUDIENCE_FILTERS.lateFee,
+    promise: isPromiseFilter(raw.promise) ? raw.promise : DEFAULT_AUDIENCE_FILTERS.promise,
+    skipOverdue: raw.skipOverdue === true || raw.skipOverdue === "on",
+    classId: typeof raw.classId === "string" && raw.classId ? raw.classId : null,
+    includeRte: raw.includeRte === true || raw.includeRte === "on",
   };
 }
 
-/** A stored audience as query parameters, omitting everything it did not store. */
+/**
+ * A stored audience as query parameters, every key explicit.
+ *
+ * `installments` is always emitted — as the list, or as `last_year` — because
+ * a Last-year campaign that omitted it would replay on the calendar's default
+ * and chase this year's installments under last year's wording. An
+ * `installments` of `[]` with no `lastYear` (a rule saved before any tile was
+ * picked) is left absent so the parser opens it on the calendar.
+ */
 export function savedAudienceParams(saved: SavedAudience): Record<string, string> {
-  const out: Record<string, string> = { minDueAmount: String(saved.minDueAmount) };
-  if (saved.maxTotalPaid !== null) out.maxTotalPaid = String(saved.maxTotalPaid);
-  if (saved.minTotalPaid !== null) out.minTotalPaid = String(saved.minTotalPaid);
-  if (saved.installments && saved.installments.length > 0) {
-    out.installments = saved.installments.join(",");
-  }
-  if (saved.installmentMatch) out.installmentMatch = saved.installmentMatch;
-  if (saved.lateFee) out.lateFee = saved.lateFee;
-  if (saved.overdue) out.overdue = saved.overdue;
-  if (saved.carryForward) out.carryForward = saved.carryForward;
-  if (saved.promise) out.promise = saved.promise;
-  if (saved.quote) out.quote = saved.quote;
+  const out: Record<string, string> = {
+    installmentMatch: saved.installmentMatch,
+    paid: saved.paid,
+    minDueAmount: String(saved.minDueAmount),
+    lateFee: saved.lateFee,
+    promise: saved.promise,
+  };
+  const tiles = installmentsValue(saved);
+  if (tiles) out.installments = tiles;
+  if (saved.skipOverdue) out.skipOverdue = "on";
   if (saved.classId) out.classId = saved.classId;
   if (saved.includeRte) out.includeRte = "on";
   return out;
