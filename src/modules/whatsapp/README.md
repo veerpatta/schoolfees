@@ -62,6 +62,22 @@ Fee reminders and the message templates behind them.
   `filters.quote` decides which figure the message quotes; it was a
   `switch (filters.situation)`, which is precisely why the two could not be
   separated. `ledger_fees` still quotes FEES only — never fees plus the late fee.
+- **A fact is only "missing" if a SLOT would actually come out empty.**
+  `NOTICE_FACTS` listed `next_due` and `overdue` for one day and should not
+  have: `upcoming` renders through `feeDueParams` so there is no next-installment
+  slot, and `overdue_final`'s context line falls back to the run's installments
+  rather than rendering blank. Together they reported 89 of 89 families broken on
+  a list where nothing was. `missingFactsFor` also takes the LATE-FEE MODE —
+  in `custom` the message prints the typed amount and never reads the ledger, so
+  a family with no charged fee is not a problem that message has. A warning that
+  always fires is one nobody reads.
+- **Two different failures hide behind that warning, and the message must tell
+  them apart.** A missing late fee or amount renders **₹0** — odd, but
+  delivered. A missing promised date or carry-forward session renders an **empty
+  template parameter**, and WhatsApp REFUSES those: the message does not go out
+  looking strange, it does not go out. `NOTICE_FACT_CONSEQUENCE` carries the
+  effect and the fix per fact, and the guard emits one finding per fact rather
+  than one sentence listing every fact the app knows about.
 - **A template pointed at families who cannot fill its slots WARNS, never
   refuses.** `NOTICE_FACTS` says what each message needs from the family reading
   it; `missingFactsFor` counts what is absent, the chips and the rows show it,

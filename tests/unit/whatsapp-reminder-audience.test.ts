@@ -4,6 +4,8 @@ import {
   DEFAULT_REMINDER_FILTERS,
   describeMissingFacts,
   loadReminderAudience,
+  missingFactsFor,
+  type CandidateFacts,
 } from "@/modules/whatsapp/domain/fee-reminders";
 import {
   buildInstallmentCalendar,
@@ -958,12 +960,72 @@ describe("describeMissingFacts", () => {
     expect(describeMissingFacts(["late_fee", "amount"])).toBe(
       "a late fee on the ledger and a non-zero amount to quote",
     );
-    expect(describeMissingFacts(["next_due", "overdue", "amount"])).toBe(
-      "an installment falling due next, an installment past its due date and a non-zero amount to quote",
+    expect(describeMissingFacts(["late_fee", "prev_year", "amount"])).toBe(
+      "a late fee on the ledger, a carry-forward balance and a non-zero amount to quote",
     );
   });
 
   it("is empty when nothing is missing, so the badge does not render", () => {
     expect(describeMissingFacts([])).toBe("");
+  });
+});
+
+describe("missingFactsFor — what would actually reach a parent", () => {
+  /**
+   * This guard warns the office off sending a message whose slots would come
+   * out empty. It is only worth anything if it fires on real problems: it
+   * reported 89 of 89 families broken on a list where nothing was, and a
+   * warning that always fires is one nobody reads.
+   */
+  const facts: CandidateFacts = {
+    totalPaid: 0,
+    installmentPending: [5000, 4000, 0, 0],
+    lateFeeApplied: 0,
+    ledgerFeesPending: 0,
+    overdueInstallments: [],
+    overdueAmount: 0,
+    nextInstallmentNo: null,
+    nextInstallmentPending: 0,
+    balanceDue: 9000,
+    prevYearBalance: 0,
+    promisedOn: null,
+    promiseOpen: false,
+    promiseDueSoon: false,
+    promiseLapsed: false,
+  };
+
+  it("does not call a late fee missing in CUSTOM mode", () => {
+    // The bug this replaced. In custom mode the message prints the amount the
+    // office typed and never reads the ledger, so a family with no charged fee
+    // is not a family this message has a problem with.
+    expect(missingFactsFor("late_fee_applied", facts, 9000, "custom")).toEqual([]);
+    expect(missingFactsFor("waiver_last_call", facts, 9000, "custom")).toEqual([]);
+  });
+
+  it("still calls it missing in LEDGER mode, where the slot really would read nil", () => {
+    expect(missingFactsFor("late_fee_applied", facts, 9000, "ledger")).toEqual(["late_fee"]);
+  });
+
+  it("leaves the courtesy and overdue notices alone", () => {
+    // `upcoming` renders through `feeDueParams` — there is no "next
+    // installment" slot to leave blank — and `overdue_final`'s context line
+    // falls back to the run's installments rather than rendering empty. Both
+    // were reported broken for every family on a fee-due list.
+    for (const situation of ["upcoming", "upcoming_final", "overdue_final"] as const) {
+      expect(missingFactsFor(situation, facts, 9000, "custom")).toEqual([]);
+      expect(missingFactsFor(situation, facts, 9000, "ledger")).toEqual([]);
+    }
+  });
+
+  it("still catches the two that make WhatsApp REFUSE the message", () => {
+    // An absent promise or session name reaches the provider as an empty
+    // template parameter, and those are rejected — the message does not go out
+    // looking odd, it does not go out.
+    expect(missingFactsFor("promise_due", facts, 9000, "custom")).toEqual(["promise"]);
+    expect(missingFactsFor("prevyear", facts, 9000, "custom")).toEqual(["prev_year"]);
+  });
+
+  it("catches a nil amount, whatever the mode", () => {
+    expect(missingFactsFor("fee_due", facts, 0, "custom")).toEqual(["amount"]);
   });
 });

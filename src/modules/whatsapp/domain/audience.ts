@@ -402,24 +402,75 @@ export const DEFAULT_MAX_TOTAL_PAID = 1100;
  * notice to a family about to accrue one) — but it never lets it happen
  * silently.
  */
-export type NoticeFact = "late_fee" | "promise" | "prev_year" | "overdue" | "next_due" | "amount";
+/**
+ * A fact whose ABSENCE would put an empty parameter or a ₹0 in front of a
+ * parent. Nothing softer belongs here.
+ *
+ * `next_due` and `overdue` were on this list until 2026-09-10 and should not
+ * have been. `upcoming` and `upcoming_final` render through `feeDueParams`, so
+ * there is no "next installment" slot to leave blank — the amount already
+ * covers it. `overdue_final`'s context line goes through `contextInstallments`,
+ * which FALLS BACK to the run's installments, so it never renders empty either.
+ * Between them they were reporting 89 of 89 families as broken on a list where
+ * nothing was, which is how a real warning gets trained out of somebody.
+ */
+export type NoticeFact = "late_fee" | "promise" | "prev_year" | "amount";
 
 export const NOTICE_FACT_LABELS: Record<NoticeFact, string> = {
   late_fee: "a late fee on the ledger",
   promise: "a promised date on record",
   prev_year: "a carry-forward balance",
-  overdue: "an installment past its due date",
-  next_due: "an installment falling due next",
   amount: "a non-zero amount to quote",
 };
 
+/**
+ * What actually happens to a message missing each fact, and what to do instead.
+ *
+ * Two different failures hide behind one warning, and the office needs to tell
+ * them apart:
+ *
+ * - `late_fee` and `amount` render a **₹0** — an odd message, delivered.
+ * - `promise` and `prev_year` render an **empty template parameter**, and
+ *   WhatsApp REFUSES those. The message does not go out looking strange; it
+ *   does not go out at all, and the run reports a failure.
+ */
+export const NOTICE_FACT_CONSEQUENCE: Record<
+  NoticeFact,
+  { effect: string; fix: string }
+> = {
+  late_fee: {
+    effect: "the message would print a late fee of ₹0",
+    fix: "switch the late fee to Custom amount, or use the “Carrying a late fee” audience",
+  },
+  promise: {
+    effect: "the message carries an empty date, and WhatsApp refuses those — they would fail rather than send",
+    fix: "use the “Promised, due now” or “Promise broken” audience, or pick a different message",
+  },
+  prev_year: {
+    effect: "the message carries an empty session name, and WhatsApp refuses those — they would fail rather than send",
+    fix: "use the “Owes from last session” audience, or pick a different message",
+  },
+  amount: {
+    effect: "the message would quote ₹0",
+    fix: "raise “Quoted amount at least”, or change what the message quotes",
+  },
+};
+
+/** Every fact, for a caller that has to count them one by one. */
+export const NOTICE_FACT_KEYS = [
+  "late_fee",
+  "promise",
+  "prev_year",
+  "amount",
+] as const satisfies readonly NoticeFact[];
+
 /** What each template's slots need from the family reading it. */
 export const NOTICE_FACTS: Record<NoticeSituation, readonly NoticeFact[]> = {
-  upcoming: ["next_due", "amount"],
-  upcoming_final: ["next_due", "amount"],
+  upcoming: ["amount"],
+  upcoming_final: ["amount"],
   fee_due: ["amount"],
   balance: ["amount"],
-  overdue_final: ["overdue", "amount"],
+  overdue_final: ["amount"],
   late_fee_applied: ["late_fee"],
   late_fee_waiver: ["late_fee", "amount"],
   waiver_last_call: ["late_fee", "amount"],

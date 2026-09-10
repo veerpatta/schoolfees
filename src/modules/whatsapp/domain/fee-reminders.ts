@@ -793,13 +793,23 @@ export function missingFactsFor(
   situation: NoticeSituation,
   facts: CandidateFacts,
   quotedAmount: number,
+  /**
+   * Which late-fee mode the run is in.
+   *
+   * Load-bearing, and its absence was a bug for one day: this read
+   * `facts.lateFeeApplied` — the LEDGER's figure — whatever the run was doing.
+   * In `custom` mode the message never touches the ledger, it prints the amount
+   * the office typed, so "this family has no late fee" is not a problem the
+   * message has. It reported 89 of 89 families broken on a run that would have
+   * printed ₹4,000 to every one of them.
+   */
+  lateFeeSource: LateFeeSource = "ledger",
 ): NoticeFact[] {
   const has: Record<NoticeFact, boolean> = {
-    late_fee: facts.lateFeeApplied > 0,
+    // Custom mode supplies the number itself, so there is nothing to be missing.
+    late_fee: lateFeeSource === "custom" || facts.lateFeeApplied > 0,
     promise: Boolean(facts.promisedOn),
     prev_year: facts.prevYearBalance > 0,
-    overdue: facts.overdueInstallments.length > 0,
-    next_due: facts.nextInstallmentNo !== null && facts.nextInstallmentPending > 0,
     amount: quotedAmount > 0,
   };
   return NOTICE_FACTS[situation].filter((fact) => !has[fact]);
@@ -1257,14 +1267,16 @@ export async function loadReminderAudience(
       // Which of the SELECTED template's slots this family cannot fill. Empty
       // for almost everybody; non-empty is the price of letting any template go
       // to any audience, and the screen says so rather than sending ₹0.
-      missingFacts: missingFactsFor(filters.situation, facts, dueAmount),
+      missingFacts: missingFactsFor(filters.situation, facts, dueAmount, filters.lateFeeSource),
       missingFactsLabel: describeMissingFacts(
-        missingFactsFor(filters.situation, facts, dueAmount),
+        missingFactsFor(filters.situation, facts, dueAmount, filters.lateFeeSource),
       ),
     });
 
     for (const situation of SITUATION_KEYS) {
-      if (missingFactsFor(situation, facts, dueAmount).length > 0) noticeGaps[situation] += 1;
+      if (missingFactsFor(situation, facts, dueAmount, filters.lateFeeSource).length > 0) {
+        noticeGaps[situation] += 1;
+      }
     }
   }
 
