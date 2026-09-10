@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import {
   isCampaignApproved,
+  ledgerLateFeePhrase,
   isLedgerQuotedSituation,
   isRunDateFreeSituation,
   NOTICE_LANGUAGES,
@@ -126,12 +127,41 @@ export function NoticePicker({
   // Exactly what slot 7 will carry, rendered here so the office reads the
   // sentence rather than inferring it from a number and a dropdown.
   const phrase = lateFeePhrase(filters.lateFeeAmount, filters.lateFeeBasis, filters.language);
-  /** The school's own rate, for the ledger-mode sentence. */
-  const policyPhrase = lateFeePhrase(
-    filters.policyLateFeeAmount,
-    "per_installment",
-    filters.language,
-  );
+  /**
+   * Exactly what slot {{7}} will carry in ledger mode, from the SAME function
+   * the send path uses.
+   *
+   * It used to recompute the policy rate here, which is how the message came to
+   * say "not charged" on a carry-forward balance while this line beside it still
+   * promised Rs 1,000 per installment. The office reads this line to decide, so
+   * the copy that was wrong was the one that mattered.
+   */
+  /**
+   * The exact wording `lateFeePhrase` uses for "no late fee", from the same
+   * function rather than a literal — so a run that mentions none can be
+   * detected without hardcoding a Hindi or English string here.
+   */
+  const noLateFeeWording = lateFeePhrase(0, "none", filters.language);
+  const policyPhrase = ledgerLateFeePhrase({
+    situation: filters.situation,
+    language: filters.language,
+    // No `charged`: a run-level preview cannot know one family from another, so
+    // it states the school's rate rather than somebody's accrued total.
+    policyLateFeeAmount: filters.policyLateFeeAmount,
+    fallbackAmount: filters.lateFeeAmount,
+    fallbackBasis: filters.lateFeeBasis,
+  });
+  /**
+   * Does this run mention a late fee at all?
+   *
+   * Derived from the resolved PHRASE, not from the basis dropdown. The basis is
+   * only half the answer in custom mode (a nil amount also means none), and it
+   * is no answer at all in ledger mode — where `prevyear` resolves to "not
+   * charged" whatever the dropdown says. Reading the basis produced "or [not
+   * applicable on this amount] applies", which is not a sentence.
+   */
+  const mentionsLateFee =
+    (usesLedger ? policyPhrase : phrase) !== noLateFeeWording;
 
   return (
     // The form lives HERE, not on the page, so the Apply button inside it can
@@ -415,8 +445,13 @@ export function NoticePicker({
           ) : (
             <>
               Pay by <span className="font-semibold">{filters.lastDate || "— pick a date"}</span>
-              {!usesLedger && filters.lateFeeBasis === "none" ? (
-                <>. No late fee is mentioned.</>
+              {!mentionsLateFee ? (
+                <>
+                  .{" "}
+                  {usesLedger && filters.situation === "prevyear"
+                    ? "No late fee — a carry-forward balance never accrues one."
+                    : "No late fee is mentioned."}
+                </>
               ) : (
                 <>
                   , or <span className="font-semibold">{usesLedger ? policyPhrase : phrase}</span>{" "}

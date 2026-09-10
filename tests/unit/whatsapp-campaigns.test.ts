@@ -13,6 +13,7 @@ import {
   installmentPhrase,
   isCampaignApproved,
   LEDGER_QUOTED_SITUATIONS,
+  ledgerLateFeePhrase,
   noticeValuesFrom,
   RUN_DATE_FREE_SITUATIONS,
   shortClassLabel,
@@ -715,5 +716,82 @@ describe("the two late-fee modes", () => {
       { ...settings, situation: "fee_due" },
     );
     expect(lever.lateFeePhrase).toContain("4,000");
+  });
+});
+
+describe("the ledger late-fee phrase has ONE definition", () => {
+  /**
+   * The send path and the screen's "What a parent reads" line both need it, and
+   * for one deploy they each had their own copy: the message correctly said
+   * "not charged" on a carry-forward balance while the preview beside it still
+   * promised Rs 1,000 per installment. The office reads the preview to decide,
+   * so the copy that was wrong was the one that mattered.
+   */
+  const base = {
+    language: "en" as const,
+    policyLateFeeAmount: 1000,
+    fallbackAmount: 4000,
+    fallbackBasis: "per_installment" as const,
+  };
+
+  it("never threatens a carry-forward balance", () => {
+    const phrase = ledgerLateFeePhrase({ ...base, situation: "prevyear" });
+    expect(phrase).not.toContain("1,000");
+    expect(phrase).not.toContain("4,000");
+    // Never empty — WhatsApp rejects an empty parameter.
+    expect(phrase.length).toBeGreaterThan(0);
+  });
+
+  it("states the school's rate for a family with nothing charged yet", () => {
+    const phrase = ledgerLateFeePhrase({ ...base, situation: "fee_due", charged: 0 });
+    expect(phrase).toContain("1,000");
+    expect(phrase).toContain("per installment");
+  });
+
+  it("states the family's own total as one flat charge once the ledger has one", () => {
+    const phrase = ledgerLateFeePhrase({ ...base, situation: "overdue_final", charged: 2000 });
+    expect(phrase).toContain("2,000");
+    expect(phrase).not.toContain("per installment");
+  });
+
+  it("is the function the screen uses, not a second copy", () => {
+    // A recomputed phrase in the picker is the bug this replaced.
+    const picker = readFileSync(
+      join(process.cwd(), "src/modules/whatsapp/ui/notice-picker.tsx"),
+      "utf8",
+    );
+    expect(picker).toContain("ledgerLateFeePhrase({");
+    expect(picker).not.toContain('lateFeePhrase(\n    filters.policyLateFeeAmount');
+  });
+
+  it("is what the message itself renders, too", () => {
+    // Same rule, reached through noticeValuesFrom.
+    const values = noticeValuesFrom(
+      {
+        parentName: "R",
+        studentName: "A",
+        studentClass: "Class 2",
+        dueAmount: 9000,
+        totalPaid: 0,
+        balanceDue: 9000,
+        prevYearBalance: 20000,
+        prevSessionLabel: "2025-26",
+        lateFeeApplied: 0,
+      },
+      {
+        situation: "prevyear",
+        language: "en",
+        installments: [],
+        lastDate: "30-09-2026",
+        lateFeeAmount: 4000,
+        lateFeeBasis: "per_installment",
+        lateFeeSource: "ledger",
+        policyLateFeeAmount: 1000,
+      },
+    );
+
+    expect(values.lateFeePhrase).toBe(
+      ledgerLateFeePhrase({ ...base, situation: "prevyear" }),
+    );
   });
 });
