@@ -297,13 +297,21 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   const amountNote = `The amount on each card is ${quoteLabel.toLowerCase()} — the figure the message will quote.`;
 
   /**
-   * `?exclude=` with a trailing separator, so a row's Remove link is this plus
-   * the student id. `parseIdList` drops the empty segment, so an empty list
-   * yields `exclude=,<id>` and reads back as one id.
+   * `?…&exclude=` with a trailing separator, so a row's Remove link is this
+   * plus the student id.
+   *
+   * Built by appending the key rather than through `reminderQuery`, because
+   * that collapses an empty value to an absent key — and
+   * `[...[], ""].join(",")` IS empty. So with nothing excluded yet, which is
+   * the normal case, the prefix ended at `quote=ledger_fees` and the row link
+   * became `quote=ledger_feesf9c15390-…`: the Remove button silently corrupted
+   * the quote basis and excluded nobody. Caught by reading the rendered
+   * accessibility tree on production; every earlier check had hand-built
+   * `?exclude=<id>`, which exercised the PARSE and never the link.
    */
-  const excludeHrefPrefix = `?${reminderQuery(filters, {
-    exclude: [...filters.excludeStudentIds, ""].join(","),
-  }).toString()}`;
+  const excludeHrefPrefix = `?${reminderQuery(filters, { exclude: null }).toString()}&exclude=${
+    filters.excludeStudentIds.length > 0 ? `${filters.excludeStudentIds.join(",")},` : ""
+  }`;
 
   const savedCampaignCount = savedCampaigns.length;
   const familyCount = audience.candidates.length;
@@ -431,6 +439,13 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           installments={filters.installments}
           lateFeeAmount={filters.lateFeeAmount}
           lateFeeBasis={filters.lateFeeBasis}
+          // Without these the panel composed slot 7 from the TYPED amount
+          // whatever mode the run was in — so a test of an Actual-mode fee-due
+          // notice posted ₹4,000 while the run itself would send the ledger's
+          // ₹1,000. It read correctly on the waiver notices only because those
+          // default to ledger, which is what hid it.
+          lateFeeSource={filters.lateFeeSource}
+          policyLateFeeAmount={filters.policyLateFeeAmount}
           initialPreview={testPreview}
         />
       </CollapsibleSection>

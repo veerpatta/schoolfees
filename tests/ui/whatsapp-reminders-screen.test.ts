@@ -303,6 +303,59 @@ describe("WhatsApp reminders on a phone", () => {
   });
 });
 
+describe("the per-row Remove link", () => {
+  /**
+   * It shipped broken and nothing caught it, because every check hand-built
+   * `?exclude=<id>` and so exercised the PARSE, never the LINK.
+   *
+   * `reminderQuery` collapses an empty value to an absent key, and
+   * `[...[], ""].join(",")` is empty — so with nothing excluded yet, which is
+   * the normal case, the prefix ended at the previous parameter and the row
+   * href became `quote=ledger_feesf9c15390-…`. The button silently corrupted
+   * the quote basis and excluded nobody. Found by reading the rendered
+   * accessibility tree on production.
+   */
+  it("appends the key itself, so an empty exclude list still ends in `exclude=`", () => {
+    const page = read(SEND_PAGE);
+
+    // The key is appended to the string, NOT passed through reminderQuery,
+    // which would delete it when the list is empty.
+    expect(page).toContain('reminderQuery(filters, { exclude: null }).toString()}&exclude=');
+    // And the trailing separator only appears when there is something to
+    // separate from, so the href never starts with a stray comma.
+    expect(page).toContain("filters.excludeStudentIds.length > 0");
+
+    // The old shape must not come back.
+    expect(page).not.toContain('exclude: [...filters.excludeStudentIds, ""].join(",")');
+  });
+});
+
+describe("the test panel matches what a real send would do", () => {
+  /**
+   * The panel composed slot 7 from the TYPED amount whatever mode the run was
+   * in, so a test of an Actual-mode fee-due notice posted ₹4,000 while the run
+   * itself would send the ledger's ₹1,000. It read correctly on the waiver
+   * notices only because those default to ledger — which is exactly what hid
+   * it. A test that does not match the send is worse than no test.
+   */
+  it("receives the run's late-fee mode and the policy rate", () => {
+    const page = read(SEND_PAGE);
+    expect(page).toContain("lateFeeSource={filters.lateFeeSource}");
+    expect(page).toContain("policyLateFeeAmount={filters.policyLateFeeAmount}");
+
+    const panel = read(PANEL);
+    expect(panel).toContain("lateFeeSource: LateFeeSource;");
+    expect(panel).toContain("policyLateFeeAmount: number;");
+    // And forwards them into the settings the opening values are built from.
+    const settings = panel.slice(
+      panel.indexOf("const settings: OpeningSettings = {"),
+      panel.indexOf("const [testPhone"),
+    );
+    expect(settings).toContain("lateFeeSource,");
+    expect(settings).toContain("policyLateFeeAmount,");
+  });
+});
+
 describe("WhatsApp reminders template", () => {
   it("keeps one renderer for the message body", () => {
     // Two copies of the template would drift, and the preview would start

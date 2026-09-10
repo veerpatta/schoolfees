@@ -1,6 +1,7 @@
 import {
   describeCampaign,
   isRunDateFreeSituation,
+  ledgerLateFeePhrase,
   noticeValuesFrom,
   type NoticeLanguage,
   type NoticeSettings,
@@ -101,11 +102,20 @@ export function openingNoticeValues(
       !isRunDateFreeSituation(situation) && settings.lastDate
         ? settings.lastDate
         : metaSample.lastDate,
-    lateFeePhrase: lateFeePhrase(
-      settings.lateFeeAmount,
-      settings.lateFeeBasis,
-      language as NoticeLanguage,
-    ),
+    // Follows the MODE, like the sample branch above and like the send. In
+    // ledger mode there is no family to read a charged fee from here, so it
+    // states the school's rate — which is what `ledgerLateFeePhrase` does with
+    // `charged` omitted.
+    lateFeePhrase:
+      settings.lateFeeSource === "ledger"
+        ? ledgerLateFeePhrase({
+            situation,
+            language: language as NoticeLanguage,
+            policyLateFeeAmount: settings.policyLateFeeAmount ?? 0,
+            fallbackAmount: settings.lateFeeAmount,
+            fallbackBasis: settings.lateFeeBasis,
+          })
+        : lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, language as NoticeLanguage),
   };
 }
 

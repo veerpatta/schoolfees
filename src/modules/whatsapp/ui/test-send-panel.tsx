@@ -28,7 +28,7 @@ import {
   type NoticeSituation,
   type NoticeSubject,
 } from "@/modules/whatsapp/domain/campaigns";
-import type { LateFeeBasis } from "@/modules/whatsapp/domain/late-fee";
+import type { LateFeeBasis, LateFeeSource } from "@/modules/whatsapp/domain/late-fee";
 import { toWhatsappDestination } from "@/modules/whatsapp/domain/phone";
 import {
   isMoneySlot,
@@ -77,6 +77,16 @@ type Props = {
   /** The screen's late-fee lever, composed into slot 7 in the panel's language. */
   lateFeeAmount: number;
   lateFeeBasis: LateFeeBasis;
+  /**
+   * Which late-fee mode the RUN is in, and the school's policy rate.
+   *
+   * Load-bearing: without them the panel composed slot 7 from the typed amount
+   * whatever the run was doing, so a test of an Actual-mode notice posted a
+   * figure the real send would never use. A test that does not match the send
+   * is worse than no test.
+   */
+  lateFeeSource: LateFeeSource;
+  policyLateFeeAmount: number;
   /**
    * Top row of the current list, for pre-fill. Null when the list is empty.
    *
@@ -170,6 +180,8 @@ export function TestSendPanel({
   installments,
   lateFeeAmount,
   lateFeeBasis,
+  lateFeeSource,
+  policyLateFeeAmount,
   sample,
   initialPreview,
 }: Props) {
@@ -187,6 +199,8 @@ export function TestSendPanel({
     installments,
     lateFeeAmount,
     lateFeeBasis,
+    lateFeeSource,
+    policyLateFeeAmount,
   };
   const [testPhone, setTestPhone] = useState("");
   const [form, setForm] = useState<Record<string, string>>(() => fieldsFrom(settings, sample));
