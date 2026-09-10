@@ -118,3 +118,5 @@ docs/qa/*.local.md
 # d15d2d5; it is not a registered submodule (there is no .gitmodules), so it only
 # ever showed up as a phantom modification.
 /.claude/worktrees/
+
+.env*
