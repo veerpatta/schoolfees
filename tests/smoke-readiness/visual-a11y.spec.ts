@@ -12,6 +12,11 @@ const workspaces = [
   "payments",
   "transactions",
   "defaulters",
+  // A top-level tab since 22 Aug 2026 and the screen that sends billed
+  // messages, but absent from this sweep until 2026-09-10 — so a contrast
+  // failure copied onto its chips from the students segment bar went
+  // unreported. If a route is in the nav, it belongs here.
+  "reminders",
   "exports",
   "admin-tools",
 ] as const;

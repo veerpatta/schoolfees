@@ -273,3 +273,69 @@ describe("resolveGuards", () => {
     expect(resolved.overridden).toEqual([]);
   });
 });
+
+describe("the fact-gap refusal says what is wrong and how to avoid it", () => {
+  /**
+   * It used to read: "87 of these families are missing something this message
+   * names — a late fee, a promised date or a carry-forward balance the ledger
+   * does not have for them."
+   *
+   * That names three things when one is true, does not say which, and offers no
+   * way out. The office ticks the override every time and the warning stops
+   * meaning anything.
+   */
+  it("names the fact, the effect and the fix — one finding per fact", () => {
+    const result = evaluateSendGuards(
+      context({
+        situation: "promise_due",
+        noticeFactGaps: 87,
+        noticeFactBreakdown: [{ fact: "promise", count: 87 }],
+      }),
+    );
+
+    const finding = result.overridable.find((entry) => entry.code === "notice_fact_gap:promise");
+    expect(finding).toBeDefined();
+    expect(finding!.message).toContain("87");
+    expect(finding!.message).toContain("a promised date on record");
+    // The consequence is NOT "goes out blank" — an empty template parameter is
+    // refused by WhatsApp, so the message does not go out at all.
+    expect(finding!.message).toContain("refuses");
+    // And a way out the office can actually take. It names a CONTROL now, not
+    // a chip: the "Promised, due now" and "Promise broken" chips are gone —
+    // there are no promises on record for the live session, so neither could
+    // ever match a family — and the promise filter lives under Fine-tune.
+    // Advice that tells the office to click something that is not on the screen
+    // is worse than no advice.
+    expect(finding!.message).toContain("Promise to pay");
+    expect(finding!.message).not.toContain("Promised, due now");
+  });
+
+  it("separates a nil figure from a message that will not send", () => {
+    const result = evaluateSendGuards(
+      context({
+        situation: "late_fee_applied",
+        noticeFactGaps: 10,
+        noticeFactBreakdown: [
+          { fact: "late_fee", count: 10 },
+          { fact: "prev_year", count: 0 },
+        ],
+      }),
+    );
+
+    const codes = result.overridable.map((entry) => entry.code);
+    expect(codes).toContain("notice_fact_gap:late_fee");
+    // A fact nobody is missing produces no finding at all.
+    expect(codes).not.toContain("notice_fact_gap:prev_year");
+
+    const finding = result.overridable.find((entry) => entry.code === "notice_fact_gap:late_fee");
+    expect(finding!.message).toContain("₹0");
+    expect(finding!.message).toContain("Custom amount");
+  });
+
+  it("says nothing when nothing is missing", () => {
+    const result = evaluateSendGuards(context({ noticeFactGaps: 0, noticeFactBreakdown: [] }));
+    expect(result.overridable.some((entry) => entry.code.startsWith("notice_fact_gap"))).toBe(
+      false,
+    );
+  });
+});

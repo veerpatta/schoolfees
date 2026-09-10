@@ -5,7 +5,7 @@ Fee reminders and the message templates behind them.
 | | |
 |---|---|
 | Route | /protected/reminders (+ campaigns, runs) · /protected/admin-tools/whatsapp-templates |
-| Files | 19 domain · 10 data · 15 ui |
+| Files | 20 domain · 10 data · 15 ui |
 
 ## Owns
 
@@ -45,6 +45,20 @@ Fee reminders and the message templates behind them.
   nobody hand-picked that tile's number IS the list. `holdBackFor` was
   extracted from the loop for exactly this: a count the hold-backs then shrink
   is a count the office stops trusting.
+- **Overdue is `due_date < today`, and `calendar.passed` is not it.** A tile
+  reads "Overdue since …" only once its date has gone; the row due TODAY is
+  "Due today" and is not overdue — the ledger, Defaulters, the dashboard and
+  the flat ₹1,000 (which starts the day AFTER) all draw the line there, and
+  `MONEY_GLOSSARY.overdue` is the canonical wording. `overdueInstallments`,
+  `skipOverdue` and the "Overdue since" label read `calendar.overdue`
+  (`daysUntilDue < 0`); `defaultInstallmentsFor` reads `passed` (`<= 0`)
+  because today's row IS the money being chased today. The boundary is written
+  twice — the calendar and `loadAppliedLateFees` — so edit both.
+- **One sentence describes the list.** `describeAudience` in
+  `domain/audience.ts` — headline, claim, notes — rendered once, in the
+  builder, under one `aria-live`. It replaced two hand-rolled summaries of the
+  same filters that could drift apart. Every constraint that changes who is
+  messaged appears in it. Do not add a second.
 - **A template is never dimmed for not fitting the audience.** Pointing a
   message at families who cannot fill its slots is the freedom this feature
   exists to give; a greyed chip reads as "unavailable". The ⚠ count says what is
@@ -77,6 +91,22 @@ Fee reminders and the message templates behind them.
   row for this. Fees only, never fees plus the late fee. It was a six-way
   "quote basis" beside the filters, and before that a `switch` on the
   template; both let the amount and the audience describe different rows.
+- **A fact is only "missing" if a SLOT would actually come out empty.**
+  `NOTICE_FACTS` listed `next_due` and `overdue` for one day and should not
+  have: the courtesy notices render through `feeDueParams` so there is no
+  next-installment slot, and the context line names the selected tiles rather
+  than the family's rows. Together they reported 89 of 89 families broken on a
+  list where nothing was. `missingFactsFor` takes the LATE-FEE MODE and the
+  late fee scoped to the tiles — in `custom` the message prints the typed
+  amount and never reads the ledger, so a family with no charged fee is not a
+  problem that message has. A warning that always fires is one nobody reads.
+- **Two different failures hide behind that warning, and the message must tell
+  them apart.** A missing late fee or amount renders **₹0** — odd, but
+  delivered. A missing promised date or carry-forward session renders an **empty
+  template parameter**, and WhatsApp REFUSES those: the message does not go out
+  looking strange, it does not go out. `NOTICE_FACT_CONSEQUENCE` carries the
+  effect and the fix per fact — each fix naming a control that is actually on
+  the screen — and the guard emits one finding per fact.
 - **A template pointed at families who cannot fill its slots WARNS, never
   refuses.** `NOTICE_FACTS` says what each message needs from the family reading
   it; `missingFactsFor` counts what is absent, the chips and the rows show it,

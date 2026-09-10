@@ -38,7 +38,10 @@ import {
   type CampaignDescriptor,
 } from "@/modules/whatsapp/domain/campaigns";
 import { noticeValuesFromSlots } from "@/modules/whatsapp/domain/test-send-values";
-import { REMINDER_QUERY_KEYS } from "@/modules/whatsapp/domain/audience";
+import {
+  NOTICE_FACT_KEYS,
+  REMINDER_QUERY_KEYS,
+} from "@/modules/whatsapp/domain/audience";
 import { searchSessionStudents } from "@/modules/whatsapp/data/student-lookup";
 import { isoFromDdMmYyyy } from "@/platform/helpers/date";
 import { executeReminderRun } from "@/modules/whatsapp/data/run-sender";
@@ -197,6 +200,12 @@ export async function sendRemindersAction(
     // pointed at families who cannot fill its slots. Counted over the families
     // ACTUALLY selected, not the whole list.
     noticeFactGaps: candidates.filter((candidate) => candidate.missingFacts.length > 0).length,
+    // Per fact, so the refusal can name what is actually wrong and how to
+    // avoid it rather than listing every fact the app knows about.
+    noticeFactBreakdown: NOTICE_FACT_KEYS.map((fact) => ({
+      fact,
+      count: candidates.filter((candidate) => candidate.missingFacts.includes(fact)).length,
+    })),
     // The three-day rule for `upcoming_final`, moved out of the audience query
     // and in here where it belongs — it is a fact about the run, not a family.
     finalWindowOpen: finalWindowOpen,

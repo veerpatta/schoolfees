@@ -143,3 +143,33 @@ describe("a saved campaign", () => {
     expect(read(STORE)).toContain("export type SavedCampaignFilters = SavedAudience");
   });
 });
+
+describe("a saved campaign carries its late-fee mode", () => {
+  it("persists the mode and replays it, so the cron cannot quote a different figure", () => {
+    // Real bug for a day: a waiver campaign saved with a custom amount replayed
+    // through the cron quoting the LEDGER, because the mode never left the send
+    // screen. It rides in the `filters` jsonb — no column, no migration.
+    const store = read(STORE);
+
+    expect(store).toContain("lateFeeSource: isLateFeeSource(raw.lateFeeSource) ? raw.lateFeeSource : null");
+    expect(store).toContain("lateFeeSource: input.lateFeeSource");
+
+    // And both replay paths emit it.
+    expect(read("src/modules/whatsapp/ui/campaign-manager.tsx")).toContain(
+      'params.set("lateFeeSource", campaign.lateFeeSource)',
+    );
+    expect(read("src/app/api/cron/whatsapp-scheduled-runs/route.ts")).toContain(
+      "saved.lateFeeSource",
+    );
+  });
+
+  it("leaves a campaign saved before the two modes on its template's old behaviour", () => {
+    // NULL, not a default: `parseReminderFilters` then falls back per template,
+    // which is exactly what those campaigns have always done.
+    const store = read(STORE);
+    expect(store).toContain("raw.lateFeeSource) ? raw.lateFeeSource : null");
+    expect(read("src/modules/whatsapp/ui/campaign-manager.tsx")).toContain(
+      "if (campaign.lateFeeSource)",
+    );
+  });
+});

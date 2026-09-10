@@ -9,7 +9,7 @@ import {
   type NoticeSituation,
 } from "@/modules/whatsapp/domain/campaigns";
 import { parseCampaignSchedule } from "@/modules/whatsapp/domain/campaign-schedule";
-import { LATE_FEE_BASES, lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
+import { LATE_FEE_BASES, LATE_FEE_SOURCES, lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
 import type { CampaignRunOutcome, SavedCampaign } from "@/modules/whatsapp/data/campaign-store";
 import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
 import { Button } from "@/ui/primitives/button";
@@ -78,6 +78,9 @@ export function campaignHref(campaign: SavedCampaign): string {
   if (campaign.lastDate) params.set("lastDate", formatDdMmYyyy(campaign.lastDate));
   params.set("lateFeeAmount", String(campaign.lateFeeAmount));
   params.set("lateFeeBasis", campaign.lateFeeBasis);
+  // Absent on a campaign saved before the two modes, which is how it keeps the
+  // behaviour its template had then.
+  if (campaign.lateFeeSource) params.set("lateFeeSource", campaign.lateFeeSource);
   // Carried so the run records which campaign it came from.
   params.set("campaignId", campaign.id);
   return `/protected/reminders?${params.toString()}`;
@@ -362,6 +365,26 @@ export function CampaignManager({
                   open?.lastDate ? formatDdMmYyyy(open.lastDate) : defaultLastDate
                 }
               />
+            </div>
+
+            {/* Which late-fee mode this campaign runs in. Without it a waiver
+                campaign saved with a custom amount replays through the cron
+                quoting the LEDGER — the mode would never leave the send screen.
+                An existing campaign saved before the two modes keeps its
+                template's old behaviour, which is what "Actual" means for it. */}
+            <div className="space-y-1.5">
+              <Label htmlFor="cLateFeeSource">Late fee comes from</Label>
+              <SelectNative
+                id="cLateFeeSource"
+                name="lateFeeSource"
+                defaultValue={open?.lateFeeSource ?? "custom"}
+              >
+                {LATE_FEE_SOURCES.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </SelectNative>
             </div>
 
             <div className="space-y-1.5">

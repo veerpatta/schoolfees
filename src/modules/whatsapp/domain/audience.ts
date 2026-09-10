@@ -28,6 +28,7 @@
  */
 
 import type { NoticeSituation } from "@/modules/whatsapp/domain/campaigns";
+import { formatInr } from "@/platform/helpers/currency";
 
 /**
  * Whether EVERY selected installment must still carry fees, or any one of them.
@@ -238,24 +239,74 @@ export function installmentsValue(scope: Pick<AudienceFilters, "installments" | 
  * notice to a family about to accrue one) — but it never lets it happen
  * silently.
  */
-export type NoticeFact = "late_fee" | "promise" | "prev_year" | "overdue" | "next_due" | "amount";
+export type NoticeFact = "late_fee" | "promise" | "prev_year" | "amount";
 
 export const NOTICE_FACT_LABELS: Record<NoticeFact, string> = {
   late_fee: "a late fee on the ledger",
   promise: "a promised date on record",
   prev_year: "a carry-forward balance",
-  overdue: "an installment past its due date",
-  next_due: "an installment falling due next",
   amount: "a non-zero amount to quote",
 };
 
-/** What each template's slots need from the family reading it. */
+/**
+ * What a missing fact DOES to the message, and the way out — per fact.
+ *
+ * Two very different failures hide behind one warning, and the office has to
+ * be able to tell them apart:
+ *
+ * - `late_fee` and `amount` render a **₹0** — an odd message, delivered.
+ * - `promise` and `prev_year` render an **empty template parameter**, and
+ *   WhatsApp REFUSES those. The message does not go out looking strange; it
+ *   does not go out at all, and the run reports a failure.
+ *
+ * Every fix names a control that is actually on the screen.
+ */
+export const NOTICE_FACT_CONSEQUENCE: Record<
+  NoticeFact,
+  { effect: string; fix: string }
+> = {
+  late_fee: {
+    effect: "the message would print a late fee of ₹0",
+    fix: "switch the late fee to Custom amount, or set “Late fee on the ledger” to Yes under Narrow down",
+  },
+  promise: {
+    effect: "the message carries an empty date, and WhatsApp refuses those — they would fail rather than send",
+    fix: "set “Promise to pay” under Narrow down to “due today or tomorrow” or “has lapsed”, or pick a different message",
+  },
+  prev_year: {
+    effect: "the message carries an empty session name, and WhatsApp refuses those — they would fail rather than send",
+    fix: "select the Last year tile, or pick a different message",
+  },
+  amount: {
+    effect: "the message would quote ₹0",
+    fix: "raise “Owing at least” under Narrow down, or select the installments they still owe on",
+  },
+};
+
+/**
+ * Every fact, for a caller that has to count them one by one.
+ *
+ * DERIVED from the label table rather than hand-written, so adding a fact
+ * cannot leave a caller silently counting one fewer than exists.
+ */
+export const NOTICE_FACT_KEYS = Object.keys(NOTICE_FACT_LABELS) as NoticeFact[];
+
+/**
+ * What each template's slots need from the family reading it.
+ *
+ * A fact belongs here only if a SLOT would actually come out empty or nil.
+ * `next_due` and `overdue` were listed for one day and could not: the courtesy
+ * notices render through `feeDueParams`, so there is no next-installment slot,
+ * and the context line names the selected tiles rather than the family's rows.
+ * Between them they reported 89 of 89 families broken on a list where nothing
+ * was, and a warning that always fires is one nobody reads.
+ */
 export const NOTICE_FACTS: Record<NoticeSituation, readonly NoticeFact[]> = {
-  upcoming: ["next_due", "amount"],
-  upcoming_final: ["next_due", "amount"],
+  upcoming: ["amount"],
+  upcoming_final: ["amount"],
   fee_due: ["amount"],
   balance: ["amount"],
-  overdue_final: ["overdue", "amount"],
+  overdue_final: ["amount"],
   late_fee_applied: ["late_fee"],
   late_fee_waiver: ["late_fee", "amount"],
   waiver_last_call: ["late_fee", "amount"],
@@ -374,25 +425,26 @@ export function reminderQuery(
  *
  * Returns null when the tap would leave zero tiles, which is not a state; the
  * builder renders that tile as selected-and-inert. `skipOverdue` is dropped
- * the moment the selection touches a passed installment, because "not overdue
- * on anything" and "owing on an installment whose date has gone" cannot both
- * be true of a family, and a hidden filter that empties the list is exactly
- * the kind of thing this screen must not do.
+ * the moment the selection touches an OVERDUE installment (`calendar.overdue`,
+ * strictly past — the row due today is not overdue), because "not overdue on
+ * anything" and "owing on an installment whose date has gone" cannot both be
+ * true of a family, and a hidden filter that empties the list is exactly the
+ * kind of thing this screen must not do.
  */
 export function installmentTileHref(
   filters: ReminderQuerySource,
   installmentNo: number,
-  calendar: { passed: readonly number[] },
+  calendar: { overdue: readonly number[] },
 ): string | null {
   const selected = filters.lastYear ? [] : filters.installments;
   const next = selected.includes(installmentNo)
     ? selected.filter((value) => value !== installmentNo)
     : [...selected, installmentNo].sort((a, b) => a - b);
   if (next.length === 0) return null;
-  const touchesPassed = next.some((value) => calendar.passed.includes(value));
+  const touchesOverdue = next.some((value) => calendar.overdue.includes(value));
   const params = reminderQuery(filters, {
     installments: next.join(","),
-    skipOverdue: touchesPassed ? null : filters.skipOverdue ? "on" : null,
+    skipOverdue: touchesOverdue ? null : filters.skipOverdue ? "on" : null,
   });
   return `?${params.toString()}`;
 }
@@ -420,6 +472,153 @@ export function installmentMatchHref(
   match: InstallmentMatch,
 ): string {
   return `?${reminderQuery(filters, { installmentMatch: match }).toString()}`;
+}
+
+/** "installment 2" / "installments 1 and 2" / "installments 1, 2 and 3", for the sentence. */
+function installmentList(installments: readonly number[]): string {
+  const sorted = [...new Set(installments)].sort((a, b) => a - b);
+  if (sorted.length <= 1) return `installment ${sorted[0] ?? "—"}`;
+  const last = sorted[sorted.length - 1];
+  return `installments ${sorted.slice(0, -1).join(", ")} and ${last}`;
+}
+
+export type AudienceSentence = {
+  /** "292 families · ₹22,95,084" — the two figures, for one glance. */
+  headline: string;
+  /**
+   * What the headline's numbers mean — "still owing on installments 1 and 2,
+   * both of them, for the fees on those installments."
+   *
+   * Deliberately has no count in it: it is rendered directly under `headline`
+   * and continues the same sentence.
+   */
+  claim: string;
+  /** Narrowings and hold-backs, each already a full sentence. Often empty. */
+  notes: string[];
+  /** Every part joined, in reading order. */
+  full: string;
+};
+
+/**
+ * The ONE sentence describing the list, built from the tiles and the
+ * narrowing controls.
+ *
+ * It replaced two hand-rolled descriptions of the same filter set — the
+ * panel's summary and the workspace's comma-joined "Who is on this list" —
+ * either of which could drift from the other and from the engine. It names
+ * the decision rather than the fields, and every constraint that changes who
+ * is messaged appears in it: a wide audience described and a narrow one
+ * delivered is the worst thing this line can do.
+ */
+export function describeAudience(
+  filters: AudienceFilters,
+  totals: {
+    /** How many families the tiles actually landed on. */
+    count: number;
+    /** The sum of what those families will be asked for. */
+    quotedTotal: number;
+    /** Families paused inside their own promise, under `skip_open`. */
+    heldByPromise?: number;
+    /**
+     * Families held back by their reminder cadence — never, snoozed, or
+     * messaged too recently.
+     *
+     * Load-bearing: a TILE counts an audience, and the sentence counts today's
+     * send. The two differ by exactly these families, so a tile reading 298
+     * above "292 families" looks like a bug until the difference is stated.
+     */
+    heldByCadence?: number;
+    /** A class label, when one is picked — the caller holds the lookup. */
+    className?: string | null;
+  },
+): AudienceSentence {
+  const families = totals.count === 1 ? "1 family" : `${totals.count} families`;
+
+  // WHO — the tiles, stated as the question they ask.
+  let who: string;
+  let asking: string;
+  if (filters.lastYear) {
+    who = "who still owe a balance carried over from last session";
+    asking = "what is left of that balance";
+  } else if (filters.installments.length <= 1) {
+    who = `still owing on ${installmentList(filters.installments)}`;
+    asking = "the fees on it";
+  } else {
+    who = `still owing on ${installmentList(filters.installments)}, ${
+      filters.installmentMatch === "all" ? "every one of them" : "any of them"
+    }`;
+    asking = "the fees on those installments";
+  }
+  // No count in here: `headline` already carries it, and rendered one under
+  // the other they read as one thought.
+  const claim = `${who}, for ${asking}.`;
+
+  const sentences: string[] = [];
+
+  // NARROWINGS, only the ones actually set. A constraint that changes who is
+  // messaged is stated or it is not applied.
+  const narrowed: string[] = [];
+  if (totals.className) narrowed.push(`${totals.className} only`);
+  if (filters.paid === "nothing") narrowed.push("paid nothing beyond the academic fee");
+  if (filters.paid === "part") narrowed.push("have paid something already");
+  if (filters.lateFee === "yes") narrowed.push("the ledger is charging a late fee on those installments");
+  if (filters.lateFee === "no") narrowed.push("no late fee charged on those installments");
+  if (filters.skipOverdue) narrowed.push("not already overdue on an earlier installment");
+  if (filters.promise !== "skip_open" && filters.promise !== "any") {
+    narrowed.push(
+      `promise: ${PROMISE_OPTIONS.find((e) => e.value === filters.promise)?.label ?? filters.promise}`,
+    );
+  }
+  if (filters.promise === "any") narrowed.push("promises ignored");
+  if (filters.minDueAmount > 1) narrowed.push(`at least ${formatInr(filters.minDueAmount)}`);
+  if (!filters.includeRte) narrowed.push("RTE students left out");
+  if (filters.includeStudentIds.length > 0) {
+    narrowed.push(`${filters.includeStudentIds.length} added by hand`);
+  }
+  if (filters.excludeStudentIds.length > 0) {
+    narrowed.push(`${filters.excludeStudentIds.length} removed by hand`);
+  }
+  if (narrowed.length > 0) {
+    const list = narrowed.join(", ");
+    sentences.push(`${list.charAt(0).toUpperCase()}${list.slice(1)}.`);
+  }
+
+  // The promise hold-back is a PAUSE the office can undo, not a filter, so it
+  // is worth its own clause — but only when it is holding somebody.
+  const heldPromise = filters.promise === "skip_open" ? (totals.heldByPromise ?? 0) : 0;
+  const heldCadence = totals.heldByCadence ?? 0;
+  const total = heldPromise + heldCadence;
+  if (total > 0) {
+    const reasons: string[] = [];
+    if (heldPromise > 0) reasons.push(`${heldPromise} inside their own promise`);
+    if (heldCadence > 0) reasons.push(`${heldCadence} by reminder cadence`);
+    const more = total === 1 ? "1 more is" : `${total} more are`;
+    const why =
+      reasons.length === 1
+        ? heldPromise > 0
+          ? "inside their own promise"
+          : "by reminder cadence"
+        : reasons.join(" and ");
+    sentences.push(`${more} held back ${why} — counted on the tile, not in this send.`);
+  }
+
+  /**
+   * Four parts rather than one string, because at 390px one string is a wall.
+   * The two figures a person actually checks land in one glance, and the
+   * qualifiers stop competing with them. `full` is kept for a caller that
+   * wants the flat sentence, so there is still exactly one composition.
+   */
+  const headline = `${families} · ${formatInr(totals.quotedTotal)}`;
+  return {
+    headline,
+    claim,
+    notes: sentences,
+    full: [
+      `Sending to ${families} ${claim}`,
+      `Asking for ${formatInr(totals.quotedTotal)}.`,
+      ...sentences,
+    ].join(" "),
+  };
 }
 
 /** A comma list of ids out of the query string, deduped and trimmed. */

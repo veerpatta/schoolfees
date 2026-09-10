@@ -56,6 +56,24 @@ export type InstallmentTiming = {
 export type InstallmentCalendar = {
   /** Due date on or before today — the late fee is either charged or about to be. */
   passed: number[];
+  /**
+   * Due date STRICTLY before today. The ledger's own boundary, and the only one
+   * a reminder may be built on.
+   *
+   * `passed` includes the installment due TODAY, which `active` and
+   * `isFinalNoticeWindow` both need — the office must be offered today's
+   * installment, and the firm wording runs from T-3 through the due date. But
+   * every other surface in the app draws the line one day later:
+   * `balance_status` in both engines, `overdue_installment_count`,
+   * `calculateDaysOverdue`, Defaulters and the Dashboard all say
+   * `due_date < CURRENT_DATE`. So does the school's rule — the flat late fee
+   * starts the day AFTER the due date, so the due date itself is free.
+   *
+   * Reminders used `passed` until 2026-09-10, so on each of the four due dates
+   * this screen called a family overdue while the ledger called them pending,
+   * and a parent could be told they were late on the one day they were not.
+   */
+  overdue: number[];
   /** Due after today but inside the pre-due window. */
   upcoming: number[];
   /**
@@ -65,6 +83,18 @@ export type InstallmentCalendar = {
   active: number[];
   /** The nearest installment still ahead of us, inside the window. */
   next: InstallmentTiming | null;
+  /**
+   * The nearest installment still ahead of us, WHATEVER the window says.
+   *
+   * `next` is window-gated because the window decides whether courtesy WORDING
+   * is appropriate. It is the wrong thing to quote a figure from: with a 10-day
+   * window and installment 3 forty days out, `next` is null for about 320 days
+   * a year, `quote: "next"` resolved to ₹0, and the minimum then emptied the
+   * whole "Not late yet" audience. Which installment comes next is a fact about
+   * the calendar; whether to send a polite note about it is a judgement about
+   * timing, and they are not the same question.
+   */
+  nextAhead: InstallmentTiming | null;
   /** The most recently passed installment, if any. */
   lastPassed: InstallmentTiming | null;
   /** Every installment with a readable due date, in order. */
@@ -120,6 +150,9 @@ export function buildInstallmentCalendar(args: {
   timings.sort((left, right) => left.installmentNo - right.installmentNo);
 
   const passed = timings.filter((entry) => entry.daysUntilDue <= 0);
+  // STRICTLY past — see `InstallmentCalendar.overdue`. Not `passed` minus
+  // today's row, because that reads as an afterthought; this is its own rule.
+  const overdue = timings.filter((entry) => entry.daysUntilDue < 0);
   const upcoming = timings.filter(
     (entry) => entry.daysUntilDue > 0 && entry.daysUntilDue <= windowDays,
   );
@@ -127,6 +160,11 @@ export function buildInstallmentCalendar(args: {
   // Nearest first, so "the next installment" is the one a parent is being asked
   // about rather than whichever came first in the schedule.
   const next = [...upcoming].sort((left, right) => left.daysUntilDue - right.daysUntilDue)[0] ?? null;
+  // Everything ahead, not just what the window admits.
+  const nextAhead =
+    [...timings]
+      .filter((entry) => entry.daysUntilDue > 0)
+      .sort((left, right) => left.daysUntilDue - right.daysUntilDue)[0] ?? null;
   // Most recently passed, so a late-fee notice names the date that just went by
   // rather than April's.
   const lastPassed =
@@ -137,9 +175,11 @@ export function buildInstallmentCalendar(args: {
 
   return {
     passed: passedNos,
+    overdue: overdue.map((entry) => entry.installmentNo),
     upcoming: upcomingNos,
     active: [...new Set([...passedNos, ...upcomingNos])].sort((a, b) => a - b),
     next,
+    nextAhead,
     lastPassed,
     timings,
     windowDays,

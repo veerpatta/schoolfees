@@ -87,6 +87,90 @@ describe("the phone traps this codebase has already hit", () => {
   });
 });
 
+describe("what the office taps, measured at 390px", () => {
+  const AUDIENCE = "src/modules/whatsapp/ui/audience-builder.tsx";
+  const PICKER = "src/modules/whatsapp/ui/notice-picker.tsx";
+
+  /**
+   * Both chip rows scrolled horizontally with `no-scrollbar` until 2026-09-10,
+   * and measured on a 390px viewport — where the card's inner width is 298px —
+   * that hid most of both:
+   *
+   * | row | row width | hidden | reachable |
+   * |---|---|---|---|
+   * | 12 templates | 1571px | 1265px | ~3 of 12 |
+   * | 5 audiences  |  759px |  453px |  2 of 5  |
+   *
+   * They are fixed in OPPOSITE directions on purpose, and the reason is how
+   * often each is touched rather than how many chips it holds.
+   */
+  it("lays the five tiles out as a wrapping grid, so none of the primary control is off-screen", () => {
+    const source = read(AUDIENCE);
+    const row = source.slice(source.indexOf("--- tiles"), source.indexOf("<Tile"));
+
+    // A grid at EVERY width — two columns on a phone, five at the desk. This
+    // is the control the office retunes on every run, so all five counts have
+    // to be comparable at a glance.
+    expect(row).toContain('className="grid grid-cols-2 gap-2 md:grid-cols-5"');
+    expect(source).not.toContain("overflow-x-auto");
+  });
+
+  it("keeps the twelve template chips on one row, but says so", () => {
+    const source = read(PICKER);
+
+    // Twelve chips WRAPPED cost six rows and 304px — 35% of an 861px card —
+    // spent on the control changed least, and pushed "Who gets it" from 890px
+    // to 1156px on an 844px screen. So it still scrolls, but the affordance
+    // `no-scrollbar` removed is put back explicitly.
+    expect(source).toContain("snap-x");
+    expect(source).toContain("snap-start");
+    expect(source).toContain("bg-gradient-to-l from-card");
+    expect(source).toContain("Swipe for all {NOTICE_SITUATIONS.length} messages.");
+  });
+
+  it("gives every chip and tile a 44px tap target on a phone", () => {
+    // The panel's own rule — "44px on a phone, the desk's own 36 above md" —
+    // which chips were the one exception to, at a flat h-9.
+    const picker = read(PICKER);
+    expect(picker).toMatch(/h-11[^"]*md:h-9/);
+    expect(picker).not.toMatch(/inline-flex h-9 shrink-0/);
+
+    // The tiles and the all/any toggle are min-heights: a tile grows with its
+    // two lines, and neither may ever be under a thumb.
+    const audience = read(AUDIENCE);
+    expect(audience).toMatch(/min-h-11[^"]*md:min-h-14/);
+    expect(audience).toMatch(/min-h-11[^"]*md:min-h-9/);
+    expect(audience).not.toMatch(/inline-flex h-9 shrink-0/);
+  });
+
+  it("wins the button height fight with the primitive's compound variant", () => {
+    // `size="sm"` carries `{ size: "sm", class: "max-md:h-10" }`, so a bare
+    // `h-11` loses inside the media query and Apply/Add measured 40px beside
+    // 44px selects. Overriding at the same variant level is what works.
+    const source = read(AUDIENCE);
+    expect(source).toContain('className="max-md:h-11 px-6 md:h-9"');
+    expect(source).toContain('className="max-md:h-11 px-4 md:h-9"');
+    expect(source).not.toContain('className="h-11 px-6 md:h-9"');
+  });
+
+  it("splits the audience sentence into three weights rather than one wall", () => {
+    // One string measured six lines and 124px of uniform semibold at 390px,
+    // and it is both the first thing on the card and the last thing read
+    // before a few hundred billed messages go out.
+    const source = read(AUDIENCE);
+    expect(source).toContain("sentence.headline");
+    expect(source).toContain("sentence.claim");
+    expect(source).toContain("sentence.notes");
+    // One live region around all three, so a screen reader hears one update
+    // rather than three.
+    const region = source.slice(
+      source.indexOf('aria-live="polite"'),
+      source.indexOf("sentence.notes"),
+    );
+    expect(region).toContain("flex flex-col gap-1");
+  });
+});
+
 describe("what a parent taps", () => {
   it("gives the pay button a full-width, thumb-sized target", () => {
     // The only thing on the page anybody came to do, tapped one-handed.

@@ -139,9 +139,12 @@ export type ReminderFilters = AudienceFilters & {
  *
  * The audience half is `DEFAULT_AUDIENCE_FILTERS` — every control at rest —
  * with the tiles resolved by `parseReminderFilters` from the calendar, so a
- * bare `/protected/reminders` opens on every installment past its due date.
- * The notice supplies nothing about the audience; it only says what the
- * message is.
+ * bare `/protected/reminders` opens on every installment past its due date:
+ * the money a reminder is for, and never "everyone who owes". The notice
+ * supplies nothing about the audience; it only says what the message is. The
+ * opening template is "Fee due" because it is the commonest wording, and the
+ * opening audience is the overdue installments because that is who a reminder
+ * is about — two different questions, which is why they are separate.
  */
 export const DEFAULT_REMINDER_FILTERS: Omit<
   ReminderFilters,
@@ -594,7 +597,7 @@ export type CandidateFacts = {
   totalPaid: number;
   /** Fees still pending on installments 1-4, in order. Fees only, never a late fee. */
   installmentPending: [number, number, number, number];
-  /** What the LEDGER is charging in late fees across every passed row. Read, never derived. */
+  /** What the LEDGER is charging in late fees across every overdue row. Read, never derived. */
   lateFeeApplied: number;
   /** Fees still pending on those same late-fee rows. */
   ledgerFeesPending: number;
@@ -750,7 +753,7 @@ export function matchesAudienceFilters(
   if (filters.paid === "nothing" && facts.totalPaid > AUDIENCE_DEFAULT_MAX_TOTAL_PAID) return false;
   if (filters.paid === "part" && facts.totalPaid <= AUDIENCE_DEFAULT_MAX_TOTAL_PAID) return false;
 
-  // The ledger's late fee on the SELECTED rows, not on every passed row — the
+  // The ledger's late fee on the SELECTED rows, not on every overdue row — the
   // same scoping the quoted fees get.
   if (!triMatches(filters.lateFee, lateFeeOnSelected(filters, facts) > 0)) return false;
 
@@ -799,15 +802,28 @@ export function missingFactsFor(
   situation: NoticeSituation,
   facts: CandidateFacts,
   quotedAmount: number,
-  /** The late fee the message would print — scoped to the tiles, like the fees. */
+  /**
+   * Which late-fee mode the run is in.
+   *
+   * Load-bearing, and its absence was a bug for one day: this read
+   * `facts.lateFeeApplied` — the LEDGER's figure — whatever the run was doing.
+   * In `custom` mode the message never touches the ledger, it prints the amount
+   * the office typed, so "this family has no late fee" is not a problem the
+   * message has. It reported 89 of 89 families broken on a run that would have
+   * printed ₹4,000 to every one of them.
+   */
+  lateFeeSource: LateFeeSource = "ledger",
+  /**
+   * The late fee the message would print — scoped to the tiles, like the fees.
+   * Defaults to the family's whole figure for a caller that has no scope.
+   */
   lateFeeQuoted: number = facts.lateFeeApplied,
 ): NoticeFact[] {
   const has: Record<NoticeFact, boolean> = {
-    late_fee: lateFeeQuoted > 0,
+    // Custom mode supplies the number itself, so there is nothing to be missing.
+    late_fee: lateFeeSource === "custom" || lateFeeQuoted > 0,
     promise: Boolean(facts.promisedOn),
     prev_year: facts.prevYearBalance > 0,
-    overdue: facts.overdueInstallments.length > 0,
-    next_due: facts.nextInstallmentNo !== null && facts.nextInstallmentPending > 0,
     amount: quotedAmount > 0,
   };
   return NOTICE_FACTS[situation].filter((fact) => !has[fact]);
@@ -945,9 +961,14 @@ export async function loadReminderAudience(
   let excludedByHand = 0;
   const today = istToday();
 
-  // The one installment the calendar says falls due next, for the
-  // `next_due` fact the courtesy templates need.
-  const nextDue = calendar.next;
+  /**
+   * Which installment actually comes next, whatever the pre-due window says —
+   * the `nextInstallmentNo` fact. `calendar.next` is window-gated because the
+   * window decides whether courtesy WORDING is appropriate; which installment
+   * comes next is a fact about the calendar, and the two are not the same
+   * question.
+   */
+  const nextAhead = calendar.nextAhead;
 
   for (const row of (rows ?? []) as FinancialRow[]) {
     const totalPaid = Number(row.total_paid ?? 0);
@@ -985,7 +1006,13 @@ export async function loadReminderAudience(
     // The passed installments this family still owes FEES on, whatever the
     // late fee is doing. A waived late fee does not take a family off this
     // list — and a late fee with no fees behind it does not put them on it.
-    const overdueInstallments = calendar.passed.filter(
+    // `calendar.overdue` is STRICTLY past, not `calendar.passed`. Those differ
+    // by exactly the installment due today, and the ledger, Defaulters, the
+    // dashboard and the late-fee rule all agree today's row is not yet
+    // overdue — the flat late fee starts tomorrow. Reading `passed` here is
+    // what let this screen tell a parent they were late on the one day they
+    // were not.
+    const overdueInstallments = calendar.overdue.filter(
       (installment) => pendingFor(row, installment) > 0,
     );
     const overdueAmount = overdueInstallments.reduce(
@@ -993,7 +1020,7 @@ export async function loadReminderAudience(
       0,
     );
 
-    const upcomingPending = nextDue ? pendingFor(row, nextDue.installmentNo) : 0;
+    const upcomingPending = nextAhead ? pendingFor(row, nextAhead.installmentNo) : 0;
 
     /**
      * Everything the filters and the templates can ask about this family, in
@@ -1019,7 +1046,7 @@ export async function loadReminderAudience(
       ledgerFeesByInstallment: applied?.feesByInstallment ?? [0, 0, 0, 0],
       overdueInstallments,
       overdueAmount,
-      nextInstallmentNo: nextDue?.installmentNo ?? null,
+      nextInstallmentNo: nextAhead?.installmentNo ?? null,
       nextInstallmentPending: upcomingPending,
       balanceDue,
       prevYearBalance,
@@ -1039,8 +1066,8 @@ export async function loadReminderAudience(
     // Does this family survive the tiles and the narrowing controls? The class
     // and the open-promise hold-back are deliberately NOT in here — see
     // `matchesAudienceFilters`.
-    const matchesFilters =
-      matchesAudienceFilters(filters, facts) && dueAmount >= filters.minDueAmount;
+    const matchesTiles = matchesAudienceFilters(filters, facts);
+    const matchesFilters = matchesTiles && dueAmount >= filters.minDueAmount;
 
     // Named by hand on the screen. An include joins the list whatever the
     // filters say, and whatever the cadence says: naming a family IS the more
@@ -1143,7 +1170,7 @@ export async function loadReminderAudience(
     // tile's number is exactly who it would reach on its own. A tile that
     // lied about its count is a tile the office stops trusting.
     //
-    // `skipOverdue` is meaningless on a passed installment (everyone owing on
+    // `skipOverdue` is meaningless on an overdue installment (everyone owing on
     // it is overdue by definition) and the tile hrefs drop it there, so the
     // count does too — or a courtesy-notice setting would zero the overdue
     // tiles.
@@ -1153,7 +1180,7 @@ export async function loadReminderAudience(
           ...filters,
           installments: [installment],
           lastYear: false,
-          skipOverdue: filters.skipOverdue && !calendar.passed.includes(installment),
+          skipOverdue: filters.skipOverdue && !calendar.overdue.includes(installment),
         };
         if (
           namedByHand ||
@@ -1178,7 +1205,14 @@ export async function loadReminderAudience(
     if (!matchesFilters && !namedByHand) {
       // Split so the sentence under the list can say WHICH filter did it. Below
       // the minimum is the one staff most often set by accident.
-      if (dueAmount < filters.minDueAmount) skipped.belowMinimum += 1;
+      //
+      // Split on the TILES, not on the amount. A family who owes nothing on the
+      // selected installments is clear, and reporting them as "below the
+      // minimum you set" reads to the office as a threshold they got wrong. A
+      // family who does owe on them but quotes less than was asked for — ₹0
+      // included, which is what a family owing only a late fee quotes — is the
+      // one the minimum actually held back.
+      if (matchesTiles) skipped.belowMinimum += 1;
       else skipped.installmentsClear += 1;
       continue;
     }
@@ -1253,14 +1287,23 @@ export async function loadReminderAudience(
       // Which of the SELECTED template's slots this family cannot fill. Empty
       // for almost everybody; non-empty is the price of letting any template go
       // to any audience, and the screen says so rather than sending ₹0.
-      missingFacts: missingFactsFor(filters.situation, facts, dueAmount, lateFeeQuoted),
+      missingFacts: missingFactsFor(
+        filters.situation,
+        facts,
+        dueAmount,
+        filters.lateFeeSource,
+        lateFeeQuoted,
+      ),
       missingFactsLabel: describeMissingFacts(
-        missingFactsFor(filters.situation, facts, dueAmount, lateFeeQuoted),
+        missingFactsFor(filters.situation, facts, dueAmount, filters.lateFeeSource, lateFeeQuoted),
       ),
     });
 
     for (const situation of SITUATION_KEYS) {
-      if (missingFactsFor(situation, facts, dueAmount, lateFeeQuoted).length > 0) {
+      if (
+        missingFactsFor(situation, facts, dueAmount, filters.lateFeeSource, lateFeeQuoted).length >
+        0
+      ) {
         noticeGaps[situation] += 1;
       }
     }
@@ -1390,11 +1433,14 @@ async function loadAppliedLateFees(
     // Carry-forward rows carry a late-fee rate of 0 deliberately; one showing a
     // pending late fee would be a data fault, not an audience.
     if (row.is_carry_forward) continue;
-    // Only what the calendar agrees has passed. A late fee on an installment
-    // still ahead of its date would mean the two disagree, and the message must
-    // follow the date the parent can see.
+    // Only what the calendar agrees is OVERDUE — strictly past, matching
+    // `calendar.overdue` and the ledger. This is the second copy of that one
+    // boundary, and it moved from `> today` to `>= today` with the first: a
+    // late fee cannot exist on its own due date, because the flat charge starts
+    // the day after. In practice no such row is ever returned, which is exactly
+    // why this would have sat here disagreeing with the calendar unnoticed.
     const dueDate = String(row.due_date ?? "");
-    if (!dueDate || dueDate > today) continue;
+    if (!dueDate || dueDate >= today) continue;
 
     const installmentNo = Number(row.installment_no ?? 0);
     const lateFee = Number(row.late_fee_pending ?? 0);

@@ -74,7 +74,7 @@ fee balance on it.
 | `src/modules/whatsapp/domain/phone.ts` | `toWhatsappDestination`. Pure, client-safe |
 | `src/modules/whatsapp/data/aisensy.ts` | Campaign API client. `server-only` |
 | `src/modules/whatsapp/domain/fee-reminders.ts` | Audience query and filters. `server-only` — a client component may only `import type` from it |
-| `src/modules/whatsapp/domain/audience.ts` | **Who gets it**: the filter shape, the one list of query keys, the serialiser, the tile hrefs and the saved-campaign reader. Browser-safe |
+| `src/modules/whatsapp/domain/audience.ts` | **Who gets it**: the filter shape, the one list of query keys, the serialiser, the tile hrefs, the one sentence and the saved-campaign reader. Browser-safe |
 | `src/modules/whatsapp/ui/audience-builder.tsx` | The installment tiles, "Narrow down" and add-or-remove-students. A SERVER component — see the byte rule below |
 | `src/modules/whatsapp/domain/installment-calendar.ts` | What today makes of the fee calendar, and the per-notice date guard. Pure, **no `server-only`** |
 | `src/modules/whatsapp/domain/delivery-report.ts` | Reading the AiSensy CSV, and matching it onto sends. Pure |
@@ -126,14 +126,16 @@ fee balance on it.
   family for siblings — so `loadSentToday` reads both
   (`campaignNamesForNotice`), and `executeReminderRun` skips anyone already
   logged today before grouping, because the index only ever sees one name.
-- **The tiles, the notice, the language and the date live in the query
-  string**, never in client state. The tiles change the audience — the notice
-  never does — and `sendRemindersAction` re-derives that audience from the
-  very same parser: a choice the action could not see would message a
-  different set of families than the office ticked. It also makes each list
-  linkable and the back button work, the same rule the Dashboard boards follow.
-- **Every form on the screen carries all three.** The picker owns the date
-  field but the filters are a separate `<form>`; without hidden copies, pressing
+- **The tiles, the notice, the language, the date and every narrowing control
+  live in the query string**, never in client state. The tiles change the
+  audience — the notice never does — and `sendRemindersAction` re-derives that
+  audience from the very same parser: a choice the action could not see would
+  message a different set of families than the office ticked. It also makes
+  each list linkable and the back button work, the same rule the Dashboard
+  boards follow. See *Who gets it — the installment tiles* below.
+- **Every form on the screen carries everything it does not own.** The picker
+  owns the notice, the language, the date and the late fee; the filters are a
+  separate `<form>`. Without hidden copies, pressing
   Apply would drop the notice, the language and the deadline out of the URL and
   silently reset them mid-task.
 - **The date and the late fee are remembered.** The picker's Apply is a server
@@ -263,7 +265,7 @@ number is unreachable **whichever notice is selected**, and
 keeps everybody and each row carries `matchesNotice` — true when the row would
 also have survived the notice, the minimum and the class filter.
 
-The flag is computed **at the existing push site**, where `qualifies` and
+The flag is computed **at the existing push site**, where the family's facts and
 `dueAmount` are already in scope. Moving the push later in the loop would have
 worked and would have silently shrunk the unreachable page; six tests in
 `tests/unit/whatsapp-reminder-audience.test.ts` exist to catch exactly that,
@@ -418,29 +420,29 @@ join (select student_id,
 where f.session_label = '2026-27';
 ```
 
-## The six notices — read this before changing anything about the message
+## The twelve notices — read this before changing anything about the message
 
 `src/modules/whatsapp/domain/campaigns.ts` is the registry: campaign name, slot
-order, param builder and preview body for each of the six, in one place so they
-cannot drift apart. `docs/modules/whatsapp-campaign-registry.md` is the ground
+order, param builder and preview body for each of the twelve, in one place so
+they cannot drift apart. `docs/modules/whatsapp-campaign-registry.md` is the ground
 truth it was copied from — the approved bodies and the slot orders as submitted
 to Meta.
 
 The second column is what the WORDING assumes about the family reading it —
-not who receives it. Since 2026-09-10 the installment tiles decide that (see
-"Who gets it" below), and a template pointed at a family who cannot fill its
-slots is warned about, never refused.
+not who receives it. The installment tiles decide that (see *Who gets it*
+below), and a template pointed at a family who cannot fill its slots is warned
+about, never refused.
 
 | Situation | What the wording assumes | Slots | Campaigns |
 |---|---|---|---|
-| `fee_due` | Nothing received (`total_paid <= 1100`) and **every** selected installment pending | 7 | `vpps_app_fee_due_hi_v2` · `vpps_app_fee_due_en_v2` |
-| `balance` | Part paid, still owing on **any** selected installment | 7 | `vpps_app_balance_hi_v2` · `vpps_app_balance_en_v2` |
+| `fee_due` | Nothing received (`total_paid <= 1100`) and **past a due date**. Quotes the overdue amount only | 7 | `vpps_app_fee_due_hi_v2` · `vpps_app_fee_due_en_v2` |
+| `balance` | Part paid and past a due date. Quotes the **whole session balance**, because the approved body prints the words "Balance due" | 7 | `vpps_app_balance_hi_v2` · `vpps_app_balance_en_v2` |
 | `prevyear` | A carry-forward balance with something left on it | 7 | `vpps_app_prevyear_hi_v2` · `vpps_app_prevyear_en_v2` |
 | `upcoming` / `upcoming_final` | The next installment inside the window, nothing overdue; final from T-3 | 7 | `vpps_app_upcoming_*_v3` · `vpps_app_upcoming_final_*_v3` |
 | `late_fee_applied` | The ledger charges a late fee on a passed installment | 7 (own) | `vpps_app_late_fee_applied_*_v3` |
 | `promise_lapsed` | A promised date passed, money still owed | 7 | `vpps_app_promise_lapsed_*_v3` |
-| `late_fee_waiver` / `waiver_last_call` | The ledger charges a late fee AND fees are still on those rows. Slot 7 is the office's waive-by date; the late-fee control is disabled | 7 (waiver) | `vpps_app_late_fee_waiver_*_v4` · `vpps_app_waiver_last_call_*_v4` |
-| `overdue_final` | Fees still pending on any installment the calendar says has passed, late fee or not | 7 | `vpps_app_overdue_final_*_v4` |
+| `late_fee_waiver` / `waiver_last_call` | The ledger charges a late fee AND fees are still on those rows. Slot 7 is the office's waive-by date; the late fee defaults to the ledger's own figure per family | 7 (waiver) | `vpps_app_late_fee_waiver_*_v4` · `vpps_app_waiver_last_call_*_v4` |
+| `overdue_final` | Fees still pending on any installment **strictly past** its due date, late fee or not | 7 | `vpps_app_overdue_final_*_v4` |
 | `promise_due` | A promise falling due today or tomorrow. Prints the family's own date, so no run date and no date guard; exempt from the promise hold-back | 7 | `vpps_app_promise_due_*_v4` |
 | `exam_clearance` | Anything pending on **any** selected installment | 7 | `vpps_app_exam_clearance_*_v4` |
 
@@ -452,12 +454,31 @@ touches money.
 
 **The two current-year notices are mutually exclusive by construction, not by a
 filter someone has to get right.** `maxTotalPaid` is 1100, the academic fee, so at
-or below it nothing real has been received. Measured live, the overlap is zero.
+or below it nothing real has been received; `balance` carries the same figure as
+a FLOOR. Measured live, the overlap is zero. Both also require the family to be
+past a due date, which narrows each of them without making them overlap.
 
 `prevyear` is the opposite: 47 of the 51 families carrying a balance forward also
 owe this year. That is why the send log is keyed per campaign — under the old
 one-a-day index the current-year notice claimed the day and the previous-session
 notice could never reach them at all.
+
+### The message and the list are separate questions
+
+Until 2026-09-08 they were one. `situation` picked the campaign AND gated the
+audience through a `qualifies[situation]` record, so "Fee due" meant 92
+families, "Balance" 196 and "Overdue final" 299 — and *send the overdue wording
+to those 92* was not expressible. `SITUATION_FILTERS` made it worse by HIDING
+the installment, paid-so-far and minimum controls on any notice whose rule
+ignored them, so the office could not see the levers it was not allowed to pull.
+
+The screen is two numbered cards, each stating that it does not touch the
+other's half:
+
+| | |
+|---|---|
+| **1 What it says** | The template, the language, the date, the late fee. Twelve chips. Changes nothing about who is on the list. |
+| **2 Who gets it** | `domain/audience.ts`. One plain-English sentence, the five installment tiles, and "Narrow down". |
 
 ### Who gets it — the installment tiles
 
@@ -477,7 +498,10 @@ or the carry-forward remainder), and so is the ledger late fee the
 account-balance notices print: "Installment 2 only" for a family late on 1 and
 2 quotes installment 2's late fee beside installment 2's fees. A family who
 paid the fees late and owes only the late fee quotes ₹0 in fees, so the ₹1
-minimum keeps them off an ordinary list; a minimum of 0 reaches them.
+minimum keeps them off an ordinary list; a minimum of 0 reaches them. Slot
+{{4}} names the selected tiles on every notice (the previous session on Last
+year), so the fees, the late fee and the line naming them describe the same
+rows by construction.
 
 Everything else sits folded under **Narrow down**: class (with counts), paid so
 far (either / nothing yet / part), a late fee on the ledger (either / yes / no,
@@ -487,24 +511,179 @@ ignore), include RTE, and — only when every selected tile is still ahead of it
 date — "skip families already overdue on an earlier installment", which is the
 old courtesy-notice rule opted into rather than inferred from the template.
 
-The screen still says the rule out loud under the tiles — "Still owing on every
-one of installment 1 and 2, and owing at least ₹1 on that" — because a list of
-exclusion counts only answers "why is this family missing" if you already know
-what the list is looking for.
+The screen opens on every installment past its due date (`defaultInstallmentsFor`
+— today 1 and 2), owing on all of them. Nothing about the template supplies
+the audience. A bookmark from before the tiles that still carries
+`maxTotalPaid`, `minTotalPaid`, `overdue`, `carryForward` or `quote` is not
+broken: nothing reads those keys, they vanish on the first navigation, and the
+list opens on the calendar's default. `promise=open|none` falls back to the
+hold-back.
+
+**Per-tile counts are counted after the hold-backs**, under the same narrowing
+controls and class as the list, so with one tile selected and nobody hand-picked
+that tile's number IS the list. **Include and exclude ride the query string** —
+a student named by hand joins the list whatever the tiles and their reminder
+cadence say, but never gets past the three things that mean a family is
+uncontactable: off the roll having never paid, flagged no-call, or no usable
+number. A tile href carries them: the office is refining a list, not rebuilding
+one. A saved campaign stores none of them.
 
 What this replaced, for the record: until 2026-09-08 the notice gated the
-audience (`SITUATION_FILTERS` hid the controls a notice ignored — measured
-live, 87 of 258 families on the balance list owed only installments 3 and 4,
-₹7,77,075 not due until October); until 2026-09-10 the split kept each notice's
-old audience as a preset behind nine chips plus twelve controls, most of them
-yes/no/either facts nobody could explain without knowing the rule they came
-from. The owner's words were "very confusing". The tiles are installment-first
-because that is how the office thinks about the money.
+audience; from 2026-09-08 the split kept each notice's old audience as a preset
+behind nine chips, then five chips plus a "Fine-tune" fold, over twelve
+controls — most of them yes/no/either facts nobody could explain without
+knowing the rule they came from. The owner's words were "very confusing". The
+tiles are installment-first because that is how the office thinks about the
+money. Measured on the same day: 479 families owed something, 345 were past a
+due date, and the old default could ask 479 families for ₹85,59,066 when only
+₹27,85,517 was actually overdue — which is why the tiles open on the passed
+installments and never on "everyone who owes".
 
-A bookmark from before the tiles that still carries `maxTotalPaid`,
-`minTotalPaid`, `overdue`, `carryForward` or `quote` is not broken: nothing
-reads those keys, they vanish on the first navigation, and the list opens on
-the calendar's default. `promise=open|none` falls back to the hold-back.
+#### Overdue is STRICTLY past, and `calendar.passed` is not it
+
+`buildInstallmentCalendar` returns both, and the difference is one day:
+
+| | rule | who wants it |
+|---|---|---|
+| `passed` | `daysUntilDue <= 0` | `defaultInstallmentsFor` (today's row IS the money being chased today), `active` and `isFinalNoticeWindow` |
+| `overdue` | `daysUntilDue < 0` | `overdueInstallments`, `skipOverdue`, the tile's "Overdue since" label — and nothing else |
+
+Everything else in the app already drew the line at `due_date < CURRENT_DATE`:
+`balance_status` in both engines, `overdue_installment_count`,
+`calculateDaysOverdue`, Defaulters, the Dashboard. So does the school's own
+rule — the flat ₹1,000 starts the day AFTER the due date
+(`lateFeeStartsOn(d) === d + 1`), so the due date itself is free. Reminders read
+`passed` until 2026-09-10, so on each of the four due dates this screen called a
+family overdue while the ledger called them pending. `MONEY_GLOSSARY.overdue` is
+the canonical wording; `tests/unit/whatsapp-reminder-calendar.test.ts` pins all
+three days around a due date, and the tile reads "Due today" on the day itself.
+
+The same boundary appears twice: `loadAppliedLateFees` filters
+`dueDate >= today`. A late fee cannot exist on its own due date, so in practice
+no row is affected — which is precisely why it would drift unnoticed. Edit both.
+
+#### `describeAudience` is the one sentence
+
+`domain/audience.ts`. It replaced **two** hand-rolled descriptions of the same
+filter set — the panel's summary and the workspace's comma-joined "Who is on
+this list" rule — either of which could drift from the other and from the
+engine. It names the decision rather than the fields:
+
+> 187 families · ₹22,95,084 — still owing on installments 1 and 2, every one of them, for the fees on those installments. RTE students left out.
+
+It returns `headline` (the two figures, for one glance), `claim` (what they
+mean, with no count in it because the headline has it) and `notes` (narrowings
+and hold-backs); `full` is the flat composition, so there is still exactly one
+wording. One `aria-live` wraps all three. Clauses that say nothing are omitted,
+so there is no standing "0 held back inside a promise" on a session that has
+no promises. Every figure goes through `formatInr`; a hand-written ₹ here fails
+`quality:budgets`.
+
+#### One form, no `idPrefix`
+
+The filter panel used to render every control twice — a phone `<details>` and a
+desk grid — so each `<Label htmlFor>` needed an `idPrefix` to avoid pointing at
+a duplicated id. The tiles are links and "Narrow down" is one GET form that
+serves every viewport; a collapsed `<details>` still submits the inputs inside
+it, so the narrowing keeps its values through Apply with no hidden mirror and no
+client state — which is also how the panel stays a server component under a
+ceiling that only ratchets down.
+
+#### On a phone, measured
+
+At 390px this screen's card has **298px of inner width**. The tiles are a
+two-column grid there and five across at the desk — a grid that wraps, never a
+scrolling row, because five counts are only comparable when all five are on
+screen. The twelve template chips stay on one snapping row with an edge fade
+and a "Swipe for all 12 messages" line, because wrapping them measured six rows
+and 304px — 35% of the card — spent on the control changed least.
+
+Three more, all measured rather than assumed:
+
+- **Every tap target is 44px on a phone.** Tiles and the all/any toggle are
+  `min-h-11`; chips are `h-11 md:h-9`.
+- **Apply and Add need `max-md:h-11`, not `h-11`.** The button primitive
+  carries a compound variant, `{ size: "sm", class: "max-md:h-10" }`, which a
+  bare `h-11` loses to inside the media query — so both measured 40px next to
+  44px selects. Overriding at the same variant level is what actually wins.
+- **A zero-count tile is dimmed by colour, never by opacity.** `opacity-45` on
+  the whole control took its label to 2.88:1 against the 4.5 axe requires;
+  `text-muted-foreground` on `surface-2` measures 5.21:1 in light and 8.04:1 in
+  dark.
+
+`tests/ui/whatsapp-reminders-mobile.test.ts` pins each of these.
+
+### The late fee has two modes
+
+`LateFeeSource` in `domain/late-fee.ts`, since 2026-09-10. Which one you got
+used to be decided by the TEMPLATE — `late_fee_applied` and the waiver pair
+always read the ledger and hid the control, the other nine always used the typed
+amount and could not read the ledger at all — so neither half was reachable from
+the other. The live screen came to say ₹4,000 per installment beside a ledger
+charging ₹1,000.
+
+| Mode | What a parent reads |
+|---|---|
+| **Actual late fee** | Each family's own `late_fee_pending` where the ledger has charged one; the school's POLICY rate where it has not yet, because a forward-looking notice is warning about a fee that has not accrued and quoting their own ₹0 would say the opposite. Nothing is typed, so the message and the receipt cannot disagree. |
+| **Custom amount** | One figure the office types, on every message in the run. The lever, now reaching the three notices that never had it. |
+
+Three rules:
+
+- **`prevyear` in Actual mode says "not charged".** A carry-forward balance
+  never accrues a late fee — those rows carry a rate of 0 deliberately — and
+  that is what Meta approved its sample as. Quoting the policy rate there would
+  threaten a charge the ledger will never make, and `describeLateFeeDrift`
+  cannot warn about it because it returns early in Actual mode.
+- **`policyLateFeeAmount` is threaded, never in the query string.** It is a fact
+  about the school, and a stale bookmark must not quote last term's rate.
+  `resolveReminderContext`, the send action and the cron all supply it — and the
+  send action resolves the policy BEFORE parsing the filters, or a real send
+  quotes a different number than the preview showed.
+- **Custom mode on the three account-balance notices gets its own warning.**
+  They say "the late fee on your account is Rs X". Everywhere else a typed
+  figure is a lever; there it is a claim about the ledger, and the counter will
+  ask for something else. It warns, never blocks.
+
+A saved campaign stores its mode in the `filters` jsonb (no column, no
+migration). NULL means a campaign saved before the modes existed, which falls
+back per template — exactly what it always did. Not storing it was a real bug
+for a day: a waiver campaign saved with a custom Rs 4,000 replayed through the
+cron quoting the LEDGER.
+
+### Every notice states what a parent will read
+
+One sentence, on every template, composed in `notice-picker.tsx`. The same
+late-fee control means three different things depending on the chip above it,
+and nothing on screen used to say which you were looking at, so the office could
+not tell a waiver note quoting the ledger from a fee-due note quoting whatever
+was last typed.
+
+### A "fact gap" means a SLOT would render empty
+
+`NOTICE_FACTS` / `missingFactsFor`. Two rules, both learned by shipping the
+wrong thing:
+
+- **A fact belongs on the list only if a slot really would come out empty.**
+  `next_due` and `overdue` were on it for one day and could not: `upcoming` and
+  `upcoming_final` render through `feeDueParams`, and `overdue_final`'s context
+  line goes through `contextInstallments`, which FALLS BACK to the run's
+  installments. Between them they reported 89 of 89 families broken on a list
+  where nothing was.
+- **`missingFactsFor` takes the late-fee mode.** In Custom the message prints
+  the typed amount and never reads the ledger, so a family with no charged fee
+  is not a problem that message has.
+
+And two very different failures hide behind one warning — `NOTICE_FACT_CONSEQUENCE`
+carries the effect and the fix per fact, and the guard emits one finding per
+fact rather than one sentence listing everything:
+
+| Fact | What happens |
+|---|---|
+| `late_fee`, `amount` | renders **Rs 0** — odd, but delivered |
+| `promise`, `prev_year` | renders an **empty template parameter**, and WhatsApp REFUSES it. The message does not go out looking strange; it does not go out. |
+
+`formatDdMmYyyy(null)` returns `""` and that empty string goes straight into
+`templateParams`. Never assume a missing slot merely looks odd.
 
 ### Four things that are easy to break
 

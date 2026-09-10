@@ -237,6 +237,85 @@ describe("buildInstallmentCalendar", () => {
   });
 });
 
+describe("overdue is STRICTLY past, and passed is not", () => {
+  /**
+   * The whole app draws this line one day later than the reminders screen used
+   * to, and the reminders screen is the one that sends billed messages about it.
+   *
+   * `balance_status` in both engines, `overdue_installment_count`,
+   * `calculateDaysOverdue`, Defaulters and the Dashboard all say
+   * `due_date < CURRENT_DATE`. So does the school's own rule: the flat ₹1,000
+   * starts the day AFTER the due date — `lateFeeStartsOn(d) === d + 1` — so the
+   * due date itself carries no charge. `calendar.passed` is `daysUntilDue <= 0`
+   * and legitimately stays that way, because `active` must offer the office
+   * today's installment and `isFinalNoticeWindow` runs through the due date.
+   *
+   * Three consecutive days around one due date, because the bug is invisible on
+   * every other day of the year.
+   */
+  const DUE = "2026-10-20";
+  const on = (today: string) =>
+    buildInstallmentCalendar({
+      schedule: [{ dueDate: "2026-04-20" }, { dueDate: "2026-07-20" }, { dueDate: DUE }],
+      today,
+      windowDays: 10,
+    });
+
+  it("the day before: not overdue, not passed, and inside the final-notice window", () => {
+    const calendar = on("2026-10-19");
+    expect(calendar.overdue).toEqual([1, 2]);
+    expect(calendar.passed).toEqual([1, 2]);
+    expect(calendar.upcoming).toEqual([3]);
+    expect(isFinalNoticeWindow(1)).toBe(true);
+  });
+
+  it("ON the due date: passed says yes, overdue says no, and the late fee has not started", () => {
+    const calendar = on(DUE);
+    // The one assertion this file exists for.
+    expect(calendar.overdue).toEqual([1, 2]);
+    expect(calendar.passed).toEqual([1, 2, 3]);
+    // Still offered as a tickable row, and still the firm wording's subject.
+    expect(calendar.active).toContain(3);
+    expect(isFinalNoticeWindow(0)).toBe(true);
+    // Which is why: nothing is charged until tomorrow.
+    expect(lateFeeStartsOn(DUE)).toBe("2026-10-21");
+  });
+
+  it("the day after: overdue at last", () => {
+    const calendar = on("2026-10-21");
+    expect(calendar.overdue).toEqual([1, 2, 3]);
+    expect(calendar.passed).toEqual([1, 2, 3]);
+  });
+});
+
+describe("nextAhead ignores the pre-due window", () => {
+  /**
+   * `next` is window-gated, and quoting a figure from it emptied the "Not late
+   * yet" audience for about 320 days a year: with a 10-day window and
+   * installment 3 forty days out, `next` is null, `quote: "next"` resolved to
+   * ₹0, and `minDueAmount: 1` then dropped every family in it.
+   *
+   * Which installment comes next is a fact about the calendar. Whether a polite
+   * note about it is appropriate is a judgement about timing. They are not the
+   * same question and they no longer share an answer.
+   */
+  const calendar = buildInstallmentCalendar({
+    schedule: [{ dueDate: "2026-04-20" }, { dueDate: "2026-07-20" }, { dueDate: "2026-10-20" }],
+    today: "2026-09-10",
+    windowDays: 10,
+  });
+
+  it("has no windowed next, because nothing is within ten days", () => {
+    expect(calendar.next).toBeNull();
+    expect(calendar.upcoming).toEqual([]);
+  });
+
+  it("still knows installment 3 is the one coming", () => {
+    expect(calendar.nextAhead?.installmentNo).toBe(3);
+    expect(calendar.nextAhead?.dueDate).toBe("2026-10-20");
+  });
+});
+
 describe("isFinalNoticeWindow", () => {
   it("opens at T-3 and stays open through the due date", () => {
     expect(isFinalNoticeWindow(FINAL_NOTICE_DAYS_BEFORE_DUE)).toBe(true);

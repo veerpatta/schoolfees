@@ -11,6 +11,7 @@ import { cn } from "@/platform/utils";
 import { formatInr } from "@/platform/helpers/currency";
 import {
   DEFAULT_MAX_TOTAL_PAID,
+  describeAudience,
   INSTALLMENT_MATCHES,
   installmentMatchHref,
   installmentTileHref,
@@ -131,12 +132,17 @@ function Tile({
   subtitle: string;
   count: number;
 }) {
+  // A zero-count tile is dimmed by COLOUR, never by opacity: opacity composites
+  // the text too, and took a chip label to 2.88:1 against the 4.5 axe requires.
+  // `text-muted-foreground` on `surface-2` measures 5.21:1 in light and 8.04:1
+  // in dark, so the tile still reads as quiet without becoming unreadable.
   const className = cn(
-    "focus-ring flex min-h-[3.75rem] min-w-0 flex-col justify-center gap-0.5 rounded-xl border px-3 py-2 text-left transition-colors md:min-h-14",
+    "focus-ring flex min-h-11 min-w-0 flex-col justify-center gap-0.5 rounded-xl border px-3 py-2 text-left transition-colors md:min-h-14",
     selected
       ? "border-accent bg-accent/12 text-foreground"
-      : "border-border bg-card text-foreground hover:border-border-strong",
-    count === 0 && !selected && "opacity-60",
+      : count === 0
+        ? "border-border/60 bg-surface-2 text-muted-foreground"
+        : "border-border bg-card text-foreground hover:border-border-strong",
   );
   const body = (
     <>
@@ -235,13 +241,14 @@ export function AudienceBuilder({
 
   const selectedInstallments = filters.lastYear ? [] : filters.installments;
   const calendarDefault = defaultInstallmentsFor(calendar);
-  // The courtesy-notice rule only means something when nothing selected has
-  // passed its date; on a passed tile everybody is overdue by definition, and
-  // the tile hrefs drop the key there for the same reason.
+  // The courtesy-notice rule only means something when nothing selected is
+  // overdue (`calendar.overdue`, strictly past — the row due today is not); on
+  // an overdue tile everybody is overdue by definition, and the tile hrefs
+  // drop the key there for the same reason.
   const offerSkipOverdue =
     !filters.lastYear &&
     selectedInstallments.length > 0 &&
-    selectedInstallments.every((installment) => !calendar.passed.includes(installment));
+    selectedInstallments.every((installment) => !calendar.overdue.includes(installment));
 
   const classLabel =
     audience.classOptions.find((option) => option.classId === filters.classId)?.label ?? null;
@@ -261,6 +268,25 @@ export function AudienceBuilder({
 
   const handPicked = included.length + excluded.length;
 
+  /**
+   * The sentence, built from what this run actually landed on.
+   *
+   * `quotedTotal` sums the SAME `dueAmount` each family will be messaged, so
+   * the figure on screen is the figure that goes out — not a re-derivation that
+   * could disagree with it.
+   */
+  const sentence = describeAudience(filters, {
+    count: audience.candidates.length,
+    quotedTotal: audience.candidates.reduce((sum, candidate) => sum + candidate.dueAmount, 0),
+    heldByPromise: audience.paused.filter((family) => family.reason === "promise_open").length,
+    // Everything else in `paused` is a cadence decision: never, snoozed, or
+    // messaged too recently. The tile counts these families and the send does
+    // not, so the sentence has to account for them or the two numbers look
+    // like they disagree.
+    heldByCadence: audience.paused.filter((family) => family.reason !== "promise_open").length,
+    className: classLabel,
+  });
+
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3.5 shadow-sm md:rounded-lg md:p-4">
       {/* Numbered, because the two cards on this screen answer two questions
@@ -278,8 +304,39 @@ export function AudienceBuilder({
         </p>
       </div>
 
+      {/* ------------------------------------------------------- the sentence */}
+      {/* The answer to "who gets it", in words, above the tiles that decide it.
+
+          Three weights, not one. As a single string this measured six lines
+          and 124px of uniform semibold at 390px, and it is both the first thing
+          on the card and what a person reads before sending a few hundred
+          billed messages. The two figures they actually check land in one
+          glance; the qualifiers stay legible without competing.
+
+          `aria-live` sits on the wrapper so a screen reader hears the whole
+          thing as one update rather than three. */}
+      <div
+        aria-live="polite"
+        className="flex flex-col gap-1 rounded-lg border border-accent/25 bg-accent/[0.06] px-3 py-2.5"
+      >
+        <p className="text-[15px] font-extrabold leading-tight tracking-tight text-foreground tabular-nums md:text-[14px]">
+          {sentence.headline}
+        </p>
+        <p className="text-[12.5px] font-semibold leading-snug text-foreground">
+          {sentence.claim}
+        </p>
+        {sentence.notes.length > 0 ? (
+          <p className="text-[11.5px] leading-snug text-muted-foreground">
+            {sentence.notes.join(" ")}
+          </p>
+        ) : null}
+      </div>
+
       {/* ------------------------------------------------------------- tiles */}
-      {/* Two columns on a phone, five across at the desk. Each tile is the
+      {/* Two columns on a phone, five across at the desk — a GRID that wraps,
+          never a scrolling row: this is the control the office retunes on
+          every run, and five counts are only comparable when all five are on
+          screen. Each tile is the
           whole tap target; the count is who THAT tile alone would reach under
           the same narrowing, class and hold-backs as the list — so with one
           tile selected, its number is the list. */}
@@ -458,7 +515,11 @@ export function AudienceBuilder({
             </div>
 
             <div className="col-span-2 flex justify-end md:col-span-4">
-              <Button type="submit" variant="primary" size="sm" className="h-11 px-6 md:h-9">
+              {/* `max-md:h-11`, not `h-11`: the button primitive carries a
+                  compound variant `{ size: "sm", class: "max-md:h-10" }` that a
+                  bare `h-11` loses to inside the media query, so Apply measured
+                  40px beside 44px selects. Same variant level is what wins. */}
+              <Button type="submit" variant="primary" size="sm" className="max-md:h-11 px-6 md:h-9">
                 Apply
               </Button>
             </div>
@@ -517,7 +578,7 @@ export function AudienceBuilder({
           <PendingSubmitButton
             variant="outline"
             size="sm"
-            className="h-11 px-4 md:h-9"
+            className="max-md:h-11 px-4 md:h-9"
             pendingLabel="Finding…"
           >
             <Plus className="size-4" aria-hidden="true" />

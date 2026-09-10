@@ -13,6 +13,7 @@ import {
   installmentPhrase,
   isCampaignApproved,
   LEDGER_QUOTED_SITUATIONS,
+  ledgerLateFeePhrase,
   noticeValuesFrom,
   RUN_DATE_FREE_SITUATIONS,
   shortClassLabel,
@@ -275,6 +276,58 @@ describe("the registered campaigns", () => {
     expect(
       noticeValuesFrom({ ...subject, prevSessionLabel: null }, settings("en")).installmentPhrase,
     ).toBe("Previous session");
+  });
+
+  it("follows the family's own overdue rows when the office ticked nothing", () => {
+    /**
+     * `installmentPhrase([])` does NOT render empty — it falls back to a
+     * hardcoded "Installment 1 and 2" / "किश्त 1 एवं 2".
+     *
+     * That was harmless while every preset carried an installment set. Since
+     * `fee_due`'s preset stopped carrying one (2026-09-10, when the audience
+     * became overdue-driven rather than installment-driven), an untouched run
+     * reaches here with `installments: []` — and without the fallback below,
+     * every fee-due message would print "Installment 1 and 2" beside an amount
+     * summed over whatever is actually overdue. Correct today, and wrong the
+     * morning of 21 October, when installment 3 joins the total and the
+     * sentence still names two rows. A figure that does not match the rows
+     * named beside it is the message that arrives at the counter.
+     */
+    const subject: NoticeSubject = {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      dueAmount: 15125,
+      totalPaid: 0,
+      balanceDue: 15125,
+      prevYearBalance: 0,
+      prevSessionLabel: null,
+      lateFeeApplied: 0,
+      lateFeeInstallments: [],
+      overdueInstallments: [1, 2, 3],
+    };
+    const nothingTicked: NoticeSettings = {
+      situation: "fee_due",
+      language: "en",
+      installments: [],
+      lastDate: "20-11-2026",
+      lateFeeAmount: 1000,
+      lateFeeBasis: "per_installment",
+    };
+
+    expect(noticeValuesFrom(subject, nothingTicked).installmentPhrase).toBe(
+      "Installment 1, 2 and 3",
+    );
+    // Hindi takes the same path, so the fallback cannot be language-specific.
+    expect(
+      noticeValuesFrom(subject, { ...nothingTicked, language: "hi" }).installmentPhrase,
+    ).toBe("किश्त 1, 2 एवं 3");
+
+    // And a family with nothing overdue at all still gets a readable slot
+    // rather than an empty parameter, which WhatsApp refuses outright.
+    expect(
+      noticeValuesFrom({ ...subject, overdueInstallments: [] }, nothingTicked).installmentPhrase,
+    ).toBe("Installment 1 and 2");
   });
 
   it("prints the family's own promised date on promise_due, never the run's", () => {
@@ -725,6 +778,23 @@ describe("the two late-fee modes", () => {
     expect(values.lateFeePhrase).toContain("4,000");
   });
 
+  it("never threatens a late fee on a carry-forward balance, in either mode", () => {
+    // The ledger charges NOTHING on a carry-forward row — those carry a rate of
+    // 0 deliberately — and Meta approved this template's sample as "Not
+    // applicable on this amount". Ledger mode quoting the policy rate here
+    // would threaten a charge that can never happen, and the drift warning
+    // cannot see it: it returns early in ledger mode because nothing is typed.
+    const values = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 0, prevYearBalance: 20000, prevSessionLabel: "2025-26" },
+      { ...settings, situation: "prevyear", lateFeeSource: "ledger" },
+    );
+
+    expect(values.lateFeePhrase).not.toContain("1,000");
+    expect(values.lateFeePhrase).not.toContain("4,000");
+    // The "not charged" wording, never an empty string — WhatsApp rejects those.
+    expect((values.lateFeePhrase ?? "").length).toBeGreaterThan(0);
+  });
+
   it("behaves exactly as before when no mode is given", () => {
     // Every pre-2026-09-10 link and saved campaign arrives without one.
     const ledgerQuoted = noticeValuesFrom(
@@ -738,5 +808,82 @@ describe("the two late-fee modes", () => {
       { ...settings, situation: "fee_due" },
     );
     expect(lever.lateFeePhrase).toContain("4,000");
+  });
+});
+
+describe("the ledger late-fee phrase has ONE definition", () => {
+  /**
+   * The send path and the screen's "What a parent reads" line both need it, and
+   * for one deploy they each had their own copy: the message correctly said
+   * "not charged" on a carry-forward balance while the preview beside it still
+   * promised Rs 1,000 per installment. The office reads the preview to decide,
+   * so the copy that was wrong was the one that mattered.
+   */
+  const base = {
+    language: "en" as const,
+    policyLateFeeAmount: 1000,
+    fallbackAmount: 4000,
+    fallbackBasis: "per_installment" as const,
+  };
+
+  it("never threatens a carry-forward balance", () => {
+    const phrase = ledgerLateFeePhrase({ ...base, situation: "prevyear" });
+    expect(phrase).not.toContain("1,000");
+    expect(phrase).not.toContain("4,000");
+    // Never empty — WhatsApp rejects an empty parameter.
+    expect(phrase.length).toBeGreaterThan(0);
+  });
+
+  it("states the school's rate for a family with nothing charged yet", () => {
+    const phrase = ledgerLateFeePhrase({ ...base, situation: "fee_due", charged: 0 });
+    expect(phrase).toContain("1,000");
+    expect(phrase).toContain("per installment");
+  });
+
+  it("states the family's own total as one flat charge once the ledger has one", () => {
+    const phrase = ledgerLateFeePhrase({ ...base, situation: "overdue_final", charged: 2000 });
+    expect(phrase).toContain("2,000");
+    expect(phrase).not.toContain("per installment");
+  });
+
+  it("is the function the screen uses, not a second copy", () => {
+    // A recomputed phrase in the picker is the bug this replaced.
+    const picker = readFileSync(
+      join(process.cwd(), "src/modules/whatsapp/ui/notice-picker.tsx"),
+      "utf8",
+    );
+    expect(picker).toContain("ledgerLateFeePhrase({");
+    expect(picker).not.toContain('lateFeePhrase(\n    filters.policyLateFeeAmount');
+  });
+
+  it("is what the message itself renders, too", () => {
+    // Same rule, reached through noticeValuesFrom.
+    const values = noticeValuesFrom(
+      {
+        parentName: "R",
+        studentName: "A",
+        studentClass: "Class 2",
+        dueAmount: 9000,
+        totalPaid: 0,
+        balanceDue: 9000,
+        prevYearBalance: 20000,
+        prevSessionLabel: "2025-26",
+        lateFeeApplied: 0,
+      },
+      {
+        situation: "prevyear",
+        language: "en",
+        installments: [],
+        lastDate: "30-09-2026",
+        lateFeeAmount: 4000,
+        lateFeeBasis: "per_installment",
+        lateFeeSource: "ledger",
+        policyLateFeeAmount: 1000,
+      },
+    );
+
+    expect(values.lateFeePhrase).toBe(
+      ledgerLateFeePhrase({ ...base, situation: "prevyear" }),
+    );
   });
 });

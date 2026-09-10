@@ -31,7 +31,7 @@ import {
   isLedgerQuotedSituation,
   noticeValuesFrom,
 } from "@/modules/whatsapp/domain/campaigns";
-import { DEFAULT_MAX_TOTAL_PAID, reminderQuery } from "@/modules/whatsapp/domain/audience";
+import { reminderQuery } from "@/modules/whatsapp/domain/audience";
 import { AudienceBuilder } from "@/modules/whatsapp/ui/audience-builder";
 import { CarriedFilterFields } from "@/modules/whatsapp/ui/carried-filter-fields";
 import { NoticePicker } from "@/modules/whatsapp/ui/notice-picker";
@@ -50,7 +50,6 @@ import {
 import { describeLateFeeDrift } from "@/modules/whatsapp/domain/late-fee";
 import { readerFor, resolveReminderContext } from "@/modules/whatsapp/data/reminder-context";
 import { isoFromDdMmYyyy } from "@/platform/helpers/date";
-import { formatInr } from "@/platform/helpers/currency";
 
 // The list is only ever as good as the ledger it was read from, and staff will
 // send money-bearing messages off it. Never serve it from a cache.
@@ -251,59 +250,45 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     .filter((brief): brief is NonNullable<typeof brief> => Boolean(brief));
 
   /**
-   * One sentence saying who is on the list, composed from the TILES and the
-   * narrowing controls.
+   * One sentence saying who is on the list, composed from the FILTERS.
    *
    * It used to be `SITUATION_RULE[situation]` — one line per notice, describing
    * the audience that notice defined for itself. The notice does not define one
    * any more, so a fixed sentence per notice would now be a description of
    * something that is not happening.
    */
-  const installmentsPhrase = installmentPhrase(filters.installments, "en").toLowerCase();
-  const scopeSentence = filters.lastYear
-    ? "Owing something from last session (carried forward)"
-    : filters.installments.length === 1
-      ? `Still owing on ${installmentsPhrase}`
-      : `Still owing on ${filters.installmentMatch === "all" ? "every one of" : "any of"} ${installmentsPhrase}`;
-  const classLabel =
-    audience.classOptions.find((option) => option.classId === filters.classId)?.label ?? null;
-  const audienceRule = [
-    scopeSentence,
-    filters.paid === "nothing"
-      ? `nothing paid yet (at most ${formatInr(DEFAULT_MAX_TOTAL_PAID)} received)`
-      : filters.paid === "part"
-        ? `part paid (more than ${formatInr(DEFAULT_MAX_TOTAL_PAID)} received)`
-        : null,
-    filters.lateFee !== "any"
-      ? `${filters.lateFee === "yes" ? "with" : "without"} a late fee on the ledger for those installments`
-      : null,
-    filters.skipOverdue ? "not already overdue on an earlier installment" : null,
-    filters.promise === "lapsed"
-      ? "whose promise has lapsed"
-      : filters.promise === "due_soon"
-        ? "whose promise falls due today or tomorrow"
-        : filters.promise === "any"
-          ? "promises ignored"
-          : null,
-    classLabel ? `in ${classLabel}` : null,
-    `and owing at least ${formatInr(filters.minDueAmount)} on that`,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  /**
+   * There is no `audienceRule` here any more.
+   *
+   * It was a second description of the same list — a comma-joined rule string
+   * rendered under "Who is on this list" beside the families, while the
+   * audience panel rendered its own summary. Two hand-rolled sentences over
+   * one filter set, each able to drift from the other and from the engine.
+   * `describeAudience` in `domain/audience.ts` is now the only one, and the
+   * panel that owns the tiles is the only place it appears.
+   */
 
   /** What the amount on each row is — derived from the tiles, never chosen. */
   const amountNote = filters.lastYear
     ? "The amount on each card is what is left of last session's balance — the figure the message will quote."
-    : `The amount on each card is the fees still pending on ${installmentsPhrase} — the figure the message will quote.`;
+    : `The amount on each card is the fees still pending on ${installmentPhrase(filters.installments, "en").toLowerCase()} — the figure the message will quote.`;
 
   /**
-   * `?exclude=` with a trailing separator, so a row's Remove link is this plus
-   * the student id. `parseIdList` drops the empty segment, so an empty list
-   * yields `exclude=,<id>` and reads back as one id.
+   * `?…&exclude=` with a trailing separator, so a row's Remove link is this
+   * plus the student id.
+   *
+   * Built by appending the key rather than through `reminderQuery`, because
+   * that collapses an empty value to an absent key — and
+   * `[...[], ""].join(",")` IS empty. So with nothing excluded yet, which is
+   * the normal case, the prefix ended at `quote=ledger_fees` and the row link
+   * became `quote=ledger_feesf9c15390-…`: the Remove button silently corrupted
+   * the quote basis and excluded nobody. Caught by reading the rendered
+   * accessibility tree on production; every earlier check had hand-built
+   * `?exclude=<id>`, which exercised the PARSE and never the link.
    */
-  const excludeHrefPrefix = `?${reminderQuery(filters, {
-    exclude: [...filters.excludeStudentIds, ""].join(","),
-  }).toString()}`;
+  const excludeHrefPrefix = `?${reminderQuery(filters, { exclude: null }).toString()}&exclude=${
+    filters.excludeStudentIds.length > 0 ? `${filters.excludeStudentIds.join(",")},` : ""
+  }`;
 
   const savedCampaignCount = savedCampaigns.length;
   const familyCount = audience.candidates.length;
@@ -348,8 +333,8 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       ) : null}
 
       <SectionCard
-        title="Who is eligible"
-        description={`Session ${sessionLabel}. ${familyLabel} match the filters below.`}
+        title="Build the message"
+        description={`Session ${sessionLabel}. ${familyLabel} on the list right now.`}
         className="max-md:order-4"
       >
         {/* Above the list on every viewport: a slot that has arrived is the
@@ -369,7 +354,6 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           previewBody={previewBody}
           holdoutControl={<HoldoutControl />}
           listActions={<CollectionListLinks filters={filters} />}
-          audienceRule={audienceRule}
           amountNote={amountNote}
           excludeHrefPrefix={excludeHrefPrefix}
           savedCampaign={activeCampaign ? { id: activeCampaign.id, name: activeCampaign.name } : null}
@@ -428,6 +412,13 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           lastYear={filters.lastYear}
           lateFeeAmount={filters.lateFeeAmount}
           lateFeeBasis={filters.lateFeeBasis}
+          // Without these the panel composed slot 7 from the TYPED amount
+          // whatever mode the run was in — so a test of an Actual-mode fee-due
+          // notice posted ₹4,000 while the run itself would send the ledger's
+          // ₹1,000. It read correctly on the waiver notices only because those
+          // default to ledger, which is what hid it.
+          lateFeeSource={filters.lateFeeSource}
+          policyLateFeeAmount={filters.policyLateFeeAmount}
           initialPreview={testPreview}
         />
       </CollapsibleSection>

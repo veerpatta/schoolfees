@@ -2,6 +2,11 @@ import {
   describeDateGuard,
   FINAL_NOTICE_DAYS_BEFORE_DUE,
 } from "@/modules/whatsapp/domain/installment-calendar";
+import {
+  NOTICE_FACT_CONSEQUENCE,
+  NOTICE_FACT_LABELS,
+  type NoticeFact,
+} from "@/modules/whatsapp/domain/audience";
 
 /**
  * Everything that must be true before a reminder run may send.
@@ -99,6 +104,17 @@ export type SendGuardContext = {
    * mismatch became expressible for the first time.
    */
   noticeFactGaps?: number | null;
+  /**
+   * WHICH fact is missing, and for how many — not just how many families are
+   * affected.
+   *
+   * The count alone produced "87 families are missing a late fee, a promised
+   * date or a carry-forward balance", which names three things when one is
+   * true, says nothing about which, and offers no way out. The office cannot
+   * act on that, so they tick the override every time and the warning stops
+   * meaning anything.
+   */
+  noticeFactBreakdown?: ReadonlyArray<{ fact: NoticeFact; count: number }> | null;
   /**
    * Is the run's date close enough for `upcoming_final`'s wording — "the late
    * fee starts the day after" — to be a statement about this week?
@@ -228,10 +244,26 @@ export function evaluateSendGuards(context: SendGuardContext): SendGuardResult {
   }
 
   if (context.noticeFactGaps && context.noticeFactGaps > 0) {
-    overridable.push({
-      code: "notice_fact_gap",
-      message: `${context.noticeFactGaps} of these families are missing something this message names — a late fee, a promised date or a carry-forward balance the ledger does not have for them. Those slots go out as ₹0 or blank.`,
-    });
+    // One finding per fact, each naming what happens and what to do instead.
+    // Two very different failures hide behind this guard: a ₹0 that still
+    // reaches the parent, and an empty template parameter that WhatsApp
+    // REFUSES — the second does not go out looking odd, it does not go out.
+    const breakdown = (context.noticeFactBreakdown ?? []).filter((entry) => entry.count > 0);
+
+    if (breakdown.length === 0) {
+      overridable.push({
+        code: "notice_fact_gap",
+        message: `${context.noticeFactGaps} of these families are missing something this message names.`,
+      });
+    }
+
+    for (const entry of breakdown) {
+      const { effect, fix } = NOTICE_FACT_CONSEQUENCE[entry.fact];
+      overridable.push({
+        code: `notice_fact_gap:${entry.fact}`,
+        message: `${entry.count} of these families have no ${NOTICE_FACT_LABELS[entry.fact]}, so ${effect}. To avoid it, ${fix}.`,
+      });
+    }
   }
 
   return { blocking, overridable };

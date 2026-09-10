@@ -147,6 +147,20 @@ describe("WhatsApp reminders on a phone", () => {
     expect(source).not.toMatch(/^\s*["']use client["']/m);
   });
 
+  it("gives the late-fee basis select an accessible name of its own", () => {
+    // The visible "Late fee on the message" label is bound by `htmlFor` to the
+    // AMOUNT input beside it, and one label names one control — so this select
+    // had no accessible name and axe reported `select-name` at CRITICAL on
+    // /protected/reminders, at both viewports, the first time the screen was
+    // swept. A screen reader announced "combo box" and nothing else.
+    const picker = read(PICKER);
+    const select = picker.slice(
+      picker.indexOf('id="lateFeeBasis"'),
+      picker.indexOf('id="lateFeeBasis"') + 300,
+    );
+    expect(select).toContain('aria-label="How the late fee applies"');
+  });
+
   it("keeps the template from deciding who is on the list", () => {
     // The whole point of the split. `loadReminderAudience` must gate on the
     // FILTERS; the situation may only pick the campaign and the wording.
@@ -316,6 +330,61 @@ describe("WhatsApp reminders on a phone", () => {
     // The inverse of tests/ui/mobile-screen-coverage.test.ts — the removal is
     // deliberate, and this keeps it removed.
     expect(read(PAGE)).not.toContain("MobileDesktopOnlyNotice");
+  });
+});
+
+describe("the per-row Remove link", () => {
+  /**
+   * It shipped broken and nothing caught it, because every check hand-built
+   * `?exclude=<id>` and so exercised the PARSE, never the LINK.
+   *
+   * `reminderQuery` collapses an empty value to an absent key, and
+   * `[...[], ""].join(",")` is empty — so with nothing excluded yet, which is
+   * the normal case, the prefix ended at the previous parameter and the row
+   * href became `<lastKey>=<value><studentId>`. The button silently corrupted
+   * the last parameter and excluded nobody. Found by reading the rendered
+   * accessibility tree on production.
+   */
+  it("appends the key itself, so an empty exclude list still ends in `exclude=`", () => {
+    const page = read(SEND_PAGE);
+
+    // The key is appended to the string, NOT passed through reminderQuery,
+    // which would delete it when the list is empty.
+    expect(page).toContain('reminderQuery(filters, { exclude: null }).toString()}&exclude=');
+    // And the trailing separator only appears when there is something to
+    // separate from, so the href never starts with a stray comma.
+    expect(page).toContain("filters.excludeStudentIds.length > 0");
+
+    // The old shape must not come back.
+    expect(page).not.toContain('exclude: [...filters.excludeStudentIds, ""].join(",")');
+  });
+});
+
+describe("the test panel matches what a real send would do", () => {
+  /**
+   * The panel composed slot 7 from the TYPED amount whatever mode the run was
+   * in, so a test of an Actual-mode fee-due notice posted ₹4,000 while the run
+   * itself would send the ledger's ₹1,000. It read correctly on the waiver
+   * notices only because those default to ledger — which is exactly what hid
+   * it. A test that does not match the send is worse than no test.
+   */
+  it("receives the run's late-fee mode, the policy rate and the tiles", () => {
+    const page = read(SEND_PAGE);
+    expect(page).toContain("lateFeeSource={filters.lateFeeSource}");
+    expect(page).toContain("policyLateFeeAmount={filters.policyLateFeeAmount}");
+    expect(page).toContain("lastYear={filters.lastYear}");
+
+    const panel = read(PANEL);
+    expect(panel).toContain("lateFeeSource: LateFeeSource;");
+    expect(panel).toContain("policyLateFeeAmount: number;");
+    // And forwards them into the settings the opening values are built from.
+    const settings = panel.slice(
+      panel.indexOf("const settings: OpeningSettings = {"),
+      panel.indexOf("const [testPhone"),
+    );
+    expect(settings).toContain("lateFeeSource,");
+    expect(settings).toContain("policyLateFeeAmount,");
+    expect(settings).toContain("lastYear,");
   });
 });
 

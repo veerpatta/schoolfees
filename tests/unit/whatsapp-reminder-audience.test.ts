@@ -4,6 +4,8 @@ import {
   DEFAULT_REMINDER_FILTERS,
   describeMissingFacts,
   loadReminderAudience,
+  missingFactsFor,
+  type CandidateFacts,
 } from "@/modules/whatsapp/domain/fee-reminders";
 import {
   buildInstallmentCalendar,
@@ -487,6 +489,45 @@ describe("reminder audience — due or overdue is the calendar's fact", () => {
     expect(plain.candidates.map((c) => c.studentId).sort()).toEqual(["behind", "soon"]);
   });
 
+  it("does not call a family overdue on the day their installment falls due", async () => {
+    /**
+     * The one day a year, per installment, that this screen used to get wrong.
+     *
+     * `calendar.passed` is `daysUntilDue <= 0`, so it counts the row due TODAY.
+     * The ledger does not: `balance_status`, `overdue_installment_count`,
+     * `calculateDaysOverdue`, Defaulters and the Dashboard all say
+     * `due_date < CURRENT_DATE`, and so does the school's rule — the flat
+     * ₹1,000 starts the day AFTER the due date, so the due date itself is free.
+     * The tile says "Due today", the family is on it (it is the money being
+     * chased today), and nothing about them reads as overdue.
+     */
+    const DUE = "2026-07-20";
+    const owesTheRowDueToday = student("today", { inst1_pending: 0, inst2_pending: 4000 });
+    const onTheDueDate = buildInstallmentCalendar({
+      schedule: [{ dueDate: "2026-04-20" }, { dueDate: DUE }],
+      today: DUE,
+    });
+
+    expect(describeInstallmentTile(2, onTheDueDate)).toMatchObject({ state: "today", label: "Due today" });
+    const sameDay = await load(
+      { financials: [owesTheRowDueToday] },
+      { installments: [2], skipOverdue: true },
+      onTheDueDate,
+    );
+    expect(sameDay.candidates.map((c) => c.studentId)).toEqual(["today"]);
+    expect(sameDay.candidates[0]!.overdueInstallments).toEqual([]);
+
+    // One day later, on the identical fixture, they are overdue. Same family,
+    // same ledger — only the date moved.
+    const dayAfter = buildInstallmentCalendar({
+      schedule: [{ dueDate: "2026-04-20" }, { dueDate: DUE }],
+      today: "2026-07-21",
+    });
+    expect(describeInstallmentTile(2, dayAfter).label).toBe("Overdue since 20-07-2026");
+    const late = await load({ financials: [owesTheRowDueToday] }, { installments: [2] }, dayAfter);
+    expect(late.candidates[0]!.overdueInstallments).toEqual([2]);
+  });
+
   it("treats nothing as overdue when the session has no schedule", async () => {
     // A valid state, not a crash: Fee Setup has not been published yet. With
     // no dates, no installment has passed, so "skip already overdue" holds
@@ -906,6 +947,78 @@ describe("unreachable families", () => {
   });
 });
 
+describe("missingFactsFor — what would actually reach a parent", () => {
+  /**
+   * This guard warns the office off sending a message whose slots would come
+   * out empty. It is only worth anything if it fires on real problems: it
+   * reported 89 of 89 families broken on a list where nothing was, and a
+   * warning that always fires is one nobody reads.
+   */
+  const facts: CandidateFacts = {
+    totalPaid: 0,
+    installmentPending: [5000, 4000, 0, 0],
+    lateFeeApplied: 0,
+    ledgerFeesPending: 0,
+    lateFeeByInstallment: [0, 0, 0, 0],
+    ledgerFeesByInstallment: [0, 0, 0, 0],
+    overdueInstallments: [],
+    overdueAmount: 0,
+    nextInstallmentNo: null,
+    nextInstallmentPending: 0,
+    balanceDue: 9000,
+    prevYearBalance: 0,
+    promisedOn: null,
+    promiseOpen: false,
+    promiseDueSoon: false,
+    promiseLapsed: false,
+  };
+
+  it("does not call a late fee missing in CUSTOM mode", () => {
+    // In custom mode the message prints the amount the office typed and never
+    // reads the ledger, so a family with no charged fee is not a family this
+    // message has a problem with.
+    expect(missingFactsFor("late_fee_applied", facts, 9000, "custom")).toEqual([]);
+    expect(missingFactsFor("waiver_last_call", facts, 9000, "custom")).toEqual([]);
+  });
+
+  it("still calls it missing in LEDGER mode, where the slot really would read nil", () => {
+    expect(missingFactsFor("late_fee_applied", facts, 9000, "ledger")).toEqual(["late_fee"]);
+  });
+
+  it("reads the late fee on the SELECTED tiles, not the family's whole one", () => {
+    // Late on installment 1 only. A list about installment 2 would print ₹0.
+    const lateOnOne: CandidateFacts = {
+      ...facts,
+      lateFeeApplied: 1000,
+      lateFeeByInstallment: [1000, 0, 0, 0],
+    };
+    expect(missingFactsFor("late_fee_applied", lateOnOne, 9000, "ledger", 1000)).toEqual([]);
+    expect(missingFactsFor("late_fee_applied", lateOnOne, 9000, "ledger", 0)).toEqual(["late_fee"]);
+  });
+
+  it("leaves the courtesy and overdue notices alone", () => {
+    // `upcoming` renders through `feeDueParams` — there is no "next
+    // installment" slot to leave blank — and the context line names the
+    // selected tiles rather than the family's rows.
+    for (const situation of ["upcoming", "upcoming_final", "overdue_final"] as const) {
+      expect(missingFactsFor(situation, facts, 9000, "custom")).toEqual([]);
+      expect(missingFactsFor(situation, facts, 9000, "ledger")).toEqual([]);
+    }
+  });
+
+  it("still catches the two that make WhatsApp REFUSE the message", () => {
+    // An absent promise or session name reaches the provider as an empty
+    // template parameter, and those are rejected — the message does not go out
+    // looking odd, it does not go out.
+    expect(missingFactsFor("promise_due", facts, 9000, "custom")).toEqual(["promise"]);
+    expect(missingFactsFor("prevyear", facts, 9000, "custom")).toEqual(["prev_year"]);
+  });
+
+  it("catches a nil amount, whatever the mode", () => {
+    expect(missingFactsFor("fee_due", facts, 0, "custom")).toEqual(["amount"]);
+  });
+});
+
 describe("describeMissingFacts", () => {
   it("reads as a sentence, because the badge puts a verb in front of it", () => {
     // The badge renders `Needs {label}` and the tooltip renders
@@ -921,8 +1034,8 @@ describe("describeMissingFacts", () => {
     expect(describeMissingFacts(["late_fee", "amount"])).toBe(
       "a late fee on the ledger and a non-zero amount to quote",
     );
-    expect(describeMissingFacts(["next_due", "overdue", "amount"])).toBe(
-      "an installment falling due next, an installment past its due date and a non-zero amount to quote",
+    expect(describeMissingFacts(["late_fee", "prev_year", "amount"])).toBe(
+      "a late fee on the ledger, a carry-forward balance and a non-zero amount to quote",
     );
   });
 

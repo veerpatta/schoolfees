@@ -1258,9 +1258,18 @@ export type NoticeSettings = {
  * line naming them are all derived from the one selection, so they describe
  * the same rows by construction. The Last-year tile has no installment to
  * name, so it names the session instead.
+ *
+ * An EMPTY selection is unreachable from the screen — the parser never yields
+ * one without `lastYear` — but a caller that builds settings by hand can still
+ * pass `[]`, and `installmentPhrase([])` falls back to a hardcoded "Installment
+ * 1 and 2" rather than rendering empty. So an empty set follows the family's
+ * own overdue rows, which is at least the money the amount was summed over.
  */
 function contextLine(subject: NoticeSubject, settings: NoticeSettings): string {
   if (settings.lastYear) return sessionPhrase(subject.prevSessionLabel, settings.language);
+  if (settings.installments.length === 0 && subject.overdueInstallments?.length) {
+    return installmentPhrase(subject.overdueInstallments, settings.language);
+  }
   return installmentPhrase(settings.installments, settings.language);
 }
 
@@ -1306,21 +1315,64 @@ function lateFeeNumberFor(subject: NoticeSubject, settings: NoticeSettings): num
  * because that is precisely what the notice is warning them about; quoting
  * their own ₹0 would tell them no late fee applies, which is the opposite.
  */
+/**
+ * What slot {{7}} says in **`ledger` mode** — the ONE definition.
+ *
+ * Exported because the send path and the screen's "What a parent reads" line
+ * both need it, and for one deploy they each had their own copy: the message
+ * correctly said "not charged" on a carry-forward balance while the preview
+ * beside it still promised Rs 1,000 per installment. The office reads the
+ * preview to decide, so the copy that was wrong was the one that mattered.
+ *
+ * `charged` is this family's own figure. Omit it for the run-level preview,
+ * which cannot know one family from another and states the school's rate.
+ */
+export function ledgerLateFeePhrase(args: {
+  situation: NoticeSituation;
+  language: NoticeLanguage;
+  /** This family's `late_fee_pending`. Omitted for a run-level preview. */
+  charged?: number;
+  /** What the school's policy charges per installment. */
+  policyLateFeeAmount: number;
+  /** Used only when no policy was threaded through — see below. */
+  fallbackAmount: number;
+  fallbackBasis: LateFeeBasis;
+}): string {
+  // A carry-forward balance NEVER accrues a late fee — those rows carry a rate
+  // of 0 deliberately — so the honest ledger answer is "not charged", and it is
+  // what Meta approved this template's sample as ("Not applicable on this
+  // amount"). Quoting the policy rate would threaten a charge the ledger will
+  // never make, and `describeLateFeeDrift` cannot warn about it: it returns
+  // early in ledger mode, because nothing is typed.
+  if (args.situation === "prevyear") return lateFeePhrase(0, "none", args.language);
+
+  // The ledger has already decided this family's amount, so a "per installment"
+  // rate would be describing a different thing.
+  const charged = Math.max(0, Math.round(Number(args.charged) || 0));
+  if (charged > 0) return lateFeePhrase(charged, "flat", args.language);
+
+  const policy = Math.max(0, Math.round(Number(args.policyLateFeeAmount) || 0));
+  // A caller that did not thread the policy through falls back to the typed
+  // amount rather than to "not charged" — silently telling a parent no late fee
+  // applies is the worse of the two failures.
+  return policy > 0
+    ? lateFeePhrase(policy, "per_installment", args.language)
+    : lateFeePhrase(args.fallbackAmount, args.fallbackBasis, args.language);
+}
+
 function lateFeePhraseFor(subject: NoticeSubject, settings: NoticeSettings): string {
   if (resolveLateFeeSource(settings) === "custom") {
     return lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, settings.language);
   }
 
-  const charged = subject.lateFeeApplied ?? 0;
-  if (charged > 0) return lateFeePhrase(charged, "flat", settings.language);
-
-  const policy = Math.max(0, Math.round(Number(settings.policyLateFeeAmount) || 0));
-  // A caller that did not thread the policy through falls back to the typed
-  // amount rather than to "not charged" — silently telling a parent no late fee
-  // applies is the worse of the two failures.
-  return policy > 0
-    ? lateFeePhrase(policy, "per_installment", settings.language)
-    : lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, settings.language);
+  return ledgerLateFeePhrase({
+    situation: settings.situation,
+    language: settings.language,
+    charged: subject.lateFeeApplied ?? 0,
+    policyLateFeeAmount: settings.policyLateFeeAmount ?? 0,
+    fallbackAmount: settings.lateFeeAmount,
+    fallbackBasis: settings.lateFeeBasis,
+  });
 }
 
 export function noticeValuesFrom(
