@@ -106,7 +106,7 @@ function toCampaign(row: any): SavedCampaign {
       raw,
     ),
     lastDate: row.last_date ? String(row.last_date) : null,
-    lateFeeAmount: Number(row.late_fee_amount ?? 0),
+      lateFeeAmount: Number(row.late_fee_amount ?? 0),
     lateFeeBasis: isLateFeeBasis(row.late_fee_basis) ? row.late_fee_basis : DEFAULT_LATE_FEE_BASIS,
     archivedAt: row.archived_at ? String(row.archived_at) : null,
     createdAt: String(row.created_at),

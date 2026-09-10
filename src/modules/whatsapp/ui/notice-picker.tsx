@@ -9,7 +9,11 @@ import {
   type NoticeLanguage,
   type NoticeSituation,
 } from "@/modules/whatsapp/domain/campaigns";
-import { LATE_FEE_BASES, lateFeePhrase } from "@/modules/whatsapp/domain/late-fee";
+import {
+  LATE_FEE_BASES,
+  LATE_FEE_SOURCES,
+  lateFeePhrase,
+} from "@/modules/whatsapp/domain/late-fee";
 import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
 import { Input } from "@/ui/primitives/input";
 import { Label } from "@/ui/primitives/label";
@@ -78,11 +82,12 @@ type Props = {
  */
 function hrefWith(
   filters: ReminderFilters,
-  override: Partial<Pick<ReminderFilters, "situation" | "language">>,
+  override: Partial<Pick<ReminderFilters, "situation" | "language" | "lateFeeSource">>,
 ): string {
   return `?${reminderQuery(filters, {
     situation: override.situation ?? filters.situation,
     language: override.language ?? filters.language,
+    lateFeeSource: override.lateFeeSource ?? filters.lateFeeSource,
   }).toString()}`;
 }
 
@@ -100,15 +105,33 @@ export function NoticePicker({
   const isPrevYear = filters.situation === "prevyear";
   const isWaiver =
     filters.situation === "late_fee_waiver" || filters.situation === "waiver_last_call";
-  // The late fee on these notices is the LEDGER's figure per family, not a
-  // lever the office sets. The control is replaced by hidden inputs so the
-  // office's last setting still round-trips to the next notice.
-  const ledgerQuoted = isLedgerQuotedSituation(filters.situation);
+  /**
+   * Does this notice's WORDING state the fee as already on the account?
+   *
+   * These three print a number, not a rate: "the late fee on your account is
+   * ₹X". That is what makes custom mode a claim about the ledger here and only
+   * a lever everywhere else.
+   */
+  const statesAccountBalance = isLedgerQuotedSituation(filters.situation);
   // These print no run-wide date: none at all, or each family's own promise.
   const runDateFree = isRunDateFreeSituation(filters.situation);
+  /**
+   * Which of the two modes this run is in.
+   *
+   * Until 2026-09-10 the TEMPLATE decided, and the office could not reach the
+   * other half from either side. Now it is a choice on every notice, and the
+   * amount box appears exactly when there is something to type.
+   */
+  const usesLedger = filters.lateFeeSource === "ledger";
   // Exactly what slot 7 will carry, rendered here so the office reads the
   // sentence rather than inferring it from a number and a dropdown.
   const phrase = lateFeePhrase(filters.lateFeeAmount, filters.lateFeeBasis, filters.language);
+  /** The school's own rate, for the ledger-mode sentence. */
+  const policyPhrase = lateFeePhrase(
+    filters.policyLateFeeAmount,
+    "per_installment",
+    filters.language,
+  );
 
   return (
     // The form lives HERE, not on the page, so the Apply button inside it can
@@ -256,57 +279,87 @@ export function NoticePicker({
           </div>
         )}
 
-        {ledgerQuoted ? (
-          <>
-            <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
-            <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
+        {/* ------------------------------------------------- the late fee */}
+        {/* TWO MODES, on every notice. Which one you got used to be decided by
+            the template — the three ledger-quoted notices always read the
+            ledger and hid this control, the other nine always used the typed
+            amount and could not read the ledger at all — so neither half was
+            reachable from the other. A segmented link pair, not a select,
+            because it changes what a parent is told about money and should
+            read as a mode rather than as one option among four. */}
+        <div className="space-y-1.5">
+          <Label htmlFor="lateFeeAmount">Late fee on the message</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-[14px] bg-surface-2 p-1">
+              {LATE_FEE_SOURCES.map((entry) => {
+                const active = entry.value === filters.lateFeeSource;
+                return (
+                  <Link
+                    key={entry.value}
+                    href={hrefWith(filters, { lateFeeSource: entry.value })}
+                    scroll={false}
+                    prefetch={false}
+                    title={entry.hint}
+                    aria-current={active ? "true" : undefined}
+                    className={cn(
+                      "focus-ring grid h-9 min-w-[104px] place-items-center rounded-[10px] px-3 text-[11.5px] font-extrabold transition-colors",
+                      active
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {entry.label}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {usesLedger ? (
+              // Nothing to type. The values still ride along so switching back
+              // to Custom finds what the office last set, rather than a zero.
+              <>
+                <input type="hidden" name="lateFeeAmount" value={filters.lateFeeAmount} />
+                <input type="hidden" name="lateFeeBasis" value={filters.lateFeeBasis} />
+              </>
+            ) : (
+              // An amount and a basis, never a free-text box: a typo here is a
+              // number a parent will hold the school to.
+              <>
+                <Input
+                  id="lateFeeAmount"
+                  name="lateFeeAmount"
+                  type="number"
+                  min={0}
+                  inputSize="sm"
+                  defaultValue={filters.lateFeeAmount}
+                  className="h-11 w-24 md:h-9"
+                />
+                <SelectNative
+                  id="lateFeeBasis"
+                  name="lateFeeBasis"
+                  defaultValue={filters.lateFeeBasis}
+                  className="h-11 w-40 text-sm md:h-9"
+                >
+                  {LATE_FEE_BASES.map((entry) => (
+                    <option key={entry.value} value={entry.value}>
+                      {entry.label}
+                    </option>
+                  ))}
+                </SelectNative>
+              </>
+            )}
+
+            <input type="hidden" name="lateFeeSource" value={filters.lateFeeSource} />
             <PendingSubmitButton
               variant="outline"
               size="sm"
-              className="h-11 self-end md:h-9"
+              className="h-11 md:h-9"
               pendingLabel="Applying…"
             >
               Apply
             </PendingSubmitButton>
-          </>
-        ) : (
-          // An amount and a basis, never a free-text box: a typo here is a number
-          // a parent will hold the school to.
-          <div className="space-y-1.5">
-            <Label htmlFor="lateFeeAmount">Late fee on the message</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="lateFeeAmount"
-                name="lateFeeAmount"
-                type="number"
-                min={0}
-                inputSize="sm"
-                defaultValue={filters.lateFeeAmount}
-                className="w-24"
-              />
-              <SelectNative
-                id="lateFeeBasis"
-                name="lateFeeBasis"
-                defaultValue={filters.lateFeeBasis}
-                className="h-9 w-40 text-sm"
-              >
-                {LATE_FEE_BASES.map((entry) => (
-                  <option key={entry.value} value={entry.value}>
-                    {entry.label}
-                  </option>
-                ))}
-              </SelectNative>
-              <PendingSubmitButton
-                variant="outline"
-                size="sm"
-                className="h-11 md:h-9"
-                pendingLabel="Applying…"
-              >
-                Apply
-              </PendingSubmitButton>
-            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* -------------------------------------------------- what a parent reads */}
@@ -326,30 +379,56 @@ export function NoticePicker({
           What a parent reads
         </p>
         <p className="mt-1 text-[13px] leading-relaxed text-foreground">
-          {ledgerQuoted ? (
+          {/* The sentence follows the MODE, not the template. Which one you are
+              in is the thing that decides what a parent is told about money,
+              and it is now a choice rather than a property of the chip above. */}
+          {statesAccountBalance ? (
             <>
-              Their own late fee,{" "}
-              <span className="font-semibold">taken from the ledger for each family</span> — nothing
-              typed here reaches them.
+              {usesLedger ? (
+                <>
+                  Their own late fee,{" "}
+                  <span className="font-semibold">taken from the ledger for each family</span> —
+                  nothing typed here reaches them.
+                </>
+              ) : (
+                <>
+                  The late fee on their account, stated as{" "}
+                  <span className="font-semibold">{phrase}</span> — a figure you typed, the same
+                  for every family, not what the ledger holds.
+                </>
+              )}
               {isWaiver && filters.lastDate ? (
-                <> It is not charged if the fees arrive by <span className="font-semibold">{filters.lastDate}</span>.</>
+                <>
+                  {" "}It is not charged if the fees arrive by{" "}
+                  <span className="font-semibold">{filters.lastDate}</span>.
+                </>
               ) : runDateFree ? (
                 <> The message carries no date.</>
               ) : null}
             </>
           ) : runDateFree ? (
             <>
-              <span className="font-semibold">{phrase}</span>, against{" "}
+              <span className="font-semibold">{usesLedger ? policyPhrase : phrase}</span>, against{" "}
               <span className="font-semibold">each family&rsquo;s own promised date</span> from the
               contact log.
             </>
           ) : (
             <>
               Pay by <span className="font-semibold">{filters.lastDate || "— pick a date"}</span>
-              {filters.lateFeeBasis === "none" ? (
+              {!usesLedger && filters.lateFeeBasis === "none" ? (
                 <>. No late fee is mentioned.</>
               ) : (
-                <>, or <span className="font-semibold">{phrase}</span> applies.</>
+                <>
+                  , or <span className="font-semibold">{usesLedger ? policyPhrase : phrase}</span>{" "}
+                  applies
+                  {usesLedger ? (
+                    <>
+                      {" "}— <span className="font-semibold">the school&rsquo;s own rate</span>, so
+                      the message and the receipt cannot disagree
+                    </>
+                  ) : null}
+                  .
+                </>
               )}
             </>
           )}
@@ -386,4 +465,5 @@ const NOTICE_FORM_KEYS = [
   "lastDate",
   "lateFeeAmount",
   "lateFeeBasis",
+  "lateFeeSource",
 ] as const satisfies readonly ReminderQueryKey[];

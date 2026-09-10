@@ -117,7 +117,13 @@ export async function resolveReminderContext(
     // 5. The courtesy presets are about the ONE installment falling due next,
     //    not the active set. Without this they open on every active
     //    installment, and "Due soon" quietly becomes "Fee due".
-    { nextInstallment: calendar.next?.installmentNo ?? null },
+    {
+      nextInstallment: calendar.next?.installmentNo ?? null,
+      // 6. What the SCHOOL charges, not what was last typed. `ledger` mode
+      //    quotes this to a family the ledger has not charged yet, which is
+      //    exactly who a forward-looking notice is warning.
+      policyLateFeeAmount: ledgerLateFee,
+    },
   );
 
   const audience = await loadReminderAudience(supabase, filters, calendar);

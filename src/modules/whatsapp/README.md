@@ -107,6 +107,23 @@ Fee reminders and the message templates behind them.
 - **One phone, one message.** The audience is derived per student because the ledger and the send log are keyed that way, but `sendFamily` groups by destination. Siblings get `covered_by_sibling` rows carrying the messaged sibling's `provider_message_id`, so the unique index, the cadence gap and the run outcomes all still work per student. Since 2026-09-04 a phone with siblings gets the family template on fee_due, balance and upcoming (`domain/family-notice.ts` decides; `late_fee_applied` stays per-child until its date and total slots have a source), and every row carries the name of the message that went — so "already messaged today" reads BOTH names a notice can log under. `app_settings.whatsapp_one_message_per_family = 'false'` switches the grouping off (one message per child, as before 2026-09-05); both the Send button and the cron read it through `data/reminder-settings.ts`.
 - **Language belongs to the family.** The run's language is a default; `student_collection_flags.whatsapp_language` overrides it, and the send row records what actually went out.
 - **`approved` is explicit on every descriptor.** `campaignFor` refuses an unapproved campaign, and the picker shows the chip disabled rather than hiding it. All eighteen `_v3` campaigns have been approved and Live since 2026-09-04; the ten `_v4` (waiver window, waiver last call, overdue final, promise due, exam clearance) went Live on 2026-09-08, the day they were submitted. Approval is changed in code and deployed, never from a screen or a settings row.
+- **The late fee has TWO MODES, on every notice, and the office picks.**
+  `LateFeeSource` in `domain/late-fee.ts`. `ledger` quotes the real number —
+  each family's own `late_fee_pending` where the ledger has charged one, the
+  school's policy rate where it has not yet, because a forward-looking notice is
+  warning about a fee that has not accrued and quoting their own ₹0 would say
+  the opposite. `custom` quotes one typed amount to everybody. Which mode you
+  got used to be decided by the TEMPLATE, so neither half was reachable from the
+  other: the waiver notices could not be made firmer and the fee-due notices
+  could not quote the real rate without somebody typing it. An absent
+  `lateFeeSource` still means "whatever this template did before", so every
+  pre-2026-09-10 link and saved campaign lands on what it always did.
+- **Custom mode on the three account-balance notices is warned about in its own
+  words.** `late_fee_applied` and the waiver pair say "the late fee on your
+  account is ₹X". Everywhere else a typed figure is a lever; there it is a claim
+  about the ledger, and the counter will ask for something different.
+  `describeLateFeeDrift` takes `statesAccountBalance` for exactly that, and it
+  still warns rather than blocks — it is the owner's school and the owner's call.
 - **The ledger-quoted notices never take a late fee from the screen.** `late_fee_applied` and the two waiver notices quote `late_fee_pending` per family (`LEDGER_QUOTED_SITUATIONS`); the control is replaced by hidden inputs. `promise_due` prints each family's own promised date (`RUN_DATE_FREE_SITUATIONS`), so the run's date is neither shown nor guarded on it.
 
 ## Never

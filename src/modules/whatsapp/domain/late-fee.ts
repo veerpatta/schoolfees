@@ -33,6 +33,43 @@ export function isLateFeeBasis(value: unknown): value is LateFeeBasis {
   return typeof value === "string" && BASIS_VALUES.includes(value);
 }
 
+/**
+ * Where the late fee on a message comes from.
+ *
+ * Two modes, and until 2026-09-10 which one you got was decided by the template
+ * rather than by the office: `late_fee_applied` and the waiver pair always read
+ * the ledger and hid the control, the other nine always used the typed amount
+ * and could not read the ledger at all. Neither half could be reached from the
+ * other, so "put the real figure on a fee-due notice" and "put a firmer figure
+ * on a waiver notice" were both impossible.
+ *
+ * - **`ledger`** — the real number. Per family where the ledger has charged one
+ *   (`late_fee_pending`), and the school's policy amount where it has not yet,
+ *   which is what a forward-looking notice is warning about. Nothing is typed,
+ *   so the message and the receipt cannot disagree.
+ * - **`custom`** — one amount the office types, identical for every parent. A
+ *   lever for getting fees in on time; the app does not charge what it says.
+ *   `describeLateFeeDrift` is what keeps that deliberate rather than accidental.
+ */
+export type LateFeeSource = "ledger" | "custom";
+
+export const LATE_FEE_SOURCES = [
+  {
+    value: "ledger",
+    label: "Actual late fee",
+    hint: "Each family's own figure from the ledger, and the school's policy amount where none has been charged yet",
+  },
+  {
+    value: "custom",
+    label: "Custom amount",
+    hint: "One amount you type, on every message in this run",
+  },
+] as const satisfies ReadonlyArray<{ value: LateFeeSource; label: string; hint: string }>;
+
+export function isLateFeeSource(value: unknown): value is LateFeeSource {
+  return value === "ledger" || value === "custom";
+}
+
 export const DEFAULT_LATE_FEE_BASIS: LateFeeBasis = "per_installment";
 
 /**
@@ -104,11 +141,50 @@ export function describeLateFeeDrift(args: {
    * rather than the two silently disagreeing about which figure is live.
    */
   isLedgerQuoted?: boolean;
+  /**
+   * Which mode the run is in. `ledger` cannot drift — nothing is typed — so
+   * this returns null for it whatever the amount box happens to hold.
+   */
+  source?: LateFeeSource;
+  /**
+   * True when this notice's wording states the fee as ALREADY ON THE ACCOUNT
+   * rather than threatening a future one — `late_fee_applied` and the waiver
+   * pair.
+   *
+   * Custom mode reaches those three since 2026-09-10, and it is the one place
+   * drift stops being a lever and becomes a claim about the ledger: the message
+   * says "your account carries ₹X" and the counter will ask for something else.
+   * Warned in its own words, and harder, because "the receipt will not match"
+   * understates it there.
+   */
+  statesAccountBalance?: boolean;
 }): string | null {
-  const { amount, basis, ledgerAmount, isCarryForward, isLedgerQuoted } = args;
+  const {
+    amount,
+    basis,
+    ledgerAmount,
+    isCarryForward,
+    isLedgerQuoted,
+    source,
+    statesAccountBalance,
+  } = args;
   const quoted = Math.max(0, Math.round(Number(amount) || 0));
 
-  if (isLedgerQuoted) return null;
+  // Nothing is typed in ledger mode, so there is nothing to disagree with.
+  if (source === "ledger") return null;
+
+  // A notice that states the fee as already charged, quoting a number the
+  // office typed instead. This is the strongest warning here on purpose.
+  if (statesAccountBalance) {
+    return quoted > 0
+      ? `This message tells each parent the late fee ALREADY ON THEIR ACCOUNT is ${formatInr(quoted)}. That is a typed figure, not the ledger's — every family gets the same number, and the fee counter will ask for whatever the ledger actually holds. Switch to Actual late fee to quote each family's own.`
+      : "This message states a late fee already on the account, but the custom amount is nil. Every parent will read that no late fee is charged. Switch to Actual late fee to quote each family's own.";
+  }
+
+  // Pre-2026-09-10 this returned null and the control was disabled. The three
+  // ledger-quoted notices can now be put in custom mode, and when they are the
+  // branch above is the one that speaks.
+  if (isLedgerQuoted && source !== "custom") return null;
 
   if (isCarryForward) {
     return basis === "none" || quoted <= 0

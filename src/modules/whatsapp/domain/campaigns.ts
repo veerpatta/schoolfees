@@ -1,6 +1,10 @@
 import { formatDdMmYyyy } from "@/platform/helpers/date";
 import { formatRupeesPlain } from "@/platform/helpers/currency";
-import { lateFeePhrase, type LateFeeBasis } from "@/modules/whatsapp/domain/late-fee";
+import {
+  lateFeePhrase,
+  type LateFeeBasis,
+  type LateFeeSource,
+} from "@/modules/whatsapp/domain/late-fee";
 
 /**
  * The per-student WhatsApp campaigns: twelve fee situations × two languages.
@@ -1225,6 +1229,23 @@ export type NoticeSettings = {
   lastDate: string;
   lateFeeAmount: number;
   lateFeeBasis: LateFeeBasis;
+  /**
+   * Which of the two late-fee modes this run is in — see `LateFeeSource`.
+   *
+   * Optional so a caller written before 2026-09-10 keeps the behaviour it had:
+   * absent means the template decides, which is exactly what
+   * `isLedgerQuotedSituation` used to do on its own.
+   */
+  lateFeeSource?: LateFeeSource;
+  /**
+   * What the SCHOOL'S POLICY charges per installment, from the live fee policy.
+   *
+   * Only read in `ledger` mode, and only for a family the ledger has not
+   * charged yet: a fee-due notice is warning about a fee that has not accrued,
+   * so quoting the family's own ₹0 would tell them no late fee applies. Never
+   * the remembered `lateFeeAmount`, which is whatever was last typed.
+   */
+  policyLateFeeAmount?: number;
 };
 
 /**
@@ -1243,6 +1264,65 @@ function contextInstallments(subject: NoticeSubject, settings: NoticeSettings): 
     return subject.overdueInstallments;
   }
   return settings.installments;
+}
+
+/**
+ * Is this run quoting the ledger, or an amount somebody typed?
+ *
+ * `lateFeeSource` absent means "however this template behaved before the two
+ * modes existed" — the three ledger-quoted notices read the ledger, everything
+ * else used the typed lever. Every pre-2026-09-10 link and saved campaign lands
+ * here, and lands on what it always did.
+ */
+function resolveLateFeeSource(settings: NoticeSettings): LateFeeSource {
+  if (settings.lateFeeSource) return settings.lateFeeSource;
+  return isLedgerQuotedSituation(settings.situation) ? "ledger" : "custom";
+}
+
+/**
+ * The NUMERIC late-fee slot — what `late_fee_applied` and the waiver pair print
+ * as "late fee on your account".
+ *
+ * In `ledger` mode this is the family's own `late_fee_pending`, read from the
+ * view and passed through untouched. In `custom` mode it is the office's typed
+ * amount, the same for everybody, which is a claim about the account that the
+ * counter will not honour — `describeLateFeeDrift` says so in its own words.
+ */
+function lateFeeNumberFor(subject: NoticeSubject, settings: NoticeSettings): number {
+  if (resolveLateFeeSource(settings) === "custom") {
+    return Math.max(0, Math.round(Number(settings.lateFeeAmount) || 0));
+  }
+  return subject.lateFeeApplied ?? 0;
+}
+
+/**
+ * Slot {{7}} — the late-fee PHRASE the forward-looking notices carry.
+ *
+ * `custom` is the old behaviour: the typed amount and basis, worded by
+ * `lateFeePhrase`.
+ *
+ * `ledger` states what the school actually charges. For a family already
+ * carrying a fee that is their own figure as one flat charge — the ledger has
+ * decided it, so a "per installment" rate would be describing something else.
+ * For a family who has not accrued one, it is the POLICY rate per installment,
+ * because that is precisely what the notice is warning them about; quoting
+ * their own ₹0 would tell them no late fee applies, which is the opposite.
+ */
+function lateFeePhraseFor(subject: NoticeSubject, settings: NoticeSettings): string {
+  if (resolveLateFeeSource(settings) === "custom") {
+    return lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, settings.language);
+  }
+
+  const charged = subject.lateFeeApplied ?? 0;
+  if (charged > 0) return lateFeePhrase(charged, "flat", settings.language);
+
+  const policy = Math.max(0, Math.round(Number(settings.policyLateFeeAmount) || 0));
+  // A caller that did not thread the policy through falls back to the typed
+  // amount rather than to "not charged" — silently telling a parent no late fee
+  // applies is the worse of the two failures.
+  return policy > 0
+    ? lateFeePhrase(policy, "per_installment", settings.language)
+    : lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, settings.language);
 }
 
 export function noticeValuesFrom(
@@ -1265,12 +1345,10 @@ export function noticeValuesFrom(
         : settings.lastDate,
     prevSessionLabel: subject.prevSessionLabel ?? "",
     prevYearBalance: subject.prevYearBalance,
-    lateFeePhrase: lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, settings.language),
-    // The ledger's figure, passed through untouched. On the ledger-quoted
-    // notices the late fee is a fact rather than a lever, so it never goes
-    // through `lateFeePhrase` and the screen does not let it be edited.
-    lateFeeApplied: subject.lateFeeApplied ?? 0,
-    totalToPay: subject.dueAmount + (subject.lateFeeApplied ?? 0),
+    lateFeePhrase: lateFeePhraseFor(subject, settings),
+    // The numeric late-fee slot, which only the ledger-quoted notices carry.
+    lateFeeApplied: lateFeeNumberFor(subject, settings),
+    totalToPay: subject.dueAmount + lateFeeNumberFor(subject, settings),
     promisedDate: formatDdMmYyyy(subject.promisedOn ?? null),
     promiseRecordedDate: formatDdMmYyyy(subject.promiseContactedOn ?? null),
   };

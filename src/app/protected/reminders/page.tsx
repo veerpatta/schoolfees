@@ -180,9 +180,13 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
     basis: filters.lateFeeBasis,
     ledgerAmount: ledgerLateFee,
     isCarryForward: filters.situation === "prevyear",
-    // The late fee on these notices IS the ledger's, per family. The control
-    // is disabled and there is nothing to drift from.
+    // Until 2026-09-10 these three could only quote the ledger, so there was
+    // nothing to drift from. They can be put in custom mode now, and that is
+    // the one place a typed figure stops being a lever and becomes a claim
+    // about the account — `describeLateFeeDrift` says so in its own words.
     isLedgerQuoted: isLedgerQuotedSituation(filters.situation),
+    source: filters.lateFeeSource,
+    statesAccountBalance: isLedgerQuotedSituation(filters.situation),
   });
   /**
    * The message the top family on the list would receive, rendered here rather

@@ -180,7 +180,11 @@ export async function GET(request: Request) {
         Number(policy?.lateFeeFlatAmount ?? 0),
         calendar.active,
         null,
-        { nextInstallment: calendar.next?.installmentNo ?? null },
+        {
+          nextInstallment: calendar.next?.installmentNo ?? null,
+          // `ledger` mode quotes this to a family with nothing charged yet.
+          policyLateFeeAmount: Number(policy?.lateFeeFlatAmount ?? 0),
+        },
       );
 
       const audience = await loadReminderAudience(supabase, filters, calendar);

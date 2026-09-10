@@ -447,6 +447,7 @@ export const REMINDER_QUERY_KEYS = [
   "lastDate",
   "lateFeeAmount",
   "lateFeeBasis",
+  "lateFeeSource",
   "preDueWindowDays",
   "installments",
   "installmentMatch",
@@ -477,6 +478,7 @@ export type ReminderQuerySource = AudienceFilters & {
   lastDate: string;
   lateFeeAmount: number;
   lateFeeBasis: string;
+  lateFeeSource: string;
   preDueWindowDays: number;
 };
 
@@ -505,6 +507,7 @@ export function reminderQuery(
   set("lastDate", source.lastDate);
   set("lateFeeAmount", String(source.lateFeeAmount));
   set("lateFeeBasis", source.lateFeeBasis);
+  set("lateFeeSource", source.lateFeeSource);
   set("preDueWindowDays", String(source.preDueWindowDays));
   // Always emitted, empty included. An absent key means "take the notice's
   // preset"; `installments=` means "the office unticked all four", which is a

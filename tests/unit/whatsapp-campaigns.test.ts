@@ -585,3 +585,118 @@ describe("installmentPhrase", () => {
     expect(installmentPhrase([2, 1, 2])).toBe("Installment 1 and 2");
   });
 });
+
+describe("the two late-fee modes", () => {
+  /**
+   * Which figure a parent is told, and where it came from.
+   *
+   * Until 2026-09-10 the TEMPLATE decided: `late_fee_applied` and the waiver
+   * pair always read the ledger and hid the control, the other nine always used
+   * the typed amount and could not read the ledger at all. Neither half was
+   * reachable from the other. These pin both modes on both kinds of slot,
+   * because every one of them is a number a parent will hold the school to.
+   */
+  const subject = {
+    parentName: "Ramesh Lal",
+    studentName: "Aaradhya",
+    studentClass: "Class 2",
+    dueAmount: 9125,
+    totalPaid: 0,
+    balanceDue: 9125,
+    prevYearBalance: 0,
+    prevSessionLabel: null,
+  };
+
+  const settings = {
+    language: "en" as const,
+    installments: [1, 2],
+    lastDate: "20-09-2026",
+    lateFeeAmount: 4000,
+    lateFeeBasis: "per_installment" as const,
+    policyLateFeeAmount: 1000,
+  };
+
+  it("quotes the family's OWN charged fee in ledger mode, on the numeric slot", () => {
+    const values = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 2000 },
+      { ...settings, situation: "late_fee_applied", lateFeeSource: "ledger" },
+    );
+
+    expect(values.lateFeeApplied).toBe(2000);
+    // Fees and the late fee reach the message in separate slots; only the
+    // total adds them.
+    expect(values.totalToPay).toBe(9125 + 2000);
+  });
+
+  it("quotes the TYPED amount in custom mode, on that same slot", () => {
+    // The lever the office asked for, on the three notices that never had it.
+    const values = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 2000 },
+      { ...settings, situation: "late_fee_applied", lateFeeSource: "custom" },
+    );
+
+    expect(values.lateFeeApplied).toBe(4000);
+    expect(values.totalToPay).toBe(9125 + 4000);
+  });
+
+  it("states the school's own RATE in ledger mode when nothing is charged yet", () => {
+    // A fee-due notice warns about a fee that has not accrued. Quoting this
+    // family's own zero would tell them no late fee applies — the opposite of
+    // what the notice is for.
+    const values = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 0 },
+      { ...settings, situation: "fee_due", lateFeeSource: "ledger" },
+    );
+
+    expect(values.lateFeePhrase).toContain("1,000");
+    expect(values.lateFeePhrase).toContain("per installment");
+  });
+
+  it("states the family's own figure as one flat charge once the ledger has charged it", () => {
+    // The ledger has already decided the amount, so a "per installment" rate
+    // would be describing a different thing.
+    const values = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 2000 },
+      { ...settings, situation: "overdue_final", lateFeeSource: "ledger" },
+    );
+
+    expect(values.lateFeePhrase).toContain("2,000");
+    expect(values.lateFeePhrase).not.toContain("per installment");
+  });
+
+  it("keeps the typed amount and basis in custom mode", () => {
+    const values = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 2000 },
+      { ...settings, situation: "fee_due", lateFeeSource: "custom" },
+    );
+
+    expect(values.lateFeePhrase).toContain("4,000");
+    expect(values.lateFeePhrase).toContain("per installment");
+  });
+
+  it("falls back to the typed amount rather than to 'not charged' when no policy was threaded", () => {
+    // A caller that forgot `policyLateFeeAmount` must not silently tell a
+    // parent no late fee applies. That is the worse of the two failures.
+    const values = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 0 },
+      { ...settings, situation: "fee_due", lateFeeSource: "ledger", policyLateFeeAmount: 0 },
+    );
+
+    expect(values.lateFeePhrase).toContain("4,000");
+  });
+
+  it("behaves exactly as before when no mode is given", () => {
+    // Every pre-2026-09-10 link and saved campaign arrives without one.
+    const ledgerQuoted = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 2000 },
+      { ...settings, situation: "late_fee_applied" },
+    );
+    expect(ledgerQuoted.lateFeeApplied).toBe(2000);
+
+    const lever = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 2000 },
+      { ...settings, situation: "fee_due" },
+    );
+    expect(lever.lateFeePhrase).toContain("4,000");
+  });
+});

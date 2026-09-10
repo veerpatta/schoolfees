@@ -74,11 +74,30 @@ export type SendRemindersState = {
  * with a comma lands on the same string the query-string form uses, so the two
  * readers stay interchangeable. `readerFor` does the same on the other side.
  */
-function filtersFromForm(formData: FormData, sessionLabel: string): ReminderFilters {
-  return parseReminderFilters((key) => {
-    const values = formData.getAll(key).filter((value): value is string => typeof value === "string");
-    return values.length > 0 ? values.join(",") : null;
-  }, sessionLabel);
+function filtersFromForm(
+  formData: FormData,
+  sessionLabel: string,
+  /**
+   * What the school's policy charges. `ledger` mode quotes it to a family the
+   * ledger has not charged yet, so a send that could not see it would put a
+   * different figure in front of a parent than the screen previewed.
+   */
+  policyLateFeeAmount = 0,
+): ReminderFilters {
+  return parseReminderFilters(
+    (key) => {
+      const values = formData
+        .getAll(key)
+        .filter((value): value is string => typeof value === "string");
+      return values.length > 0 ? values.join(",") : null;
+    },
+    sessionLabel,
+    undefined,
+    undefined,
+    undefined,
+    null,
+    { policyLateFeeAmount },
+  );
 }
 
 export async function sendRemindersAction(
@@ -111,13 +130,21 @@ export async function sendRemindersAction(
     // A discount applied a minute ago may still be sitting in the refresh queue.
     // Drain it first, so the amount quoted below is the one the ledger holds now.
     await drainPendingFinancialRefresh(supabase);
-    filters = filtersFromForm(formData, sessionLabel);
     // The very same calendar the screen built, from the very same policy and
     // window. The audience rebuild below is what actually decides who is
     // messaged, so a calendar this action could not see would send the courtesy
     // notice to a different set of families than the office ticked — the exact
     // failure the situation and the filters travel in the form to prevent.
+    //
+    // Resolved BEFORE the filters now: `ledger` mode quotes the policy rate to
+    // a family with no fee charged yet, so parsing without it would send a
+    // different number than the screen showed.
     const policy = await getFeePolicySummary({ useAdmin: true }).catch(() => null);
+    filters = filtersFromForm(
+      formData,
+      sessionLabel,
+      Number(policy?.lateFeeFlatAmount ?? 0),
+    );
     const calendar = buildInstallmentCalendar({
       schedule: policy?.installmentSchedule ?? [],
       today,

@@ -111,6 +111,8 @@ function filters(overrides: Partial<ReminderFilters> = {}): ReminderFilters {
     lastDate: "20-10-2026",
     lateFeeAmount: 1000,
     lateFeeBasis: "per_installment",
+    lateFeeSource: "custom",
+    policyLateFeeAmount: 1000,
     preDueWindowDays: 10,
     ...overrides,
   };

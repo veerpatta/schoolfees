@@ -10,7 +10,9 @@ import {
 import {
   DEFAULT_LATE_FEE_BASIS,
   isLateFeeBasis,
+  isLateFeeSource,
   type LateFeeBasis,
+  type LateFeeSource,
 } from "@/modules/whatsapp/domain/late-fee";
 import {
   buildInstallmentCalendar,
@@ -19,6 +21,7 @@ import {
 } from "@/modules/whatsapp/domain/installment-calendar";
 import {
   campaignNameFor,
+  isLedgerQuotedSituation,
   noticeValuesFrom,
   DEFAULT_LANGUAGE,
   DEFAULT_SITUATION,
@@ -107,6 +110,23 @@ export type ReminderFilters = AudienceFilters & {
   lateFeeAmount: number;
   lateFeeBasis: LateFeeBasis;
   /**
+   * Which of the two late-fee modes this run is in — the ledger's real figure,
+   * or the amount above typed once for everybody. See `LateFeeSource`.
+   *
+   * In the query string like the rest of the run: the send action rebuilds
+   * everything from these values, and a mode it could not see would quote a
+   * different number than the office read on screen.
+   */
+  lateFeeSource: LateFeeSource;
+  /**
+   * What the SCHOOL'S POLICY charges, resolved from the live fee policy.
+   *
+   * Deliberately NOT in the query string — it is a fact about the school, the
+   * same on every load, and putting it in a URL is how a stale bookmark starts
+   * quoting last term's rate. `resolveReminderContext` supplies it.
+   */
+  policyLateFeeAmount: number;
+  /**
    * How many days ahead a courtesy notice looks, and therefore which
    * installments the calendar calls active.
    *
@@ -140,6 +160,10 @@ export const DEFAULT_REMINDER_FILTERS: Omit<
   situation: DEFAULT_SITUATION,
   language: DEFAULT_LANGUAGE,
   lateFeeBasis: DEFAULT_LATE_FEE_BASIS,
+  // `fee_due` is not ledger-quoted, so its mode is the typed lever — which is
+  // what a screen with nothing in its query string has always done.
+  lateFeeSource: "custom",
+  policyLateFeeAmount: 0,
   preDueWindowDays: DEFAULT_PRE_DUE_WINDOW_DAYS,
 };
 
@@ -190,7 +214,7 @@ export function parseReminderFilters(
    * notices' preset. Null when the session has no readable schedule, which
    * simply means that preset opens on the active set instead.
    */
-  options: { nextInstallment?: number | null } = {},
+  options: { nextInstallment?: number | null; policyLateFeeAmount?: number } = {},
 ): ReminderFilters {
   const number = (key: string, fallback: number) => {
     const raw = read(key);
@@ -282,6 +306,15 @@ export function parseReminderFilters(
     language: isNoticeLanguage(read("language")) ? (read("language") as NoticeLanguage) : DEFAULT_LANGUAGE,
     lastDate: read("lastDate")?.trim() || defaultLastDate,
     lateFeeAmount: number("lateFeeAmount", defaultLateFeeAmount),
+    // Absent means "whatever this template did before the two modes existed":
+    // the three ledger-quoted notices read the ledger, the other nine used the
+    // typed lever. Every pre-2026-09-10 link lands on what it always did.
+    lateFeeSource: isLateFeeSource(read("lateFeeSource"))
+      ? (read("lateFeeSource") as LateFeeSource)
+      : isLedgerQuotedSituation(situation)
+        ? "ledger"
+        : "custom",
+    policyLateFeeAmount: Math.max(0, Math.round(Number(options.policyLateFeeAmount) || 0)),
     // Clamped rather than validated away: a hand-edited 999 would quietly put
     // every installment in the year on the courtesy notice.
     preDueWindowDays: Math.min(
