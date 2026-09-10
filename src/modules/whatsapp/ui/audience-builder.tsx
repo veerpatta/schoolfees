@@ -439,7 +439,11 @@ export function AudienceBuilder({
                 active
                   ? "border-accent bg-accent/12 text-foreground"
                   : "border-border bg-surface-2 text-foreground hover:border-border-strong",
-                count === 0 && !active && "opacity-45",
+                // Dims the chrome, never the label. `opacity-45` here would
+                // take 12.5px bold text to 2.88:1 against 4.5 required — the
+                // same violation the smoke sweep found on the students
+                // segment chips, which this row was copied from.
+                count === 0 && !active && "border-border/60 bg-surface-2 text-muted-foreground",
               )}
             >
               <span className="whitespace-nowrap">{entry.label}</span>

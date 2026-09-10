@@ -21,6 +21,13 @@ export type SegmentChipProps = {
    * Dim a chip whose count is zero. Still clickable — a segment that is empty
    * today is information, and hiding it would make the bar shift under the
    * user's finger as data changes.
+   *
+   * Dims the CHROME, never the text. `opacity-45` on the whole button took the
+   * label to 2.88:1 against 4.5 required, which `npm run smoke:readiness`
+   * caught on /protected/students at 390px as a serious axe violation:
+   * #959699 on #fdfcf9 at 12.5px bold. `text-muted-foreground` on `surface-2`
+   * measures 5.21:1 in light and 8.04:1 in dark, so the chip still reads as
+   * quiet without becoming unreadable.
    */
   dimWhenEmpty?: boolean;
   className?: string;
@@ -50,7 +57,7 @@ export function SegmentChip({
         active
           ? "border-accent bg-accent text-accent-foreground"
           : "border-border bg-card text-foreground hover:border-border-strong",
-        isEmpty && "opacity-45",
+        isEmpty && "border-border/60 bg-surface-2 text-muted-foreground",
         className,
       )}
     >
