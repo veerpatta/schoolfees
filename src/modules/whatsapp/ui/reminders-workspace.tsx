@@ -54,8 +54,6 @@ type Props = {
    * messages a different set of families than the office ticked.
    */
   sendFormFields: ReactNode;
-  /** One line saying who is on this list, composed from the filters server-side. */
-  audienceRule: string;
   /** What the amount on each row means, given the chosen quote basis. */
   amountNote: string;
   /**
@@ -132,7 +130,6 @@ export function RemindersWorkspace({
   noticeControls,
   audienceControls,
   sendFormFields,
-  audienceRule,
   amountNote,
   excludeHrefPrefix,
   previewBody,
@@ -234,15 +231,12 @@ export function RemindersWorkspace({
       <div className="max-md:order-2 max-md:-mt-2 print:hidden">{listActions}</div>
 
       {/* --------------------------------------------------------------- who is out */}
-      {/* The rule first, then the count. "Why is this family not here" is the
-          question the office actually asks, and a list of exclusion counts
-          answers it only if you already know what was asked for. */}
+      {/* "Who is on this list" used to sit here as a second sentence about the
+          same filters. It says it once now, in the audience panel that owns
+          them — see `describeAudience`. This paragraph answers the other
+          question, the one exclusion counts genuinely do answer: why is a
+          family I expected NOT here. */}
       <p className="-mt-3 text-sm text-muted-foreground max-md:order-5 max-md:-mt-1">
-        <strong className="font-semibold text-foreground">Who is on this list:</strong>{" "}
-        {audienceRule}
-      </p>
-
-      <p className="-mt-3 text-sm text-muted-foreground max-md:order-5">
         Left out:{" "}
         {[
           ...SKIP_LABELS.map((entry) => ({

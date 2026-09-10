@@ -7,6 +7,7 @@ import {
   missingFactsFor,
   type CandidateFacts,
 } from "@/modules/whatsapp/domain/fee-reminders";
+import { TEMPLATE_INSTALLMENTS } from "@/modules/whatsapp/domain/campaigns";
 import {
   buildInstallmentCalendar,
   type InstallmentCalendar,
@@ -127,25 +128,6 @@ const filters = {
  * notice and no filters. Spreading the preset here keeps every case below
  * asking the question it was written to ask.
  */
-const load = (
-  tables: Tables,
-  overrides: Partial<typeof filters> = {},
-  calendar?: InstallmentCalendar,
-) => {
-  const situation = overrides.situation ?? filters.situation;
-  const preset = presetFor(situation, {
-    activeInstallments:
-      calendar && calendar.active.length > 0 ? calendar.active : filters.installments,
-    nextInstallment: calendar?.next?.installmentNo ?? null,
-  });
-  return loadReminderAudience(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    stubClient(tables) as any,
-    { ...filters, ...preset, ...overrides },
-    calendar,
-  );
-};
-
 /**
  * A calendar with installment 1 already passed and installment 2 six days out.
  *
@@ -157,6 +139,57 @@ const CALENDAR_INST2_DUE_SOON = buildInstallmentCalendar({
   schedule: [{ dueDate: "2026-04-20" }, { dueDate: "2026-07-20" }],
   today: "2026-07-14",
 });
+
+/**
+ * Installments 1, 2 and 3 all strictly past; 4 still ahead.
+ *
+ * For the cases whose subject is the INSTALLMENT filter rather than the overdue
+ * rule. With only one date passed, "widen the filter and the family comes back"
+ * cannot be observed — the overdue rule holds them out whatever the filter says,
+ * which is correct behaviour and useless for testing the filter.
+ */
+const CALENDAR_INST_1_2_3_PASSED = buildInstallmentCalendar({
+  schedule: [
+    { dueDate: "2026-04-20" },
+    { dueDate: "2026-07-20" },
+    { dueDate: "2026-10-20" },
+    { dueDate: "2027-01-20" },
+  ],
+  today: "2026-11-01",
+});
+
+const load = (
+  tables: Tables,
+  overrides: Partial<typeof filters> = {},
+  /**
+   * Defaults to a calendar where installment 1 HAS passed.
+   *
+   * It used to default to `undefined`, which `loadReminderAudience` fills with
+   * an empty schedule — so the entire suite ran against a session in which no
+   * due date had ever gone by. That is the one fixture in which an
+   * overdue-based audience is invisible: every family reads as not-yet-due, so
+   * a rule keyed on `overdue` looks identical to no rule at all. It is also
+   * not a state a fee-reminder screen is ever used in. Cases that specifically
+   * want "nothing has passed" now say so by passing their own calendar.
+   */
+  calendar: InstallmentCalendar = CALENDAR_INST2_DUE_SOON,
+) => {
+  const situation = overrides.situation ?? filters.situation;
+  const preset = presetFor(situation, {
+    // TEMPLATE_INSTALLMENTS, not `filters.installments` — the default filter
+    // set carries no installment constraint now, and falling back to `[]` would
+    // silently widen every preset that asks about specific rows.
+    activeInstallments:
+      calendar.active.length > 0 ? calendar.active : [...TEMPLATE_INSTALLMENTS],
+    nextInstallment: calendar.nextAhead?.installmentNo ?? null,
+  });
+  return loadReminderAudience(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    stubClient(tables) as any,
+    { ...filters, ...preset, ...overrides },
+    calendar,
+  );
+};
 
 /** A late-fee row as `v_workbook_installment_balances` returns it. */
 function lateFeeRow(
@@ -296,10 +329,13 @@ describe("reminder audience — the office's own settings", () => {
   });
 
   it("applies the ledger before the cadence, so a paid family is simply absent", async () => {
-    // Nothing pending on installment 2 — they are out because of the ledger,
-    // and must not be reported as "held back by your settings".
+    // Nothing pending at all — they are out because of the ledger, and must
+    // not be reported as "held back by your settings". Installment 1 has to be
+    // clear too now: the audience is overdue-driven, and installment 1 is the
+    // one whose date has gone, so leaving 5,000 on it would put this family
+    // legitimately back on the list.
     const audience = await load({
-      financials: [student("a", { inst2_pending: 0 })],
+      financials: [student("a", { inst1_pending: 0, inst2_pending: 0 })],
       flags: [{ student_id: "a", whatsapp_cadence: "never", whatsapp_snoozed_until: null }],
     });
 
@@ -313,8 +349,14 @@ describe("reminder audience — the office's own settings", () => {
 describe("reminder audience — which notice, which families", () => {
   // Nothing received: only the academic fee landed, so both installments stand.
   const owesEverything = student("owes", { total_paid: 500 });
-  // Part paid: past the academic-fee threshold, still carrying installment 2.
-  const partPaid = student("part", { total_paid: 9000, inst1_pending: 0, inst2_pending: 4000 });
+  // Part paid: past the academic-fee threshold, and LATE — still carrying part
+  // of installment 1, whose date has gone, as well as installment 2.
+  //
+  // They used to owe only installment 2, which is six days out in this
+  // calendar. Under the overdue rule that family is on no list at all, and
+  // rightly: nothing they owe is late yet. Being on the balance notice now
+  // requires being behind on something, so the fixture has to be behind.
+  const partPaid = student("part", { total_paid: 9000, inst1_pending: 2000, inst2_pending: 4000 });
   // Fully paid this year, but last year is still open.
   const prevOnly = student("prev", {
     total_paid: 20000,
@@ -329,16 +371,23 @@ describe("reminder audience — which notice, which families", () => {
     const audience = await load(everyone, { situation: "fee_due" });
 
     expect(audience.candidates.map((c) => c.studentId)).toEqual(["owes"]);
-    // 5000 + 4000 across the two selected installments.
-    expect(audience.candidates[0]!.dueAmount).toBe(9000);
+    // 5,000 — installment 1 only, because that is the only one past its date.
+    // It was 9,000 while the preset quoted both selected installments, and
+    // installment 2 is six days AWAY in this calendar: the school had not asked
+    // for it yet. Asking a parent for money that is not due is the thing this
+    // preset stopped doing.
+    expect(audience.candidates[0]!.dueAmount).toBe(5000);
   });
 
   it("balance takes the families fee_due excludes, and never both", async () => {
     const audience = await load(everyone, { situation: "balance" });
 
     expect(audience.candidates.map((c) => c.studentId)).toEqual(["part"]);
-    // What is still owed this session, and what has been received so far.
-    expect(audience.candidates[0]!.dueAmount).toBe(4000);
+    // The WHOLE session balance, 2,000 + 4,000 — this notice keeps
+    // `quote: "session"` against the overdue-only default because its approved
+    // body prints the word "Balance due". The audience is narrowed to families
+    // who are actually late; the ask is still the balance.
+    expect(audience.candidates[0]!.dueAmount).toBe(6000);
     expect(audience.candidates[0]!.totalPaid).toBe(9000);
 
     // The two current-year notices partition the list — measured at zero
@@ -370,26 +419,27 @@ describe("reminder audience — which notice, which families", () => {
   it("counts every audience shortcut in one pass, whichever one is applied", async () => {
     const audience = await load(withCarryForward, { situation: "fee_due" });
 
-    // Keyed by SHORTCUT since 2026-09-09, not by notice. The chips are named
-    // for the audience they describe now — "Nothing paid yet", not "Fee due" —
-    // because twelve notice-named audience chips sat under twelve notice-named
-    // template chips and nothing said which row changed what.
-    //
-    // The calendar-driven ones read zero: this fixture has no installment
-    // schedule, no applied late fee and no contact history, which is the shape
-    // of a session before any due date has passed.
+    // Keyed by SHORTCUT, not by notice, and there are FIVE of them since
+    // 2026-09-10. The four that went — "Everyone who owes", "Part paid, still
+    // owing", "Promised, due now", "Promise broken" — were measured against
+    // the live session first: the two promise chips could not match a single
+    // family because there are no promises on record at all, and "Everyone who
+    // owes" was the 479-family audience a reminder must never mean. Each is
+    // still one control away under Fine-tune. Adding a key back here without
+    // adding a chip is how this table starts lying again.
     expect(audience.counts).toEqual({
-      // Anything outstanding at all, whoever they are — the shortcut no notice
-      // could ever express, which is why it is new.
-      everyone: 2,
+      // Both families with something on installment 1, whose date has gone.
+      overdue: 2,
+      // Only the one who has paid nothing beyond the academic fee.
       nothing_paid: 1,
-      part_paid: 1,
-      last_session: 1,
-      not_due_yet: 0,
+      // No applied late fee anywhere in this fixture.
       late_fee: 0,
-      overdue: 0,
-      promised_now: 0,
-      promise_broken: 0,
+      // The carry-forward row, which is deliberately NOT overdue-gated: a
+      // carry-forward balance has no installment in 1-4 to be overdue on.
+      last_session: 1,
+      // Everyone here is already late, so nobody is "not late yet"; the one
+      // family who is clear this session owes nothing on the next installment.
+      not_due_yet: 0,
     });
     // Only the applied filter set produces candidates.
     expect(audience.candidates).toHaveLength(1);
@@ -421,12 +471,24 @@ describe("reminder audience — which notice, which families", () => {
     });
     const tables = { financials: [owesOnTwo, notDueYet] };
 
-    const overdue = await load(tables, { situation: "balance", installments: [1, 2] });
+    // On a calendar where 1, 2 and 3 have all gone by, so this case tests the
+    // INSTALLMENT filter and not the overdue rule. With only installment 1
+    // passed, both families are held out whatever the filter says — correct,
+    // and it would make the assertions below prove nothing.
+    const overdue = await load(
+      tables,
+      { situation: "balance", installments: [1, 2] },
+      CALENDAR_INST_1_2_3_PASSED,
+    );
     expect(overdue.candidates.map((c) => c.studentId)).toEqual(["owes-2"]);
 
     // Widen the filter and the second family comes back — the control works in
     // both directions, it is not a hardcoded "1 and 2".
-    const everything = await load(tables, { situation: "balance", installments: [1, 2, 3] });
+    const everything = await load(
+      tables,
+      { situation: "balance", installments: [1, 2, 3] },
+      CALENDAR_INST_1_2_3_PASSED,
+    );
     expect(everything.candidates.map((c) => c.studentId).sort()).toEqual(["later", "owes-2"]);
 
     // The AMOUNT is still the whole balance. The filter chooses who to chase;
@@ -442,10 +504,22 @@ describe("reminder audience — which notice, which families", () => {
     const clearedOne = student("half", { total_paid: 9000, inst1_pending: 0, inst2_pending: 4000 });
     const paidNothingOnOne = student("none-1", { total_paid: 0, inst1_pending: 0, inst2_pending: 4000 });
 
-    const balance = await load({ financials: [clearedOne] }, { situation: "balance" });
+    // Installment 2 has to be PAST its date for either family to be reachable
+    // at all, so this runs on the calendar where it is. The distinction under
+    // test is "any of the ticked rows" against "all of them", not whether the
+    // family is late.
+    const balance = await load(
+      { financials: [clearedOne] },
+      { situation: "balance", installments: [1, 2] },
+      CALENDAR_INST_1_2_3_PASSED,
+    );
     expect(balance.candidates.map((c) => c.studentId)).toEqual(["half"]);
 
-    const feeDue = await load({ financials: [paidNothingOnOne] }, { situation: "fee_due" });
+    const feeDue = await load(
+      { financials: [paidNothingOnOne] },
+      { situation: "fee_due", installments: [1, 2] },
+      CALENDAR_INST_1_2_3_PASSED,
+    );
     expect(feeDue.candidates).toHaveLength(0);
   });
 
@@ -479,7 +553,9 @@ describe("reminder audience — which notice, which families", () => {
       { situation: "fee_due" },
     );
 
-    expect(audience.candidates[0]!.dueAmount).toBe(9000);
+    // 5,000, not 9,000: installment 1 is the only one overdue. The point of
+    // the case is unchanged — last year's 20,000 is nowhere in it.
+    expect(audience.candidates[0]!.dueAmount).toBe(5000);
     expect(audience.candidates[0]!.prevYearBalance).toBe(20000);
   });
 });
@@ -733,9 +809,89 @@ describe("reminder audience — overdue_final follows the calendar", () => {
     expect(audience.candidates[0]!.overdueInstallments).toEqual([1]);
   });
 
-  it("reaches nobody when the session has no schedule", async () => {
-    const audience = await load({ financials: [student("a")] }, { situation: "overdue_final" });
+  it("does not call a family overdue on the day their installment falls due", async () => {
+    /**
+     * The one day a year, per installment, that this screen used to get wrong.
+     *
+     * `calendar.passed` is `daysUntilDue <= 0`, so it counts the row due TODAY.
+     * The ledger does not: `balance_status`, `overdue_installment_count`,
+     * `calculateDaysOverdue`, Defaulters and the Dashboard all say
+     * `due_date < CURRENT_DATE`, and so does the school's rule — the flat
+     * ₹1,000 starts the day AFTER the due date, so the due date itself is free.
+     * Reading `passed` here meant a parent could be told they were late on the
+     * one day they were not, while every other screen in the office said
+     * Pending.
+     */
+    const DUE = "2026-07-20";
+    const owesTheRowDueToday = student("today", { inst1_pending: 0, inst2_pending: 4000 });
+    const onTheDueDate = buildInstallmentCalendar({
+      schedule: [{ dueDate: "2026-04-20" }, { dueDate: DUE }],
+      today: DUE,
+    });
+
+    const sameDay = await load(
+      { financials: [owesTheRowDueToday] },
+      { situation: "overdue_final" },
+      onTheDueDate,
+    );
+    expect(sameDay.candidates).toHaveLength(0);
+    expect(sameDay.counts.overdue).toBe(0);
+
+    // One day later, on the identical fixture, they are overdue for the full
+    // amount. Same family, same ledger — only the date moved.
+    const dayAfter = await load(
+      { financials: [owesTheRowDueToday] },
+      { situation: "overdue_final" },
+      buildInstallmentCalendar({
+        schedule: [{ dueDate: "2026-04-20" }, { dueDate: DUE }],
+        today: "2026-07-21",
+      }),
+    );
+    expect(dayAfter.candidates.map((c) => c.studentId)).toEqual(["today"]);
+    expect(dayAfter.candidates[0]!.dueAmount).toBe(4000);
+    expect(dayAfter.candidates[0]!.overdueInstallments).toEqual([2]);
+  });
+
+  it("still reaches a family whose only debt is last session's", async () => {
+    /**
+     * The carry-forward trap, end to end.
+     *
+     * A carry-forward balance is an `installments` row with
+     * `installment_no = 99`, outside the 1-4 range `pendingFor` reads — so it
+     * can never make a family overdue. If `prevyear` inherited the
+     * overdue-only base, this audience would come back empty and say nothing
+     * about why.
+     */
+    const clearThisYear = student("prev-only", {
+      inst1_pending: 0,
+      inst2_pending: 0,
+      total_paid: 9000,
+    });
+
+    const audience = await load(
+      { financials: [clearThisYear], carryForward: [carried("prev-only", 20000)] },
+      { situation: "prevyear" },
+    );
+
+    expect(audience.candidates.map((c) => c.studentId)).toEqual(["prev-only"]);
+    expect(audience.candidates[0]!.dueAmount).toBe(20000);
+    // Nothing this session is late, and that is precisely the point.
+    expect(audience.candidates[0]!.overdueInstallments).toEqual([]);
+    expect(audience.counts.last_session).toBe(1);
     expect(audience.counts.overdue).toBe(0);
+  });
+
+  it("reaches nobody when the session has no schedule", async () => {
+    // Stated explicitly, because `load` now defaults to a calendar where a due
+    // date HAS passed. "No schedule" is a real state — a session nobody has
+    // configured — and it has to mean nobody is overdue rather than everybody.
+    const audience = await load(
+      { financials: [student("a")] },
+      { situation: "overdue_final" },
+      buildInstallmentCalendar({ schedule: [], today: TODAY }),
+    );
+    expect(audience.counts.overdue).toBe(0);
+    expect(audience.candidates).toHaveLength(0);
   });
 });
 
@@ -781,8 +937,12 @@ describe("reminder audience — promises", () => {
     expect(audience.candidates[0]!.promiseContactedOn).toBe("2026-07-04");
     // Not held back as "inside a promise" — this notice is about the promise.
     expect(audience.skipped.promiseOpen).toBe(0);
-    // The family five days out is still inside their promise, and still held.
-    expect(audience.counts.promised_now).toBe(1);
+    // The family five days out is still inside their promise, and this notice
+    // is not about them. Asserted on the candidate list rather than on a
+    // `counts.promised_now` chip, which no longer exists: there are zero
+    // promises on the live session, so that chip could never match anybody and
+    // the promise filter moved under Fine-tune.
+    expect(audience.candidates.map((c) => c.studentId)).not.toContain("later");
   });
 
   it("holds a family back from every other notice while their promise is live", async () => {
@@ -815,7 +975,8 @@ describe("reminder audience — promises", () => {
     );
 
     expect(audience.skipped.promiseOpen).toBe(0);
-    expect(audience.counts.promise_broken).toBe(0);
+    // A live promise is not a lapsed one, so this notice reaches nobody.
+    expect(audience.candidates).toHaveLength(0);
   });
 
   it("takes a family whose promised date has gone with money still owing", async () => {
@@ -846,7 +1007,7 @@ describe("reminder audience — promises", () => {
       { situation: "promise_lapsed" },
     );
 
-    expect(audience.counts.promise_broken).toBe(0);
+    expect(audience.candidates).toHaveLength(0);
   });
 
   it("reads only the LATEST contact, so a later call ends an older promise", async () => {

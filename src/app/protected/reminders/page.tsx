@@ -52,7 +52,6 @@ import {
 import { describeLateFeeDrift } from "@/modules/whatsapp/domain/late-fee";
 import { readerFor, resolveReminderContext } from "@/modules/whatsapp/data/reminder-context";
 import { isoFromDdMmYyyy } from "@/platform/helpers/date";
-import { formatInr } from "@/platform/helpers/currency";
 
 // The list is only ever as good as the ledger it was read from, and staff will
 // send money-bearing messages off it. Never serve it from a cache.
@@ -153,8 +152,17 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   const providerReady = isAisensyConfigured();
   // Only the fee_due template names its installments in fixed-ish wording; the
   // warning is meaningless for the other two.
+  //
+  // `length > 0` first, and that guard is the whole point: `fee_due`'s preset
+  // now carries NO installment set, so without it this fired on every default
+  // page load and rendered "You have filtered on installment " with nothing
+  // after it. An empty set is not a mismatch — `contextInstallments` follows
+  // the family's own overdue rows in that case, which is exactly what the
+  // amount is summed over. The warning means what it says again: you ticked
+  // installments, and the wording will name them.
   const wordingMismatch =
     filters.situation === "fee_due" &&
+    filters.installments.length > 0 &&
     (filters.installments.length !== TEMPLATE_INSTALLMENTS.length ||
       !TEMPLATE_INSTALLMENTS.every((installment: number) =>
         filters.installments.includes(installment),
@@ -273,25 +281,17 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
    */
   const quoteLabel =
     QUOTE_BASES.find((entry) => entry.value === filters.quote)?.label ?? "the pending amount";
-  const audienceRule = [
-    filters.installments.length > 0
-      ? `${filters.installmentMatch === "all" ? "Every one of" : "At least one of"} ${installmentPhrase(filters.installments, "en").toLowerCase()} still carrying fees`
-      : "Any installment",
-    filters.maxTotalPaid !== null ? `paid at most ${formatInr(filters.maxTotalPaid)}` : null,
-    filters.minTotalPaid !== null ? `paid more than ${formatInr(filters.minTotalPaid)}` : null,
-    filters.lateFee !== "any"
-      ? `${filters.lateFee === "yes" ? "with" : "without"} a late fee on the ledger`
-      : null,
-    filters.overdue !== "any"
-      ? `${filters.overdue === "yes" ? "past" : "not past"} a due date`
-      : null,
-    filters.carryForward !== "any"
-      ? `${filters.carryForward === "yes" ? "with" : "without"} a balance from last session`
-      : null,
-    `and ${quoteLabel.toLowerCase()} of at least ${formatInr(filters.minDueAmount)}`,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  /**
+   * There is no `audienceRule` here any more.
+   *
+   * It was a second description of the same list — a comma-joined rule string
+   * rendered under "Who is on this list" beside the families, while the
+   * audience panel rendered its own `Inst 1+2 all · paid ≤ 1100` summary. Two
+   * hand-rolled sentences over one filter set, each able to drift from the
+   * other and from the engine. `describeAudience` in `domain/audience.ts` is
+   * now the only one, and the panel that owns the filters is the only place it
+   * appears.
+   */
 
   /** What the amount on each row is, given the basis the office chose. */
   const amountNote = `The amount on each card is ${quoteLabel.toLowerCase()} — the figure the message will quote.`;
@@ -356,8 +356,8 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
       ) : null}
 
       <SectionCard
-        title="Who is eligible"
-        description={`Session ${sessionLabel}. ${familyLabel} match the filters below.`}
+        title="Build the message"
+        description={`Session ${sessionLabel}. ${familyLabel} on the list right now.`}
         className="max-md:order-4"
       >
         {/* Above the list on every viewport: a slot that has arrived is the
@@ -377,7 +377,6 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
           previewBody={previewBody}
           holdoutControl={<HoldoutControl />}
           listActions={<CollectionListLinks filters={filters} />}
-          audienceRule={audienceRule}
           amountNote={amountNote}
           excludeHrefPrefix={excludeHrefPrefix}
           savedCampaign={activeCampaign ? { id: activeCampaign.id, name: activeCampaign.name } : null}

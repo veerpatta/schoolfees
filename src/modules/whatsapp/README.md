@@ -35,9 +35,14 @@ Fee reminders and the message templates behind them.
   different things and nothing said which row changed the message and which
   changed the list. Naming them for who they describe also deduplicates them —
   the waiver pair and `late_fee_applied` are one audience, `upcoming` and
-  `upcoming_final` are another — and makes room for "Everyone who owes", which
-  no notice could express. The two cards are numbered **1 What it says** and
-  **2 Who gets it** for the same reason.
+  `upcoming_final` are another. There are **five** of them since 2026-09-10,
+  down from nine: two of the nine ("Promised, due now", "Promise broken") could
+  not match a single family because the live session holds no promises at all,
+  and "Everyone who owes" was the 479-family audience a reminder must never
+  mean. Each dropped audience is still one Fine-tune control away, and the chip
+  row and that disclosure share ONE state — Custom ⇔ open — so a list somebody
+  narrowed by hand never hides the controls that narrowed it. The two cards are
+  numbered **1 What it says** and **2 Who gets it** for the same reason.
 - **A template is never dimmed for not fitting the audience.** Pointing a
   message at families who cannot fill its slots is the freedom this feature
   exists to give; a greyed chip reads as "unavailable". The ⚠ count says what is
@@ -52,7 +57,31 @@ Fee reminders and the message templates behind them.
 - **Every filter applies on every template.** `SITUATION_FILTERS` used to HIDE
   the installment, paid-so-far and minimum controls on a notice whose rule
   ignored them. That was honest while the notice gated the audience and a cage
-  the moment it stopped. The table is gone; the audience builder shows them all.
+  the moment it stopped. The table is gone; the audience builder shows them all
+  — five on top, the other nine under **Fine-tune**, none of them removed. A
+  collapsed `<details>` still submits its inputs, which is what lets the panel
+  fold without a second form or a byte of client state.
+- **A reminder is about money that is OVERDUE, and overdue is `due_date < today`.**
+  `presetFor`'s base carries `overdue: "yes"` and `quote: "overdue"`. An
+  installment filter has no notion of time — "1 and 2 are pending" is as true
+  the day they are set as the day they are late — which is why it was the wrong
+  lever. Measured live: 479 families owed ₹85,59,066 while 345 were overdue for
+  ₹27,85,517. Use `calendar.overdue` (`daysUntilDue < 0`), **never**
+  `calendar.passed` (`<= 0`, which counts the row due TODAY and exists for
+  `active` and `isFinalNoticeWindow`). The ledger, Defaulters, the dashboard and
+  the late-fee rule all draw the line where `calendar.overdue` does, and the
+  flat ₹1,000 starts the day AFTER the due date. `MONEY_GLOSSARY.overdue` is the
+  canonical wording. The boundary is written twice — here and in
+  `loadAppliedLateFees` — so edit both.
+- **Three presets must keep `overdue: "any"`, and each breaks silently without
+  it.** `prevyear` goes EMPTY: a carry-forward balance is an `installments` row
+  with `installment_no = 99`, outside the 1-4 range `pendingFor` reads, so it
+  can never make a family overdue. `promise_due`/`promise_lapsed` would drop a
+  family who promised about a row not yet due. `exam_clearance` would defeat
+  itself. None of the three fails loudly — the audience just comes back smaller.
+- **One sentence describes the list.** `describeAudience` replaced two
+  hand-rolled summaries of the same filters, in two files, either of which could
+  drift from the other. Do not add a second.
 - **The notices keep their audiences as PRESETS** (`presetFor`), and an absent
   query parameter falls back to the selected notice's preset. That is what makes
   every link, bookmark and saved campaign written before the split still name

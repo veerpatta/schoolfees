@@ -16,6 +16,7 @@ export type MoneyTermKey =
   | "pending"
   | "feesPending"
   | "dueNow"
+  | "overdue"
   | "daysOverdue"
   | "balanceDue"
   | "balanceAfterReceipt"
@@ -110,7 +111,15 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
     label: "Due now",
     summary: "Fees to collect right now — base of installments due today or earlier.",
     detail:
-      "Sum of the unpaid base charge of every installment whose due date is today or in the past. Late fee is shown on its own line, not folded in here. This is the actionable 'collect this today' number.",
+      "Sum of the unpaid base charge of every installment whose due date is today or in the past. Late fee is shown on its own line, not folded in here. This is the actionable 'collect this today' number. It includes the installment due today; Overdue does not.",
+  },
+  overdue: {
+    key: "overdue",
+    label: "Overdue",
+    summary: "Fees whose due date has already passed. The due date itself is not overdue.",
+    detail:
+      "Unpaid fees on installments whose due date is strictly before today. An installment due TODAY is Pending, not Overdue: the late fee starts the day after, so the due date itself is free — that one day is the only difference between this and Due now. Late fee is excluded, so a family owing only a late fee is not overdue and not a defaulter. Last session's carry-forward is Old balance and is not counted here.",
+    source: "v_workbook_installment_balances.balance_status = 'overdue'",
   },
   daysOverdue: {
     key: "daysOverdue",
@@ -341,6 +350,7 @@ export const MONEY_GLOSSARY_ORDER: readonly MoneyTermKey[] = [
   "pending",
   "feesPending",
   "dueNow",
+  "overdue",
   "daysOverdue",
   "balanceDue",
   "balanceAfterReceipt",

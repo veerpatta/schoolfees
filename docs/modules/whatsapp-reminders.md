@@ -428,14 +428,14 @@ to Meta.
 
 | Situation | Who it is about | Slots | Campaigns |
 |---|---|---|---|
-| `fee_due` | Nothing received (`total_paid <= 1100`) and **every** selected installment pending | 7 | `vpps_app_fee_due_hi_v2` · `vpps_app_fee_due_en_v2` |
-| `balance` | Part paid, still owing on **any** selected installment | 7 | `vpps_app_balance_hi_v2` · `vpps_app_balance_en_v2` |
+| `fee_due` | Nothing received (`total_paid <= 1100`) and **past a due date**. Quotes the overdue amount only | 7 | `vpps_app_fee_due_hi_v2` · `vpps_app_fee_due_en_v2` |
+| `balance` | Part paid and past a due date. Quotes the **whole session balance**, because the approved body prints the words "Balance due" | 7 | `vpps_app_balance_hi_v2` · `vpps_app_balance_en_v2` |
 | `prevyear` | A carry-forward balance with something left on it | 7 | `vpps_app_prevyear_hi_v2` · `vpps_app_prevyear_en_v2` |
 | `upcoming` / `upcoming_final` | The next installment inside the window, nothing overdue; final from T-3 | 7 | `vpps_app_upcoming_*_v3` · `vpps_app_upcoming_final_*_v3` |
 | `late_fee_applied` | The ledger charges a late fee on a passed installment | 7 (own) | `vpps_app_late_fee_applied_*_v3` |
 | `promise_lapsed` | A promised date passed, money still owed | 7 | `vpps_app_promise_lapsed_*_v3` |
 | `late_fee_waiver` / `waiver_last_call` | The ledger charges a late fee AND fees are still on those rows. Slot 7 is the office's waive-by date; the late fee defaults to the ledger's own figure per family | 7 (waiver) | `vpps_app_late_fee_waiver_*_v4` · `vpps_app_waiver_last_call_*_v4` |
-| `overdue_final` | Fees still pending on any installment the calendar says has passed, late fee or not | 7 | `vpps_app_overdue_final_*_v4` |
+| `overdue_final` | Fees still pending on any installment **strictly past** its due date, late fee or not | 7 | `vpps_app_overdue_final_*_v4` |
 | `promise_due` | A promise falling due today or tomorrow. Prints the family's own date, so no run date and no date guard; exempt from the promise hold-back | 7 | `vpps_app_promise_due_*_v4` |
 | `exam_clearance` | Anything pending on **any** selected installment | 7 | `vpps_app_exam_clearance_*_v4` |
 
@@ -447,7 +447,9 @@ touches money.
 
 **The two current-year notices are mutually exclusive by construction, not by a
 filter someone has to get right.** `maxTotalPaid` is 1100, the academic fee, so at
-or below it nothing real has been received. Measured live, the overlap is zero.
+or below it nothing real has been received; `balance` carries the same figure as
+a FLOOR. Measured live, the overlap is zero. Both also require the family to be
+past a due date, which narrows each of them without making them overlap.
 
 `prevyear` is the opposite: 47 of the 51 families carrying a balance forward also
 owe this year. That is why the send log is keyed per campaign — under the old
@@ -469,7 +471,7 @@ other's half:
 | | |
 |---|---|
 | **1 What it says** | The template, the language, the date, the late fee. Twelve chips. Changes nothing about who is on the list. |
-| **2 Who gets it** | `domain/audience.ts`. Nine audience shortcuts and every filter, always visible, on every template. |
+| **2 Who gets it** | `domain/audience.ts`. One plain-English sentence, five audience chips, Class and a minimum. Every other filter under **Fine-tune**, which opens by itself whenever the list is Custom. |
 
 **Every filter applies on every template.** Installments 1-4 with **all** or
 **any**, a paid-so-far ceiling AND floor, a minimum on the quoted figure, late
@@ -483,15 +485,30 @@ fees on the late-fee rows, or last session's carry-forward. It used to be a
 `switch (filters.situation)`, which is precisely why the two could not be pulled
 apart.
 
-**The audience shortcuts are named for the AUDIENCE, never for a notice.**
-`AUDIENCE_SHORTCUTS` — Everyone who owes · Nothing paid yet · Part paid, still
-owing · Past a due date · Carrying a late fee · Not due yet · Promised, due now ·
-Promise broken · Owes from last session. For one day they carried the twelve
-NOTICE names and sat directly under twelve template chips carrying the same
-twelve names; "Fee due" appeared twice on one screen meaning two different
-things. Naming them honestly also deduplicates them — the waiver pair and
-`late_fee_applied` are ONE audience — and makes room for "Everyone who owes",
-which no notice could ever express (416 live).
+**There are FIVE audience chips, named for the AUDIENCE.** `AUDIENCE_SHORTCUTS`
+— Overdue · Nothing paid yet · Carrying a late fee · Owes from last session ·
+Not late yet. With their live 2026-27 counts: 345 · 132 · 4 · 37 · 101.
+
+Twelve, then nine, then five. The twelve carried the twelve NOTICE names and sat
+directly under twelve template chips carrying the same names, so "Fee due"
+appeared twice on one screen meaning two different things. Nine was still too
+many, and the ledger said which four to cut:
+
+| dropped | live count | where it went |
+|---|---|---|
+| Everyone who owes | 479 | Fine-tune → Overdue installment = **All open dues** |
+| Part paid, still owing | — | Fine-tune → **Paid so far, over** |
+| Promised, due now | **0** | Fine-tune → **Promise to pay** = falls due today or tomorrow |
+| Promise broken | **0** | Fine-tune → **Promise to pay** = has lapsed |
+
+There are **zero promises on record** for 2026-27 — `defaulter_contacts` holds no
+`promised_pay` outcome and no promised date at all — so two of the nine chips
+could not match a single family, and the `skip_open` default holds nobody back.
+"Everyone who owes" was the 479-family audience a reminder must never mean.
+Nothing became unreachable: each is one Fine-tune control away, and
+`matchingShortcut` renders **Custom** with the live count the moment the filters
+match no chip. "Carrying a late fee" keeps its slot at 4 families because it is
+the only audience for three of the twelve templates.
 
 Each shortcut delegates to `presetFor`, so there is still exactly ONE definition
 of each audience, and **an absent query parameter falls back to the selected
@@ -510,6 +527,116 @@ because getting it backwards has already cost money. Measured live: 87 of the
 258 families on the balance list were fully paid up on installments 1 and 2 and
 owed only 3 and 4 — ₹7,77,075 not due until October and January. The office read
 "Installments pending: 1 and 2" and was chasing money nobody owed yet.
+
+**That class of mistake is now closed at the root, not by getting a dropdown
+right.** An installment filter has no notion of TIME: "installments 1 and 2 are
+pending" is equally true the day they are set and the day they are late. Since
+2026-09-10 every preset asks `overdue: "yes"` instead, so being behind is what
+puts a family on a list. See *A reminder is about money that is overdue* below.
+
+### A reminder is about money that is overdue
+
+Since 2026-09-10. Two things were wrong and they compounded.
+
+**The presets had no notion of time.** `fee_due` asked "is every active
+installment still pending", `balance` asked "is any of them", and `quote` named
+the whole session balance or the ticked rows. None of that distinguishes money
+the school has asked for from money it has not. Measured on the live 2026-27
+ledger the day this changed:
+
+| | |
+|---|---|
+| Families who owe anything | 479 |
+| Families with an **overdue** installment | **345** |
+| Owe something, nothing overdue yet | **134** |
+| Fees pending in total | ₹85,59,066 |
+| Fees actually **overdue** | **₹27,85,517** |
+
+So the screen could ask 479 families for ₹85.6 lakh when only 345 were late and
+only ₹27.9 lakh was past a due date — installments 3 and 4 are not due until 20
+October and 20 January. `presetFor`'s `base` now carries `overdue: "yes"` and
+`quote: "overdue"`, and the four situations that legitimately mean something else
+say so explicitly.
+
+**Three presets deliberately keep `overdue: "any"`, and each would break without
+it:**
+
+- `prevyear` would go **empty**. A carry-forward balance is an `installments`
+  row with `installment_no = 99` — outside the 1-4 range `pendingFor` reads — so
+  it can never appear in `overdueInstallments`. All 37 families still owing
+  carry-forward money happen to also be overdue on installment 1 or 2 today,
+  which is exactly why this would have gone unnoticed until it did not.
+- `promise_due` / `promise_lapsed` would drop a family who promised about an
+  installment that has not fallen due. The subject is the promise, not the date.
+- `exam_clearance` would defeat itself: a row has to be clear before the exam
+  whether or not its date has gone.
+
+`balance` keeps `quote: "session"` for a different reason, and it is not a
+preference. The approved body PRINTS the word — `Balance due: Rs. {{5}}`,
+`शेष बकाया: रु. {{5}}` — so quoting the overdue subtotal under the label
+"balance" puts a figure in front of a parent that does not mean what the sentence
+around it says. The audience is narrowed to families who are actually late; the
+ask stays the balance.
+
+#### Overdue is STRICTLY past, and `calendar.passed` is not it
+
+`buildInstallmentCalendar` returns both, and the difference is one day:
+
+| | rule | who wants it |
+|---|---|---|
+| `passed` | `daysUntilDue <= 0` | `active` (the office must be offered today's installment) and `isFinalNoticeWindow` (spans T-3 **through** the due date) |
+| `overdue` | `daysUntilDue < 0` | `overdueInstallments`, and nothing else |
+
+Everything else in the app already drew the line at `due_date < CURRENT_DATE`:
+`balance_status` in both engines, `overdue_installment_count`,
+`calculateDaysOverdue`, Defaulters, the Dashboard. So does the school's own
+rule — the flat ₹1,000 starts the day AFTER the due date
+(`lateFeeStartsOn(d) === d + 1`), so the due date itself is free. Reminders read
+`passed` until 2026-09-10, so on each of the four due dates this screen called a
+family overdue while the ledger called them pending, and a parent could be told
+they were late on the one day they were not. `MONEY_GLOSSARY.overdue` is the
+canonical wording; `tests/unit/whatsapp-reminder-calendar.test.ts` pins all three
+days around a due date.
+
+The same boundary appears twice: `loadAppliedLateFees` filters
+`dueDate >= today`. A late fee cannot exist on its own due date, so in practice
+no row is affected — which is precisely why it would drift unnoticed. Edit both.
+
+#### `quote: "next"` ignores the pre-due window
+
+`calendar.next` is window-gated (10 days) because the window decides whether
+courtesy WORDING is appropriate. `calendar.nextAhead` is not, and it is what the
+quote basis resolves against. Reading `next` here made the "Not late yet"
+audience read **0 for about 320 days a year**: with installment 3 forty days out,
+`next` is null, the quoted amount was ₹0, and `minDueAmount: 1` dropped everyone.
+Which installment comes next is a fact about the calendar; whether to send a
+polite note about it is a judgement about timing.
+
+#### `describeAudience` is the one sentence
+
+`domain/audience.ts`. It replaced **two** hand-rolled descriptions of the same
+filter set — the panel's `Inst 1+2 all · paid ≤ 1100 · overdue yes` summary and
+the workspace's comma-joined "Who is on this list" rule — either of which could
+drift from the other and from the engine. It names the decision rather than the
+fields:
+
+> Sending to 345 families whose fees are past a due date. Asking for ₹27,85,517 — the overdue amount only.
+
+Clauses that say nothing are omitted, which is why there is no standing
+"0 held back inside a promise" on a session that has no promises. Every figure
+goes through `formatInr`; a hand-written ₹ here fails `quality:budgets`.
+
+#### One form, no `idPrefix`
+
+The filter panel used to render every control twice — a phone `<details>` and a
+desk grid — so each `<Label htmlFor>` needed an `idPrefix` to avoid pointing at
+a duplicated id. Folding the RARE controls into **Fine-tune** instead of folding
+the whole panel makes the second copy unnecessary: one GET form serves every
+viewport, and the phone now sees the sentence, the chips, the class and the
+minimum without a tap. A collapsed `<details>` still submits the inputs inside
+it, so Fine-tune keeps its values through Apply with no hidden mirror and no
+client state — which is also how the panel stays a server component under a
+ceiling that only ratchets down.
 
 ### The late fee has two modes
 

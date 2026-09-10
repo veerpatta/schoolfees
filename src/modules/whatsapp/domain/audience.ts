@@ -30,6 +30,7 @@
  * teacher's sheet ends up naming families the send screen never showed.
  */
 
+import { formatInr } from "@/platform/helpers/currency";
 import type { NoticeSituation } from "@/modules/whatsapp/domain/campaigns";
 
 /**
@@ -77,19 +78,42 @@ export type QuoteBasis =
   /** What is left of last session's carried-forward balance. */
   | "prev_year";
 
+/**
+ * Ordered with the default first, which is also the honest one.
+ *
+ * "Whole session balance" is second-to-last on purpose: on the live ledger it
+ * quotes ₹85,59,066 against ₹27,85,517 actually overdue, because installments 3
+ * and 4 are inside it. It stays available — a parent settling the year in one
+ * go needs it — but it is no longer what the screen reaches for by default.
+ */
 export const QUOTE_BASES = [
-  { value: "selected", label: "Fees on the selected installments" },
-  { value: "session", label: "Whole session balance" },
-  { value: "overdue", label: "Overdue installments only" },
+  { value: "overdue", label: "What is overdue" },
   { value: "next", label: "The next installment due" },
+  { value: "selected", label: "Fees on the selected installments" },
   { value: "ledger_fees", label: "Fees on the late-fee rows" },
   { value: "prev_year", label: "Last session's carry-forward" },
+  { value: "session", label: "Whole session balance" },
 ] as const satisfies ReadonlyArray<{ value: QuoteBasis; label: string }>;
 
 export const INSTALLMENT_MATCHES = [
   { value: "all", label: "all of them pending" },
   { value: "any", label: "any of them pending" },
 ] as const satisfies ReadonlyArray<{ value: InstallmentMatch; label: string }>;
+
+/**
+ * The overdue filter's own words, because "Either / Yes / No" is not what the
+ * office reads for this anywhere else in the app.
+ *
+ * Lifted verbatim from the Defaulters screen ("Overdue only" / "All open dues")
+ * and the student list ("Not due yet"), so the same question is asked in the
+ * same words on both surfaces. The reminders screen used to say "Past a due
+ * date", a phrase that existed nowhere else.
+ */
+export const OVERDUE_OPTIONS = [
+  { value: "yes", label: "Overdue only" },
+  { value: "any", label: "All open dues" },
+  { value: "no", label: "Not due yet" },
+] as const satisfies ReadonlyArray<{ value: Tri; label: string }>;
 
 export const TRI_OPTIONS = [
   { value: "any", label: "Either" },
@@ -203,10 +227,20 @@ export function presetFor(
     minTotalPaid: null,
     minDueAmount: 1,
     lateFee: "any" as Tri,
-    overdue: "any" as Tri,
+    // A REMINDER IS ABOUT MONEY THAT IS LATE. Every preset starts overdue-only
+    // and quotes the overdue figure; the four situations that legitimately mean
+    // something else say so explicitly below.
+    //
+    // Until 2026-09-10 this was `overdue: "any"` with `quote: "selected"`, and
+    // the consequence was not subtle: on the live 2026-27 ledger the screen
+    // could ask 479 families for ₹85,59,066 when only 345 were late and only
+    // ₹27,85,517 was past a due date — installments 3 and 4 are not due until
+    // 20 Oct and 20 Jan. The office was chasing money the school had not yet
+    // asked for.
+    overdue: "yes" as Tri,
     carryForward: "any" as Tri,
     promise: "skip_open" as PromiseFilter,
-    quote: "selected" as QuoteBasis,
+    quote: "overdue" as QuoteBasis,
   };
 
   switch (situation) {
@@ -222,26 +256,40 @@ export function presetFor(
 
     // Nothing received beyond the academic fee, and EVERY selected installment
     // still pending.
+    // Nothing received beyond the academic fee, and something already late.
+    //
+    // The old rule was "every ACTIVE installment still fully pending", which
+    // had no time component at all: a family could match it on installments the
+    // school had not asked for yet. Overdue replaces the installment test —
+    // being late is the thing that earns a reminder, not which rows are open.
     case "fee_due":
-      return {
-        ...base,
-        installments: active,
-        maxTotalPaid: DEFAULT_MAX_TOTAL_PAID,
-        installmentMatch: "all",
-      };
+      return { ...base, maxTotalPaid: DEFAULT_MAX_TOTAL_PAID };
 
-    // Something received, and still owing on at least one of them.
+    // Something received, and still late on something.
+    //
+    // Keeps `quote: "session"` against the overdue-only base, and this one is
+    // not a preference. The approved body PRINTS the word: "Balance due: Rs.
+    // {{5}}" in English, "शेष बकाया: रु. {{5}}" in Hindi. Quoting the overdue
+    // subtotal under the label "balance" would put a figure in front of a
+    // parent that does not mean what the sentence around it says, and they
+    // bring that to the counter. The audience is narrowed to families who are
+    // actually late (inherited `overdue: "yes"`); the ASK stays the balance,
+    // because the balance is the word the template uses.
     case "balance":
       return {
         ...base,
-        installments: active,
         minTotalPaid: DEFAULT_MAX_TOTAL_PAID,
-        installmentMatch: "any",
         quote: "session",
+        // "Any", against the base's "all", and it still matters even though
+        // this preset ticks no installments: the moment the office DOES tick
+        // some, a part-paid family who cleared installment 1 and still owes 2
+        // is exactly who this notice is for, and "all" would drop them.
+        installmentMatch: "any",
       };
 
+    // Now exactly the base: overdue, quoting what is overdue.
     case "overdue_final":
-      return { ...base, overdue: "yes", quote: "overdue" };
+      return { ...base };
 
     // The ledger decides these three: a fee actually pending on a passed row.
     case "late_fee_applied":
@@ -249,69 +297,87 @@ export function presetFor(
     case "waiver_last_call":
       return { ...base, lateFee: "yes", quote: "ledger_fees" };
 
+    // A promise is the office's own record, and it can be logged against an
+    // installment that has not fallen due yet — so these two must NOT inherit
+    // the overdue-only base, or the promise the family made about installment 3
+    // could not be followed up. They quote the session for the same reason:
+    // the promise was about a figure, not about what happens to be late today.
     case "promise_due":
-      return { ...base, promise: "due_soon", quote: "session" };
+      return { ...base, overdue: "any", promise: "due_soon", quote: "session" };
 
     case "promise_lapsed":
-      return { ...base, promise: "lapsed", quote: "session" };
+      return { ...base, overdue: "any", promise: "lapsed", quote: "session" };
 
     // The office picks which installments must be clear before the exams, and
     // ANY of them still pending puts a family here.
+    // The office names the rows here, so this is the one audience the
+    // installment filter still defines — and `overdue: "any"`, because a row
+    // has to be clear before the exam whether or not its date has gone.
     case "exam_clearance":
-      return { ...base, installments: active, installmentMatch: "any" };
+      return {
+        ...base,
+        installments: active,
+        installmentMatch: "any",
+        overdue: "any",
+        quote: "selected",
+      };
 
     // Last year's balance has no installments and never accrues a late fee.
+    // Last year's balance has no installments and never accrues a late fee.
+    //
+    // `overdue: "any"` is load-bearing. A carry-forward balance is an
+    // `installments` row with `installment_no = 99`, OUTSIDE the 1-4 range
+    // `pendingFor` reads, so it can never appear in `overdueInstallments`.
+    // Inheriting the overdue-only base would therefore drop any family who has
+    // cleared this session but still owes last year's — silently, because the
+    // audience would simply come back smaller. All 37 such families happen to
+    // be overdue on installment 1 or 2 today, which is exactly why this would
+    // have gone unnoticed until it did not.
     case "prevyear":
-      return { ...base, carryForward: "yes", quote: "prev_year" };
+      return { ...base, overdue: "any", carryForward: "yes", quote: "prev_year" };
   }
 }
 
 
 /**
- * The audience shortcuts, named for WHO they describe.
+ * The five audiences the office actually sends to, in escalation order.
  *
- * These are filter presets, and until 2026-09-09 they were rendered as twelve
- * chips carrying the twelve NOTICE names — right beside twelve template chips
- * carrying the same twelve names. "Fee due" appeared twice on one screen
- * meaning two different things, and the office could not tell the row that
- * changes the message from the row that changes the list.
+ * These were nine until 2026-09-10, and before that twelve carrying the twelve
+ * NOTICE names — sitting directly under twelve template chips carrying the same
+ * twelve names, so "Fee due" appeared twice on one screen meaning two different
+ * things. Nine was still too many, and the live ledger said why: four of them
+ * were furniture.
  *
- * So they are named for the audience now, and deduplicated: three notices
- * (`late_fee_applied` and the waiver pair) share one audience, and so do
- * `upcoming` / `upcoming_final`. `exam_clearance` is `fee_due`'s filter set
- * with `any` instead of `all`, which the installment control already says
- * better than a chip can. Twelve look-alike chips become eight honest ones,
- * plus "Everyone who owes" — the shortcut nobody could reach before, because
- * no NOTICE meant "no constraints at all".
+ * | dropped | families on 2026-27 | where it went |
+ * |---|---|---|
+ * | Everyone who owes | 479, the inflated one | Fine-tune: overdue "All open dues" |
+ * | Promised, due now | **0** | Fine-tune: the promise dropdown |
+ * | Promise broken | **0** | Fine-tune: the promise dropdown |
+ * | Part paid, still owing | — | Fine-tune: "Paid so far, over" |
  *
- * `from` is the situation whose preset supplies the filters, so there is still
- * exactly ONE definition of each audience and `presetFor` remains the only
- * place it lives.
+ * There are ZERO promises on record for 2026-27 — `defaulter_contacts` has no
+ * `promise_to_pay` outcome and no promised date anywhere — so two of the nine
+ * chips could not match a single family, and the `skip_open` default holds
+ * nobody back. Nothing is unreachable: every dropped audience is still one
+ * control away inside Fine-tune, and `matchingShortcut` shows "Custom" the
+ * moment the filters stop matching a chip.
+ *
+ * `from` is the situation whose preset supplies the filters, so `presetFor`
+ * remains the ONE definition of each audience and a chip cannot drift away from
+ * the notice that shares its rule.
  */
 export const AUDIENCE_SHORTCUTS = [
   {
-    key: "everyone",
-    label: "Everyone who owes",
-    hint: "Every collectable family with anything still outstanding this session",
-    from: null,
+    key: "overdue",
+    label: "Overdue",
+    hint: "Fees still owed on an installment whose due date has already passed",
+    from: "overdue_final",
   },
   {
     key: "nothing_paid",
     label: "Nothing paid yet",
-    hint: "Nothing received beyond the academic fee, every selected installment pending",
+    hint: "Nothing received beyond the academic fee, and already past a due date",
     from: "fee_due",
-  },
-  {
-    key: "part_paid",
-    label: "Part paid, still owing",
-    hint: "Something received, still owing on at least one selected installment",
-    from: "balance",
-  },
-  {
-    key: "overdue",
-    label: "Past a due date",
-    hint: "Fees still pending on an installment whose due date has gone",
-    from: "overdue_final",
   },
   {
     key: "late_fee",
@@ -320,28 +386,16 @@ export const AUDIENCE_SHORTCUTS = [
     from: "late_fee_applied",
   },
   {
-    key: "not_due_yet",
-    label: "Not due yet",
-    hint: "An installment falls due inside the window and nothing earlier is owed",
-    from: "upcoming",
-  },
-  {
-    key: "promised_now",
-    label: "Promised, due now",
-    hint: "The family's promised date is today or tomorrow",
-    from: "promise_due",
-  },
-  {
-    key: "promise_broken",
-    label: "Promise broken",
-    hint: "The promised date has passed and the money has not arrived",
-    from: "promise_lapsed",
-  },
-  {
     key: "last_session",
     label: "Owes from last session",
     hint: "A balance carried forward with something left on it",
     from: "prevyear",
+  },
+  {
+    key: "not_due_yet",
+    label: "Not late yet",
+    hint: "An installment is coming and nothing earlier is owed — the courtesy note",
+    from: "upcoming",
   },
 ] as const satisfies ReadonlyArray<{
   key: string;
@@ -353,31 +407,17 @@ export const AUDIENCE_SHORTCUTS = [
 export type AudienceShortcutKey = (typeof AUDIENCE_SHORTCUTS)[number]["key"];
 
 /**
- * The filters one shortcut stands for.
- *
- * `everyone` is the only one not delegated to a notice's preset, because no
- * notice ever meant "no constraint at all": anything still outstanding on this
- * session's four installments, whoever they are and whatever they have paid.
+ * The filters one shortcut stands for, always via `presetFor`.
  */
 export function shortcutFilters(
   key: AudienceShortcutKey,
   args: { activeInstallments: readonly number[]; nextInstallment: number | null },
 ): Omit<AudienceFilters, "classId" | "includeRte" | "includeStudentIds" | "excludeStudentIds"> {
   const entry = AUDIENCE_SHORTCUTS.find((option) => option.key === key);
-  if (!entry || entry.from === null) {
-    return {
-      installments: [],
-      installmentMatch: "all",
-      maxTotalPaid: null,
-      minTotalPaid: null,
-      minDueAmount: 1,
-      lateFee: "any",
-      overdue: "any",
-      carryForward: "any",
-      promise: "skip_open",
-      quote: "session",
-    };
-  }
+  // Every chip now delegates to a preset, so this only catches a key off a
+  // hand-edited URL. It answers with the default audience rather than the old
+  // "everyone who owes", which is the one thing a reminder must not mean.
+  if (!entry || entry.from === null) return presetFor("overdue_final", args);
   return presetFor(entry.from, args);
 }
 
@@ -444,7 +484,7 @@ export const NOTICE_FACT_CONSEQUENCE: Record<
   },
   promise: {
     effect: "the message carries an empty date, and WhatsApp refuses those — they would fail rather than send",
-    fix: "use the “Promised, due now” or “Promise broken” audience, or pick a different message",
+    fix: "set “Promise to pay” under Fine-tune to “falls due today or tomorrow” or “has lapsed”, or pick a different message",
   },
   prev_year: {
     effect: "the message carries an empty session name, and WhatsApp refuses those — they would fail rather than send",
@@ -653,6 +693,154 @@ export function matchingShortcut(
     if (same) return entry.key;
   }
   return null;
+}
+
+/**
+ * What the office is about to do, as one sentence they can read.
+ *
+ * This replaced a summary line that read `Inst 1+2 all · paid ≤ 1100 · overdue
+ * yes`. That string was accurate and nobody could use it: it named the FIELDS
+ * rather than the decision, so answering "who is about to get this?" meant
+ * translating six filter keys in your head. The office's word for the screen
+ * was "confusing", and this line is the fix — a reminder run is a claim about a
+ * family's money, and the screen should be able to state the claim.
+ *
+ * Deliberately built from the filters rather than the chip: a hand-narrowed
+ * list has no chip, and that is exactly when a person most needs telling what
+ * they have built. Clauses that say nothing are omitted entirely — with no
+ * promises on record, "0 held back" would be noise on every single load.
+ */
+export function describeAudience(
+  filters: AudienceFilters,
+  totals: {
+    /** How many families the filters actually landed on. */
+    count: number;
+    /** The sum of what those families will be asked for. */
+    quotedTotal: number;
+    /** Families paused inside their own promise, under `skip_open`. */
+    heldByPromise?: number;
+    /**
+     * Families held back by their reminder cadence — never, snoozed, or
+     * messaged too recently.
+     *
+     * Load-bearing for a reason that is easy to miss: a CHIP counts an
+     * audience, and the sentence counts today's send. The two differ by exactly
+     * these families, so the active chip read "Overdue 298" directly above
+     * "Sending to 292 families" with nothing on screen explaining the six. Both
+     * numbers were right and the pair looked like a bug. State the difference
+     * and the arithmetic closes.
+     */
+    heldByCadence?: number;
+    /** A class label, when one is picked — the caller holds the lookup. */
+    className?: string | null;
+  },
+): string {
+  const families = totals.count === 1 ? "1 family" : `${totals.count} families`;
+
+  // WHO. The strongest true thing first, because that is what a person reads.
+  let who: string;
+  if (filters.carryForward === "yes") {
+    who = "who still owe a balance carried over from last session";
+  } else if (filters.lateFee === "yes") {
+    who = "the ledger is charging a late fee on";
+  } else if (filters.overdue === "no") {
+    who = "with an installment coming up and nothing yet overdue";
+  } else if (filters.overdue === "yes") {
+    who = "whose fees are past a due date";
+  } else {
+    who = "with fees still open, overdue or not";
+  }
+
+  const sentences = [`Sending to ${families} ${who}.`];
+
+  // HOW MUCH. Named, so nobody has to open a dropdown to find out what the
+  // parent will be asked for.
+  const asking: Record<QuoteBasis, string> = {
+    overdue: "the overdue amount only",
+    next: "the installment falling due next",
+    selected: "the fees on the selected installments",
+    ledger_fees: "the fees on the late-fee rows",
+    prev_year: "last session's carried-forward balance",
+    session: "the whole session balance, including what is not due yet",
+  };
+  sentences.push(
+    `Asking for ${formatInr(totals.quotedTotal)} — ${asking[filters.quote]}.`,
+  );
+
+  // NARROWINGS, only the ones actually set.
+  const narrowed: string[] = [];
+  if (totals.className) narrowed.push(`${totals.className} only`);
+  /**
+   * The paid-so-far bounds, reported whenever they are set.
+   *
+   * They used to be folded into the head clause, and only on the
+   * `overdue: "yes"` branch — so a run with the overdue select on "All open
+   * dues" and a ₹1,100 ceiling still applied read "Sending to N families with
+   * fees still open, overdue or not" and said nothing about the ceiling. That
+   * is the worst kind of wrong for this sentence: the office reads a wide
+   * audience, gets a narrow one, and the line that exists to explain the number
+   * is the thing hiding it. A constraint that changes who is messaged is stated
+   * or it is not applied.
+   */
+  if (filters.maxTotalPaid !== null) {
+    narrowed.push(
+      filters.maxTotalPaid === DEFAULT_MAX_TOTAL_PAID
+        ? "paid nothing beyond the academic fee"
+        : `paid at most ${formatInr(filters.maxTotalPaid)}`,
+    );
+  }
+  if (filters.minTotalPaid !== null) {
+    narrowed.push(
+      filters.minTotalPaid === DEFAULT_MAX_TOTAL_PAID
+        ? "have paid something already"
+        : `paid more than ${formatInr(filters.minTotalPaid)}`,
+    );
+  }
+  if (filters.lateFee === "no") narrowed.push("no late fee charged");
+  if (filters.carryForward === "no") narrowed.push("nothing carried over from last session");
+  if (filters.promise !== "skip_open" && filters.promise !== "any") {
+    narrowed.push(`promise: ${PROMISE_OPTIONS.find((e) => e.value === filters.promise)?.label ?? filters.promise}`);
+  }
+  if (filters.installments.length > 0) {
+    narrowed.push(
+      `installment ${filters.installments.join(" and ")} ${
+        filters.installmentMatch === "all" ? "all pending" : "any pending"
+      }`,
+    );
+  }
+  if (filters.minDueAmount > 1) narrowed.push(`at least ${formatInr(filters.minDueAmount)}`);
+  if (!filters.includeRte) narrowed.push("RTE students left out");
+  if (filters.includeStudentIds.length > 0) {
+    narrowed.push(`${filters.includeStudentIds.length} added by hand`);
+  }
+  if (filters.excludeStudentIds.length > 0) {
+    narrowed.push(`${filters.excludeStudentIds.length} removed by hand`);
+  }
+  if (narrowed.length > 0) {
+    const list = narrowed.join(", ");
+    sentences.push(`${list.charAt(0).toUpperCase()}${list.slice(1)}.`);
+  }
+
+  // The promise hold-back is a PAUSE the office can undo, not a filter, so it
+  // is worth its own clause — but only when it is holding somebody.
+  const heldPromise = filters.promise === "skip_open" ? (totals.heldByPromise ?? 0) : 0;
+  const heldCadence = totals.heldByCadence ?? 0;
+  const total = heldPromise + heldCadence;
+  if (total > 0) {
+    const reasons: string[] = [];
+    if (heldPromise > 0) reasons.push(`${heldPromise} inside their own promise`);
+    if (heldCadence > 0) reasons.push(`${heldCadence} by reminder cadence`);
+    const who = total === 1 ? "1 more is" : `${total} more are`;
+    const why =
+      reasons.length === 1
+        ? heldPromise > 0
+          ? "inside their own promise"
+          : "by reminder cadence"
+        : reasons.join(" and ");
+    sentences.push(`${who} held back ${why} — on the chip above, not in this send.`);
+  }
+
+  return sentences.join(" ");
 }
 
 /** A comma list of ids out of the query string, deduped and trimmed. */

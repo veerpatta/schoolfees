@@ -1263,6 +1263,21 @@ function contextInstallments(subject: NoticeSubject, settings: NoticeSettings): 
   if (settings.situation === "overdue_final" && subject.overdueInstallments?.length) {
     return subject.overdueInstallments;
   }
+  /**
+   * Nothing ticked, so follow the family's OWN overdue rows.
+   *
+   * Load-bearing since `fee_due`'s preset stopped carrying an installment set
+   * (2026-09-10). `installmentPhrase([])` does not render empty — it falls back
+   * to a hardcoded "Installment 1 and 2" / "किश्त 1 एवं 2". So without this,
+   * every fee-due message would print "Installment 1 and 2" beside an amount
+   * summed over whatever is actually overdue: correct today, and wrong the
+   * morning of 21 October, when installment 3 joins the total and the sentence
+   * still names two rows. A parent reading a figure that does not match the
+   * rows beside it is the kind of message that arrives at the counter.
+   */
+  if (settings.installments.length === 0 && subject.overdueInstallments?.length) {
+    return subject.overdueInstallments;
+  }
   return settings.installments;
 }
 

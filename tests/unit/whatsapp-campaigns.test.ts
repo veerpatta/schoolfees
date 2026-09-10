@@ -238,6 +238,58 @@ describe("the registered campaigns", () => {
     ).toBe("Installment 1, 2 and 3");
   });
 
+  it("follows the family's own overdue rows when the office ticked nothing", () => {
+    /**
+     * `installmentPhrase([])` does NOT render empty — it falls back to a
+     * hardcoded "Installment 1 and 2" / "किश्त 1 एवं 2".
+     *
+     * That was harmless while every preset carried an installment set. Since
+     * `fee_due`'s preset stopped carrying one (2026-09-10, when the audience
+     * became overdue-driven rather than installment-driven), an untouched run
+     * reaches here with `installments: []` — and without the fallback below,
+     * every fee-due message would print "Installment 1 and 2" beside an amount
+     * summed over whatever is actually overdue. Correct today, and wrong the
+     * morning of 21 October, when installment 3 joins the total and the
+     * sentence still names two rows. A figure that does not match the rows
+     * named beside it is the message that arrives at the counter.
+     */
+    const subject: NoticeSubject = {
+      parentName: "Ramesh Lal Gurjar",
+      studentName: "Aaradhya Gurjar",
+      studentClass: "Class 2",
+      dueAmount: 15125,
+      totalPaid: 0,
+      balanceDue: 15125,
+      prevYearBalance: 0,
+      prevSessionLabel: null,
+      lateFeeApplied: 0,
+      lateFeeInstallments: [],
+      overdueInstallments: [1, 2, 3],
+    };
+    const nothingTicked: NoticeSettings = {
+      situation: "fee_due",
+      language: "en",
+      installments: [],
+      lastDate: "20-11-2026",
+      lateFeeAmount: 1000,
+      lateFeeBasis: "per_installment",
+    };
+
+    expect(noticeValuesFrom(subject, nothingTicked).installmentPhrase).toBe(
+      "Installment 1, 2 and 3",
+    );
+    // Hindi takes the same path, so the fallback cannot be language-specific.
+    expect(
+      noticeValuesFrom(subject, { ...nothingTicked, language: "hi" }).installmentPhrase,
+    ).toBe("किश्त 1, 2 एवं 3");
+
+    // And a family with nothing overdue at all still gets a readable slot
+    // rather than an empty parameter, which WhatsApp refuses outright.
+    expect(
+      noticeValuesFrom({ ...subject, overdueInstallments: [] }, nothingTicked).installmentPhrase,
+    ).toBe("Installment 1 and 2");
+  });
+
   it("prints the family's own promised date on promise_due, never the run's", () => {
     const subject: NoticeSubject = {
       parentName: "Ramesh Lal Gurjar",

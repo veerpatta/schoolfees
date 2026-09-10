@@ -47,10 +47,13 @@ describe("parseReminderFilters", () => {
       minTotalPaid: null,
       installmentMatch: "all",
       lateFee: "any",
-      overdue: "any",
+      // Read off the shared default rather than written out. These two moved on
+      // 2026-09-10 (a reminder is about money that is LATE), and a literal here
+      // is a copy of the rule that can disagree with it.
+      overdue: DEFAULT_REMINDER_FILTERS.overdue,
       carryForward: "any",
       promise: "skip_open",
-      quote: "selected",
+      quote: DEFAULT_REMINDER_FILTERS.quote,
       includeStudentIds: [],
       excludeStudentIds: [],
       lateFeeSource: "custom",
@@ -181,10 +184,13 @@ describe("parseReminderFilters", () => {
       minTotalPaid: null,
       installmentMatch: "all",
       lateFee: "any",
-      overdue: "any",
+      // Read off the shared default rather than written out. These two moved on
+      // 2026-09-10 (a reminder is about money that is LATE), and a literal here
+      // is a copy of the rule that can disagree with it.
+      overdue: DEFAULT_REMINDER_FILTERS.overdue,
       carryForward: "any",
       promise: "skip_open",
-      quote: "selected",
+      quote: DEFAULT_REMINDER_FILTERS.quote,
       includeStudentIds: [],
       excludeStudentIds: [],
       lateFeeSource: "custom",

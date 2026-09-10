@@ -300,8 +300,14 @@ describe("the fact-gap refusal says what is wrong and how to avoid it", () => {
     // The consequence is NOT "goes out blank" — an empty template parameter is
     // refused by WhatsApp, so the message does not go out at all.
     expect(finding!.message).toContain("refuses");
-    // And a way out the office can actually take.
-    expect(finding!.message).toContain("Promised, due now");
+    // And a way out the office can actually take. It names a CONTROL now, not
+    // a chip: the "Promised, due now" and "Promise broken" chips are gone —
+    // there are no promises on record for the live session, so neither could
+    // ever match a family — and the promise filter lives under Fine-tune.
+    // Advice that tells the office to click something that is not on the screen
+    // is worse than no advice.
+    expect(finding!.message).toContain("Promise to pay");
+    expect(finding!.message).not.toContain("Promised, due now");
   });
 
   it("separates a nil figure from a message that will not send", () => {

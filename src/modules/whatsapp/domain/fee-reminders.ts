@@ -140,16 +140,19 @@ export type ReminderFilters = AudienceFilters & {
 /**
  * What a screen with nothing in its query string opens on.
  *
- * The audience half is `DEFAULT_SITUATION`'s own preset, so a bare
- * `/protected/reminders` still shows exactly the families it always showed.
- * The notice no longer GATES that list — it just supplies the opening values,
- * every one of which the office can now change.
+ * The audience half is the **Overdue** shortcut, NOT `DEFAULT_SITUATION`'s
+ * preset. That is the point of the split finally showing up in the default: the
+ * opening template is "Fee due" because it is the commonest wording, and the
+ * opening audience is "everyone past a due date" because that is who a reminder
+ * is for. Deriving the second from the first is what made the two feel welded
+ * together, and it opened the screen on a narrower list (families who have paid
+ * nothing at all) than the office almost always wanted.
  */
 export const DEFAULT_REMINDER_FILTERS: Omit<
   ReminderFilters,
   "sessionLabel" | "lastDate" | "lateFeeAmount"
 > = {
-  ...presetFor(DEFAULT_SITUATION, {
+  ...shortcutFilters("overdue", {
     activeInstallments: TEMPLATE_INSTALLMENTS,
     nextInstallment: null,
   }),
@@ -232,19 +235,33 @@ export function parseReminderFilters(
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
   };
 
-  const situation = isNoticeSituation(read("situation"))
-    ? (read("situation") as NoticeSituation)
-    : DEFAULT_SITUATION;
+  const namedSituation = isNoticeSituation(read("situation"));
+  const situation = namedSituation ? (read("situation") as NoticeSituation) : DEFAULT_SITUATION;
 
-  // What this notice's audience used to be, and therefore what every filter
-  // opens on before the office touches it. An explicit query parameter always
-  // wins — that is the whole point of the split — but a link written before
-  // this change carries none of them and must still name the same families.
-  const preset = presetFor(situation, {
+  const presetContext = {
     activeInstallments:
       defaultInstallments.length > 0 ? defaultInstallments : TEMPLATE_INSTALLMENTS,
     nextInstallment: options.nextInstallment ?? null,
-  });
+  };
+
+  /**
+   * What every filter opens on before the office touches it. An explicit query
+   * parameter always wins — that is the whole point of the split — but a link
+   * written before it carries none of them and must still name the same
+   * families.
+   *
+   * Which preset depends on whether a notice was actually NAMED. A bookmark
+   * saying `?situation=overdue_final` is honoured with that notice's own
+   * audience. A bare `/protected/reminders` is not a link at all, so it opens
+   * on the default AUDIENCE rather than on the default notice's audience —
+   * otherwise the screen greeted the office with `fee_due`'s preset, which is
+   * families who have paid nothing whatsoever (132 today) rather than everyone
+   * who is late (345). The commonest wording and the commonest audience are
+   * different questions, which is the whole reason they were separated.
+   */
+  const preset = namedSituation
+    ? presetFor(situation, presetContext)
+    : shortcutFilters("overdue", presetContext);
 
   /**
    * An ABSENT key means "whatever the preset says". A key that is present but
@@ -949,8 +966,18 @@ export async function loadReminderAudience(
   let excludedByHand = 0;
   const today = istToday();
 
-  // The one installment the courtesy presets are about.
+  // The one installment the courtesy presets are about — window-gated, because
+  // whether a polite note is APPROPRIATE is a question about timing.
   const nextDue = calendar.next;
+  /**
+   * Which installment actually comes next, whatever the window says.
+   *
+   * What `quote: "next"` resolves against. Using `calendar.next` here made the
+   * "Not late yet" audience empty for about 320 days a year: with a 10-day
+   * window and installment 3 forty days out, `next` is null, the quoted amount
+   * was ₹0, and `minDueAmount: 1` then dropped every family in it.
+   */
+  const nextAhead = calendar.nextAhead;
 
   /**
    * What each preset needs to know about today, resolved once.
@@ -1000,7 +1027,13 @@ export async function loadReminderAudience(
     // The passed installments this family still owes FEES on, whatever the
     // late fee is doing. A waived late fee does not take a family off this
     // list — and a late fee with no fees behind it does not put them on it.
-    const overdueInstallments = calendar.passed.filter(
+    // `calendar.overdue` is STRICTLY past, not `calendar.passed`. Those differ
+    // by exactly the installment due today, and the ledger, Defaulters, the
+    // dashboard and the late-fee rule all agree today's row is not yet
+    // overdue — the flat late fee starts tomorrow. Reading `passed` here is
+    // what let this screen tell a parent they were late on the one day they
+    // were not.
+    const overdueInstallments = calendar.overdue.filter(
       (installment) => pendingFor(row, installment) > 0,
     );
     const overdueAmount = overdueInstallments.reduce(
@@ -1008,7 +1041,7 @@ export async function loadReminderAudience(
       0,
     );
 
-    const upcomingPending = nextDue ? pendingFor(row, nextDue.installmentNo) : 0;
+    const upcomingPending = nextAhead ? pendingFor(row, nextAhead.installmentNo) : 0;
 
     /**
      * Everything the filters and the templates can ask about this family, in
@@ -1032,7 +1065,7 @@ export async function loadReminderAudience(
       ledgerFeesPending: applied?.feesPending ?? 0,
       overdueInstallments,
       overdueAmount,
-      nextInstallmentNo: nextDue?.installmentNo ?? null,
+      nextInstallmentNo: nextAhead?.installmentNo ?? null,
       nextInstallmentPending: upcomingPending,
       balanceDue,
       prevYearBalance,
@@ -1148,7 +1181,14 @@ export async function loadReminderAudience(
     if (!matchesFilters && !namedByHand) {
       // Split so the sentence under the list can say WHICH filter did it. Below
       // the minimum is the one staff most often set by accident.
-      if (dueAmount < filters.minDueAmount) skipped.belowMinimum += 1;
+      //
+      // `dueAmount > 0` first, and it is not cosmetic. The default basis is now
+      // the OVERDUE figure, which is ₹0 for every family who owes nothing late
+      // — so without this guard each of them was reported as "below the minimum
+      // you set", and the office reads that as a threshold they got wrong. A
+      // family who owes nothing on the chosen basis is clear; "below minimum"
+      // is for a family who owes something, just less than was asked for.
+      if (dueAmount > 0 && dueAmount < filters.minDueAmount) skipped.belowMinimum += 1;
       else skipped.installmentsClear += 1;
       continue;
     }
@@ -1357,11 +1397,14 @@ async function loadAppliedLateFees(
     // Carry-forward rows carry a late-fee rate of 0 deliberately; one showing a
     // pending late fee would be a data fault, not an audience.
     if (row.is_carry_forward) continue;
-    // Only what the calendar agrees has passed. A late fee on an installment
-    // still ahead of its date would mean the two disagree, and the message must
-    // follow the date the parent can see.
+    // Only what the calendar agrees is OVERDUE — strictly past, matching
+    // `calendar.overdue` and the ledger. This is the second copy of that one
+    // boundary, and it moved from `> today` to `>= today` with the first: a
+    // late fee cannot exist on its own due date, because the flat charge starts
+    // the day after. In practice no such row is ever returned, which is exactly
+    // why this would have sat here disagreeing with the calendar unnoticed.
     const dueDate = String(row.due_date ?? "");
-    if (!dueDate || dueDate > today) continue;
+    if (!dueDate || dueDate >= today) continue;
 
     const installmentNo = Number(row.installment_no ?? 0);
     const lateFee = Number(row.late_fee_pending ?? 0);

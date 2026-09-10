@@ -367,6 +367,7 @@ export function NoticePicker({
                 <SelectNative
                   id="lateFeeBasis"
                   name="lateFeeBasis"
+                  aria-label="How the late fee applies"
                   defaultValue={filters.lateFeeBasis}
                   className="h-11 w-40 text-sm md:h-9"
                 >

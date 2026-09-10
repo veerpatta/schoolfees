@@ -90,7 +90,10 @@ describe("WhatsApp reminders on a phone", () => {
     // feature has shipped that bug once. Every form now renders ONE component
     // over ONE key list, and declares only what it owns.
     expect((read(PICKER).match(/<CarriedFilterFields/g) ?? []).length).toBe(1);
-    expect((read(AUDIENCE_BUILDER).match(/<CarriedFilterFields/g) ?? []).length).toBe(3);
+    // Two, not three: the filter panel used to render the same controls twice
+    // — a phone disclosure and a desk grid — and each copy needed its own
+    // hidden inputs. One filter form now, plus the add-a-student form.
+    expect((read(AUDIENCE_BUILDER).match(/<CarriedFilterFields/g) ?? []).length).toBe(2);
 
     // The send form too -- the action rebuilds the audience from what it posts.
     expect(read(SEND_PAGE)).toContain("sendFormFields={<CarriedFilterFields filters={filters} />}");
@@ -101,7 +104,7 @@ describe("WhatsApp reminders on a phone", () => {
     expect(read(AUDIENCE_BUILDER)).toContain("except={FILTER_FORM_KEYS}");
   });
 
-  it("shows every filter on every notice, and mounts the panel twice", () => {
+  it("shows every filter on every notice, from a single mount", () => {
     // The inverse of the rule this screen used to follow. `SITUATION_FILTERS`
     // HID the installment, paid-so-far and minimum controls on any notice whose
     // rule ignored them -- honest while the notice decided the audience, and a
@@ -123,17 +126,47 @@ describe("WhatsApp reminders on a phone", () => {
     ]) {
       expect(source).toContain(`name="${name}"`);
     }
-    // The three yes/no/either filters share one renderer, so their names reach
-    // the markup through it rather than as literals.
+    // The three yes/no/either filters are written out rather than sharing a
+    // `tri()` renderer: `overdue` needs its own option list now ("Overdue only"
+    // / "All open dues" / "Not due yet", the words the Defaulters screen uses),
+    // so a shared renderer would have had to take the options as an argument
+    // and stop being shared.
     for (const name of ["lateFee", "overdue", "carryForward"]) {
-      expect(source).toContain(`tri("${name}"`);
+      expect(source).toContain(`name="${name}"`);
     }
-    expect(source).toContain('name={key}');
+    expect(source).toContain("OVERDUE_OPTIONS.map");
 
-    // Collapsed behind a disclosure on a phone, the desk grid above md. Both
-    // sit in the DOM at every viewport, which is what `idPrefix` is for.
-    expect((source.match(/<FilterFields/g) ?? []).length).toBe(2);
-    expect(source).toContain('idPrefix="m-"');
+    // ONE mount of each group, which is the point.
+    //
+    // There were two mounts of one `FilterFields` — a phone `<details>` and a
+    // desk grid — so every control existed twice in the DOM and every
+    // `<Label htmlFor>` needed an `idPrefix` to avoid pointing at a duplicated
+    // id. Folding the RARE controls away instead of the whole panel makes the
+    // second copy unnecessary: one form serves every viewport, and there is no
+    // id to duplicate. `idPrefix` must not come back.
+    expect((source.match(/<PrimaryFields/g) ?? []).length).toBe(1);
+    expect((source.match(/<FineTuneFields/g) ?? []).length).toBe(1);
+    expect(source).not.toMatch(/idPrefix[=:,]/);
+    expect(source).not.toMatch(/idPrefix}/);
+
+    // Folded away, never removed. A collapsed `<details>` still submits the
+    // inputs inside it, which is what lets the panel hide nine controls without
+    // a second form or a byte of client state.
+    expect(source).toContain("Fine-tune");
+  });
+
+  it("gives the late-fee basis select an accessible name of its own", () => {
+    // The visible "Late fee on the message" label is bound by `htmlFor` to the
+    // AMOUNT input beside it, and one label names one control — so this select
+    // had no accessible name and axe reported `select-name` at CRITICAL on
+    // /protected/reminders, at both viewports, the first time the screen was
+    // swept. A screen reader announced "combo box" and nothing else.
+    const picker = read(PICKER);
+    const select = picker.slice(
+      picker.indexOf('id="lateFeeBasis"'),
+      picker.indexOf('id="lateFeeBasis"') + 300,
+    );
+    expect(select).toContain('aria-label="How the late fee applies"');
   });
 
   it("keeps the template from deciding who is on the list", () => {

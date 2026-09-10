@@ -94,16 +94,14 @@ function audience(overrides: Partial<ReminderAudience> = {}): ReminderAudience {
     unreachable: [],
     paused: [],
     classOptions: [],
+    // The five audience shortcuts. Irrelevant to a collection list — it reads
+    // candidates, not chip counts — but the type demands every key.
     counts: {
-      everyone: 0,
-      nothing_paid: 0,
-      part_paid: 0,
       overdue: 0,
+      nothing_paid: 0,
       late_fee: 0,
-      not_due_yet: 0,
-      promised_now: 0,
-      promise_broken: 0,
       last_session: 0,
+      not_due_yet: 0,
     },
     noticeGaps: {
       upcoming: 0,
