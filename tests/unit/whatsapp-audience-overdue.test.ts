@@ -123,6 +123,15 @@ describe("the audience shortcuts", () => {
 });
 
 describe("describeAudience", () => {
+  /**
+   * The flat sentence. `describeAudience` returns PARTS now — a phone renders
+   * them at three weights, because as one string this measured six lines and
+   * 124px of uniform semibold at 390px — and `full` is the one composition of
+   * them, so these assertions still exercise the real text.
+   */
+  const say = (...args: Parameters<typeof describeAudience>) =>
+    describeAudience(...args).full;
+
   const filters = (override: Partial<AudienceFilters> = {}): AudienceFilters =>
     ({
       ...shortcutFilters("overdue", CONTEXT),
@@ -134,25 +143,33 @@ describe("describeAudience", () => {
     }) as AudienceFilters;
 
   it("states the live default in words, with the real figures", () => {
-    const sentence = describeAudience(filters(), { count: 345, quotedTotal: 2785517 });
+    const parts = describeAudience(filters(), { count: 345, quotedTotal: 2785517 });
 
-    expect(sentence).toContain("Sending to 345 families whose fees are past a due date.");
-    expect(sentence).toContain("Asking for ₹27,85,517 — the overdue amount only.");
+    // The two figures a person checks, in one glance.
+    expect(parts.headline).toBe("345 families · ₹27,85,517");
+    // No count in the claim — the headline has it, and the two render one
+    // under the other. It printed "345 families" twice before.
+    expect(parts.claim).toBe("whose fees are past a due date, for the overdue amount only.");
+    expect(parts.claim).not.toContain("345");
+    const sentence = parts.full;
+    expect(sentence).toContain("Sending to 345 families whose fees are past a due date");
+    expect(sentence).toContain("the overdue amount only");
     // Nothing is held and nothing is narrowed, so no clause claims otherwise.
     expect(sentence).not.toContain("held back");
     expect(sentence).not.toContain("installment");
   });
 
   it("says one family, not 1 families", () => {
-    expect(describeAudience(filters(), { count: 1, quotedTotal: 5000 })).toContain(
-      "Sending to 1 family",
+    expect(say(filters(), { count: 1, quotedTotal: 5000 })).toContain("Sending to 1 family");
+    expect(describeAudience(filters(), { count: 1, quotedTotal: 5000 }).headline).toBe(
+      "1 family · ₹5,000",
     );
   });
 
   it("names the whole-year ask as what it is", () => {
     // The office should never reach this basis by accident, so when they do
     // choose it the sentence says out loud what is inside the figure.
-    const sentence = describeAudience(filters({ overdue: "any", quote: "session" }), {
+    const sentence = say(filters({ overdue: "any", quote: "session" }), {
       count: 479,
       quotedTotal: 8559066,
     });
@@ -170,11 +187,11 @@ describe("describeAudience", () => {
     // Nothing held: no clause at all. There are zero promises on the live
     // session, so a standing "0 held back" would be noise on every load.
     expect(
-      describeAudience(filters(), { count: 345, quotedTotal: 1, heldByPromise: 0, heldByCadence: 0 }),
+      say(filters(), { count: 345, quotedTotal: 1, heldByPromise: 0, heldByCadence: 0 }),
     ).not.toContain("held back");
 
     // Cadence alone — the live case, 292 sent against a chip reading 298.
-    const cadence = describeAudience(filters(), {
+    const cadence = say(filters(), {
       count: 292,
       quotedTotal: 2295084,
       heldByCadence: 6,
@@ -185,7 +202,7 @@ describe("describeAudience", () => {
     expect(cadence).not.toContain("6 by reminder cadence");
 
     // Both reasons, summed and itemised.
-    const both = describeAudience(filters(), {
+    const both = say(filters(), {
       count: 12,
       quotedTotal: 1,
       heldByPromise: 3,
@@ -198,7 +215,7 @@ describe("describeAudience", () => {
     // A promise hold-back is only real under `skip_open`; on any other promise
     // value the office asked for those families deliberately.
     expect(
-      describeAudience(filters({ promise: "any" }), {
+      say(filters({ promise: "any" }), {
         count: 12,
         quotedTotal: 1,
         heldByPromise: 3,
@@ -207,7 +224,7 @@ describe("describeAudience", () => {
   });
 
   it("lists only the narrowings that are actually set", () => {
-    const sentence = describeAudience(
+    const sentence = say(
       filters({ installments: [1, 2], minDueAmount: 500, includeStudentIds: ["a", "b"] }),
       { count: 9, quotedTotal: 40000, className: "Class 5" },
     );
@@ -231,7 +248,7 @@ describe("describeAudience", () => {
      * narrow one, and the sentence written to explain the number is what hides
      * it. Every constraint that changes who is messaged must appear.
      */
-    const wide = describeAudience(filters({ overdue: "any", quote: "session", maxTotalPaid: 1100 }), {
+    const wide = say(filters({ overdue: "any", quote: "session", maxTotalPaid: 1100 }), {
       count: 96,
       quotedTotal: 1965500,
     });
@@ -242,11 +259,11 @@ describe("describeAudience", () => {
     // And on every other head clause too, not just the one it used to live on.
     for (const overdue of ["yes", "no", "any"] as const) {
       expect(
-        describeAudience(filters({ overdue, maxTotalPaid: 5000 }), { count: 3, quotedTotal: 1 }),
+        say(filters({ overdue, maxTotalPaid: 5000 }), { count: 3, quotedTotal: 1 }),
         overdue,
       ).toMatch(/paid at most ₹5,000/i);
       expect(
-        describeAudience(filters({ overdue, minTotalPaid: 1100 }), { count: 3, quotedTotal: 1 }),
+        say(filters({ overdue, minTotalPaid: 1100 }), { count: 3, quotedTotal: 1 }),
         overdue,
       ).toMatch(/have paid something already/i);
     }
@@ -255,7 +272,7 @@ describe("describeAudience", () => {
   it("formats every figure through the one money helper", () => {
     // `quality:budgets` fails on a hand-written ₹ anywhere else, and a sentence
     // quoting a bare "1234567" is its own bug.
-    const sentence = describeAudience(filters(), { count: 2, quotedTotal: 1234567 });
+    const sentence = say(filters(), { count: 2, quotedTotal: 1234567 });
     expect(sentence).toContain("₹12,34,567");
     expect(sentence).not.toContain("1234567");
   });

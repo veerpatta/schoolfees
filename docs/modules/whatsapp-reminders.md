@@ -638,6 +638,54 @@ it, so Fine-tune keeps its values through Apply with no hidden mirror and no
 client state — which is also how the panel stays a server component under a
 ceiling that only ratchets down.
 
+#### On a phone, measured
+
+Every decision below came from measuring at 390px, where this screen's card has
+**298px of inner width**. The starting state hid most of both chip rows behind
+`no-scrollbar`, which exists because Windows Chrome paints a permanent grey bar
+that reads as broken chrome — and which also removed the only cue that anything
+was off-screen:
+
+| row | row width | hidden | reachable |
+|---|---|---|---|
+| 12 templates | 1571px | 1265px | ~3 of 12 |
+| 5 audiences | 759px | 453px | 2 of 5 |
+
+**The two rows are fixed in opposite directions, and the reason is how often
+each is touched — not how many chips it holds.**
+
+- **The five audience chips WRAP, at every width.** They are the control the
+  office retunes on every run, and five counts are only comparable if all five
+  are on screen. Costs one extra row.
+- **The twelve template chips stay on one row**, with `snap-x` so a flick lands
+  on a chip rather than mid-label, a `from-card` gradient at the right edge, and
+  a "Swipe for all 12 messages" line underneath. Wrapping them was tried and
+  measured: six rows and **304px**, 35% of an 861px card, spent on the control
+  changed least — and it pushed "Who gets it" from 890px to **1156px** on an
+  844px screen. One tap is preserved; what `no-scrollbar` removed is put back.
+
+Three more, all measured rather than assumed:
+
+- **Chips are 44px on a phone** (`h-11 md:h-9`). The panel's own rule is "44px
+  on a phone, the desk's own 36 above md"; chips were the single exception at a
+  flat 36px.
+- **Apply and Add needed `max-md:h-11`, not `h-11`.** The button primitive
+  carries a compound variant, `{ size: "sm", class: "max-md:h-10" }`, which a
+  bare `h-11` loses to inside the media query — so both measured 40px next to
+  44px selects. Overriding at the same variant level is what actually wins.
+- **The audience sentence is three weights, not one string.** As one paragraph
+  it measured six lines and 124px of uniform semibold, and it is both the first
+  thing on the card and the last thing read before a few hundred billed messages
+  go out. `describeAudience` returns `headline` (the two figures, for one
+  glance), `claim` (what they mean, with no count in it because the headline has
+  it) and `notes` (narrowings and hold-backs). `full` is the flat composition,
+  so there is still exactly one wording. One `aria-live` wraps all three, so a
+  screen reader hears one update rather than three.
+
+Result at 390px: nothing hidden horizontally, no interactive target under 44px,
+zero horizontal overflow, and "Who gets it" at 923px instead of 1156px.
+`tests/ui/whatsapp-reminders-mobile.test.ts` pins each of these.
+
 ### The late fee has two modes
 
 `LateFeeSource` in `domain/late-fee.ts`, since 2026-09-10. Which one you got

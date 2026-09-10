@@ -79,6 +79,16 @@ Fee reminders and the message templates behind them.
   can never make a family overdue. `promise_due`/`promise_lapsed` would drop a
   family who promised about a row not yet due. `exam_clearance` would defeat
   itself. None of the three fails loudly — the audience just comes back smaller.
+- **The two chip rows wrap in OPPOSITE directions, and it is measured, not
+  taste.** At 390px this card has 298px of inner width. The five AUDIENCE chips
+  wrap at every width, because the office retunes them on every run and five
+  counts are only comparable when all five are on screen. The twelve TEMPLATE
+  chips stay on one snapping row with an edge fade and a "swipe for all 12"
+  line, because wrapping them measured six rows and 304px — 35% of the card —
+  and pushed "Who gets it" from 890px to 1156px on an 844px screen. Both were
+  scrolling with `no-scrollbar` and no affordance until 2026-09-10, which hid
+  1265px and 453px of them respectively. Chips are `h-11 md:h-9`: the panel's
+  rule is 44px on a phone and chips were the one exception.
 - **One sentence describes the list.** `describeAudience` replaced two
   hand-rolled summaries of the same filters, in two files, either of which could
   drift from the other. Do not add a second.

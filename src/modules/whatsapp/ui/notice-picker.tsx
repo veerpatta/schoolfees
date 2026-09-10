@@ -93,7 +93,11 @@ function hrefWith(
 }
 
 const CHIP_BASE =
-  "focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[12.5px] font-bold transition-colors";
+  // 44px on a phone, the desk's own 36 above md — the same rule as every other
+  // control on this screen, which chips were quietly exempt from at 36px. The
+  // tighter horizontal padding on a phone is what lets four fit per row rather
+  // than three, so wrapping twelve of them costs three rows instead of four.
+  "focus-ring inline-flex h-11 shrink-0 snap-start items-center gap-1 rounded-full border px-3 text-[12px] font-bold transition-colors md:h-9 md:gap-1.5 md:px-4 md:text-[12.5px]";
 
 export function NoticePicker({
   filters,
@@ -188,13 +192,28 @@ export function NoticePicker({
         </p>
       </div>
 
-      {/* One line on a 390px screen: scroll rather than wrap, so the row never
-          reflows under a thumb mid-tap. `no-scrollbar` because Windows Chrome
-          paints a persistent grey bar under an `overflow-x-auto` row, which
-          reads as broken chrome rather than as an affordance. Above `md` there
-          is room to wrap, so the overflow is dropped entirely rather than
-          hidden. */}
-      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+      {/* One SNAPPING row on a phone, with an edge fade and a count; wrapped
+          above md.
+
+          All three arrangements were measured at 390px, where the card's inner
+          width is 298px and these twelve labels run 68-133px wide:
+
+          - Scrolling, `no-scrollbar`, no affordance (until 2026-09-10): 1571px
+            of row in a 298px viewport, so **nine of the twelve messages sat
+            off-screen and nothing on the page said they existed**.
+          - Wrapped: everything visible, but **six rows and 304px** — 35% of an
+            861px card, spent on the control the office changes least, which
+            pushed "Who gets it" to 1156px on an 844px screen.
+          - This: 44px, still one tap, and nothing hidden unknowingly. `snap-x`
+            so a flick lands on a chip rather than mid-label, plus the fade and
+            the count line below, which is the affordance `no-scrollbar` took
+            away.
+
+          The audience chips next door WRAP instead, and the difference is the
+          point: five chips the office retunes every run must all be visible at
+          once; twelve messages picked once need only be reachable. */}
+      <div className="relative md:static">
+        <div className="no-scrollbar -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-0.5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
         {NOTICE_SITUATIONS.map((entry) => {
           const active = entry.value === filters.situation;
           const gap = noticeGaps[entry.value] ?? 0;
@@ -260,7 +279,17 @@ export function NoticePicker({
             </Link>
           );
         })}
+        </div>
+        {/* The affordance, phone only: `from-card` matches the card it sits on,
+            so the last chip fades out rather than being cut flat. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute right-0 top-0 h-full w-10 bg-gradient-to-l from-card to-transparent md:hidden"
+        />
       </div>
+      <p className="text-[10.5px] leading-tight text-muted-foreground md:hidden">
+        Swipe for all {NOTICE_SITUATIONS.length} messages.
+      </p>
 
       <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
         <div className="flex items-center gap-1 rounded-[14px] bg-surface-2 p-1">

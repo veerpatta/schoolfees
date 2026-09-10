@@ -710,6 +710,30 @@ export function matchingShortcut(
  * they have built. Clauses that say nothing are omitted entirely — with no
  * promises on record, "0 held back" would be noise on every single load.
  */
+/**
+ * The audience, in parts a screen can lay out.
+ *
+ * `headline` is the two numbers, `claim` is what they mean, `notes` is
+ * everything that narrows or holds back. A phone renders them at three
+ * different weights; anything that just wants the text uses `full`.
+ */
+export type AudienceSentence = {
+  /** "292 families · ₹22,95,084" — the two figures, for one glance. */
+  headline: string;
+  /**
+   * What the headline's numbers mean — "whose fees are past a due date, for the
+   * overdue amount only."
+   *
+   * Deliberately has no count in it: it is rendered directly under `headline`
+   * and continues the same sentence.
+   */
+  claim: string;
+  /** Narrowings and hold-backs, each already a full sentence. Often empty. */
+  notes: string[];
+  /** Every part joined, in reading order. */
+  full: string;
+};
+
 export function describeAudience(
   filters: AudienceFilters,
   totals: {
@@ -734,7 +758,7 @@ export function describeAudience(
     /** A class label, when one is picked — the caller holds the lookup. */
     className?: string | null;
   },
-): string {
+): AudienceSentence {
   const families = totals.count === 1 ? "1 family" : `${totals.count} families`;
 
   // WHO. The strongest true thing first, because that is what a person reads.
@@ -751,7 +775,7 @@ export function describeAudience(
     who = "with fees still open, overdue or not";
   }
 
-  const sentences = [`Sending to ${families} ${who}.`];
+  const sentences: string[] = [];
 
   // HOW MUCH. Named, so nobody has to open a dropdown to find out what the
   // parent will be asked for.
@@ -763,9 +787,11 @@ export function describeAudience(
     prev_year: "last session's carried-forward balance",
     session: "the whole session balance, including what is not due yet",
   };
-  sentences.push(
-    `Asking for ${formatInr(totals.quotedTotal)} — ${asking[filters.quote]}.`,
-  );
+  // No count in here: `headline` already carries it, and rendered one under
+  // the other they read as one thought — "292 families · ₹22,95,084" then
+  // "whose fees are past a due date". Repeating it printed "292 families"
+  // twice, two lines apart.
+  const claim = `${who}, for ${asking[filters.quote]}.`;
 
   // NARROWINGS, only the ones actually set.
   const narrowed: string[] = [];
@@ -840,7 +866,28 @@ export function describeAudience(
     sentences.push(`${who} held back ${why} — on the chip above, not in this send.`);
   }
 
-  return sentences.join(" ");
+  /**
+   * Four parts rather than one string, because at 390px one string is a wall.
+   *
+   * Measured: six lines and 124px of uniform 12.5px semibold, which is the
+   * first thing on the card and the thing a person reads to decide whether to
+   * send a few hundred billed messages. Split, the two figures a person
+   * actually checks land in one glance and the qualifiers stop competing with
+   * them. `full` is kept for a caller that wants the flat sentence and for the
+   * tests, so there is still exactly one composition of this text.
+   */
+  const headline = `${families} · ${formatInr(totals.quotedTotal)}`;
+  return {
+    headline,
+    claim,
+    notes: sentences,
+    full: [
+      `Sending to ${families} ${claim}`,
+      `Asking for ${formatInr(totals.quotedTotal)}.`,
+      ...sentences,
+    ].join(" "),
+  };
+
 }
 
 /** A comma list of ids out of the query string, deduped and trimmed. */

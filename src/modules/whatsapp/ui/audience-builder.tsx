@@ -464,20 +464,43 @@ export function AudienceBuilder({
 
       {/* ------------------------------------------------------- the sentence */}
       {/* The answer to "who is eligible", in words, above the controls that
-          decide it. This is the line that replaced `Inst 1+2 all · paid ≤ 1100
-          · overdue yes`. */}
-      <p
+          decide it — replacing `Inst 1+2 all · paid ≤ 1100 · overdue yes`.
+
+          Three weights, not one. As a single string this measured six lines and
+          124px of uniform semibold at 390px, and it is both the first thing on
+          the card and what a person reads before sending a few hundred billed
+          messages. The two figures they actually check now land in one glance;
+          the qualifiers stay legible without competing.
+
+          `aria-live` sits on the wrapper so a screen reader hears the whole
+          thing as one update rather than three. */}
+      <div
         aria-live="polite"
-        className="rounded-lg border border-accent/25 bg-accent/[0.06] px-3 py-2.5 text-[12.5px] font-semibold leading-relaxed text-foreground"
+        className="flex flex-col gap-1 rounded-lg border border-accent/25 bg-accent/[0.06] px-3 py-2.5"
       >
-        {sentence}
-      </p>
+        <p className="text-[15px] font-extrabold leading-tight tracking-tight text-foreground tabular-nums md:text-[14px]">
+          {sentence.headline}
+        </p>
+        <p className="text-[12.5px] font-semibold leading-snug text-foreground">
+          {sentence.claim}
+        </p>
+        {sentence.notes.length > 0 ? (
+          <p className="text-[11.5px] leading-snug text-muted-foreground">
+            {sentence.notes.join(" ")}
+          </p>
+        ) : null}
+      </div>
 
       {/* --------------------------------------------------- audience shortcuts */}
-      {/* Five, in escalation order, named for WHO they describe. `no-scrollbar`
-          because Windows Chrome paints a persistent grey bar under an
-          `overflow-x-auto` row; above `md` it wraps instead. */}
-      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+      {/* Five, in escalation order, named for WHO they describe — and WRAPPED,
+          at every width.
+          
+          These are the control the office touches on every run, and at 390px
+          the row measured 759px inside a 306px viewport: three of the five sat
+          off-screen behind a scrollbar that `no-scrollbar` was hiding on
+          purpose. Wrapping costs one extra row and makes the whole audience
+          visible without a horizontal drag. */}
+      <div className="flex flex-wrap gap-2">
         {AUDIENCE_SHORTCUTS.map((entry) => {
           const active = entry.key === activeShortcut;
           const count = audience.counts[entry.key] ?? 0;
@@ -490,7 +513,9 @@ export function AudienceBuilder({
               title={entry.hint}
               aria-current={active ? "true" : undefined}
               className={cn(
-                "focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[12px] font-bold transition-colors",
+                // 44px on a phone like every other control here; chips were
+                // the one exception at 36px.
+                "focus-ring inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[12px] font-bold transition-colors md:h-9",
                 active
                   ? "border-accent bg-accent/12 text-foreground"
                   : "border-border bg-surface-2 text-foreground hover:border-border-strong",
@@ -516,7 +541,7 @@ export function AudienceBuilder({
         {/* Nothing matches, so the office narrowed it by hand. Saying so beats
             leaving every chip unselected for no visible reason. */}
         {activeShortcut === null ? (
-          <span className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-accent bg-accent/12 px-3.5 text-[12px] font-bold text-foreground">
+          <span className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-accent bg-accent/12 px-3.5 text-[12px] font-bold text-foreground md:h-9">
             Custom
             <span className="tabular-nums text-[11px] font-extrabold">
               {audience.candidates.length}
@@ -558,7 +583,12 @@ export function AudienceBuilder({
         </details>
 
         <div className="flex items-center justify-end">
-          <Button type="submit" variant="primary" size="sm" className="h-11 px-6 md:h-9">
+          {/* `max-md:h-11`, not `h-11`. The button primitive carries a compound
+              variant — `{ size: "sm", class: "max-md:h-10" }` — and a bare
+              `h-11` loses to it inside the media query, so this measured 40px
+              at 390px while every select beside it was 44. Overriding at the
+              same variant level is what actually wins. */}
+          <Button type="submit" variant="primary" size="sm" className="max-md:h-11 px-6 md:h-9">
             Apply
           </Button>
         </div>
@@ -608,10 +638,11 @@ export function AudienceBuilder({
             </div>
             {/* A server action, so the tap has to say it landed — this form
                 navigates, and on a phone a silent 400ms is a second tap. */}
+            {/* `max-md:h-11` for the same reason as Apply above. */}
             <PendingSubmitButton
               variant="outline"
               size="sm"
-              className="h-11 px-4 md:h-9"
+              className="max-md:h-11 px-4 md:h-9"
               pendingLabel="Finding…"
             >
               <Plus className="size-4" aria-hidden="true" />
