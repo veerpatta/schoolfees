@@ -3,6 +3,8 @@ import "server-only";
 import {
   DEFAULT_LATE_FEE_BASIS,
   isLateFeeBasis,
+  isLateFeeSource,
+  type LateFeeSource,
   type LateFeeBasis,
 } from "@/modules/whatsapp/domain/late-fee";
 import {
@@ -39,6 +41,19 @@ export type SavedCampaign = {
   lastDate: string | null;
   lateFeeAmount: number;
   lateFeeBasis: LateFeeBasis;
+  /**
+   * Which late-fee mode the campaign was saved in — see `LateFeeSource`.
+   *
+   * Lives in the `filters` jsonb rather than its own column, because it needs
+   * no migration and the column is already a free-form bag. NULL is a campaign
+   * saved before the two modes existed, and means "whatever this template did
+   * then", which is exactly what `parseReminderFilters` falls back to.
+   *
+   * Not storing it was a real bug for a day: a waiver campaign saved with a
+   * custom ₹4,000 replayed by the cron quoted the LEDGER instead, because the
+   * mode never left the screen.
+   */
+  lateFeeSource: LateFeeSource | null;
   archivedAt: string | null;
   createdAt: string;
   /**
@@ -108,6 +123,7 @@ function toCampaign(row: any): SavedCampaign {
     lastDate: row.last_date ? String(row.last_date) : null,
       lateFeeAmount: Number(row.late_fee_amount ?? 0),
     lateFeeBasis: isLateFeeBasis(row.late_fee_basis) ? row.late_fee_basis : DEFAULT_LATE_FEE_BASIS,
+    lateFeeSource: isLateFeeSource(raw.lateFeeSource) ? raw.lateFeeSource : null,
     archivedAt: row.archived_at ? String(row.archived_at) : null,
     createdAt: String(row.created_at),
     schedule: row.schedule ?? null,
@@ -154,6 +170,8 @@ export type CampaignInput = {
   lastDate: string | null;
   lateFeeAmount: number;
   lateFeeBasis: LateFeeBasis;
+  /** Omitted keeps the campaign on whatever its template did before the two modes. */
+  lateFeeSource?: LateFeeSource | null;
   /**
    * The parsed schedule, or null for a campaign that only ever runs by hand.
    *
@@ -174,7 +192,11 @@ export async function saveCampaign(
     name: input.name,
     situation: input.situation,
     language: input.language,
-    filters: input.filters,
+    // The mode rides in the same jsonb — no column, no migration, and
+    // `savedAudienceFrom` ignores the extra key when reading the audience back.
+    filters: input.lateFeeSource
+      ? { ...input.filters, lateFeeSource: input.lateFeeSource }
+      : input.filters,
     last_date: input.lastDate,
     late_fee_amount: input.lateFeeAmount,
     late_fee_basis: input.lateFeeBasis,

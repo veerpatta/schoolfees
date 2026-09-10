@@ -456,13 +456,13 @@ export const NOTICE_FACT_CONSEQUENCE: Record<
   },
 };
 
-/** Every fact, for a caller that has to count them one by one. */
-export const NOTICE_FACT_KEYS = [
-  "late_fee",
-  "promise",
-  "prev_year",
-  "amount",
-] as const satisfies readonly NoticeFact[];
+/**
+ * Every fact, for a caller that has to count them one by one.
+ *
+ * DERIVED from the label table rather than hand-written, so adding a fact
+ * cannot leave a caller silently counting one fewer than exists.
+ */
+export const NOTICE_FACT_KEYS = Object.keys(NOTICE_FACT_LABELS) as NoticeFact[];
 
 /** What each template's slots need from the family reading it. */
 export const NOTICE_FACTS: Record<NoticeSituation, readonly NoticeFact[]> = {

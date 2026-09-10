@@ -169,6 +169,7 @@ export async function GET(request: Request) {
         lastDate: saved.lastDate ? formatDdMmYyyy(saved.lastDate) : "",
         lateFeeAmount: String(saved.lateFeeAmount),
         lateFeeBasis: saved.lateFeeBasis,
+        ...(saved.lateFeeSource ? { lateFeeSource: saved.lateFeeSource } : {}),
       });
 
       const filters = parseReminderFilters(

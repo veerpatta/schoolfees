@@ -1313,6 +1313,16 @@ function lateFeePhraseFor(subject: NoticeSubject, settings: NoticeSettings): str
     return lateFeePhrase(settings.lateFeeAmount, settings.lateFeeBasis, settings.language);
   }
 
+  // A carry-forward balance NEVER accrues a late fee — those rows carry a rate
+  // of 0 deliberately — so the honest ledger answer here is "not charged", and
+  // it is what Meta approved this template's sample as ("Not applicable on this
+  // amount"). Quoting the policy rate would threaten a charge the ledger will
+  // never make, which is the case `describeLateFeeDrift` used to warn about and
+  // can no longer see: it returns early in ledger mode, because nothing is typed.
+  if (settings.situation === "prevyear") {
+    return lateFeePhrase(0, "none", settings.language);
+  }
+
   const charged = subject.lateFeeApplied ?? 0;
   if (charged > 0) return lateFeePhrase(charged, "flat", settings.language);
 

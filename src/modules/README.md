@@ -24,7 +24,7 @@ what must hold, and what must never happen.
 | [`students`](students/README.md) | The student master. With Fee Setup, one of the two sources of truth. | /protected/students |
 | [`system-sync`](system-sync/README.md) | Cache invalidation and financial revalidation. Small, and every money path depends on it. | — |
 | [`transactions`](transactions/README.md) | The read-only financial record centre. | /protected/transactions |
-| [`whatsapp`](whatsapp/README.md) | Fee reminders and the message templates behind them. | /protected/admin-tools/whatsapp-templates · .../whatsapp-reminders |
+| [`whatsapp`](whatsapp/README.md) | Fee reminders and the message templates behind them. | /protected/reminders (+ campaigns, runs, lists) · /protected/admin-tools/whatsapp-templates |
 
 ## The shape
 

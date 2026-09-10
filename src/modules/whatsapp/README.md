@@ -5,7 +5,7 @@ Fee reminders and the message templates behind them.
 | | |
 |---|---|
 | Route | /protected/reminders (+ campaigns, runs) · /protected/admin-tools/whatsapp-templates |
-| Files | 19 domain · 10 data · 15 ui |
+| Files | 20 domain · 10 data · 15 ui |
 
 ## Owns
 

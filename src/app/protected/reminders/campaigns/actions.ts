@@ -20,6 +20,7 @@ import {
 import {
   DEFAULT_LATE_FEE_BASIS,
   isLateFeeBasis,
+  isLateFeeSource,
   type LateFeeBasis,
 } from "@/modules/whatsapp/domain/late-fee";
 import { savedAudienceFrom } from "@/modules/whatsapp/domain/audience";
@@ -104,6 +105,12 @@ export async function saveCampaignAction(
   // Stored as ISO so Postgres can hold it as a date; the screen formats it back.
   const lastDate = isoFromDdMmYyyy(String(formData.get("lastDate") ?? ""));
 
+  // Which late-fee mode the office was in when they saved. Without it a waiver
+  // campaign saved with a custom amount replays through the cron quoting the
+  // LEDGER instead — the mode never leaves the screen.
+  const rawLateFeeSource = formData.get("lateFeeSource");
+  const lateFeeSource = isLateFeeSource(rawLateFeeSource) ? rawLateFeeSource : null;
+
   let sessionLabel: string;
   try {
     sessionLabel = await resolveCurrentSessionLabel(supabase);
@@ -128,6 +135,7 @@ export async function saveCampaignAction(
         lastDate,
         lateFeeAmount: number("lateFeeAmount", 0),
         lateFeeBasis: (isLateFeeBasis(rawBasis) ? rawBasis : DEFAULT_LATE_FEE_BASIS) as LateFeeBasis,
+        lateFeeSource,
         schedule: scheduleFromForm(formData),
       },
       (staff?.id as string | undefined) ?? null,

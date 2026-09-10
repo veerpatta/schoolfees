@@ -685,6 +685,23 @@ describe("the two late-fee modes", () => {
     expect(values.lateFeePhrase).toContain("4,000");
   });
 
+  it("never threatens a late fee on a carry-forward balance, in either mode", () => {
+    // The ledger charges NOTHING on a carry-forward row — those carry a rate of
+    // 0 deliberately — and Meta approved this template's sample as "Not
+    // applicable on this amount". Ledger mode quoting the policy rate here
+    // would threaten a charge that can never happen, and the drift warning
+    // cannot see it: it returns early in ledger mode because nothing is typed.
+    const values = noticeValuesFrom(
+      { ...subject, lateFeeApplied: 0, prevYearBalance: 20000, prevSessionLabel: "2025-26" },
+      { ...settings, situation: "prevyear", lateFeeSource: "ledger" },
+    );
+
+    expect(values.lateFeePhrase).not.toContain("1,000");
+    expect(values.lateFeePhrase).not.toContain("4,000");
+    // The "not charged" wording, never an empty string — WhatsApp rejects those.
+    expect((values.lateFeePhrase ?? "").length).toBeGreaterThan(0);
+  });
+
   it("behaves exactly as before when no mode is given", () => {
     // Every pre-2026-09-10 link and saved campaign arrives without one.
     const ledgerQuoted = noticeValuesFrom(
