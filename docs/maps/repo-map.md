@@ -109,7 +109,7 @@ Surfaced because size is the thing a map can measure and a reader cannot.
 | 2007 | `src/modules/imports/data/queries.ts` |
 | 1931 | `src/modules/students/data/queries.ts` |
 | 1895 | `src/modules/transactions/ui/transactions-client-shell.tsx` |
-| 1804 | `src/modules/reports/data/queries.ts` |
+| 1892 | `src/modules/whatsapp/domain/fee-reminders.ts` |
 
 The ceilings that stop these growing live in
 `quality/office-quality-budgets.json`. They ratchet down, never up.

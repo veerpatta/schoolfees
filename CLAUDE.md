@@ -128,7 +128,7 @@ no discount at all. It fails quiet, not loud.
 
 ### Stack
 
-Next.js 16.2.12 App Router + TypeScript 5 (strict) + React 19.2.8, deployed to Vercel in the Mumbai region (`bom1`). Supabase (Postgres + Auth + RLS) as the database, also Mumbai. UI via shadcn/ui (Radix UI + Tailwind CSS 3.4). i18n via next-intl 4 (en / hi / hi-en). Errors via Sentry. Tests with Vitest 4.1.10. Path alias `@/*` maps to `./src` — and only there, so `@/` always means product source.
+Next.js 16.3.4 App Router + TypeScript 5 (strict) + React 19.2.8, deployed to Vercel in the Mumbai region (`bom1`). Supabase (Postgres + Auth + RLS) as the database, also Mumbai. UI via shadcn/ui (Radix UI + Tailwind CSS 3.4). i18n via next-intl 4 (en / hi / hi-en). Errors via Sentry. Tests with Vitest 4.1.10. Path alias `@/*` maps to `./src` — and only there, so `@/` always means product source.
 
 ### Source-of-Truth Rule
 
