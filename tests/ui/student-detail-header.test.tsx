@@ -43,6 +43,7 @@ const BASE_PROPS = {
   prevYearDuesAmount: 0,
   canPostPayments: true,
   canEditStudent: true,
+  canDownloadPhoto: true,
   canPrintReceipts: true,
   latestReceiptId: null,
   returnTo: "/protected/students",

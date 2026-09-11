@@ -147,6 +147,11 @@ Photographs and voice notes return a short-lived signed link by default; pass
 `format: "bytes"` for the file inline. Those links need no sign-in, so treat one
 as the file itself and keep it out of anywhere public.
 
+**A student photograph as bytes needs an editor role** — `students:write` or
+`students:edit_basic`, the same pair that lets somebody change the photo in the
+app. Everyone who may see a student can still ask for the link. The two are
+different acts: a link expires, and a copy inside a transcript does not.
+
 `get_receipt_pdf` returns the PDF as bytes. There is no download URL for it and
 there must not be: a receipt carries the child's name, father's name, phone and
 full fee position, which is precisely what the public verification page at

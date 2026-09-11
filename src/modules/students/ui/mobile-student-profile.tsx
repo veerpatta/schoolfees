@@ -39,6 +39,7 @@ export function MobileStudentProfile({
   canPostPayments,
   canShare,
   canEditStudent,
+  canDownloadPhoto,
   photoPath,
   isActive,
   returnTo,
@@ -59,6 +60,8 @@ export function MobileStudentProfile({
   canPostPayments: boolean;
   canShare: boolean;
   canEditStudent: boolean;
+  /** Required, not defaulted: a missing prop must not hand out a child photo. */
+  canDownloadPhoto: boolean;
   photoPath: string | null;
   isActive: boolean;
   returnTo: string;
@@ -98,6 +101,7 @@ export function MobileStudentProfile({
             admissionNo={admissionNo}
             photoPath={photoPath}
             canEditStudent={canEditStudent}
+            canDownloadPhoto={canDownloadPhoto}
             size="xl"
           />
           <div className="min-w-0 flex-1">

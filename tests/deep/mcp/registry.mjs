@@ -163,6 +163,11 @@ export const TOOLS = {
   // ── assets ─────────────────────────────────────────────────────────────
   get_student_photo: {
     requires: ["students:view"],
+    // Per-ARGUMENT, which `requires` cannot express: the tool stays registered
+    // for everyone who may see a student, and only the bytes format asks for
+    // the editor pair. Mirrored from workers/schoolfees-mcp/src/tools/assets.mjs
+    // and pinned by tests/unit/deep-harness-mirrors.test.ts.
+    argRequires: { format: { bytes: ["students:write", "students:edit_basic"] } },
     args: { admissionNo: "TEST-CL7-002", format: "link" },
     session: false,
   },

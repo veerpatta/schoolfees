@@ -32,6 +32,7 @@ const ACTIVITY_KIND_I18N: Record<ActivityKind, string> = {
   student_edited: "kindStudentEdited",
   student_view: "kindStudentView",
   export_downloaded: "kindExportDownloaded",
+  student_photo_downloaded: "kindStudentPhotoDownloaded",
   defaulter_contacted: "kindDefaulterContacted",
   defaulter_no_call_set: "kindDefaulterNoCall",
   import_committed: "kindImportCommitted",
@@ -107,7 +108,10 @@ export default async function ActivityFeedPage() {
               const tone = activityKindTone(event.kind);
               const description = payloadDescription(event.payload, t);
               const studentId =
-                event.kind === "student_view" || event.kind === "student_edited" || event.kind === "defaulter_contacted"
+                event.kind === "student_view" ||
+                event.kind === "student_edited" ||
+                event.kind === "student_photo_downloaded" ||
+                event.kind === "defaulter_contacted"
                   ? event.refId
                   : null;
               return (
@@ -160,6 +164,7 @@ export default async function ActivityFeedPage() {
               const studentId =
                 event.kind === "student_view" ||
                 event.kind === "student_edited" ||
+                event.kind === "student_photo_downloaded" ||
                 event.kind === "defaulter_contacted"
                   ? event.refId
                   : null;

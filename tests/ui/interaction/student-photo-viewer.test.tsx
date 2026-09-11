@@ -108,7 +108,7 @@ describe("student photo viewer", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("offers the action under the photo, and closes before running it", async () => {
+  it("offers a closesViewer action under the photo, and closes before running it", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
@@ -118,7 +118,7 @@ describe("student photo viewer", () => {
           photoPath="student-1/photo.jpg"
           fullName="AANSH KUMAWAT"
           admissionNo="2665"
-          action={{ label: "Change photo", onSelect }}
+          actions={[{ id: "change", label: "Change photo", onSelect, closesViewer: true }]}
         />
       </NextIntlClientProvider>,
     );
@@ -132,6 +132,87 @@ describe("student photo viewer", () => {
     // The uploader is itself an overlay; stacking two scrims reads as the app
     // losing its place, so the viewer gets out of the way first.
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("renders a link action as a real download anchor, and keeps the viewer open", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <StudentAvatarButton
+          photoPath="student-1/photo.jpg"
+          fullName="AANSH KUMAWAT"
+          admissionNo="2665"
+          actions={[
+            {
+              id: "save",
+              label: "Save photo",
+              href: "/protected/students/photo/download?studentId=abc",
+              download: true,
+            },
+          ]}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "AANSH KUMAWAT photo" }));
+    const dialog = await screen.findByRole("dialog");
+
+    // A download is a navigation the browser handles beside the page. Routing
+    // it through a callback would lose the native download entirely.
+    const link = within(dialog).getByRole("link", { name: "Save photo" });
+    expect(link).toHaveAttribute("href", "/protected/students/photo/download?studentId=abc");
+    expect(link).toHaveAttribute("download");
+  });
+
+  it("does not close the viewer for an action that is not closesViewer", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <StudentAvatarButton
+          photoPath="student-1/photo.jpg"
+          fullName="AANSH KUMAWAT"
+          admissionNo="2665"
+          actions={[{ id: "share", label: "Share", onSelect }]}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "AANSH KUMAWAT photo" }));
+    await screen.findByRole("dialog");
+
+    await user.click(screen.getByRole("button", { name: "Share" }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    // Closing runs history.back(), which cancels a share still in flight.
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("caps the action row at three", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <StudentAvatarButton
+          photoPath="student-1/photo.jpg"
+          fullName="AANSH KUMAWAT"
+          admissionNo="2665"
+          actions={[
+            { id: "a", label: "One", onSelect: vi.fn() },
+            { id: "b", label: "Two", onSelect: vi.fn() },
+            { id: "c", label: "Three", onSelect: vi.fn() },
+            { id: "d", label: "Four", onSelect: vi.fn() },
+          ]}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "AANSH KUMAWAT photo" }));
+    const dialog = await screen.findByRole("dialog");
+
+    expect(within(dialog).queryByRole("button", { name: "Four" })).not.toBeInTheDocument();
   });
 
   it("shows no action when none is given", async () => {

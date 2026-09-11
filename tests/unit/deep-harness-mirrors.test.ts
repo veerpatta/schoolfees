@@ -170,6 +170,34 @@ describe("deep harness: MCP tool registry", () => {
     expect(expectedToolsFor("view_only")).not.toContain("get_receipt_pdf");
   });
 
+  /**
+   * `requires` gates a WHOLE tool, and a failed check unregisters it — so the
+   * photo tool cannot express "bytes needs more than link" that way without
+   * vanishing for the accountant who still needs the link. It does it in the
+   * handler instead, and this pins the registry's copy of that rule against
+   * the Worker's.
+   */
+  it("mirrors the photo tool's per-argument gate on format:bytes", async () => {
+    const { TOOLS } = await import("../deep/mcp/registry.mjs");
+
+    // The tool itself stays visible to anyone who may see a student.
+    expect(TOOLS.get_student_photo.requires).toEqual(["students:view"]);
+
+    const gate = TOOLS.get_student_photo.argRequires?.format?.bytes;
+    expect(gate, "the registry lost its copy of the bytes gate").toEqual([
+      "students:write",
+      "students:edit_basic",
+    ]);
+
+    const assets = readFileSync(
+      path.join(process.cwd(), "workers/schoolfees-mcp/src/tools/assets.mjs"),
+      "utf-8",
+    );
+    expect(assets).toContain(
+      `const PHOTO_BYTES_PERMISSIONS = ${JSON.stringify(gate).replace(/,/g, ", ")};`,
+    );
+  });
+
   it("treats requires as an OR, matching identityCan", async () => {
     const { expectedToolsFor } = await import("../deep/mcp/registry.mjs");
 

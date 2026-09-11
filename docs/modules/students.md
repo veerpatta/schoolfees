@@ -5,9 +5,29 @@ The student master, and every per-student exception to the fee policy.
 | | |
 |---|---|
 | Routes | `/protected/students`, `/[studentId]`, `/[studentId]/edit`, `/[studentId]/statement`, `/new`, `/bulk-update` |
-| Handlers | `/students/index` (search), `/students/photo`, `/[studentId]/fee-pdf`, `/family/[familyGroupId]/{fee-pdf,statement}` |
+| Handlers | `/students/index` (search), `/students/photo`, `/students/photo/download`, `/[studentId]/fee-pdf`, `/family/[familyGroupId]/{fee-pdf,statement}` |
 | Components | `src/modules/students/ui/` |
 | Lib | `src/modules/students/` (server-only), `src/modules/students/` (shared with Transactions) |
+
+## The photo, and taking a copy of it
+
+Two handlers, and the split is a permission boundary rather than a refactor.
+
+`/students/photo` serves the picture to the screen: `?variant=thumb` returns
+192px bytes for a list avatar, and a bare `?path=` returns a 15-minute signed
+URL for the viewer. It gates on `students:view`, which every role holds.
+
+`/students/photo/download` hands over a copy. It gates on `students:write` or
+`students:edit_basic` — admin and teacher — because a photograph of a child
+leaving the building is not the same act as looking at one on screen, and
+nothing downstream can recall it. Every download writes a
+`student_photo_downloaded` row to the activity feed.
+
+It also takes a **student**, not a path. The viewer route signs whatever object
+the caller names; this one reads `photo_path` off the record, which is the rule
+the MCP worker already keeps for the same bucket. The file lands as
+`<SR>-<NAME>.jpg`, named by the server so a saved file and a shared file cannot
+disagree.
 
 ## The list
 

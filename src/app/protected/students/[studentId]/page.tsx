@@ -12,6 +12,7 @@ import {
   MobileStatStrip,
 } from "@/ui/mobile/mobile-kit";
 import { OfficeRecentTracker, ValueStatePill } from "@/ui/office/office-ui";
+import { STUDENT_PHOTO_DOWNLOAD_PERMISSIONS } from "@/modules/students/domain/photo-permissions";
 import { MobileStudentFamilyTab } from "@/modules/students/ui/mobile-student-family-tab";
 import { MobileStudentProfile } from "@/modules/students/ui/mobile-student-profile";
 import { WaiveLateFeeTrigger } from "@/modules/payments/ui/waive-late-fee-trigger";
@@ -54,7 +55,11 @@ import {
   getStudentInfoOptionKey,
 } from "@/modules/students/domain/info-fields";
 import { getStudentWorkspaceData } from "@/modules/students/data/workspace";
-import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
+import {
+  hasAnyStaffPermission,
+  hasStaffPermission,
+  requireStaffPermission,
+} from "@/platform/supabase/session";
 import { safeReturnTo } from "@/platform/navigation/return-to";
 
 type StudentDetailPageProps = {
@@ -184,6 +189,13 @@ export default async function StudentDetailPage({
   });
 
   const canEditStudent = hasStaffPermission(staff, "students:write");
+  // Deliberately NOT canEditStudent: that one is students:write alone, while
+  // taking a copy of a photograph away follows the wider pair that
+  // updateStudentPhotoAction already accepts. Admin and teacher.
+  const canDownloadPhoto = hasAnyStaffPermission(
+    staff,
+    STUDENT_PHOTO_DOWNLOAD_PERMISSIONS,
+  );
   const canPrintReceipts = hasStaffPermission(staff, "receipts:print");
   const canReverseReceipts = hasStaffPermission(staff, "payments:reverse_any");
   const canPostPayments = hasStaffPermission(staff, "payments:write");
@@ -1259,6 +1271,7 @@ export default async function StudentDetailPage({
           canPostPayments={canPostPayments}
           canShare={Boolean(student.fatherPhone || student.motherPhone)}
           canEditStudent={canEditStudent}
+          canDownloadPhoto={canDownloadPhoto}
           photoPath={student.photoPath}
           isActive={student.status === "active"}
           returnTo={returnTo}
@@ -1305,6 +1318,7 @@ export default async function StudentDetailPage({
         prevYearDuesAmount={prevYearDuesAmount}
         canPostPayments={canPostPayments}
         canEditStudent={canEditStudent}
+          canDownloadPhoto={canDownloadPhoto}
         canPrintReceipts={canPrintReceipts}
         latestReceiptId={receipts[0]?.id ?? null}
         returnTo={returnTo}

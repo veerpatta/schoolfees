@@ -10,6 +10,7 @@ export const ACTIVITY_KINDS = [
   "student_edited",
   "student_view",
   "export_downloaded",
+  "student_photo_downloaded",
   "defaulter_contacted",
   "defaulter_no_call_set",
   "import_committed",
@@ -25,6 +26,8 @@ const KIND_TONE: Record<ActivityKind, "success" | "info" | "warning" | "muted"> 
   student_edited: "warning",
   student_view: "muted",
   export_downloaded: "info",
+  // A copy left the building; nothing in the record changed.
+  student_photo_downloaded: "info",
   defaulter_contacted: "info",
   defaulter_no_call_set: "warning",
   import_committed: "warning",

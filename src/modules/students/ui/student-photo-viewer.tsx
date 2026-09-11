@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 
 import { StudentAvatar } from "@/modules/students/ui/student-avatar";
+import type { PhotoAction } from "@/modules/students/ui/student-photo-overlay";
 import { cn } from "@/platform/utils";
 
 /**
@@ -39,14 +40,14 @@ export function StudentAvatarButton({
   admissionNo,
   size = "md",
   className,
-  action,
+  actions,
 }: {
   photoPath: string | null | undefined;
   fullName: string;
   admissionNo?: string | null;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
-  action?: { label: string; onSelect: () => void } | null;
+  actions?: readonly PhotoAction[] | null;
 }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
@@ -78,7 +79,7 @@ export function StudentAvatarButton({
         fullName={fullName}
         admissionNo={admissionNo}
         onClose={close}
-        action={action}
+        actions={actions}
       />
     </>
   );

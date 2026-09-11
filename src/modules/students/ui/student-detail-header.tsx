@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Edit2, FileText, Printer } from "lucide-react";
+import { ArrowLeft, Download, Edit2, FileText, Printer } from "lucide-react";
 
 import { OldBalanceChip } from "@/ui/shared/old-balance-chip";
 import { StudentContactActions } from "@/modules/students/ui/student-contact-actions";
@@ -30,6 +30,7 @@ export function StudentDetailHeader({
   prevYearDuesAmount,
   canPostPayments,
   canEditStudent,
+  canDownloadPhoto,
   canPrintReceipts,
   latestReceiptId,
   returnTo,
@@ -51,6 +52,8 @@ export function StudentDetailHeader({
   prevYearDuesAmount: number;
   canPostPayments: boolean;
   canEditStudent: boolean;
+  /** Required, not defaulted — a missing prop must not hand out a child's photo. */
+  canDownloadPhoto: boolean;
   canPrintReceipts: boolean;
   latestReceiptId: string | null;
   returnTo: string;
@@ -89,6 +92,7 @@ export function StudentDetailHeader({
               admissionNo={student.admissionNo}
               photoPath={student.photoPath ?? null}
               canEditStudent={canEditStudent}
+              canDownloadPhoto={canDownloadPhoto}
               size="xl"
               className="shrink-0 rounded-lg"
             />
@@ -136,6 +140,24 @@ export function StudentDetailHeader({
                 <Printer className="h-3.5 w-3.5" />
                 <span>{canPrintReceipts ? "Print last receipt" : "Last receipt"}</span>
               </Link>
+            </Button>
+          ) : null}
+
+          {student.photoPath && canDownloadPhoto ? (
+            /* A plain anchor, deliberately. DownloadAnchor's spinner exists for
+               export routes that take tens of seconds; this is a 53 KB file
+               behind one indexed row read, and its nonce-and-poll machinery
+               would cost this server-rendered header a client boundary to say
+               nothing. */
+            <Button asChild size="sm" variant="outline" className="h-8 w-8 p-0">
+              <a
+                href={`/protected/students/photo/download?studentId=${student.id}`}
+                download
+                aria-label="Download student photo"
+                title="Download student photo"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </a>
             </Button>
           ) : null}
 

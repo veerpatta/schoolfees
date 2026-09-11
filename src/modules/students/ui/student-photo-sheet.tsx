@@ -8,7 +8,11 @@ import { Button } from "@/ui/primitives/button";
 import { Notice } from "@/ui/primitives/notice";
 import { Sheet } from "@/ui/primitives/sheet";
 import { toast } from "@/ui/primitives/toast";
+import { Download, Pencil, Share2 } from "lucide-react";
+
 import { StudentAvatar } from "@/modules/students/ui/student-avatar";
+import type { PhotoAction } from "@/modules/students/ui/student-photo-overlay";
+import { useStudentPhotoShare } from "@/modules/students/ui/student-photo-share-action";
 import { StudentAvatarButton } from "@/modules/students/ui/student-photo-viewer";
 import { StudentPhotoUpload } from "@/modules/students/ui/student-photo-upload";
 import { useMediaQuery } from "@/ui/hooks/use-media-query";
@@ -144,6 +148,7 @@ export function StudentPhotoAvatarButton({
   admissionNo,
   photoPath,
   canEditStudent,
+  canDownloadPhoto = false,
   size = "md",
   className,
 }: {
@@ -152,11 +157,28 @@ export function StudentPhotoAvatarButton({
   admissionNo?: string | null;
   photoPath: string | null;
   canEditStudent: boolean;
+  /**
+   * Taking a copy away, which is a wider role than `canEditStudent` (that one
+   * is `students:write` alone). Defaults closed: a list row that never passes
+   * it must not hand out downloads.
+   */
+  canDownloadPhoto?: boolean;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
   const t = useTranslations("MobileApp");
   const [open, setOpen] = useState(false);
+  const share = useStudentPhotoShare({
+    studentId,
+    studentName,
+    admissionNo,
+    labels: {
+      share: t("studentPhotoShare"),
+      send: t("studentPhotoShareSend"),
+      preparing: t("studentPhotoSharePreparing"),
+      failed: t("studentPhotoShareFailed"),
+    },
+  });
 
   if (!canEditStudent && !photoPath) {
     return (
@@ -170,6 +192,39 @@ export function StudentPhotoAvatarButton({
   }
 
   if (photoPath) {
+    const actions: PhotoAction[] = [];
+
+    if (canDownloadPhoto) {
+      actions.push({
+        id: "save",
+        label: t("studentPhotoDownload"),
+        icon: <Download className="size-4" aria-hidden="true" />,
+        href: `/protected/students/photo/download?studentId=${encodeURIComponent(studentId)}&via=overlay`,
+        download: true,
+      });
+
+      // Absent on a desk, because the browser has no share sheet there — the
+      // feature test does the work a media query would have done badly.
+      if (share.supported) {
+        actions.push({
+          ...share.action,
+          icon: <Share2 className="size-4" aria-hidden="true" />,
+        });
+      }
+    }
+
+    // Last, and the only one that closes the viewer: it replaces this overlay
+    // with the uploader sheet.
+    if (canEditStudent) {
+      actions.push({
+        id: "change",
+        label: t("studentPhotoChange"),
+        icon: <Pencil className="size-4" aria-hidden="true" />,
+        onSelect: () => setOpen(true),
+        closesViewer: true,
+      });
+    }
+
     return (
       <>
         <StudentAvatarButton
@@ -178,11 +233,7 @@ export function StudentPhotoAvatarButton({
           admissionNo={admissionNo}
           size={size}
           className={className}
-          action={
-            canEditStudent
-              ? { label: t("studentPhotoChange"), onSelect: () => setOpen(true) }
-              : null
-          }
+          actions={actions}
         />
         {/* Mounted outside any `hidden md:block` / `md:hidden` twin — a sheet
             inside a display:none subtree never opens. */}

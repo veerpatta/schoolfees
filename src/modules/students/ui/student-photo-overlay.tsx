@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { Pencil, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import { fetchSignedUrl } from "@/modules/students/ui/student-avatar";
 
@@ -95,13 +95,41 @@ function runAfterHistorySettles(run: () => void) {
   window.addEventListener("popstate", finish);
 }
 
+/**
+ * One entry in the row under the photo.
+ *
+ * A link entry is a real `<a>`, not a callback that synthesises one: saving a
+ * photo IS a navigation, and routing it through JavaScript would lose the
+ * browser's own download handling for nothing.
+ *
+ * `closesViewer` is opt-in, and that is a correctness flag rather than a
+ * preference. Closing runs `history.back()` from the cleanup effect below, and
+ * that pop races anything still in flight — a `navigator.share()` call or a
+ * download navigation started on the same gesture is cancelled by it. Only an
+ * action that REPLACES this viewer with another surface (Change photo, which
+ * opens the sheet) may set it.
+ */
+export type PhotoAction =
+  | { id: string; label: string; icon?: ReactNode; href: string; download?: boolean }
+  | { id: string; label: string; icon?: ReactNode; onSelect: () => void; closesViewer?: boolean };
+
+/** Three is a toolbar; more is a menu. See the note on `actions`. */
+const MAX_ACTIONS = 3;
+
+const ACTION_PILL =
+  "focus-ring inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/20 active:scale-95";
+
+/** The one entry that changes something keeps the heavier fill. */
+const ACTION_PILL_PRIMARY =
+  "focus-ring inline-flex items-center gap-2 rounded-full bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/35 active:scale-95";
+
 export function StudentPhotoOverlay({
   open,
   photoPath,
   fullName,
   admissionNo,
   onClose,
-  action,
+  actions,
 }: {
   open: boolean;
   photoPath: string;
@@ -109,11 +137,21 @@ export function StudentPhotoOverlay({
   admissionNo?: string | null;
   onClose: () => void;
   /**
-   * One action under the photo, the way WhatsApp puts its action row beneath
-   * the picture. Optional and singular on purpose: the pop-out is a glance, and
-   * a row of choices turns it into a menu you have to read.
+   * The action row under the photo, the way WhatsApp puts one beneath the
+   * picture. Capped at three, and the cap is the rule this used to express as
+   * "singular on purpose": the pop-out is a glance, and a list of choices turns
+   * it into something you have to read.
+   *
+   * What keeps three from being a menu: every entry is a verb acting on THIS
+   * photograph, icon-first with a one-word label, so the row is scanned rather
+   * than read — and only one of them (Change) changes anything, which is why it
+   * keeps the filled pill and sits last. Anything that is not a verb on this
+   * photograph does not belong here; it belongs on the page.
+   *
+   * Three only ever happens on a phone, where this pop-out is the only route to
+   * the photo. A desk shows two, because Share is not offered there.
    */
-  action?: { label: string; onSelect: () => void } | null;
+  actions?: readonly PhotoAction[] | null;
 }) {
   const t = useTranslations("Common");
   const [src, setSrc] = useState<string | null>(null);
@@ -223,23 +261,52 @@ export function StudentPhotoOverlay({
           ) : null}
         </div>
 
-        {action ? (
-          <button
-            type="button"
-            onClick={() => {
-              // Close first: the sheet that follows is itself an overlay, and
-              // two stacked scrim layers read as the app losing its place. Then
-              // wait for the history entry this viewer pushed to be popped, or
-              // the sheet opens into a pop that closes it — see the helper.
-              const run = action.onSelect;
-              onClose();
-              runAfterHistorySettles(run);
-            }}
-            className="focus-ring mt-1 inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/20 active:scale-95"
-          >
-            <Pencil className="size-4" aria-hidden="true" />
-            {action.label}
-          </button>
+        {actions && actions.length > 0 ? (
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+            {actions.slice(0, MAX_ACTIONS).map((entry) =>
+              "href" in entry ? (
+                <a
+                  key={entry.id}
+                  href={entry.href}
+                  download={entry.download}
+                  // Stays open. A download is a navigation the browser handles
+                  // beside the page; tearing the viewer down around it would
+                  // also cancel it.
+                  onClick={(event) => event.stopPropagation()}
+                  className={ACTION_PILL}
+                >
+                  {entry.icon}
+                  {entry.label}
+                </a>
+              ) : (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => {
+                    if (!entry.closesViewer) {
+                      // In-place. Share reads its file and opens the OS sheet
+                      // over this viewer; closing would pop history out from
+                      // under the share gesture.
+                      entry.onSelect();
+                      return;
+                    }
+                    // Close first: the sheet that follows is itself an overlay,
+                    // and two stacked scrim layers read as the app losing its
+                    // place. Then wait for the history entry this viewer pushed
+                    // to be popped, or the sheet opens into a pop that closes
+                    // it — see the helper.
+                    const run = entry.onSelect;
+                    onClose();
+                    runAfterHistorySettles(run);
+                  }}
+                  className={entry.closesViewer ? ACTION_PILL_PRIMARY : ACTION_PILL}
+                >
+                  {entry.icon}
+                  {entry.label}
+                </button>
+              ),
+            )}
+          </div>
         ) : null}
       </div>
 

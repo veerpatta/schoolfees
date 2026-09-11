@@ -17,6 +17,7 @@ import * as z from "zod/v4";
 
 import { select } from "../supabase.mjs";
 import { BUCKETS, createSignedUrl, downloadObject, toBase64 } from "../storage.mjs";
+import { identityCan } from "../permissions.mjs";
 import { defineTool, toolError, toolResult } from "../toolkit.mjs";
 
 /** The bucket limit is 512 KB; this leaves room without inviting a big file. */
@@ -28,6 +29,24 @@ const formatSchema = z
   .default("link")
   .describe(
     "link returns a short-lived signed URL (small, works anywhere). bytes returns the file inline for clients that render it.",
+  );
+
+/**
+ * Handing over the file itself is not the same act as showing it.
+ *
+ * A link is viewing: it expires, and the viewer is the person already looking
+ * at the student. Bytes are a copy that leaves the school inside a transcript
+ * that outlives the conversation. So the bytes branch wants the pair that
+ * guards editing a student on the web, not the view permission every role
+ * holds.
+ */
+const PHOTO_BYTES_PERMISSIONS = ["students:write", "students:edit_basic"];
+
+const photoFormatSchema = z
+  .enum(["link", "bytes"])
+  .default("link")
+  .describe(
+    'link returns a short-lived signed URL and works for any role that may see students. bytes returns the image inline and needs students:write or students:edit_basic; a read-only role is told to ask for a link.',
   );
 
 async function findStudent(env, { studentId, admissionNo, sessionLabel }) {
@@ -50,12 +69,12 @@ export function registerAssetTools(server, ctx) {
     name: "get_student_photo",
     title: "Get Student Photo",
     description:
-      "Use this to see or share a student's photograph. Returns a short-lived signed link by default, or the image itself with format:\"bytes\". Not every student has one, and that is normal rather than an error.",
+      "Use this to see or share a student's photograph. Returns a short-lived signed link by default, which any role that may see students can use. format:\"bytes\" returns the image itself and needs an editor role (students:write or students:edit_basic). Not every student has one, and that is normal rather than an error.",
     requires: ["students:view"],
     inputSchema: {
       studentId: z.string().uuid().optional().describe("Student UUID."),
       admissionNo: z.string().max(40).optional().describe("SR number, if the UUID is not to hand."),
-      format: formatSchema,
+      format: photoFormatSchema,
       expiresInSeconds: z
         .number()
         .int()
@@ -85,6 +104,18 @@ export function registerAssetTools(server, ctx) {
       error: z.string().optional(),
     },
     handler: async ({ studentId, admissionNo, format, expiresInSeconds }) => {
+      // BEFORE the lookup, and deliberately. A caller who may not have the file
+      // should not learn whether a student exists from the shape of the
+      // refusal — and `requires` cannot express this, because it gates the
+      // whole tool: raising it would make get_student_photo VANISH for the
+      // accountant who still needs the link, rather than narrowing one argument.
+      if (format === "bytes" && !identityCan(identity, PHOTO_BYTES_PERMISSIONS)) {
+        return toolError(
+          'Returning a photograph as bytes needs an editor role (students:write or students:edit_basic). Ask again with format:"link".',
+          { found: false, hasPhoto: false, error: "permission_denied" },
+        );
+      }
+
       // isError, because "you called me wrong" and "there is nothing there" are
       // different answers. They used to share one envelope, so a client could
       // only tell them apart by probing for an `error` key.
@@ -289,7 +320,4 @@ export function registerAssetTools(server, ctx) {
     },
   });
 
-  // Referenced so the linter sees the identity is deliberately unused here:
-  // permission gating happens in defineTool, not inside a handler.
-  void identity;
 }

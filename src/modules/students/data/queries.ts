@@ -1490,6 +1490,42 @@ export async function updateStudentInfo(
 }
 
 /** Writes only `photo_path`. See updateStudentPhotoAction for why. */
+export type StudentPhotoIdentity = {
+  id: string;
+  admissionNo: string | null;
+  fullName: string;
+  photoPath: string | null;
+};
+
+/**
+ * The four columns a photo download needs, and nothing else.
+ *
+ * `getStudentDetail` reads the whole record and runs the fee engine behind it;
+ * a route that streams one image has no business paying for that, and no
+ * business holding a student's Aadhaar in memory to name a file.
+ */
+export async function getStudentPhotoIdentity(
+  studentId: string,
+): Promise<StudentPhotoIdentity | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("students")
+    .select("id, admission_no, full_name, photo_path")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return {
+    id: data.id as string,
+    admissionNo: (data.admission_no as string | null) ?? null,
+    fullName: (data.full_name as string) ?? "",
+    photoPath: (data.photo_path as string | null) ?? null,
+  };
+}
+
 export async function updateStudentPhoto(
   studentId: string,
   photoPath: string | null,

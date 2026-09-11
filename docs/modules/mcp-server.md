@@ -189,6 +189,14 @@ accepts a bucket or a path**, deliberately: a generic `read_storage_object` woul
 be an arbitrary-file-read primitive against the school's private buckets. That
 absence is asserted in the conformance suite, not just described here.
 
+`get_student_photo` gates `format: "bytes"` **inside the handler**, on
+`students:write` or `students:edit_basic`. It cannot use `requires` for this:
+that gates the whole tool, and a failed check unregisters it — so raising it
+would make the tool vanish for the accountant who still needs `format: "link"`,
+rather than narrowing one argument. `tests/deep/mcp/registry.mjs` carries the
+rule as `argRequires` and `tests/unit/deep-harness-mirrors.test.ts` pins the two
+copies against each other.
+
 **Documents** — `get_receipt_pdf`
 
 Goes through the app's `/api/service/documents` lane rather than rendering
