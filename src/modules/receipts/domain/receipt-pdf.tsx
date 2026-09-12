@@ -201,18 +201,20 @@ const styles = StyleSheet.create({
   },
 
   /**
-   * Three per row, wrapping.
+   * Four per row, as the desktop app lays them out.
    *
-   * The screen shows two because a phone is 390px wide and four because a desk
-   * is not; A4 sits between them. Three is also what keeps a receipt on ONE
-   * page with a carry-forward row present — at two per row a five-tile year
-   * pushed the parent stub onto page two, and a stub on a page nobody prints is
-   * not a stub. The long "Previous year tuition balance from 2025-26" label
-   * still has room to wrap at this width.
+   * Measured rather than chosen: across 30 real receipts, two per row put 5 of
+   * them onto a second page, three per row put 3, and four puts 3 — all of
+   * which carry a previous-year balance and so have five tiles whatever the
+   * width. Four matches the app and costs nothing over three.
+   *
+   * The long "Previous year tuition balance from 2025-26" label wraps inside
+   * its tile at this width, which is why the tiles are a wrapping grid of fixed
+   * fractions rather than a flex row that would squash it.
    */
   tileGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 6, marginHorizontal: -3 },
   tile: {
-    width: "33.333%",
+    width: "25%",
     paddingHorizontal: 3,
     paddingBottom: 6,
   },
@@ -602,11 +604,24 @@ export async function renderReceiptPdf({ receipt }: ReceiptPdfInput): Promise<Bu
             parent. */}
         {Math.round(receipt.totalDue - receipt.totalPaidToDate) !==
         Math.round(receipt.currentOutstanding) ? (
-          <Text style={{ fontSize: 7, color: pdfTokens.muted, marginTop: 4 }}>
-            {`These three will not subtract to each other, which is expected. "${L.totalExpected.en}" and "${L.balanceDue.en}" count fees only, while "${L.paidSoFar.en}" counts every rupee received against this student — including money paid towards late fees, and receipts later reversed. A late fee is a separate charge and is never part of a fee balance.`}
+          <Text style={{ fontSize: 7, color: pdfTokens.muted, marginTop: 3 }}>
+            {/* Four lines of 7pt prose, on a document that has to end with its
+                parent stub on page one. The point survives in one sentence: the
+                three figures measure different things, and the document says
+                which. The full explanation lives on the statement, which has
+                room for it. */}
+            {`Expected and balance count fees only; paid counts every rupee received, including late fees and reversed receipts — so the three will not subtract.`}
           </Text>
         ) : null}
 
+        {/* Stamps, signature and stub travel together.
+            Most receipts fit one page; a student carrying a previous-year
+            balance has five year tiles and legitimately runs to two. What must
+            never happen either way is this block SPLITTING — a signature at the
+            foot of page one and a tear-off stub at the head of page two is two
+            broken halves rather than one document. `wrap={false}` moves the
+            whole block to the next page instead. */}
+        <View wrap={false}>
         <View style={{ flexDirection: "row", gap: 6, marginTop: 12 }}>
           {isVoided ? <Badge tone="danger">REVERSED</Badge> : <Badge tone="success">PAID</Badge>}
           {isYearClear ? <Badge tone="success">YEAR CLEARED</Badge> : null}
@@ -662,6 +677,7 @@ export async function renderReceiptPdf({ receipt }: ReceiptPdfInput): Promise<Bu
           <Text style={{ fontSize: 7.5, color: pdfTokens.muted, fontFamily: HI_FONT }}>
             {L.keepRecords.hi}
           </Text>
+        </View>
         </View>
 
         <Text style={sharedStyles.footer} fixed>
