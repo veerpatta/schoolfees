@@ -18,10 +18,10 @@ import type {
 /**
  * "Ledger Calm 2.0" A4 receipt (V3).
  *
- * Structure: ink header band (serif school name, saffron rule, rotated stamp
- * box) → 4-col meta → success-soft amount hero with bilingual words inline →
- * "What this receipt paid" (Before/Paid/After) → "Year at a glance" tiles →
- * footer QR verify + signature → dashed parent stub.
+ * Structure: centred letterhead (mark, school name, boxed title) → 4-col meta →
+ * success-soft amount hero with bilingual words inline → "What this receipt
+ * paid" (Before/Paid/After) → "Year at a glance" tiles → footer statement,
+ * stamps and signature → dashed parent stub.
  *
  * Fully bilingual like V2: every label renders English with Devanagari Hindi
  * underneath, because this is a parent-facing document. Figures and dates stay
@@ -114,10 +114,6 @@ type ReceiptDocumentV3Props = {
   className?: string;
   mode?: "print" | "draft" | "saved";
   embedPageStyles?: boolean;
-  /** Absolute verify URL encoded into the footer QR (e.g. https://…/r/SVP-001). */
-  verifyUrl?: string | null;
-  /** Pre-rendered QR SVG markup for `verifyUrl` (server-generated). */
-  verifyQrSvg?: string | null;
 };
 
 export function ReceiptDocumentV3({
@@ -126,8 +122,6 @@ export function ReceiptDocumentV3({
   className,
   mode = "print",
   embedPageStyles = true,
-  verifyUrl = null,
-  verifyQrSvg = null,
 }: ReceiptDocumentV3Props) {
   const isDraft = mode === "draft";
 
@@ -586,20 +580,16 @@ export function ReceiptDocumentV3({
           </section>
         ) : null}
 
-        {/* 6. Footer — QR verify + signature */}
+        {/* 6. Footer — the statement, the stamps, and the signature.
+             The verification QR that used to lead this row is gone. Nobody in
+             the office verified a receipt by scanning one, and the square
+             encoded whatever NEXT_PUBLIC_SITE_URL happened to be — which in
+             production was http://localhost:3000, so every QR ever printed
+             pointed at nothing. A square that cannot work is worse than no
+             square: it invites a parent to try. */}
         <footer className="mt-5 flex items-end justify-between gap-4 border-t border-border pt-4">
           <div className="flex items-center gap-3">
-            {verifyQrSvg ? (
-              <span
-                aria-hidden="true"
-                className="block size-16 shrink-0 overflow-hidden rounded-md border border-border bg-white p-1 [&_svg]:h-full [&_svg]:w-full"
-                dangerouslySetInnerHTML={{ __html: verifyQrSvg }}
-              />
-            ) : null}
             <div className="max-w-[260px] text-[10px] leading-4 text-muted-foreground">
-              {verifyUrl ? (
-                <p className="font-medium text-foreground">{verifyUrl}</p>
-              ) : null}
               <p>
                 <BiKey t={t} k="officialReceiptStatement" />
               </p>
@@ -626,8 +616,22 @@ export function ReceiptDocumentV3({
             </div>
           ) : null}
 
+          {/* The signature, not an empty box.
+              A ruled gap works on a slip somebody signs at the counter. This
+              document is printed, emailed and WhatsApped, and none of those get
+              a pen anywhere near them — so the box stayed empty and the parent
+              received an unsigned receipt. The scan is transparent, so the ink
+              crosses the rule the way a pen does. */}
           <div className="shrink-0 text-center">
-            <div className="h-10 w-40 border-b border-border-strong" aria-hidden="true" />
+            <div className="flex h-10 w-40 items-end justify-center border-b border-border-strong">
+              <Image
+                src="/branding/authorised-signature.png"
+                alt=""
+                width={560}
+                height={168}
+                className="h-10 w-auto max-w-full object-contain object-bottom"
+              />
+            </div>
             <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               <BiKey t={t} k="authorisedSignature" />
             </p>

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import QRCode from "qrcode";
 
 import { PageHeader } from "@/ui/shell/page-header";
 import { MobilePrintedReceipt } from "@/modules/payments/ui/mobile-printed-receipt";
@@ -12,7 +11,6 @@ import { SendReceiptButton } from "@/modules/receipts/ui/send-receipt-button";
 import { ReceiptAdminReversalAction } from "@/modules/receipts/ui/receipt-admin-reversal-action";
 import { ReceiptUndoAction } from "@/modules/receipts/ui/receipt-undo-action";
 import { isUndoWindowOpen } from "@/modules/receipts/domain/undo-window";
-import { getSiteUrl } from "@/platform/env";
 import { createBilingualReceiptTranslator } from "@/platform/i18n/bilingual-receipt";
 import { getReceiptDetail } from "@/modules/receipts/data/queries";
 import {
@@ -76,14 +74,6 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
   const canAnnounceReversal =
     hasStaffPermission(staff, "payments:reverse_any") && receipt.isVoided;
   const layout = resolvedSearchParams?.layout === "v2" ? ("v2" as const) : ("v3" as const);
-
-  // Footer QR — public verify link for the printed receipt (V3 layout).
-  const verifyUrl = `${getSiteUrl()}/r/${encodeURIComponent(receipt.receiptNumber)}`;
-  const verifyQrSvg = await QRCode.toString(verifyUrl, {
-    type: "svg",
-    margin: 0,
-    errorCorrectionLevel: "M",
-  }).catch(() => null);
 
   return (
     <div className="space-y-6">
@@ -180,8 +170,6 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
           receipt={receipt}
           t={createBilingualReceiptTranslator()}
           layout={layout}
-          verifyUrl={verifyUrl}
-          verifyQrSvg={verifyQrSvg}
         />
       </div>
 

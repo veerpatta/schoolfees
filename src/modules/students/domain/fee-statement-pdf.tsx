@@ -7,7 +7,14 @@ import {
   ensurePdfFontsRegistered,
   formatPdfDate as formatDate,
   HI_FONT,
-  rs,
+  inr,
+  loadLogoImage,
+  loadSignatureImage,
+  MONEY_FONT,
+  ParentDocumentLetterhead,
+  pdfTokens,
+  SignatureBlock,
+  type PdfImage,
 } from "@/platform/pdf/document-kit";
 
 import { schoolProfile } from "@/platform/config/school";
@@ -44,6 +51,10 @@ const PL = {
   lateFeeWaived: { en: "Late-fee waived", hi: "विलंब शुल्क माफ" },
   paidCash: { en: "Paid (cash)", hi: "जमा (नकद)" },
   closedAsDiscount: { en: "Closed as discount", hi: "छूट के रूप में बंद" },
+  official: {
+    en: "This is an official school fee statement.",
+    hi: "यह विद्यालय का आधिकारिक शुल्क विवरण है।",
+  },
 } as const;
 
 
@@ -154,12 +165,29 @@ export function toFeePdfStudent(workspace: WorkspaceLike): FeePdfStudent | null 
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 28, fontSize: 9, color: "#1f2937", fontFamily: "Helvetica" },
+  page: {
+    padding: 26,
+    fontSize: 9,
+    color: "#1f2937",
+    fontFamily: "Helvetica",
+    backgroundColor: pdfTokens.paper,
+  },
   schoolName: { fontSize: 15, fontFamily: "Helvetica-Bold", color: "#111827" },
   schoolMeta: { fontSize: 8, color: "#6b7280", marginTop: 2 },
   schoolMetaHi: { fontSize: 8, color: "#6b7280", marginTop: 1, fontFamily: HI_FONT },
   docTitle: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 10, color: "#111827" },
   rule: { borderBottomWidth: 1, borderBottomColor: "#e5e7eb", marginVertical: 8 },
+  /** Title and session, monospace under a dashed rule — the receipt's meta line. */
+  metaBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderBottomWidth: 0.5,
+    borderBottomColor: pdfTokens.rule,
+    borderStyle: "dashed",
+    paddingVertical: 5,
+    fontFamily: "Courier",
+    fontSize: 8.5,
+  },
   studentHead: { marginTop: 6 },
   studentName: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#111827" },
   studentMeta: { fontSize: 8.5, color: "#374151", marginTop: 2 },
@@ -193,7 +221,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row" },
   cellLabel: { flex: 1 },
   cellLabelHi: { fontFamily: HI_FONT, fontSize: 7.5, color: "#6b7280" },
-  cellAmount: { width: 90, textAlign: "right", fontFamily: "Helvetica" },
+  cellAmount: { width: 90, textAlign: "right", fontFamily: MONEY_FONT },
   tableHeader: {
     flexDirection: "row",
     backgroundColor: "#f3f4f6",
@@ -210,6 +238,8 @@ const styles = StyleSheet.create({
   },
   th: { flex: 1 },
   thRight: { flex: 1, textAlign: "right" },
+  /** Amounts only. See `inr` — this family has no Latin letters. */
+  thMoney: { flex: 1, textAlign: "right", fontFamily: MONEY_FONT },
   thEn: { fontFamily: "Helvetica-Bold" },
   thEnRight: { fontFamily: "Helvetica-Bold", textAlign: "right" },
   thHi: { fontFamily: HI_FONT, fontSize: 7, color: "#6b7280" },
@@ -283,7 +313,9 @@ function SummaryLine({
         <Text style={muted ? styles.muted : undefined}>{label}</Text>
         <Text style={styles.summaryLabelHi}>{hiLabel}</Text>
       </View>
-      <Text style={muted ? styles.muted : undefined}>{value}</Text>
+      {/* MONEY_FONT: every value passed here is an `inr()` string, and the
+          rupee glyph only exists in that family. */}
+      <Text style={[{ fontFamily: MONEY_FONT }, muted ? styles.muted : {}]}>{value}</Text>
     </View>
   );
 }
@@ -329,7 +361,7 @@ function StudentFeeSection({
             ) : null}
           </View>
           <Text style={styles.cellAmount}>
-            {row.kind === "discount" ? `- ${rs(Math.abs(row.amount))}` : rs(row.amount)}
+            {row.kind === "discount" ? `- ${inr(Math.abs(row.amount))}` : inr(row.amount)}
           </Text>
         </View>
       ))}
@@ -347,10 +379,10 @@ function StudentFeeSection({
         <View style={styles.tableRow} key={idx}>
           <Text style={styles.th}>{inst.label}</Text>
           <Text style={styles.th}>{formatDate(inst.dueDate)}</Text>
-          <Text style={styles.thRight}>{rs(inst.baseCharge)}</Text>
-          <Text style={styles.thRight}>{inst.lateFee > 0 ? rs(inst.lateFee) : "-"}</Text>
-          <Text style={styles.thRight}>{rs(inst.paid)}</Text>
-          <Text style={styles.thRight}>{rs(inst.pending)}</Text>
+          <Text style={styles.thMoney}>{inr(inst.baseCharge)}</Text>
+          <Text style={styles.thMoney}>{inst.lateFee > 0 ? inr(inst.lateFee) : "-"}</Text>
+          <Text style={styles.thMoney}>{inr(inst.paid)}</Text>
+          <Text style={styles.thMoney}>{inr(inst.pending)}</Text>
         </View>
       ))}
 
@@ -368,44 +400,44 @@ function StudentFeeSection({
               <Text style={styles.th}>{r.number}</Text>
               <Text style={styles.th}>{formatDate(r.date)}</Text>
               <Text style={styles.th}>{r.modeLabel}</Text>
-              <Text style={styles.thRight}>{rs(r.amount)}</Text>
+              <Text style={styles.thMoney}>{inr(r.amount)}</Text>
             </View>
           ))}
         </>
       ) : null}
 
       <View style={styles.summaryBox}>
-        <SummaryLine label={PL.expectedGross.en} hiLabel={PL.expectedGross.hi} value={rs(s.expectedGross)} />
+        <SummaryLine label={PL.expectedGross.en} hiLabel={PL.expectedGross.hi} value={inr(s.expectedGross)} />
         {s.totalDiscount > 0 ? (
           <SummaryLine
             label={PL.discounts.en}
             hiLabel={PL.discounts.hi}
-            value={`- ${rs(s.totalDiscount)}`}
+            value={`- ${inr(s.totalDiscount)}`}
             muted
           />
         ) : null}
-        <SummaryLine label={PL.expectedNet.en} hiLabel={PL.expectedNet.hi} value={rs(s.expectedNet)} strong />
+        <SummaryLine label={PL.expectedNet.en} hiLabel={PL.expectedNet.hi} value={inr(s.expectedNet)} strong />
         {s.lateFeeCharged > 0 ? (
-          <SummaryLine label={PL.lateFee.en} hiLabel={PL.lateFee.hi} value={rs(s.lateFeeCharged)} muted />
+          <SummaryLine label={PL.lateFee.en} hiLabel={PL.lateFee.hi} value={inr(s.lateFeeCharged)} muted />
         ) : null}
         {s.lateFeeWaiver > 0 ? (
           <SummaryLine
             label={PL.lateFeeWaived.en}
             hiLabel={PL.lateFeeWaived.hi}
-            value={`- ${rs(s.lateFeeWaiver)}`}
+            value={`- ${inr(s.lateFeeWaiver)}`}
             muted
           />
         ) : null}
-        <SummaryLine label={PL.paidCash.en} hiLabel={PL.paidCash.hi} value={rs(s.paid)} />
+        <SummaryLine label={PL.paidCash.en} hiLabel={PL.paidCash.hi} value={inr(s.paid)} />
         {s.discountCloseouts > 0 ? (
           <SummaryLine
             label={PL.closedAsDiscount.en}
             hiLabel={PL.closedAsDiscount.hi}
-            value={`- ${rs(s.discountCloseouts)}`}
+            value={`- ${inr(s.discountCloseouts)}`}
             muted
           />
         ) : null}
-        <SummaryLine label={PL.pending.en} hiLabel={PL.pending.hi} value={rs(s.pending)} strong />
+        <SummaryLine label={PL.pending.en} hiLabel={PL.pending.hi} value={inr(s.pending)} strong />
       </View>
     </View>
   );
@@ -417,25 +449,33 @@ function FeeStatementDocument({
   title,
   enT,
   hiT,
+  logo,
+  signature,
 }: {
   students: FeePdfStudent[];
   sessionLabel: string;
   title: string;
   enT: (key: string) => string;
   hiT: (key: string) => string;
+  logo: PdfImage | null;
+  signature: PdfImage | null;
 }) {
   return (
     <Document title={title}>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.schoolName}>{schoolProfile.name}</Text>
-        <Text style={styles.schoolMeta}>
-          {PL.feeStatement.en} | {PL.session.en} {sessionLabel}
-        </Text>
-        <Text style={styles.schoolMetaHi}>
-          {PL.feeStatement.hi} | {PL.session.hi} {sessionLabel}
-        </Text>
-        <Text style={styles.docTitle}>{title}</Text>
-        <View style={styles.rule} />
+        {/* The same head the receipt wears, for the same reason: a parent who
+            receives both on WhatsApp should see one school, not two documents
+            that happen to share a name. This replaced a bare line of text. */}
+        <ParentDocumentLetterhead
+          docTitleEn={PL.feeStatement.en.toUpperCase()}
+          docTitleHi={PL.feeStatement.hi}
+          logo={logo}
+        />
+
+        <View style={styles.metaBar}>
+          <Text>{title}</Text>
+          <Text>{`${PL.session.en} ${sessionLabel}`}</Text>
+        </View>
 
         {students.map((student, idx) => (
           <View key={idx}>
@@ -443,6 +483,14 @@ function FeeStatementDocument({
             <StudentFeeSection student={student} sessionLabel={sessionLabel} enT={enT} hiT={hiT} />
           </View>
         ))}
+
+        {/* One signature for the document, not one per child: a family
+            statement is a single statement about a family. */}
+        <SignatureBlock
+          signature={signature}
+          statementEn={PL.official.en}
+          statementHi={PL.official.hi}
+        />
 
         <Text
           style={styles.footer}
@@ -463,6 +511,7 @@ export async function renderFeeStatementPdf(input: {
 }): Promise<Buffer> {
   ensurePdfFontsRegistered();
   const bt = createBilingualReceiptTranslator();
+  const [logo, signature] = await Promise.all([loadLogoImage(), loadSignatureImage()]);
   return renderToBuffer(
     <FeeStatementDocument
       students={input.students}
@@ -470,6 +519,8 @@ export async function renderFeeStatementPdf(input: {
       title={input.title}
       enT={bt.en}
       hiT={bt.hi}
+      logo={logo}
+      signature={signature}
     />,
   );
 }

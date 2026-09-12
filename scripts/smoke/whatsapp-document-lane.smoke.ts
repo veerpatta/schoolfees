@@ -1,5 +1,4 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import fs from "node:fs";
 
 import { sendAisensyCampaignMessage } from "@/modules/whatsapp/data/aisensy";
 import {
@@ -39,32 +38,7 @@ import { createAdminClient } from "@/platform/supabase/admin";
  * a `SMOKE-` path in the bucket.
  */
 
-/**
- * Load `.env.local` by hand.
- *
- * `dotenv` is not a dependency of this repo, and adding one so that a smoke
- * test can read a file is not a trade worth making. Next injects these
- * variables into the app; vitest does not.
- */
-function loadEnvLocal(): void {
-  let raw = "";
-  try {
-    raw = fs.readFileSync(".env.local", "utf8");
-  } catch {
-    return;
-  }
-  for (const line of raw.split(/\r?\n/)) {
-    const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
-    if (!match) continue;
-    const [, key, rest] = match;
-    // Anything already exported wins, so a one-off override on the command
-    // line is not silently replaced by the file.
-    if (process.env[key]) continue;
-    process.env[key] = rest.trim().replace(/^["']|["']$/g, "");
-  }
-}
-
-loadEnvLocal();
+// `.env.local` is loaded by scripts/smoke/setup.ts.
 
 const destinationRaw = process.env.SMOKE_WHATSAPP_TO ?? "";
 const destination = toWhatsappDestination(destinationRaw);

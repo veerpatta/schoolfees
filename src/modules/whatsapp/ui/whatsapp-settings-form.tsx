@@ -10,7 +10,7 @@ import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 
 /**
  * Mirrors `WhatsappSettingsActionState` from
- * `src/app/protected/settings/whatsapp/actions.ts`. Declared rather than
+ * `src/app/protected/admin-tools/whatsapp/actions.ts`. Declared rather than
  * imported because `src/modules` may not import `src/app`.
  */
 export type WhatsappSettingsFormState = {
@@ -55,13 +55,15 @@ function Toggle({
   disabled: boolean;
 }) {
   return (
-    <label className="flex items-start gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3">
+    // The whole row is the target, not the 16px box. On a phone that is the
+    // difference between a control and a dexterity test.
+    <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 active:bg-surface-3">
       <input
         type="checkbox"
         name={name}
         defaultChecked={defaultChecked}
         disabled={disabled}
-        className="mt-0.5 size-4 accent-accent"
+        className="mt-0.5 size-5 shrink-0 accent-accent"
       />
       <span className="min-w-0">
         <span className="block text-sm font-semibold text-foreground">{label}</span>
@@ -127,7 +129,7 @@ export function WhatsappSettingsForm({
 
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-foreground">When messages may go out</h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label htmlFor="quietHoursStart">Not before (IST)</Label>
             <Input
@@ -138,7 +140,7 @@ export function WhatsappSettingsForm({
               max={23}
               defaultValue={initial.quietHoursStart}
               disabled={disabled}
-              className="mt-1"
+              className="mt-1 h-11"
             />
           </div>
           <div>
@@ -151,7 +153,7 @@ export function WhatsappSettingsForm({
               max={23}
               defaultValue={initial.quietHoursEnd}
               disabled={disabled}
-              className="mt-1"
+              className="mt-1 h-11"
             />
           </div>
         </div>
@@ -163,7 +165,7 @@ export function WhatsappSettingsForm({
 
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-foreground">The budget</h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label htmlFor="runMessageCap">Messages in one run</Label>
             <Input
@@ -173,7 +175,7 @@ export function WhatsappSettingsForm({
               min={1}
               defaultValue={initial.runMessageCap}
               disabled={disabled}
-              className="mt-1"
+              className="mt-1 h-11"
             />
           </div>
           <div>
@@ -185,7 +187,7 @@ export function WhatsappSettingsForm({
               min={1}
               defaultValue={initial.monthMessageCap}
               disabled={disabled}
-              className="mt-1"
+              className="mt-1 h-11"
             />
           </div>
         </div>
@@ -215,8 +217,8 @@ export function WhatsappSettingsForm({
       ) : null}
 
       {canEdit ? (
-        <div className="flex justify-end">
-          <Button type="submit" disabled={disabled}>
+        <div className="flex justify-stretch sm:justify-end">
+          <Button type="submit" disabled={disabled} className="h-11 w-full sm:w-auto">
             {pending ? (
               <span className="inline-flex items-center gap-1.5">
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />

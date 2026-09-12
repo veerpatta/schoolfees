@@ -34,10 +34,6 @@ type ReceiptDocumentProps = {
    * simplified layout available for reprint parity.
    */
   layout?: "v2" | "v3";
-  /** Absolute verify URL rendered as the footer QR (v3 only). */
-  verifyUrl?: string | null;
-  /** Pre-rendered QR SVG markup for `verifyUrl` (v3 only). */
-  verifyQrSvg?: string | null;
 };
 
 /**
@@ -51,8 +47,6 @@ export function ReceiptDocument({
   mode = "print",
   embedPageStyles = true,
   layout = "v3",
-  verifyUrl = null,
-  verifyQrSvg = null,
 }: ReceiptDocumentProps) {
   if (layout === "v2") {
     return (
@@ -73,8 +67,6 @@ export function ReceiptDocument({
       className={className}
       mode={mode}
       embedPageStyles={embedPageStyles}
-      verifyUrl={verifyUrl}
-      verifyQrSvg={verifyQrSvg}
     />
   );
 }

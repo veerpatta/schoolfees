@@ -214,7 +214,7 @@ const routeMetaItems: Array<
     // row anybody here could edit. The entry stays so the old bookmark lands
     // somewhere rather than 404-ing.
     match: "/protected/admin-tools/whatsapp-templates",
-    href: "/protected/settings/whatsapp",
+    href: "/protected/admin-tools/whatsapp",
     label: "WhatsApp settings",
     description: "Templates moved to AiSensy on 12 Sep 2026. Redirects to the WhatsApp settings screen.",
   },
@@ -868,7 +868,7 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         requiredPermission: "imports:view",
       },
       {
-        href: "/protected/settings/whatsapp",
+        href: "/protected/admin-tools/whatsapp",
         label: "WhatsApp settings",
         description: "Automatic receipts, reversal notices, quiet hours and the monthly message budget.",
         icon: MessageCircle,

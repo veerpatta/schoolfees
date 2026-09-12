@@ -19,9 +19,8 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["scripts/smoke/**/*.smoke.ts"],
-    // `server-only` is a Next marker module that is not installed here.
-    // `tests/setup.ts` stubs it for the main suite; this suite needs the same.
-    setupFiles: ["tests/setup.ts"],
+    // Stubs `server-only` and loads .env.local — see the file for why both.
+    setupFiles: ["scripts/smoke/setup.ts"],
     // A real PDF render plus three provider round trips to Mumbai.
     testTimeout: 120_000,
     hookTimeout: 120_000,

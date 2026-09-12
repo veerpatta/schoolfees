@@ -40,7 +40,7 @@ export default async function WhatsappSettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Settings"
+        eyebrow="Admin Tools"
         title="WhatsApp"
         description="What the school sends parents by itself, when it may send, and what a month may cost."
         actions={

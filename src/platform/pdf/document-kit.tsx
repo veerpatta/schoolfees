@@ -45,12 +45,39 @@ export function ensurePdfFontsRegistered(): void {
 
 /**
  * react-pdf's Helvetica has no ₹ glyph, so amounts read "Rs. 12,000".
- * The on-screen documents use ₹; this is the one deliberate divergence.
+ *
+ * Kept for any caller that must stay in Helvetica, but it is no longer what a
+ * parent-facing document should use — see {@link inr}.
  */
 export function rs(value: number): string {
   const rounded = Math.round(value || 0);
+  // @allow-raw-money-format: this IS the PDF money formatter; react-pdf cannot
+  // use the DOM one because its Helvetica lacks the rupee glyph.
   return `Rs. ${rounded.toLocaleString("en-IN")}`;
 }
+
+/**
+ * An amount with a real ₹, exactly as the screen writes it.
+ *
+ * The divergence `rs()` documents turned out to be avoidable. Noto Sans
+ * Devanagari — already registered here for the Hindi half of every label —
+ * carries U+20B9 along with the digits, comma and full stop, verified against
+ * the shipped TTF. So a money string set in {@link MONEY_FONT} renders "₹4,500"
+ * rather than "Rs. 4,500", and the PDF a parent is sent stops disagreeing with
+ * the receipt the office is looking at.
+ *
+ * **Digits, separators and ₹ only.** That font has no Latin letters, so a
+ * string like `Rs. 4,500` or `₹4,500 due` set in it renders the letters as
+ * blanks. Put any words in a sibling <Text> in Helvetica.
+ */
+export function inr(value: number): string {
+  const rounded = Math.round(value || 0);
+  // @allow-raw-money-format: the PDF money formatter itself, for the reason above.
+  return `₹${rounded.toLocaleString("en-IN")}`;
+}
+
+/** The family a {@link inr} string must be set in. Never put words in it. */
+export const MONEY_FONT = HI_FONT;
 
 export function formatPdfDate(value: string | null | undefined): string {
   if (!value) return "-";
@@ -94,11 +121,45 @@ export async function loadLogoImage(): Promise<PdfImage | null> {
  *
  * The HTML receipt renders an SVG string; react-pdf cannot, so this produces
  * the one thing `<Image src>` accepts for generated content.
+ *
+ * No longer used by the fee receipt — the verification QR was removed on
+ * 2026-09-12. Kept because it is generic and cheap, and because the next
+ * document that wants one should not have to rewrite it.
  */
 export async function renderQrDataUri(url: string | null): Promise<string | null> {
   if (!url) return null;
   try {
     return await QRCode.toDataURL(url, { margin: 0, width: 256, errorCorrectionLevel: "M" });
+  } catch {
+    return null;
+  }
+}
+
+let signatureCache: PdfImage | null = null;
+
+/**
+ * The principal's signature, as it is signed on paper.
+ *
+ * A ruled empty box on a document that is emailed and WhatsApped is a box
+ * nobody ever signs — the parent receives an unsigned receipt and the office
+ * never sees it again to fix that. The scan is transparent PNG so it sits on
+ * the rule rather than in a white patch over it.
+ *
+ * Read into a Buffer for the same two reasons as the logo: Vercel's file tracer
+ * cannot follow a computed path passed to `<Image src>`, and one decode per
+ * process beats one per document.
+ *
+ * A missing file must never fail a receipt: the block falls back to the empty
+ * rule, which is what every document did before this existed.
+ */
+export async function loadSignatureImage(): Promise<PdfImage | null> {
+  if (signatureCache) return signatureCache;
+  try {
+    const data = await fs.readFile(
+      path.join(process.cwd(), "public/branding/authorised-signature.png"),
+    );
+    signatureCache = { data, format: "png" };
+    return signatureCache;
   } catch {
     return null;
   }
@@ -115,6 +176,14 @@ export const pdfTokens = {
   danger: "#b42318",
   dangerBg: "#fef3f2",
   panel: "#f3f4f6",
+  /** `--accent`, hsl(20 86% 41%). The one saffron on a fee document. */
+  accent: "#c2490f",
+  /** `--warning-soft-foreground`, for a balance that is still owed. */
+  warning: "#92500e",
+  /** The warm off-white the app calls receipt paper (`.receipt-paper`). */
+  paper: "#fffdf7",
+  /** The parent stub's slightly deeper paper. */
+  stub: "#faf6ea",
 } as const;
 
 export const sharedStyles = StyleSheet.create({
@@ -237,6 +306,142 @@ export function SchoolLetterhead({
         {meta ? <Text style={sharedStyles.schoolMeta}>{meta}</Text> : null}
         <Text style={sharedStyles.docTitle}>{docTitleEn}</Text>
         <Text style={sharedStyles.docTitleHi}>{docTitleHi}</Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The letterhead the SCREEN draws: mark, name and contact line stacked and
+ * centred, then the document's own title in a ruled box, over a heavy rule.
+ *
+ * `SchoolLetterhead` above puts the title beside the mark, which is a report
+ * header — right for an internal export, wrong for the thing a parent is
+ * handed. This one is `receipt-document-v3.tsx`'s `<header>`, so the PDF and
+ * the page a staff member is looking at are recognisably the same document.
+ */
+export function ParentDocumentLetterhead({
+  docTitleEn,
+  docTitleHi,
+  logo,
+}: {
+  docTitleEn: string;
+  docTitleHi: string;
+  logo?: PdfImage | null;
+}) {
+  const meta = [schoolProfile.address, schoolProfile.phone, schoolProfile.email]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join("  ·  ");
+
+  return (
+    <View
+      style={{
+        alignItems: "center",
+        borderBottomWidth: 1.5,
+        borderBottomColor: pdfTokens.inkStrong,
+        paddingBottom: 6,
+      }}
+    >
+      {logo ? <Image src={logo} style={{ width: 30, height: 30, marginBottom: 3 }} /> : null}
+      <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: pdfTokens.inkStrong, textAlign: "center" }}>
+        {schoolProfile.name}
+      </Text>
+      {meta ? (
+        <Text style={{ fontSize: 7.5, color: pdfTokens.muted, marginTop: 3, textAlign: "center" }}>
+          {meta}
+        </Text>
+      ) : null}
+      <View
+        style={{
+          marginTop: 5,
+          borderWidth: 0.8,
+          borderColor: pdfTokens.inkStrong,
+          paddingHorizontal: 10,
+          paddingTop: 3,
+          paddingBottom: 2,
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", letterSpacing: 1.4 }}>
+          {docTitleEn}
+        </Text>
+        <Text style={{ fontSize: 7.5, fontFamily: HI_FONT, color: pdfTokens.muted, marginTop: 1 }}>
+          {docTitleHi}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The signed-off corner of a parent document.
+ *
+ * Left: what the document is. Right: the actual signature over its rule. The
+ * caption stays under the rule where it has always been, so a printed copy
+ * still reads correctly if the image ever fails to load.
+ */
+export function SignatureBlock({
+  signature,
+  statementEn,
+  statementHi,
+  captionEn = "AUTHORISED SIGNATURE",
+  captionHi = "अधिकृत हस्ताक्षर",
+}: {
+  signature?: PdfImage | null;
+  statementEn?: string;
+  statementHi?: string;
+  captionEn?: string;
+  captionHi?: string;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "flex-end",
+        justifyContent: "space-between",
+        marginTop: 16,
+        paddingTop: 10,
+        borderTopWidth: 0.5,
+        borderTopColor: pdfTokens.rule,
+        gap: 16,
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        {statementEn ? (
+          <Text style={{ fontSize: 7.5, color: pdfTokens.muted }}>{statementEn}</Text>
+        ) : null}
+        {statementHi ? (
+          <Text style={{ fontSize: 7.5, color: pdfTokens.muted, fontFamily: HI_FONT, marginTop: 1 }}>
+            {statementHi}
+          </Text>
+        ) : null}
+      </View>
+      <View style={{ width: 168, alignItems: "center" }}>
+        {signature ? (
+          // Sits ON the rule, not above a gap: the rule is this View's bottom
+          // border and the image has a transparent ground, so the ink crosses
+          // it the way a pen does.
+          <Image src={signature} style={{ width: 132, height: 40, marginBottom: -4 }} />
+        ) : (
+          <View style={{ height: 36 }} />
+        )}
+        <View
+          style={{
+            width: "100%",
+            borderTopWidth: 0.8,
+            borderTopColor: pdfTokens.ink,
+            paddingTop: 3,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", letterSpacing: 0.8, color: pdfTokens.muted }}>
+            {captionEn}
+          </Text>
+          <Text style={{ fontSize: 7, fontFamily: HI_FONT, color: pdfTokens.muted }}>
+            {captionHi}
+          </Text>
+        </View>
       </View>
     </View>
   );

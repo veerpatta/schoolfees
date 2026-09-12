@@ -90,6 +90,6 @@ export async function saveWhatsappSettingsAction(
     return { status: "error", message: `Could not save: ${result.error}` };
   }
 
-  revalidatePath("/protected/settings/whatsapp");
+  revalidatePath("/protected/admin-tools/whatsapp");
   return { status: "success", message: "Saved." };
 }
