@@ -1768,6 +1768,13 @@ async function loadReminderFlags(
  * Deliberately NOT scoped to one campaign, unlike `loadSentToday`. Cadence asks
  * how often a family hears from us at all; per-campaign gaps would let a family
  * set to "weekly" receive three messages a week, one per notice.
+ *
+ * It IS scoped to reminders, though, and that distinction arrived with the
+ * receipt and statement notices. Those are not chasing: a receipt is the answer
+ * to money the family just handed over, and a statement is something staff were
+ * asked for. Counting either would push a family's next REMINDER out by a week
+ * for the crime of paying — which is precisely backwards. `notice_kind`
+ * (`20260912165421`) is what makes the distinction expressible.
  */
 async function loadLastSentOn(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1779,6 +1786,7 @@ async function loadLastSentOn(
     .select("student_id, sent_on")
     .eq("session_label", sessionLabel)
     .eq("status", "sent")
+    .eq("notice_kind", "reminder")
     .order("sent_on", { ascending: false });
 
   if (error) throw new Error(`Could not read the send history: ${error.message}`);

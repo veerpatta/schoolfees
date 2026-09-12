@@ -50,10 +50,6 @@ const WorklistDrawer = dynamic(
   () => import("@/modules/defaulters/ui/worklist-drawer").then((mod) => mod.WorklistDrawer),
   { ssr: false },
 );
-const WhatsAppDraftModal = dynamic(
-  () => import("@/modules/defaulters/ui/whatsapp-draft-modal").then((mod) => mod.WhatsAppDraftModal),
-  { ssr: false },
-);
 
 type Props = {
   rows: DefaulterSummaryRow[];
@@ -193,7 +189,21 @@ export function DefaultersWorkspace({
   // Latches on first open so the lazy chunk is fetched once.
   const [drawerUsed, setDrawerUsed] = useState(false);
   const [fullFormFor, setFullFormFor] = useState<DefaulterSummaryRow | null>(null);
-  const [whatsAppFor, setWhatsAppFor] = useState<DefaulterSummaryRow | null>(null);
+  /**
+   * Where a WhatsApp press goes now.
+   *
+   * It used to open a modal that rendered an unapproved template from
+   * `whatsapp_templates` into a `wa.me` link — the staff member’s own
+   * WhatsApp, their own typing, and no record that a family had been
+   * contacted. `include` names the student explicitly, which is what puts
+   * them on the audience whatever their cadence or snooze says: exactly what
+   * pressing this on one row means.
+   */
+  const remindersHrefFor = useCallback(
+    (studentId: string) =>
+      `/protected/reminders?include=${encodeURIComponent(studentId)}&session=${encodeURIComponent(sessionLabel)}`,
+    [sessionLabel],
+  );
   const [bulkMode, setBulkMode] = useState(false);
   const [noCallOverlay, setNoCallOverlay] = useState<Record<string, boolean>>({});
   const [overlay, setOverlay] = useState<Record<string, DefaulterContactSummary>>({});
@@ -460,7 +470,7 @@ export function DefaultersWorkspace({
                     canManageNoCall={canManageNoCall}
                     noCall={effectiveNoCall(entry.row)}
                     onSelect={() => selectEntry(entry)}
-                    onOpenWhatsapp={() => setWhatsAppFor(entry.row)}
+                    whatsappHref={remindersHrefFor(entry.row.studentId)}
                     onOpenFullForm={() => setFullFormFor(entry.row)}
                     onOptimisticLog={(kind, channel, promisedDate) =>
                       handleQuickLog(entry.row.studentId, kind, channel, promisedDate)
@@ -502,9 +512,7 @@ export function DefaultersWorkspace({
                 setDrawerUsed(true);
                 setDrawerOpen(true);
               }}
-              onOpenWhatsapp={() => {
-                if (selectedRow) setWhatsAppFor(selectedRow);
-              }}
+              whatsappHref={selectedRow ? remindersHrefFor(selectedRow.studentId) : null}
               onOpenFullForm={() => {
                 if (selectedRow) setFullFormFor(selectedRow);
               }}
@@ -586,15 +594,6 @@ export function DefaultersWorkspace({
         />
       ) : null}
 
-      {whatsAppFor ? (
-        <WhatsAppDraftModal
-          row={whatsAppFor}
-          open={Boolean(whatsAppFor)}
-          onClose={() => setWhatsAppFor(null)}
-          sessionLabel={sessionLabel}
-          autoLogStudentId={whatsAppFor.studentId}
-        />
-      ) : null}
     </div>
   );
 }
@@ -845,7 +844,7 @@ function CallQueueRow({
   canManageNoCall,
   noCall,
   onSelect,
-  onOpenWhatsapp,
+  whatsappHref,
   onOpenFullForm,
   onOptimisticLog,
   onLogRevert,
@@ -860,7 +859,8 @@ function CallQueueRow({
   canManageNoCall: boolean;
   noCall: boolean;
   onSelect: () => void;
-  onOpenWhatsapp: () => void;
+  /** The reminders screen, scoped to this student. Null when none is selected. */
+  whatsappHref: string | null;
   onOpenFullForm: () => void;
   onOptimisticLog: (
     kind: QuickLogKind,
@@ -956,14 +956,16 @@ function CallQueueRow({
             </a>
           </Button>
           <Button
-            type="button"
+            asChild
             variant="outline"
             size="icon"
             className="shrink-0"
-            onClick={onOpenWhatsapp}
             aria-label={t("drawerWhatsApp")}
+            disabled={!whatsappHref}
           >
-            <MessageSquare className="size-4" aria-hidden="true" />
+            <Link href={whatsappHref ?? "#"}>
+              <MessageSquare className="size-4" aria-hidden="true" />
+            </Link>
           </Button>
           {canManageNoCall ? (
             <NoCallToggle
@@ -1000,7 +1002,7 @@ function SelectedStudentPanel({
   canManageNoCall,
   noCall,
   onOpenDrawer,
-  onOpenWhatsapp,
+  whatsappHref,
   onOpenFullForm,
   onPrevious,
   onNext,
@@ -1019,7 +1021,8 @@ function SelectedStudentPanel({
   canManageNoCall: boolean;
   noCall: boolean;
   onOpenDrawer: () => void;
-  onOpenWhatsapp: () => void;
+  /** The reminders screen, scoped to this student. Null when none is selected. */
+  whatsappHref: string | null;
   onOpenFullForm: () => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -1175,9 +1178,11 @@ function SelectedStudentPanel({
             <span className="truncate">{activeEntry?.phone ?? t("collectorModeCall")}</span>
           </a>
         </Button>
-        <Button type="button" variant="outline" size="mobile" fullWidth onClick={onOpenWhatsapp}>
-          <MessageSquare className="size-4" aria-hidden="true" />
-          {t("drawerWhatsApp")}
+        <Button asChild variant="outline" size="mobile" fullWidth disabled={!whatsappHref}>
+          <Link href={whatsappHref ?? "#"}>
+            <MessageSquare className="size-4" aria-hidden="true" />
+            {t("drawerWhatsApp")}
+          </Link>
         </Button>
       </div>
 

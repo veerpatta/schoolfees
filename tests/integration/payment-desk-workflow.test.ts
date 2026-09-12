@@ -817,10 +817,14 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("mounted && isConfirmOpen");
     expect(component).toContain("mounted && isSuccessOpen");
     expect(component).toContain("mounted && isDuplicateOpen");
-    expect(component).toContain("Dear Parent,");
-    expect(component).toContain("Payment received:");
-    expect(component).toContain("Receipt:");
-    expect(component).toContain("Veer Patta School");
+    // The desk used to compose a bilingual "Dear Parent, payment received"
+    // body here, for a `wa.me` link and a copy-to-clipboard button. Both are
+    // gone: the receipt now sends itself, with the PDF, from the school's own
+    // number, through a Meta-approved template. What this pins instead is that
+    // the desk composes NO parent-facing message of its own — the wording is
+    // `campaign-bodies-v3.ts`, and it is the only place it lives.
+    expect(component).not.toContain("Dear Parent,");
+    expect(component).not.toContain("whatsappMessage");
   });
 
   it("payment desk entry keeps one client state owner for mobile and desktop", () => {
@@ -942,7 +946,6 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("Receipt saved · printed");
     expect(component).toContain("Print A4");
     expect(component).toContain("Open Receipt");
-    expect(component).toContain("Copy WhatsApp Message");
     expect(component).toContain("Next student →");
     // The receipt number stamps in like a rubber stamp (Ledger Calm 2.0).
     expect(component).toContain("anim-stamp-in");
@@ -953,17 +956,28 @@ describe("payment desk cashier workflow", () => {
     expect(component).toContain("onCollectAnother");
   });
 
-  it("success receipt sheet offers a WhatsApp deep link only when a phone is available", () => {
+  it("success receipt sheet has no WhatsApp exit of its own", () => {
     const component = readFileSync(
       join(process.cwd(), "src/modules/payments/ui/success-receipt-sheet.tsx"),
       "utf8",
     );
 
-    expect(component).toContain("const rawPhone = (whatsappPhone ?? \"\").replace(/\\D/g, \"\")");
-    expect(component).toContain("https://wa.me/${normalizedWhatsappPhone}?text=${encodeURIComponent(whatsappMessage)}");
-    expect(component).toContain("whatsappHref ? (");
-    expect(component).toContain("Send WhatsApp");
-    expect(component).toContain("Copy WhatsApp Message");
+    // Three exits used to live on this screen: a wa.me anchor for the desk, a
+    // one-tap share sheet for the phone, and a copy-the-message button in the
+    // More drawer. All three opened the staff member’s own WhatsApp and
+    // recorded nothing.
+    //
+    // Posting now sends the receipt PDF by itself, in the action’s after(),
+    // so by the time this screen renders the message has already gone.
+    // Asserted as an ABSENCE deliberately: the failure this guards against is
+    // somebody adding a convenient deep link back, which is exactly how the
+    // second lane grew the first time.
+    expect(component).not.toContain("wa.me/");
+    expect(component).not.toContain("whatsappHref");
+    expect(component).not.toContain("Copy WhatsApp Message");
+    // Open Receipt still reaches the one-tap send, for the cases the
+    // automatic send did not cover.
+    expect(component).toContain("Open Receipt");
   });
 
   it("payee summary strip component contains sticky header and risk pills", () => {

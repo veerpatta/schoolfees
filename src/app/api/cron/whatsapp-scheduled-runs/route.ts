@@ -5,6 +5,7 @@ import { logError, logInfo, logWarn } from "@/platform/observability/log";
 import { insertDefaulterContacts } from "@/modules/defaulters/data/contacts";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { isAisensyConfigured } from "@/modules/whatsapp/data/aisensy";
+import { loadGuardFacts } from "@/modules/whatsapp/data/guard-context";
 import {
   getCampaign,
   listCampaigns,
@@ -15,6 +16,7 @@ import { oneMessagePerFamilyEnabled } from "@/modules/whatsapp/data/reminder-set
 import { campaignsDueOn } from "@/modules/whatsapp/domain/campaign-schedule";
 import {
   campaignFor,
+  campaignNameFor,
   isCampaignApproved,
   type NoticeLanguage,
   type NoticeSituation,
@@ -193,6 +195,31 @@ export async function GET(request: Request) {
       const audience = await loadReminderAudience(supabase, filters, calendar);
       const lastDateIso = isoFromDdMmYyyy(filters.lastDate);
 
+      // The facts only the database can answer — quiet hours, the holiday list,
+      // the two budget caps.
+      //
+      // This call used to be missing entirely, and the omission was invisible
+      // rather than loud: `evaluateSendGuards` reads those facts off optional
+      // fields, so leaving them out did not fail a type check or a test — it
+      // silently made quiet hours, both message caps and the holiday check
+      // structurally unreachable on a scheduled run. The module doc on
+      // `run-sender` says a scheduled run applies every guard the manual path
+      // applies; that was only true of the guards that need no IO.
+      //
+      // Harmless so far only because nothing schedules this yet. `requireProven`
+      // is false on purpose and is the one real difference: the cron sends
+      // saved campaigns that have already run at least once by hand.
+      const facts = await loadGuardFacts({
+        supabase,
+        lastDateIso,
+        campaignName:
+          campaignNameFor(
+            filters.situation as NoticeSituation,
+            filters.language as NoticeLanguage,
+          ) ?? "",
+        requireProvenCampaign: false,
+      });
+
       // The same list the office is held to.
       const guards = evaluateSendGuards({
         providerReady: isAisensyConfigured(),
@@ -205,6 +232,7 @@ export async function GET(request: Request) {
         lastDateLabel: filters.lastDate,
         today,
         recipientCount: audience.candidates.length,
+        ...facts,
       });
       const blocked = firstBlockingMessage(guards);
       if (blocked) {

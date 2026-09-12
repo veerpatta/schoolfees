@@ -8,14 +8,17 @@ import { MobilePrintedReceipt } from "@/modules/payments/ui/mobile-printed-recei
 import { MobileReceiptActionBar } from "@/modules/receipts/ui/mobile-receipt-action-bar";
 import { ReceiptDocument } from "@/modules/receipts/ui/receipt-document";
 import { ReceiptPrintActions } from "@/modules/receipts/ui/receipt-print-actions";
-import { ReceiptShareActions } from "@/modules/receipts/ui/receipt-share-actions";
+import { SendReceiptButton } from "@/modules/receipts/ui/send-receipt-button";
 import { ReceiptAdminReversalAction } from "@/modules/receipts/ui/receipt-admin-reversal-action";
 import { ReceiptUndoAction } from "@/modules/receipts/ui/receipt-undo-action";
 import { isUndoWindowOpen } from "@/modules/receipts/domain/undo-window";
 import { getSiteUrl } from "@/platform/env";
 import { createBilingualReceiptTranslator } from "@/platform/i18n/bilingual-receipt";
 import { getReceiptDetail } from "@/modules/receipts/data/queries";
-import { listWhatsappTemplates } from "@/modules/whatsapp/data/queries";
+import {
+  sendReceiptOnWhatsappAction,
+  sendReversalNoticeAction,
+} from "@/app/protected/receipts/actions";
 import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
 import { isUuid } from "@/platform/helpers/uuid";
 import { safeReturnTo } from "@/platform/navigation/return-to";
@@ -50,10 +53,7 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
     notFound();
   }
 
-  const [receipt, whatsappTemplates] = await Promise.all([
-    getReceiptDetail(receiptId),
-    listWhatsappTemplates({ onlyActive: true }),
-  ]);
+  const receipt = await getReceiptDetail(receiptId);
 
   if (!receipt) {
     notFound();
@@ -70,6 +70,11 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
     hasStaffPermission(staff, "payments:adjust") && !receipt.isVoided && undoWindowOpen;
   const canReverseReceipt =
     hasStaffPermission(staff, "payments:reverse_any") && !receipt.isVoided && !undoWindowOpen;
+  // Separate from `canReverseReceipt`, which is false on an already-reversed
+  // receipt by design — it gates the REVERSE button. Telling the family is the
+  // opposite case: it only exists once the receipt has been reversed.
+  const canAnnounceReversal =
+    hasStaffPermission(staff, "payments:reverse_any") && receipt.isVoided;
   const layout = resolvedSearchParams?.layout === "v2" ? ("v2" as const) : ("v3" as const);
 
   // Footer QR — public verify link for the printed receipt (V3 layout).
@@ -94,11 +99,28 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
             <Link className="text-sm font-medium text-foreground underline-offset-4 hover:underline" href={returnTo}>
               {t("backToTransactions")}
             </Link>
-            {/* Sharing needs a parent's phone number, not a print right. It sat
-                inside the `receipts:print` gate, so a teacher — who may open
-                this receipt — had no way to send it at all, while the phone bar
-                below offers them the image card. Desk and phone now agree. */}
-            <ReceiptShareActions receipt={receipt} templates={whatsappTemplates} />
+            {/* `receipts:print`, matching the PDF route and the phone bar: this
+                issues the parent-facing artefact. It used to be ungated,
+                because opening `wa.me` cost the school nothing and sent
+                nothing; a send from the school's own number is a different act
+                and carries a different right. */}
+            {canPrintReceipts ? (
+              <SendReceiptButton
+                receiptId={receipt.id}
+                action={sendReceiptOnWhatsappAction}
+              />
+            ) : null}
+            {/* A reversal is never announced automatically — most of them are
+                the office correcting its own entry, and the family may never
+                have known. This is the deliberate act, for the ones where they
+                did. */}
+            {canAnnounceReversal ? (
+              <SendReceiptButton
+                receiptId={receipt.id}
+                action={sendReversalNoticeAction}
+                label="Tell the family it was reversed"
+              />
+            ) : null}
             {canPrintReceipts ? <ReceiptPrintActions autoPrint={shouldAutoPrint} /> : null}
             {canUndoPayment ? (
               <ReceiptUndoAction
@@ -163,13 +185,14 @@ export default async function ReceiptDetailPage({ params, searchParams }: Receip
         />
       </div>
 
-      {/* Mounted OUTSIDE the `hidden md:block` document above: it owns a Sheet,
-          and a sheet inside a display:none subtree opens into nothing. */}
+      {/* Mounted OUTSIDE the `hidden md:block` document above, which is a
+          display:none subtree on a phone — anything interactive placed inside
+          it is unreachable. */}
       <MobileReceiptActionBar
         receipt={receipt}
         canPrintReceipts={canPrintReceipts}
         printHref={`/protected/receipts/${receipt.id}?print=1`}
-        whatsappTemplates={whatsappTemplates}
+        sendReceiptAction={sendReceiptOnWhatsappAction}
       />
     </div>
   );

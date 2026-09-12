@@ -21,7 +21,6 @@ import {
 } from "@/modules/defaulters/ui/quick-log-buttons";
 import { buildStudentPhoneEntries } from "@/modules/students/ui/phone-chooser";
 import { VoiceNotePlayer } from "@/modules/defaulters/ui/voice-note-player";
-import { WhatsAppDraftModal } from "@/modules/defaulters/ui/whatsapp-draft-modal";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatDateTimeIst, formatShortDate } from "@/platform/helpers/date";
 import { appendSessionParam } from "@/platform/navigation/session-href";
@@ -97,7 +96,19 @@ export function WorklistDrawer({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showFullForm, setShowFullForm] = useState(false);
-  const [showWhatsApp, setShowWhatsApp] = useState(false);
+  /**
+   * Where a WhatsApp press goes.
+   *
+   * This drawer used to open a draft modal that rendered an unapproved
+   * template into a `wa.me` link and left the sending to whoever held the
+   * phone, recording nothing. It now hands the student to the reminders
+   * screen, which sends an approved template from the school’s own number
+   * and writes the send down. `include` is what puts a named student on the
+   * audience whatever their cadence or snooze says.
+   */
+  const remindersHref = row
+    ? `/protected/reminders?include=${encodeURIComponent(row.studentId)}&session=${encodeURIComponent(sessionLabel)}`
+    : "/protected/reminders";
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
 
   const phoneEntries = useMemo(
@@ -270,25 +281,23 @@ export function WorklistDrawer({
           </div>
 
           {(contactSummary?.noAnswerStreak ?? 0) >= 3 ? (
-            <button
-              type="button"
-              onClick={() => setShowWhatsApp(true)}
+            <Link
+              href={remindersHref}
               className="flex w-full items-center gap-2 rounded-lg border border-success/40 bg-success-soft px-3 py-2.5 text-left text-sm font-medium text-success-soft-foreground hover:bg-success-soft/80"
             >
               <MessageSquare className="size-4 shrink-0" aria-hidden="true" />
               {t("whatsappNudge", { count: contactSummary?.noAnswerStreak ?? 0 })}
-            </button>
+            </Link>
           ) : null}
 
           <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setShowWhatsApp(true)}
+            <Link
+              href={remindersHref}
               className="inline-flex flex-col items-center justify-center gap-1 rounded-lg border border-success/30 bg-success-soft/60 px-2 py-3 text-xs font-semibold text-success-soft-foreground hover:bg-success-soft"
             >
               <MessageSquare className="size-4" aria-hidden="true" />
               {t("drawerWhatsApp")}
-            </button>
+            </Link>
             {canPostPayments ? (
               <Link
                 href={withSession(
@@ -395,13 +404,6 @@ export function WorklistDrawer({
         defaultPhoneLabel={activeLabel}
       />
 
-      <WhatsAppDraftModal
-        row={row}
-        sessionLabel={sessionLabel}
-        autoLogStudentId={row.studentId}
-        open={showWhatsApp}
-        onClose={() => setShowWhatsApp(false)}
-      />
     </>
   );
 }

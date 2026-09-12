@@ -209,10 +209,14 @@ const routeMetaItems: Array<
     description: "Moved out of Admin Tools on 22 Aug 2026. Redirects, keeping the query.",
   },
   {
+    // The screen is gone, and so is the table behind it. Every parent-facing
+    // message now uses a Meta-approved template that lives in AiSensy, not a
+    // row anybody here could edit. The entry stays so the old bookmark lands
+    // somewhere rather than 404-ing.
     match: "/protected/admin-tools/whatsapp-templates",
-    href: "/protected/admin-tools",
-    label: "WhatsApp templates",
-    description: "Pre-canned message templates with placeholder variables for parent outreach.",
+    href: "/protected/settings/whatsapp",
+    label: "WhatsApp settings",
+    description: "Templates moved to AiSensy on 12 Sep 2026. Redirects to the WhatsApp settings screen.",
   },
 
   {
@@ -864,9 +868,9 @@ export const advancedHubSections: readonly AdvancedHubSection[] = [
         requiredPermission: "imports:view",
       },
       {
-        href: "/protected/admin-tools/whatsapp-templates",
-        label: "WhatsApp templates",
-        description: "Manage message templates with placeholders used in bulk WhatsApp drafts.",
+        href: "/protected/settings/whatsapp",
+        label: "WhatsApp settings",
+        description: "Automatic receipts, reversal notices, quiet hours and the monthly message budget.",
         icon: MessageCircle,
         requiredPermission: "settings:view",
       },

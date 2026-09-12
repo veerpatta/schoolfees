@@ -78,18 +78,24 @@ describe("receipt preview print gating fails closed", () => {
   });
 
   /**
-   * The same receipt opened from the list and from its own page must compose
-   * the same message, which means both paths need the office's templates.
+   * The same receipt opened from the list and from its own page must be
+   * sendable the same way.
+   *
+   * This used to demand that the office’s editable templates reached every
+   * preview, so both paths composed the same wa.me text. The templates are
+   * gone: the body is Meta-approved and lives in AiSensy, and what a preview
+   * needs instead is the server action that sends it. Repointed rather than
+   * deleted — the property is unchanged, only the thing carrying it.
    */
-  it("hands the office's templates to every preview", () => {
+  it("hands the one-tap send to every preview", () => {
     expect(readRepoFile("src/app/protected/receipts/page.tsx")).toContain(
-      "listWhatsappTemplates",
+      "sendReceiptOnWhatsappAction",
     );
     for (const path of [
       "src/modules/receipts/ui/receipts-quick-load.tsx",
       "src/modules/transactions/ui/transactions-client-shell.tsx",
     ]) {
-      expect(readRepoFile(path)).toMatch(/whatsappTemplates=\{/);
+      expect(readRepoFile(path)).toMatch(/sendReceiptAction={/);
     }
   });
 });

@@ -12,13 +12,13 @@
     "fee engine resolves a student's policy, which is a change to money code and",
     "wants its own diff and its own verification against TEST-2026-27."
   ],
-  "generatedAt": "2026-08-21T09:56:58.256Z",
+  "generatedAt": "2026-09-12T18:25:35.093Z",
   "violations": {
     "domain-is-not-pure": 6,
-    "module-reaches-app": 43,
-    "reaches-another-modules-ui": 19,
+    "reaches-another-modules-ui": 17,
+    "module-reaches-app": 40,
     "platform-reaches-up": 2,
-    "design-system-knows-a-feature": 13
+    "design-system-knows-a-feature": 10
   },
   "cycles": [
     "dashboard <-> fees",
@@ -28,7 +28,6 @@
     "fees <-> system-sync",
     "imports <-> students",
     "payments <-> students",
-    "receipts <-> students",
     "receipts <-> transactions",
     "reports <-> students"
   ]

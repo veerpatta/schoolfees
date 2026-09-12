@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -9,34 +8,19 @@ import {
   ExternalLink,
   AlertTriangle,
   Loader2,
-  MessageCircle,
   ShieldCheck,
 } from "lucide-react";
 
 import { Button } from "@/ui/primitives/button";
 import { Sheet } from "@/ui/primitives/sheet";
 import { ReceiptDocument } from "@/modules/receipts/ui/receipt-document";
-import { ReceiptShareActions } from "@/modules/receipts/ui/receipt-share-actions";
-import { useReceiptStatementScopes } from "@/modules/receipts/ui/share-receipt-scopes";
-import { activeReceiptTemplateBody } from "@/modules/receipts/domain/share-message";
+import {
+  SendReceiptButton,
+  type SendReceiptState,
+} from "@/modules/receipts/ui/send-receipt-button";
 import { createBilingualReceiptTranslator } from "@/platform/i18n/bilingual-receipt";
 import { appendSessionParam } from "@/platform/navigation/session-href";
 import type { ReceiptDetail } from "@/modules/receipts/domain/types";
-import type { WhatsappTemplate } from "@/modules/whatsapp/domain/types";
-
-/**
- * Loaded on demand. Statically imported it pushed /protected/receipts past its
- * gzip ceiling in quality/route-bundle-baseline.json, and nothing here is
- * needed until someone actually taps Send — by which point a chunk fetch is
- * hidden behind the sheet's own open animation.
- */
-const ShareReceiptWhatsApp = dynamic(
-  () =>
-    import("@/modules/receipts/ui/share-receipt-whatsapp").then(
-      (mod) => mod.ShareReceiptWhatsApp,
-    ),
-  { ssr: false },
-);
 
 type ReceiptPreviewSheetProps = {
   open: boolean;
@@ -52,8 +36,17 @@ type ReceiptPreviewSheetProps = {
    * compiler asks each new call site instead of failing open.
    */
   canPrint: boolean;
-  /** Optional list of active WhatsApp templates for the Share action. */
-  whatsappTemplates?: WhatsappTemplate[];
+  /**
+   * The one-tap WhatsApp send. Optional: every surface that opens this sheet
+   * can offer it, but a preview opened purely to LOOK at a receipt need not.
+   *
+   * Passed in rather than imported because `src/modules` may not import
+   * `src/app`, where the action lives.
+   */
+  sendReceiptAction?: (
+    state: SendReceiptState,
+    formData: FormData,
+  ) => Promise<SendReceiptState>;
 };
 
 type FetchState =
@@ -69,11 +62,9 @@ export function ReceiptPreviewSheet({
   initialReceipt,
   sessionLabel,
   canPrint,
-  whatsappTemplates = [],
+  sendReceiptAction,
 }: ReceiptPreviewSheetProps) {
   const t = useTranslations("Receipts");
-  const tShare = useTranslations("MobileApp");
-  const [shareOpen, setShareOpen] = useState(false);
   // Parent-facing document → always bilingual, independent of the UI locale.
   const receiptT = useMemo(() => createBilingualReceiptTranslator(), []);
   const [state, setState] = useState<FetchState>(
@@ -181,25 +172,16 @@ export function ReceiptPreviewSheet({
           <Button variant="ghost" type="button" onClick={onClose}>
             {t("previewClose")}
           </Button>
-          {/* Phone: one tap sends the card (and the PDF, with the right). Desk
-              keeps the template sheet, where there is room to pick and preview
-              a body before sending. */}
-          {state.status === "ready" ? (
-            <>
-              <Button
-                type="button"
-                variant="accent"
-                size="sm"
-                className="md:hidden"
-                onClick={() => setShareOpen(true)}
-              >
-                <MessageCircle className="size-4" aria-hidden="true" />
-                {tShare("shareOneTapAction")}
-              </Button>
-              <span className="hidden md:inline-flex">
-                <ReceiptShareActions receipt={state.receipt} templates={whatsappTemplates} />
-              </span>
-            </>
+          {/* One control on every width. There used to be two — a one-tap
+              share on the phone and a template-picking sheet at the desk —
+              because the desk had a body to choose and a phone to pick. The
+              template is Meta-approved and the number comes from the ledger, so
+              there is nothing left to choose and nothing to differ about. */}
+          {state.status === "ready" && sendReceiptAction && canPrint ? (
+            <SendReceiptButton
+              receiptId={state.receipt.id}
+              action={sendReceiptAction}
+            />
           ) : null}
           {fullPageHref ? (
             <Button asChild variant="outline" size="sm">
@@ -219,50 +201,7 @@ export function ReceiptPreviewSheet({
           ) : null}
         </div>
 
-        {/* Sibling of the footer, never inside a `hidden md:*` wrapper — this
-            owns a Sheet of its own and a display:none ancestor would swallow it. */}
-        {state.status === "ready" && shareOpen ? (
-          <PreviewShareSheet
-            receipt={state.receipt}
-            canPrint={canPrint}
-            whatsappTemplates={whatsappTemplates}
-            open={shareOpen}
-            onOpenChange={setShareOpen}
-          />
-        ) : null}
       </div>
     </Sheet>
-  );
-}
-
-/**
- * Separate component only so `useReceiptStatementScopes` is called
- * unconditionally — the outer sheet does not have a receipt until its fetch
- * resolves, and hooks cannot hang off that.
- */
-function PreviewShareSheet({
-  receipt,
-  canPrint,
-  whatsappTemplates,
-  open,
-  onOpenChange,
-}: {
-  receipt: ReceiptDetail;
-  canPrint: boolean;
-  whatsappTemplates: WhatsappTemplate[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const statementScopes = useReceiptStatementScopes(receipt);
-
-  return (
-    <ShareReceiptWhatsApp
-      open={open}
-      onOpenChange={onOpenChange}
-      receipt={receipt}
-      canSendReceiptPdf={canPrint}
-      templateBody={activeReceiptTemplateBody(whatsappTemplates)}
-      extraScopes={statementScopes}
-    />
   );
 }

@@ -14,7 +14,7 @@ import { getStudentFormOptions } from "@/modules/students/data/queries";
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { hasStaffPermission, requireAnyStaffPermission } from "@/platform/supabase/session";
-import { listWhatsappTemplates } from "@/modules/whatsapp/data/queries";
+import { sendReceiptOnWhatsappAction } from "@/app/protected/receipts/actions";
 import { getTodayReceiptSnapshot } from "@/modules/fees/data/queries";
 import { normalizePaymentModeFilter } from "@/modules/transactions/domain/payment-modes";
 import { parseSegments } from "@/modules/students/domain/student-segments";
@@ -97,7 +97,6 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     { routeOptions, sessionOptions },
     policy,
     todaySnapshot,
-    whatsappTemplates,
   ] = await Promise.all([
     getOfficeWorkbookData({
       view: activeView,
@@ -123,7 +122,6 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     getTodayReceiptSnapshot({ sessionLabel }),
     // Templates power the bulk-WhatsApp draft on the Defaulters view inside
     // the Transactions tab. Cheap query (small table) — load alongside.
-    listWhatsappTemplates({ onlyActive: true }).catch(() => []),
   ]);
 
   const readiness = getOfficeWorkflowReadiness(setup, staff.appRole);
@@ -187,7 +185,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         paymentModeOptions={policy.acceptedPaymentModes.map((m) => ({ value: m.value, label: m.label }))}
         resolvedSessionLabel={sessionLabel}
         todaySnapshot={todaySnapshot}
-        whatsappTemplates={whatsappTemplates}
+        sendReceiptAction={sendReceiptOnWhatsappAction}
       />
     </div>
   );

@@ -43,6 +43,7 @@ import {
   shouldSyncStudentDuesForChange,
 } from "@/modules/students/domain/dues-sync";
 import { getStudentFormInput, validateStudentInput } from "@/modules/students/domain/validation";
+import { createAdminClient } from "@/platform/supabase/admin";
 import { createClient } from "@/platform/supabase/server";
 import {
   hasStaffPermission,
@@ -1522,6 +1523,104 @@ export async function cancelLeftStudentChargeAction(
       message:
         error instanceof Error ? error.message : "Unexpected error while cancelling this charge.",
       deleted: false,
+    };
+  }
+}
+
+/**
+ * What a one-tap statement send reports back.
+ *
+ * Declared here and mirrored (not imported) by the button, because
+ * `src/modules` may not import `src/app` — `quality:architecture` counts every
+ * such edge and only lets the count fall.
+ */
+export type SendStatementActionState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+};
+
+/**
+ * Send a family their fee statement as a PDF, on the school's WhatsApp number.
+ *
+ * This replaces the share sheet that used to sit here: a `wa.me` link that
+ * opened WhatsApp, pre-filled some text, and left the sending — and the file
+ * attaching — to whoever was holding the phone. Nothing about that was written
+ * down, and eight of the nine surfaces built that way logged nothing at all.
+ *
+ * What happens instead: the statement is rendered, uploaded to a private
+ * bucket, signed for an hour, and sent as a Meta-approved UTILITY template from
+ * the school's own number. The row in `whatsapp_reminder_sends` records who
+ * sent it, to which number, and what it said.
+ *
+ * `settings:write` is the same permission the bulk reminder screen uses, and
+ * the same one `SendReminderTrigger` beside it is gated on. Sending a parent a
+ * message is one capability, not several.
+ */
+export async function sendFeeStatementAction(
+  _prevState: SendStatementActionState,
+  formData: FormData,
+): Promise<SendStatementActionState> {
+  const studentId = (formData.get("studentId") ?? "").toString().trim();
+  if (!studentId) {
+    return { status: "error", message: "No student given." };
+  }
+
+  let staffId: string | null = null;
+  try {
+    const staff = await requireStaffPermission("settings:write");
+    staffId = (staff?.id as string | undefined) ?? null;
+  } catch {
+    return { status: "error", message: "You do not have permission to send messages." };
+  }
+
+  try {
+    // The student's own session, not the viewer's. A statement is about a
+    // ledger, and the ledger belongs to the year the student is enrolled in —
+    // sending last year's figures because someone left the session pill on a
+    // previous year would be a wrong number in a parent's hand.
+    const supabase = await createClient();
+    const { data: enrolment } = await supabase
+      .from("students")
+      .select("class_ref:classes(session_label)")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    const sessionLabel =
+      (enrolment?.class_ref as { session_label?: string } | null)?.session_label ?? "";
+    if (!sessionLabel) {
+      return { status: "error", message: "This student is not in a class, so there is no statement to send." };
+    }
+
+    const { sendFeeStatementNotice } = await import(
+      "@/modules/whatsapp/data/fee-statement-notice"
+    );
+    const result = await sendFeeStatementNotice({
+      // Admin client for the claim row and the private bucket; the PDF itself
+      // is rendered through this request's own session inside the notice.
+      supabase: createAdminClient(),
+      studentId,
+      sessionLabel,
+      staffId,
+    });
+
+    if (!result.sent) {
+      return { status: "error", message: result.reason };
+    }
+
+    // No separate activity row on purpose. The send is already written down
+    // where it belongs — a `whatsapp_reminder_sends` row carrying `sent_by`,
+    // the destination, the campaign and the exact parameters — and a second,
+    // thinner copy in the activity feed would be a record that can disagree
+    // with the first.
+    return {
+      status: "success",
+      message: "Statement sent on WhatsApp.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error ? error.message : "Could not send the statement.",
     };
   }
 }

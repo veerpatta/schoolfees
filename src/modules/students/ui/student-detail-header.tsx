@@ -181,13 +181,8 @@ export function StudentDetailHeader({
 
           {hasPhone ? (
             <StudentContactActions
-              fullName={student.fullName}
-              classLabel={student.classLabel}
-              admissionNo={student.admissionNo}
-              fatherName={student.fatherName}
               fatherPhone={student.fatherPhone}
               motherPhone={student.motherPhone}
-              outstandingAmount={outstandingAmount}
             />
           ) : null}
 

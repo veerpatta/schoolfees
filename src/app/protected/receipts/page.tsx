@@ -13,7 +13,7 @@ import { normalizeReceiptFilters, type ReceiptFilters } from "@/modules/receipts
 import { getViewSessionCookie } from "@/platform/session/cookie";
 import { resolveViewSession } from "@/platform/session/resolver";
 import { hasStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
-import { listWhatsappTemplates } from "@/modules/whatsapp/data/queries";
+import { sendReceiptOnWhatsappAction } from "@/app/protected/receipts/actions";
 
 type ReceiptsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -41,13 +41,12 @@ async function ReceiptsList({
 }) {
   // The class list is cached on `session:{label}` and is a fifth the size of
   // the full student form options — this page only needs labels for chips.
-  const [data, classOptions, whatsappTemplates] = await Promise.all([
+  const [data, classOptions] = await Promise.all([
     getReceiptsPage(filters.query, { page, pageSize: 30 }, sessionLabel, filters),
     getPaymentDeskClassOptions(sessionLabel),
     // Without this the preview opened from THIS list fell back to the built-in
     // body while the same receipt opened on its own page used the office's
     // template — one receipt, two different messages to the parent.
-    listWhatsappTemplates({ onlyActive: true }),
   ]);
 
   return (
@@ -59,7 +58,7 @@ async function ReceiptsList({
       initialAggregate={data.aggregate}
       classOptions={classOptions}
       canPrintReceipts={canPrintReceipts}
-      whatsappTemplates={whatsappTemplates}
+      sendReceiptAction={sendReceiptOnWhatsappAction}
     />
   );
 }

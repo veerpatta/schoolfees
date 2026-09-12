@@ -70,7 +70,10 @@ describe("Admin Tools page resilience", () => {
     expect(html).toContain("Automatic sync is on");
     // Hub link tiles still render even though the health card is suspended.
     expect(html).toContain("Transfer to Next Session");
-    expect(html).toContain("WhatsApp templates");
+    // Was "WhatsApp templates" until 12 Sep 2026. The editable template
+    // library is gone — bodies live in AiSensy, approved by Meta — and the
+    // tile now reaches the operational switches that were SQL-only.
+    expect(html).toContain("WhatsApp settings");
   });
 
   it("does not trigger a render-time reconcile (read-only health only)", async () => {

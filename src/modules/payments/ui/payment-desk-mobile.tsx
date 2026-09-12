@@ -1083,24 +1083,6 @@ export function PaymentDeskClient({
           createdAt: latestReceipt.createdAt,
       }
       : null;
-  const whatsappCopy =
-    visibleActionState.status === "success" && visibleActionState.receiptNumber && selectedStudent
-      ? [
-          "प्रिय अभिभावक / Dear Parent,",
-          `शुल्क प्राप्त / Payment received: ${formatInr(visibleActionState.amountReceived ?? paymentAmount)}`,
-          (visibleActionState.quickDiscountApplied ?? quickDiscountAmount) > 0
-            ? `छूट / Discount: ${formatInr(visibleActionState.quickDiscountApplied ?? quickDiscountAmount)}`
-            : null,
-          (visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount) > 0
-            ? `विलंब शुल्क माफ / Late fee waived: ${formatInr(visibleActionState.lateFeeWaivedApplied ?? quickLateFeeWaiverAmount)}`
-            : null,
-          `रसीद / Receipt: *${visibleActionState.receiptNumber}*`,
-          `दिनांक / Date: ${visibleActionState.paymentDate ?? paymentDate}`,
-          "धन्यवाद — Veer Patta School",
-        ]
-          .filter(Boolean)
-          .join("\n")
-      : "";
   const todayReceiptWarning =
     latestReceiptToday && latestReceiptToday.id !== dismissedTodayReceiptId ? (
       <div
@@ -3272,8 +3254,6 @@ export function PaymentDeskClient({
                       remainingBalance={visibleActionState.remainingBalance ?? remainingAfterPayment}
                       creditBalance={creditBalance}
                       refundableAmount={refundableAmount}
-                      whatsappMessage={whatsappCopy}
-                      whatsappPhone={selectedStudent.fatherPhone ?? selectedStudent.motherPhone ?? null}
                       printReceiptHref={printReceiptHref}
                       visibleReceiptHref={visibleReceiptHref}
                       autoPrint={lastPrintMode === "yes"}

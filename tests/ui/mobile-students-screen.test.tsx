@@ -112,11 +112,16 @@ function renderList(students: StudentListItem[]) {
 
 function renderProfile({
   canPostPayments = false,
-  canShare = false,
+  hasPhone = false,
   isActive = false,
 }: {
   canPostPayments?: boolean;
-  canShare?: boolean;
+  /**
+   * Was `canShare`, when the action bar carried a `wa.me` share sheet. The
+   * sheet is gone — the statement now sends through the API as a server-rendered
+   * node — so all this still decides is whether the Call chip has a number.
+   */
+  hasPhone?: boolean;
   isActive?: boolean;
 } = {}) {
   return renderWithIntl(
@@ -128,15 +133,12 @@ function renderProfile({
       canEditStudent={false}
       canDownloadPhoto={false}
       photoPath={null}
-      fatherPhone={canShare ? "8123456789" : null}
+      fatherPhone={hasPhone ? "8123456789" : null}
       motherPhone={null}
       canPostPayments={canPostPayments}
-      canShare={canShare}
       isActive={isActive}
       returnTo="/protected/students"
       initialTab="fees"
-      familyGroupId={null}
-      pendingAmount={14500}
       feesContent={<p>Fees</p>}
       familyContent={<p>Family</p>}
       aboutContent={<p>About</p>}

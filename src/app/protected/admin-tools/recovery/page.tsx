@@ -187,11 +187,15 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
               under the thumb rather than eight columns away. */}
           <ul className="flex flex-col gap-2.5 md:hidden">
             {data.rows.map((row) => {
-              const mobileWaMessage = encodeURIComponent(
-                `Dear Parent, our records show a pending balance of ${formatInr(row.totalRemaining)} for ${row.fullName} (Adm# ${row.admissionNo}). Kindly clear the dues at your earliest convenience. - VPPS Office`,
-              );
-              const mobileWaHref = row.phone
-                ? `https://wa.me/91${row.phone.replace(/[^0-9]/g, "").slice(-10)}?text=${mobileWaMessage}`
+              // The reminders screen, scoped to this student.
+              //
+              // Both halves of this page used to hand-roll their own `wa.me`
+              // link — two copies of one English sentence, two different phone
+              // normalisations, opening the staff member’s own WhatsApp and
+              // recording nothing. `include` names the student explicitly, so
+              // a leaver who is off every ordinary audience still lands on it.
+              const mobileRemindHref = row.phone
+                ? `/protected/reminders?include=${encodeURIComponent(row.studentId)}`
                 : null;
 
               return (
@@ -217,11 +221,9 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
                       <Button asChild variant="outline" size="sm" className="h-9">
                         <Link href={`/protected/students/${row.studentId}`}>Open</Link>
                       </Button>
-                      {mobileWaHref ? (
+                      {mobileRemindHref ? (
                         <Button asChild variant="outline" size="sm" className="h-9">
-                          <a href={mobileWaHref} target="_blank" rel="noopener noreferrer">
-                            WhatsApp
-                          </a>
+                          <Link href={mobileRemindHref}>WhatsApp</Link>
                         </Button>
                       ) : null}
                       {canWriteOff ? (
@@ -257,11 +259,8 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
               </thead>
               <tbody>
                 {data.rows.map((row) => {
-                  const waMessage = encodeURIComponent(
-                    `Dear Parent, our records show a pending balance of ${formatInr(row.totalRemaining)} for ${row.fullName} (Adm# ${row.admissionNo}). Kindly clear the dues at your earliest convenience. - VPPS Office`,
-                  );
-                  const waHref = row.phone
-                    ? `https://wa.me/91${row.phone.replace(/\D/g, "").slice(-10)}?text=${waMessage}`
+                  const remindHref = row.phone
+                    ? `/protected/reminders?include=${encodeURIComponent(row.studentId)}`
                     : null;
 
                   return (
@@ -306,12 +305,12 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
                               <span className="sr-only">Statement</span>
                             </Link>
                           </Button>
-                          {waHref ? (
+                          {remindHref ? (
                             <Button asChild variant="outline" size="icon" className="h-8 w-8" title="WhatsApp reminder">
-                              <a href={waHref} target="_blank" rel="noopener noreferrer">
+                              <Link href={remindHref}>
                                 <MessageCircle className="size-4" />
                                 <span className="sr-only">WhatsApp reminder</span>
-                              </a>
+                              </Link>
                             </Button>
                           ) : null}
                           {canWriteOff ? (

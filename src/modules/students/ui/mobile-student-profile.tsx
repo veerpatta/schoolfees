@@ -10,7 +10,6 @@ import {
   PhoneActionMenu,
   buildStudentPhoneEntries,
 } from "@/modules/students/ui/phone-chooser";
-import { ShareFeeWhatsApp } from "@/modules/students/ui/share-fee-whatsapp";
 import { StudentRowCollectButton } from "@/modules/students/ui/student-row-collect-button";
 import { StudentPhotoAvatarButton } from "@/modules/students/ui/student-photo-sheet";
 
@@ -37,23 +36,30 @@ export function MobileStudentProfile({
   fatherPhone,
   motherPhone,
   canPostPayments,
-  canShare,
   canEditStudent,
   canDownloadPhoto,
   photoPath,
   isActive,
   returnTo,
   initialTab,
-  familyGroupId,
-  pendingAmount,
   feesContent,
   familyContent,
   aboutContent,
   familyCount,
   sendReminder,
+  sendStatement,
 }: {
   /** The AiSensy reminder trigger, server-rendered by the page. */
   sendReminder?: React.ReactNode;
+  /**
+   * The one-tap fee-statement send, server-rendered by the page.
+   *
+   * Replaces the share sheet that used to live here — a `wa.me` link plus a
+   * download, which logged nothing and left the actual attaching to whoever was
+   * holding the phone. Passed in as a node for the same reason `sendReminder`
+   * is: its action lives in `src/app`, which `src/modules` may not import.
+   */
+  sendStatement?: React.ReactNode;
   studentId: string;
   studentName: string;
   classLabel: string;
@@ -61,7 +67,6 @@ export function MobileStudentProfile({
   fatherPhone: string | null;
   motherPhone: string | null;
   canPostPayments: boolean;
-  canShare: boolean;
   canEditStudent: boolean;
   /** Required, not defaulted: a missing prop must not hand out a child photo. */
   canDownloadPhoto: boolean;
@@ -69,8 +74,6 @@ export function MobileStudentProfile({
   isActive: boolean;
   returnTo: string;
   initialTab: TabId;
-  familyGroupId: string | null;
-  pendingAmount: number;
   feesContent: ReactNode;
   familyContent: ReactNode;
   aboutContent: ReactNode;
@@ -79,14 +82,14 @@ export function MobileStudentProfile({
 }) {
   const t = useTranslations("MobileApp");
   const [tab, setTab] = useState<TabId>(initialTab);
-  const [shareOpen, setShareOpen] = useState(false);
 
   const phoneEntries = buildStudentPhoneEntries(
     { fatherPhone, motherPhone },
     { father: t("phoneLabelFather"), mother: t("phoneLabelMother") },
   );
   const showCollectAction = canPostPayments && isActive;
-  const hasActionBar = canShare || showCollectAction || Boolean(sendReminder);
+  const hasActionBar =
+    showCollectAction || Boolean(sendReminder) || Boolean(sendStatement);
 
   return (
     <div className="anim-slide-up">
@@ -193,15 +196,7 @@ export function MobileStudentProfile({
           className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-border bg-background/95 px-4 pt-2.5 backdrop-blur md:hidden print:hidden"
           style={{ paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)" }}
         >
-          {canShare ? (
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              className="focus-ring h-14 w-28 shrink-0 rounded-2xl border border-success/30 bg-success-soft text-[13px] font-extrabold text-success-soft-foreground active:scale-[0.98]"
-            >
-              {t("studentWhatsAppCta")}
-            </button>
-          ) : null}
+          {sendStatement}
           {sendReminder}
           {showCollectAction ? (
             <StudentRowCollectButton
@@ -217,19 +212,6 @@ export function MobileStudentProfile({
         </div>
       ) : null}
 
-      {canShare ? (
-        <ShareFeeWhatsApp
-          headless
-          open={shareOpen}
-          onOpenChange={setShareOpen}
-          studentId={studentId}
-          studentName={studentName}
-          familyGroupId={familyGroupId}
-          fatherPhone={fatherPhone}
-          motherPhone={motherPhone}
-          pendingAmount={pendingAmount}
-        />
-      ) : null}
     </div>
   );
 }

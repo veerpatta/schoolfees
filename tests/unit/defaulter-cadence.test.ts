@@ -8,11 +8,17 @@ import {
   heatScore,
   SEEN_BUT_NOT_PAID_WEIGHT,
 } from "@/modules/defaulters/domain/cadence";
-import {
-  appendPaymentBlockIfMissing,
-  composeDefaulterDraft,
-  DEFAULT_WHATSAPP_TEMPLATE,
-} from "@/modules/defaulters/domain/whatsapp-template";
+/*
+ * The three describes that used to sit below the cadence ones — for
+ * `composeDefaulterDraft`, `DEFAULT_WHATSAPP_TEMPLATE` and
+ * `appendPaymentBlockIfMissing` — are gone with the module they covered.
+ *
+ * Deleted rather than repointed, which is the exception to this repo's rule,
+ * because there is nothing left to point them at: the click-to-send lane those
+ * functions composed text for no longer exists. A defaulter is now messaged
+ * through an approved template whose body lives in AiSensy and Meta, and
+ * `tests/unit/whatsapp-campaigns.test.ts` is what pins that wording.
+ */
 
 const TODAY = new Date(Date.UTC(2026, 4, 24, 12, 0)); // 2026-05-24 noon UTC
 
@@ -111,101 +117,6 @@ describe("tallyCadence", () => {
       later: 0,
       done: 0,
     });
-  });
-});
-
-describe("composeDefaulterDraft", () => {
-  it("substitutes every placeholder", () => {
-    const text = composeDefaulterDraft({
-      studentName: "Ramesh Kumar",
-      className: "Class 10 B",
-      outstandingAmount: 12500,
-      dueLabel: "Q1 due 20-04-2026",
-      schoolName: "Shri Veer Patta Senior Secondary School",
-    });
-    expect(text).toContain("Ramesh Kumar");
-    expect(text).toContain("Class 10 B");
-    expect(text).toContain("Q1 due 20-04-2026");
-    expect(text).toContain("Shri Veer Patta Senior Secondary School");
-    expect(text).toContain("₹");
-  });
-
-  it("never leaves unresolved placeholders in the canonical template", () => {
-    const text = composeDefaulterDraft({
-      studentName: "X",
-      className: "Y",
-      outstandingAmount: 1,
-      dueLabel: "Z",
-      schoolName: "S",
-    });
-    expect(text).not.toMatch(/\{[a-zA-Z]+\}/);
-  });
-
-  it("accepts a custom template override", () => {
-    const text = composeDefaulterDraft({
-      studentName: "A",
-      className: "10",
-      outstandingAmount: 100,
-      dueLabel: "Q1",
-      schoolName: "VPPS",
-      template: "Hi {studentName}, you owe {amount} for {className}.",
-    });
-    expect(text).toBe("Hi A, you owe ₹100 for 10.");
-  });
-  it("includes a UPI pay link when provided", () => {
-    const text = composeDefaulterDraft({
-      studentName: "A",
-      className: "10",
-      outstandingAmount: 8000,
-      dueLabel: "Q1",
-      schoolName: "VPPS",
-      paymentLink: "upi://pay?pa=school@bank&am=8000",
-      paymentReference: "Fee ADM1234",
-    });
-
-    expect(text).toContain("upi://pay?pa=school@bank&am=8000");
-    expect(text).toContain("Fee ADM1234");
-    expect(text).toContain("Payment Desk");
-  });
-});
-
-describe("DEFAULT_WHATSAPP_TEMPLATE", () => {
-  it("uses placeholders the substituter knows about", () => {
-    const placeholders = DEFAULT_WHATSAPP_TEMPLATE.match(/\{[a-zA-Z]+\}/g) ?? [];
-    const known = new Set([
-      "{studentName}",
-      "{className}",
-      "{amount}",
-      "{dueLabel}",
-      "{schoolName}",
-      "{paymentBlock}",
-    ]);
-    for (const placeholder of placeholders) {
-      expect(known.has(placeholder)).toBe(true);
-    }
-  });
-});
-
-describe("appendPaymentBlockIfMissing", () => {
-  it("adds UPI details when a saved template did not include them", () => {
-    const text = appendPaymentBlockIfMissing("Reminder body", {
-      paymentLink: "upi://pay?pa=school@bank&am=500",
-      paymentReference: "Fee ADM1",
-    });
-
-    expect(text).toContain("Reminder body");
-    expect(text).toContain("upi://pay?pa=school@bank&am=500");
-    expect(text).toContain("Fee ADM1");
-    expect(text).toContain("Payment Desk");
-  });
-
-  it("does not duplicate UPI details when the template already rendered the link", () => {
-    const text = appendPaymentBlockIfMissing("Pay upi://pay?pa=school@bank&am=500", {
-      paymentLink: "upi://pay?pa=school@bank&am=500",
-      paymentReference: "Fee ADM1",
-    });
-
-    expect(text.match(/upi:\/\/pay/g)).toHaveLength(1);
   });
 });
 

@@ -592,6 +592,23 @@ export async function reverseReceiptAdminAction(
       // minutes on a receipt they just reversed.
       await drainFinancialViewRefresh();
 
+      /*
+       * No WhatsApp message is sent here, on purpose.
+       *
+       * A receipt notice is automatic because a posting is unambiguous: money
+       * arrived, and the parent is pleased to hear so. A reversal is not. Most
+       * of them are the office correcting its own entry — wrong child, wrong
+       * amount, entered twice — and the family may have heard nothing about it
+       * and need to hear nothing. Firing a "your payment came back off" the
+       * instant a clerk fixes a typo would manufacture alarm the reversal
+       * itself did not cause.
+       *
+       * So the notice exists (`data/reversal-notice.ts`, template
+       * `vpps_app_reversal_{hi,en}_v1`) and is sent by a person, from the
+       * receipt, once they have decided the family needs to know. See
+       * `sendReversalNoticeAction`.
+       */
+
       await publishOfficeSyncEvent({
         sessionLabel,
         entityType: "payment",

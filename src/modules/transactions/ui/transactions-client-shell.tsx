@@ -68,7 +68,7 @@ import {
   BulkWhatsappProvider,
   type BulkWhatsappRow,
 } from "@/modules/defaulters/ui/bulk-whatsapp-provider";
-import type { WhatsappTemplate } from "@/modules/whatsapp/domain/types";
+import type { SendReceiptState } from "@/modules/receipts/ui/send-receipt-button";
 import type { CollectionRow } from "./transactions-lazy-tables";
 import { CUSTOM_TRANSPORT_ROUTE_KEY } from "@/modules/fees/domain/transport-route-key";
 
@@ -123,7 +123,10 @@ export type TransactionsClientShellProps = {
   paymentModeOptions: PaymentModeOption[];
   resolvedSessionLabel: string;
   todaySnapshot: TodaySnapshot;
-  whatsappTemplates: readonly WhatsappTemplate[];
+  sendReceiptAction: (
+    state: SendReceiptState,
+    formData: FormData,
+  ) => Promise<SendReceiptState>;
   /**
    * Admin only. Adds a per-row "reverse" action that opens the receipt, where
    * the confirm dialog lives. The dialog stays on the receipt page on purpose:
@@ -720,7 +723,7 @@ export function TransactionsClientShell({
   paymentModeOptions,
   resolvedSessionLabel,
   todaySnapshot,
-  whatsappTemplates,
+  sendReceiptAction,
   canReverseReceipts = false,
   canPrintReceipts,
 }: TransactionsClientShellProps) {
@@ -1463,7 +1466,6 @@ export function TransactionsClientShell({
                 totalPending: row.outstandingAmount,
                 oldestDueDate: row.nextDueDate,
               }))}
-              templates={[...whatsappTemplates]}
               sessionLabel={effectiveSession}
             >
               <DefaultersTable
@@ -1809,7 +1811,7 @@ export function TransactionsClientShell({
           receiptId={previewReceiptId}
           sessionLabel={effectiveSession}
           canPrint={canPrintReceipts}
-          whatsappTemplates={[...whatsappTemplates]}
+          sendReceiptAction={sendReceiptAction}
         />
       ) : null}
 

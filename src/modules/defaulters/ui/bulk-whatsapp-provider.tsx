@@ -6,25 +6,37 @@ import {
   useContext,
   useMemo,
   useState,
-  useTransition,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
-
-import { toast } from "@/ui/primitives/toast";
-import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { MessageSquare, X } from "lucide-react";
 
 import { Button } from "@/ui/primitives/button";
-import { Sheet } from "@/ui/primitives/sheet";
-import { formatInr } from "@/platform/helpers/currency";
-import { formatShortDate } from "@/platform/helpers/date";
-import { appendPaymentBlockIfMissing } from "@/modules/defaulters/domain/whatsapp-template";
-import { buildWaMeLink, renderWhatsappTemplate } from "@/modules/whatsapp/domain/render";
-import type { WhatsappTemplate } from "@/modules/whatsapp/domain/types";
-import { schoolProfile } from "@/platform/config/school";
-import { buildStudentFeeUpiPayment } from "@/modules/payments/domain/upi";
-import { logWhatsAppSendAttempts } from "@/app/protected/defaulters/actions";
+
+/**
+ * Tick students on a list, then send them all one reminder.
+ *
+ * This used to build a `wa.me` link per recipient and **open one browser tab
+ * each**, uncapped, on whatever WhatsApp account the staff member happened to
+ * be signed into. It rendered its own message from a row in
+ * `whatsapp_templates` — a template nobody had approved — so nothing about the
+ * send was a school message: not the number it came from, not the wording, and
+ * not the record, because there was no record.
+ *
+ * What is left here is the part that was always good: the selection. Ticking
+ * rows now hands the chosen students to `/protected/reminders`, which is the
+ * one send path in this app and carries everything that makes a send safe — the
+ * approved template, the quiet-hours and budget guards, per-family grouping so
+ * siblings get one message, the no-call flag, the claim-before-send that stops
+ * a family being messaged twice, the run record and the contact log.
+ *
+ * The hand-off is deliberate rather than a shortcut. A reminder run needs a
+ * situation and a date the office chooses per run; the students list can send
+ * immediately because its sheet asks for exactly those two things. Duplicating
+ * that sheet here would mean `defaulters/ui` importing `students/ui`, which
+ * `quality:architecture` counts as `reaches-another-modules-ui` and only lets
+ * fall.
+ */
 
 export type BulkWhatsappRow = {
   studentId: string;
@@ -46,27 +58,19 @@ const BulkContext = createContext<BulkContextValue | null>(null);
 
 export function useBulkWhatsapp(): BulkContextValue {
   const value = useContext(BulkContext);
-  if (!value) throw new Error("BulkWhatsappRowCheckbox must be inside BulkWhatsappProvider");
+  if (!value) throw new Error("BulkRowCheckbox must be inside BulkWhatsappProvider");
   return value;
 }
 
 type ProviderProps = {
   rows: BulkWhatsappRow[];
-  templates: WhatsappTemplate[];
   children: ReactNode;
-  /** Session label used to auto-log a contact attempt per recipient. */
+  /** Carried onto the reminders screen so it opens on the same year. */
   sessionLabel?: string;
 };
 
-export function BulkWhatsappProvider({ rows, templates, children, sessionLabel }: ProviderProps) {
-  const t = useTranslations("Defaulters");
-  const router = useRouter();
-  const [, startTransition] = useTransition();
+export function BulkWhatsappProvider({ rows, children, sessionLabel }: ProviderProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(
-    templates[0]?.id ?? null,
-  );
 
   const toggle = useCallback((studentId: string) => {
     setSelectedIds((current) => {
@@ -89,220 +93,60 @@ export function BulkWhatsappProvider({ rows, templates, children, sessionLabel }
     [rows, selectedIds],
   );
 
-  const activeTemplate = useMemo(
-    () => templates.find((template) => template.id === activeTemplateId) ?? null,
-    [templates, activeTemplateId],
-  );
+  // Counted and named so the bar can say what will actually happen. A family
+  // with no number on file is not a failure to report later; it is a fact the
+  // office can see before pressing anything.
+  const withoutPhone = selectedRows.filter((row) => !row.fatherPhone).length;
 
-  const previewVars = useMemo(() => {
-    const sample = selectedRows[0] ?? rows[0];
-    if (!sample) return {} as Record<string, string>;
-    const payment = buildStudentFeeUpiPayment({
-      admissionNo: sample.admissionNo,
-      amount: sample.totalPending,
-    });
-    return {
-      studentName: sample.fullName,
-      fatherName: sample.fatherName ?? "Parent",
-      className: sample.classLabel,
-      pending: formatInr(sample.totalPending),
-      dueDate: sample.oldestDueDate ? formatShortDate(sample.oldestDueDate) : "—",
-      schoolName: schoolProfile.shortName,
-      paymentLink: payment.uri,
-      paymentReference: payment.displayReference,
-    } as Record<string, string>;
-  }, [selectedRows, rows]);
-
-  const preview = useMemo(() => {
-    if (!activeTemplate) return "";
-    return appendPaymentBlockIfMissing(renderWhatsappTemplate(activeTemplate.body, previewVars), {
-      paymentLink: previewVars.paymentLink,
-      paymentReference: previewVars.paymentReference,
-    });
-  }, [activeTemplate, previewVars]);
-
-  const rowsWithoutPhone = selectedRows.filter((row) => !row.fatherPhone);
-  const sendableRows = selectedRows.filter((row) => row.fatherPhone);
-
-  const handleOpenAll = useCallback(() => {
-    if (!activeTemplate) return;
-    const sentIds: string[] = [];
-    for (const row of sendableRows) {
-      if (!row.fatherPhone) continue;
-      const payment = buildStudentFeeUpiPayment({
-        admissionNo: row.admissionNo,
-        amount: row.totalPending,
-      });
-      const text = appendPaymentBlockIfMissing(renderWhatsappTemplate(activeTemplate.body, {
-        studentName: row.fullName,
-        fatherName: row.fatherName ?? "Parent",
-        className: row.classLabel,
-        pending: formatInr(row.totalPending),
-        dueDate: row.oldestDueDate ? formatShortDate(row.oldestDueDate) : "—",
-        schoolName: schoolProfile.shortName,
-        paymentLink: payment.uri,
-        paymentReference: payment.displayReference,
-      }), {
-        paymentLink: payment.uri,
-        paymentReference: payment.displayReference,
-      });
-      window.open(buildWaMeLink(row.fatherPhone, text), "_blank", "noopener");
-      sentIds.push(row.studentId);
-    }
-    setSheetOpen(false);
-    setSelectedIds(new Set());
-
-    if (sessionLabel && sentIds.length > 0) {
-      startTransition(async () => {
-        // The result used to be discarded entirely, so a follow-up that failed
-        // to log looked identical to one that saved.
-        const result = await logWhatsAppSendAttempts({
-          sessionLabel,
-          studentIds: sentIds,
-          templateName: activeTemplate.name,
-        });
-
-        if (result.ok) {
-          toast({
-            title: "Follow-up logged",
-            description: `${sentIds.length} student${sentIds.length === 1 ? "" : "s"} recorded.`,
-            tone: "success",
-          });
-        } else {
-          toast({
-            title: "Follow-up not logged",
-            description:
-              result.message ?? "The messages were sent, but the log could not be saved.",
-            tone: "danger",
-          });
-        }
-
-        router.refresh();
-      });
-    }
-  }, [activeTemplate, sendableRows, sessionLabel, router]);
-
-  const handleClear = useCallback(() => {
-    setSelectedIds(new Set());
-  }, []);
+  const remindersHref = (() => {
+    const params = new URLSearchParams();
+    // `include` is what puts a named student on the audience whatever their
+    // cadence or snooze says — which is exactly what ticking a row means.
+    params.set("include", selectedRows.map((row) => row.studentId).join(","));
+    if (sessionLabel) params.set("session", sessionLabel);
+    return `/protected/reminders?${params.toString()}`;
+  })();
 
   return (
     <BulkContext.Provider value={contextValue}>
       {children}
 
-      {selectedIds.size > 0 ? (
-        // Sits ABOVE the fixed mobile nav (z-40): at bottom-0/z-30 the
-        // "Send to N" button was hidden behind it on phones.
-        <div className="fixed inset-x-0 bottom-[var(--mobile-bottom-nav-offset,0px)] z-40 border-t border-border bg-card/95 backdrop-blur-sm shadow-[0_-4px_16px_rgba(0,0,0,0.06)] mobile-safe-bottom-padding md:bottom-0 print:hidden">
-          <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleClear}
-                className="grid size-9 place-items-center rounded-full border border-border text-muted-foreground hover:bg-surface-2"
-                aria-label={t("bulkClearSelection")}
-              >
-                <X className="size-4" />
-              </button>
-              <p className="text-sm font-medium text-foreground">
-                {t("bulkSelected", { count: selectedIds.size })}
+      {selectedRows.length > 0 ? (
+        <div
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-4 py-3 backdrop-blur print:hidden"
+          style={{ paddingBottom: "calc(var(--mobile-safe-area-bottom, 0px) + 0.75rem)" }}
+        >
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                {selectedRows.length} selected
               </p>
+              {withoutPhone > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {withoutPhone} of them have no phone number on file and cannot be messaged.
+                </p>
+              ) : null}
             </div>
-            <Button
-              type="button"
-              variant="accent"
-              onClick={() => setSheetOpen(true)}
-              disabled={templates.length === 0}
-              className="gap-2"
-            >
-              <MessageSquare className="size-4" aria-hidden="true" />
-              {t("bulkSendButton", { count: selectedIds.size })}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                <X className="size-4" aria-hidden="true" />
+                Clear
+              </Button>
+              <Button asChild size="sm">
+                <Link href={remindersHref}>
+                  <MessageSquare className="size-4" aria-hidden="true" />
+                  Send reminder
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       ) : null}
-
-      <Sheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        title={t("bulkSheetTitle", { count: selectedIds.size })}
-        description={t("bulkSheetDescription")}
-        size="full"
-      >
-        <div className="space-y-4">
-          {templates.length === 0 ? (
-            <p className="rounded-lg border border-warning/30 bg-warning-soft px-3 py-3 text-sm text-warning-soft-foreground">
-              {t("bulkNoTemplates")}
-            </p>
-          ) : (
-            <>
-              <div className="space-y-2">
-                <label htmlFor="bulk-template" className="text-sm font-medium text-foreground">
-                  {t("bulkTemplateLabel")}
-                </label>
-                <select
-                  id="bulk-template"
-                  value={activeTemplateId ?? ""}
-                  onChange={(event) => setActiveTemplateId(event.target.value)}
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-                >
-                  {templates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  {t("bulkPreviewHeading", {
-                    name: selectedRows[0]?.fullName ?? rows[0]?.fullName ?? t("bulkFirstRow"),
-                  })}
-                </p>
-                <pre className="whitespace-pre-wrap rounded-lg border border-border bg-surface-2 p-3 font-sans text-sm text-foreground">
-                  {preview}
-                </pre>
-              </div>
-
-              {rowsWithoutPhone.length > 0 ? (
-                <div className="rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
-                  {t("bulkNoPhoneMessage", { count: rowsWithoutPhone.length })}
-                  <ul className="mt-1 list-disc pl-5">
-                    {rowsWithoutPhone.map((row) => (
-                      <li key={row.studentId}>{row.fullName}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              <p className="text-xs text-muted-foreground">
-                {t("bulkOpenInfo", { count: sendableRows.length })}
-              </p>
-
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setSheetOpen(false)}
-                  className="flex-1"
-                >
-                  {t("bulkCancel")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="accent"
-                  onClick={handleOpenAll}
-                  disabled={sendableRows.length === 0 || activeTemplate === null}
-                  className="flex-1"
-                >
-                  {t("bulkOpenButton", { count: sendableRows.length })}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </Sheet>
     </BulkContext.Provider>
   );
 }

@@ -17,7 +17,7 @@ import { formatInr } from "@/platform/helpers/currency";
 import { staffDisplayName } from "@/platform/helpers/staff-name";
 import { cn } from "@/platform/utils";
 import { ReceiptPreviewSheet } from "@/modules/receipts/ui/receipt-preview-sheet";
-import type { WhatsappTemplate } from "@/modules/whatsapp/domain/types";
+import type { SendReceiptState } from "@/modules/receipts/ui/send-receipt-button";
 import { ReversedBadge } from "@/modules/receipts/ui/reversed-badge";
 import {
   EMPTY_RECEIPT_FILTERS,
@@ -75,7 +75,10 @@ type ReceiptsQuickLoadProps = {
   canPrintReceipts: boolean;
   /** Active WhatsApp templates, so a receipt opened from this list composes the
    *  same message as the same receipt opened on its own page. */
-  whatsappTemplates?: WhatsappTemplate[];
+  sendReceiptAction?: (
+    state: SendReceiptState,
+    formData: FormData,
+  ) => Promise<SendReceiptState>;
 };
 
 export function ReceiptsQuickLoad({
@@ -86,7 +89,7 @@ export function ReceiptsQuickLoad({
   initialAggregate,
   classOptions,
   canPrintReceipts,
-  whatsappTemplates = [],
+  sendReceiptAction,
 }: ReceiptsQuickLoadProps) {
   const t = useTranslations("Receipts");
   const [filters, setFilters] = useState<ReceiptFilters>(initialFilters);
@@ -580,8 +583,8 @@ export function ReceiptsQuickLoad({
         open={previewReceiptId !== null}
         onClose={() => setPreviewReceiptId(null)}
         receiptId={previewReceiptId}
+        sendReceiptAction={sendReceiptAction}
         canPrint={canPrintReceipts}
-        whatsappTemplates={whatsappTemplates}
       />
     </>
   );

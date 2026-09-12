@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { sendAisensyCampaignMessage } from "@/modules/whatsapp/data/aisensy";
+import { signDocumentUrl } from "@/modules/whatsapp/data/document-store";
 import {
   importDeliveryReport,
   loadStuckSends,
@@ -61,7 +62,7 @@ export async function retryFailedSendsAction(
 
   const { data, error } = await supabase
     .from("whatsapp_reminder_sends")
-    .select("id, campaign_name, destination, template_params, attempts")
+    .select("id, campaign_name, destination, template_params, attempts, document_path")
     .eq("run_id", runId)
     .eq("status", "failed")
     .limit(RETRY_LIMIT);
@@ -74,13 +75,43 @@ export async function retryFailedSendsAction(
     destination: string;
     template_params: string[];
     attempts: number | null;
+    document_path: string | null;
   }>;
   if (rows.length === 0) return { status: "error", message: "Nothing failed on this run." };
 
   let sent = 0;
   let stillFailing = 0;
+  let missingDocument = 0;
 
   for (const row of rows) {
+    /**
+     * Re-sign, never re-send the old link.
+     *
+     * A signed URL is not a template param and was never stored, because it
+     * expires within the hour — long before anyone looks at a failed run. What
+     * the row carries is the object PATH, and a retry mints a fresh signature
+     * from it.
+     *
+     * When the object is gone the retry is SKIPPED rather than sent without
+     * media: a document template with no media is rejected by AiSensy outright,
+     * and the row would just fail again with a more confusing error.
+     */
+    let media: { url: string; filename: string } | undefined;
+    if (row.document_path) {
+      const signedUrl = await signDocumentUrl({ supabase, path: row.document_path });
+      if (!signedUrl) {
+        missingDocument += 1;
+        continue;
+      }
+      media = {
+        url: signedUrl,
+        // The parent-facing name is derived from the path's own basename, which
+        // is the only thing still true about a row whose student may since have
+        // been renamed.
+        filename: row.document_path.split("/").pop() || "document.pdf",
+      };
+    }
+
     const result = await sendAisensyCampaignMessage({
       campaignName: row.campaign_name,
       destination: row.destination,
@@ -89,6 +120,7 @@ export async function retryFailedSendsAction(
       userName: row.template_params?.[0] ?? "",
       templateParams: row.template_params ?? [],
       source: "veerpatta-fees-app/retry",
+      ...(media ? { media } : {}),
     });
 
     await supabase
@@ -112,12 +144,17 @@ export async function retryFailedSendsAction(
 
   revalidatePath(`/protected/reminders/runs/${runId}`);
 
+  const skipped =
+    missingDocument > 0
+      ? ` ${missingDocument} could not be retried because the attached document is no longer on file.`
+      : "";
+
   return {
-    status: stillFailing > 0 ? "error" : "success",
+    status: stillFailing > 0 || missingDocument > 0 ? "error" : "success",
     message:
       stillFailing > 0
-        ? `${sent} went through, ${stillFailing} failed again.`
-        : `${sent} retried successfully.`,
+        ? `${sent} went through, ${stillFailing} failed again.${skipped}`
+        : `${sent} retried successfully.${skipped}`,
   };
 }
 

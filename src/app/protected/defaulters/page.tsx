@@ -18,7 +18,6 @@ import { getDefaultersPageData } from "@/modules/defaulters/data/queries";
 import { type DefaulterContactSummary } from "@/modules/defaulters/domain/cadence";
 import { getWorkbookClassOptions } from "@/modules/fees/data/queries";
 import { getStudentFormOptions } from "@/modules/students/data/queries";
-import { listWhatsappTemplates } from "@/modules/whatsapp/data/queries";
 import {
   EMPTY_DEFAULTER_FILTERS,
   type DefaulterFilters as DefaulterFiltersType,
@@ -45,7 +44,6 @@ type DefaultersPageProps = {
 
 type Translator = Awaited<ReturnType<typeof getTranslations<"Defaulters">>>;
 type QueueData = Awaited<ReturnType<typeof getDefaultersPageData>>;
-type Templates = Awaited<ReturnType<typeof listWhatsappTemplates>>;
 
 function asString(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[value.length - 1] ?? "";
@@ -114,7 +112,6 @@ async function QueueCountBadge({
 async function DefaultersQueue({
   t,
   dataPromise,
-  templatesPromise,
   filters,
   sessionLabel,
   canPostPayments,
@@ -123,14 +120,13 @@ async function DefaultersQueue({
 }: {
   t: Translator;
   dataPromise: Promise<QueueData>;
-  templatesPromise: Promise<Templates>;
   filters: DefaulterFiltersType;
   sessionLabel: string;
   canPostPayments: boolean;
   canViewPaymentHistory: boolean;
   canManageNoCall: boolean;
 }) {
-  const [data, whatsappTemplates] = await Promise.all([dataPromise, templatesPromise]);
+  const data = await dataPromise;
   const contactSummaries = data.contactSummaries;
 
   const withSession = (href: string) => appendSessionParam(href, sessionLabel);
@@ -180,7 +176,6 @@ async function DefaultersQueue({
           once, with a back-reference for the second use. */}
       <BulkWhatsappProvider
         rows={data.rows}
-        templates={whatsappTemplates}
         sessionLabel={sessionLabel}
       >
         <DefaultersWorkspace
@@ -324,8 +319,6 @@ export default async function DefaultersPage({
     redactPaymentHistory: !canViewPaymentHistory,
   });
   dataPromise.catch(() => undefined);
-  const templatesPromise = listWhatsappTemplates({ onlyActive: true });
-  templatesPromise.catch(() => undefined);
 
   // The filters only need the class and route lists. Both are request-cached
   // reads the queue makes anyway, so this costs no extra query.
@@ -394,7 +387,6 @@ export default async function DefaultersPage({
         <DefaultersQueue
           t={t}
           dataPromise={dataPromise}
-          templatesPromise={templatesPromise}
           filters={filters}
           sessionLabel={sessionLabel}
           canPostPayments={canPostPayments}

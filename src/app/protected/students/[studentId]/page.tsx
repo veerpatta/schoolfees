@@ -21,13 +21,14 @@ import { StudentDangerZone } from "@/modules/students/ui/student-danger-zone";
 import { StudentDetailHeader } from "@/modules/students/ui/student-detail-header";
 import { SendReminderTrigger } from "@/modules/students/ui/send-reminder-sheet";
 import { sendRemindersAction } from "@/app/protected/reminders/actions";
+import { sendFeeStatementAction } from "@/app/protected/students/actions";
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { StudentInfoGroupEditButton } from "@/modules/students/ui/student-info-sheet";
 import { StudentFeePlanEditButton } from "@/modules/students/ui/student-fee-plan-edit-button";
 import { StudentMoneyBand } from "@/modules/students/ui/student-money-band";
 import { StudentQuickReference } from "@/modules/students/ui/student-quick-reference";
 import { StudentRepaymentPlanCard } from "@/modules/students/ui/student-repayment-plan-card";
-import { ShareFeeWhatsApp } from "@/modules/students/ui/share-fee-whatsapp";
+import { SendStatementButton } from "@/modules/students/ui/send-statement-button";
 import { StudentReceiptsPanel } from "@/modules/students/ui/student-receipts-panel";
 import { StudentWorkspaceTabs } from "@/modules/students/ui/student-workspace-tabs";
 import { StudentFamilyPanel } from "@/modules/students/ui/family-panel";
@@ -311,6 +312,32 @@ export default async function StudentDetailPage({
         defaultSituation="fee_due"
         defaultLanguage="hi"
         action={sendRemindersAction}
+        surface="phone"
+      />
+    ) : null;
+
+  // The one-tap fee statement, in both shapes.
+  //
+  // Gated on a reachable phone AND `settings:write`, because it messages a
+  // parent. NOT gated on an outstanding balance, unlike the reminder beside it:
+  // "what have I paid this year" is a question a family who owes nothing asks
+  // just as often, and a statement showing a clear account is a good answer.
+  const canReachFamily = Boolean(student.fatherPhone || student.motherPhone);
+  const sendStatementNode =
+    canSendReminders && canReachFamily ? (
+      <SendStatementButton
+        studentId={student.id}
+        studentName={student.fullName}
+        action={sendFeeStatementAction}
+      />
+    ) : null;
+
+  const phoneSendStatementNode =
+    canSendReminders && canReachFamily ? (
+      <SendStatementButton
+        studentId={student.id}
+        studentName={student.fullName}
+        action={sendFeeStatementAction}
         surface="phone"
       />
     ) : null;
@@ -1359,16 +1386,14 @@ export default async function StudentDetailPage({
           fatherPhone={student.fatherPhone}
           motherPhone={student.motherPhone}
           canPostPayments={canPostPayments}
-          canShare={Boolean(student.fatherPhone || student.motherPhone)}
           canEditStudent={canEditStudent}
           canDownloadPhoto={canDownloadPhoto}
           photoPath={student.photoPath}
           isActive={student.status === "active"}
           returnTo={returnTo}
           initialTab={mobileTab}
-          familyGroupId={familyMembersDetail.familyGroupId}
-          pendingAmount={outstandingAmount}
           sendReminder={phoneSendReminderNode}
+          sendStatement={phoneSendStatementNode}
           familyCount={familyMembersDetail.members.filter((member) => !member.isSelf).length}
           feesContent={mobileFeesContent}
           familyContent={
@@ -1528,14 +1553,7 @@ export default async function StudentDetailPage({
                 primaryPhone: student.fatherPhone ?? student.motherPhone ?? null,
               }}
             />
-            <ShareFeeWhatsApp
-              studentId={student.id}
-              studentName={student.fullName}
-              familyGroupId={familyMembersDetail.familyGroupId}
-              fatherPhone={student.fatherPhone}
-              motherPhone={student.motherPhone}
-              pendingAmount={outstandingAmount}
-            />
+            {sendStatementNode}
           </div>
         }
       />

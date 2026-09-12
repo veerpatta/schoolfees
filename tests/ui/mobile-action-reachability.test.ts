@@ -75,7 +75,6 @@ describe("mobile primary actions stay reachable", () => {
     // The photo sheet's body grows by a preview image once a picture is
     // chosen, which is exactly when Save has to still be reachable.
     ["src/modules/students/ui/student-photo-sheet.tsx", "studentPhotoSave"],
-    ["src/modules/whatsapp/ui/template-editor.tsx", "whatsappEditorCreate"],
   ])("%s pins its submit action outside the scroll body", (path, submitMarker) => {
     const source = read(path);
 
@@ -87,7 +86,6 @@ describe("mobile primary actions stay reachable", () => {
 
   it.each([
     "src/modules/students/ui/bulk-student-edit-bar.tsx",
-    "src/modules/defaulters/ui/bulk-whatsapp-provider.tsx",
     "src/modules/fees/ui/fee-setup-client.tsx",
     "src/modules/students/ui/student-form.tsx",
     "src/ui/forms/save-bar.tsx",
