@@ -16,6 +16,12 @@ export type HeldCharge = {
   amountDue: number;
   /** Cash receipted against this row. Non-zero is why the engine held it. */
   appliedAmount: number;
+  /**
+   * Write-off already pinned to this row. It stops counting the moment the row
+   * is cancelled, which is the whole reason the warning below exists — a row
+   * can carry NO live cash and still strand a write-off.
+   */
+  writtenOffAmount: number;
 };
 
 type LeftStudentHeldChargesProps = {
@@ -69,6 +75,11 @@ export function LeftStudentHeldCharges({
 
   const total = charges.reduce((sum, charge) => sum + charge.amountDue, 0);
   const anyCarryMoney = charges.some((charge) => charge.appliedAmount > 0);
+  // Deliberately a separate test from anyCarryMoney. Riddhika SONI's row was
+  // the case that found this: applied_amount 0 (its only cash receipt had been
+  // reversed) but a ₹6,125 write-off pinned to it. Keying the warning off live
+  // cash alone would have stayed silent on exactly the row that strands money.
+  const anyWrittenOff = charges.some((charge) => charge.writtenOffAmount > 0);
 
   return (
     <div className="lg:col-span-2 rounded-lg border border-warning/40 bg-warning-soft/40 px-4 py-3 text-sm">
@@ -93,7 +104,7 @@ export function LeftStudentHeldCharges({
         </div>
       </div>
 
-      {anyCarryMoney ? (
+      {anyCarryMoney || anyWrittenOff ? (
         <p className="mt-2.5 rounded-md bg-card px-3 py-2 text-xs text-muted-foreground">
           <strong className="text-foreground">Reverse an over-posted write-off first.</strong> A
           write-off pinned to one of these rows stops counting the moment the row is cancelled,
@@ -114,6 +125,9 @@ export function LeftStudentHeldCharges({
                     due {charge.dueDate}
                     {charge.appliedAmount > 0
                       ? ` · ${formatInr(charge.appliedAmount)} receipted against it`
+                      : ""}
+                    {charge.writtenOffAmount > 0
+                      ? ` · ${formatInr(charge.writtenOffAmount)} already written off against it`
                       : ""}
                   </p>
                 </div>

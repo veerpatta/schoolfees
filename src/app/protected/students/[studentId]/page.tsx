@@ -329,7 +329,11 @@ export default async function StudentDetailPage({
             (row) =>
               !row.isCarryForward &&
               row.dueDate > (student.leftOn as string) &&
-              row.pendingAmount + row.appliedAmount > 0,
+              // Still CHARGED, regardless of what has settled against it. A
+              // pending-based filter would hide the exact row that matters:
+              // one already written off reads pending 0 while its charge is
+              // still inflating expected fees for a term nobody attended.
+              row.baseCharge > 0,
           )
           .map((row) => ({
             installmentId: row.installmentId,
@@ -337,6 +341,7 @@ export default async function StudentDetailPage({
             dueDate: row.dueDate,
             amountDue: row.baseCharge,
             appliedAmount: row.appliedAmount,
+            writtenOffAmount: row.discountCloseoutAmount ?? 0,
           }))
       : [];
 

@@ -106,4 +106,23 @@ describe("cancelling a left student's un-accrued charge", () => {
     const ui = read("src/modules/students/ui/left-student-held-charges.tsx");
     expect(ui).toContain("Reverse an over-posted write-off first");
   });
+
+  it("fires that warning on a stranded write-off, not only on live cash", () => {
+    // The row that found this carried applied_amount 0 — its one cash receipt
+    // had been reversed — and a ₹6,125 write-off pinned to it. Keying the
+    // warning off live cash alone stays silent on exactly the row that strands
+    // money, which is the mistake the warning exists to prevent.
+    const ui = read("src/modules/students/ui/left-student-held-charges.tsx");
+    expect(ui).toContain("anyCarryMoney || anyWrittenOff");
+    expect(ui).toMatch(/writtenOffAmount > 0/);
+  });
+
+  it("lists a row that is still CHARGED, not one that is still pending", () => {
+    // A written-off row reads pending 0 while its charge goes on inflating
+    // expected fees for a term nobody attended. Filtering on pending would have
+    // hidden the only row in the live session that needed this.
+    const page = read("src/app/protected/students/[studentId]/page.tsx");
+    expect(page).toContain("row.baseCharge > 0");
+    expect(page).toContain("writtenOffAmount: row.discountCloseoutAmount");
+  });
 });
