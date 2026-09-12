@@ -1252,7 +1252,7 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
     supabase
       .from("students")
       .select(
-        `id, admission_no, full_name, date_of_birth, father_name, mother_name, primary_phone, secondary_phone, address, class_id, transport_route_id, status, notes, photo_path, email, joined_on, created_at, updated_at, ${STUDENT_INFO_SELECT_COLUMNS}, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)`,
+        `id, admission_no, full_name, date_of_birth, father_name, mother_name, primary_phone, secondary_phone, address, class_id, transport_route_id, status, notes, photo_path, email, joined_on, left_on, created_at, updated_at, ${STUDENT_INFO_SELECT_COLUMNS}, class_ref:classes(id, session_label, class_name, section, stream_name), route_ref:transport_routes(id, route_name, route_code)`,
       )
       .eq("id", studentId)
       .maybeSingle(),
@@ -1306,6 +1306,7 @@ async function getStudentDetailUncached(studentId: string): Promise<StudentDetai
     fullName: row.full_name,
     dateOfBirth: row.date_of_birth,
     joinedOn: row.joined_on,
+    leftOn: row.left_on ?? null,
     email: row.email,
     fatherName: row.father_name,
     motherName: row.mother_name,
@@ -1734,23 +1735,98 @@ export async function bulkUpdateStudentFields(
   return { updatedCount: (data ?? []).length };
 }
 
-export async function archiveStudent(studentId: string) {
+/**
+ * Records that a student has left, WITH the date it happened.
+ *
+ * The date is the whole point. `students.left_on` has existed since the initial
+ * schema and nothing ever wrote it, so every withdrawal looked the same to the
+ * fee engine: it cancelled every clean unpaid installment, whether it fell due
+ * while the child was still at the school or months after they had gone. With a
+ * date on file the generator cancels only what is still ahead of them, so the
+ * fee stops accruing from the day they left and what they genuinely owed stays
+ * owed.
+ *
+ * `status` is a parameter because the danger zone could only ever produce
+ * `left`, while `inactive` and `graduated` were reachable only from the full
+ * edit form or the bulk sheet.
+ */
+export async function archiveStudent(
+  studentId: string,
+  options: {
+    leftOn?: string | null;
+    status?: Extract<import("@/platform/db/types").StudentStatus, "left" | "inactive" | "graduated">;
+    reason?: string | null;
+    tcNumber?: string | null;
+  } = {},
+) {
   const supabase = await createClient();
   const existing = await getStudentDetail(studentId);
-  const archiveNote = "Archived / withdrawn from Student Master.";
+  const nextStatus = options.status ?? "left";
+  const leftOn = options.leftOn?.trim() || null;
+
+  const reasonPart = options.reason?.trim() ? ` Reason: ${options.reason.trim()}.` : "";
+  const datePart = leftOn ? ` Left on ${leftOn}.` : "";
+  const archiveNote = `Marked ${nextStatus} in Student Master.${datePart}${reasonPart}`;
   const nextNotes = existing?.notes
     ? `${existing.notes}\n${archiveNote}`
     : archiveNote;
+
+  const patch: Record<string, unknown> = {
+    status: nextStatus,
+    notes: nextNotes,
+  };
+  // Only written when supplied. Blanking a date somebody already recorded, on
+  // an edit that did not mention one, would silently re-arm the old
+  // cancel-everything behaviour for that student.
+  if (leftOn) {
+    patch.left_on = leftOn;
+  }
+  if (options.tcNumber?.trim()) {
+    patch.tc_number = options.tcNumber.trim();
+  }
+
+  const { error } = await supabase.from("students").update(patch).eq("id", studentId);
+
+  if (error) {
+    throw new Error(`Unable to archive student: ${error.message}`);
+  }
+}
+
+/**
+ * Puts a student back on the roll after a withdrawal that should not have
+ * happened, or a leave date typed wrong.
+ *
+ * Clearing `left_on` alongside the status matters: the generator reads it to
+ * decide what to cancel, and a stale date on an active student is a trap
+ * waiting for the next regeneration. The cancelled installments come back on
+ * their own — `differs()` treats a non-scheduled row as structurally changed,
+ * so the next generator pass rewrites them to `scheduled` now that the student
+ * is active again. That is the existing mechanism, not a new one.
+ */
+export async function reinstateStudent(
+  studentId: string,
+  options: {
+    status?: Extract<import("@/platform/db/types").StudentStatus, "active" | "inactive">;
+    reason?: string | null;
+  } = {},
+) {
+  const supabase = await createClient();
+  const existing = await getStudentDetail(studentId);
+  const nextStatus = options.status ?? "active";
+  const reasonPart = options.reason?.trim() ? ` Reason: ${options.reason.trim()}.` : "";
+  const note = `Reinstated as ${nextStatus}; leave date cleared.${reasonPart}`;
+
   const { error } = await supabase
     .from("students")
     .update({
-      status: "left",
-      notes: nextNotes,
+      status: nextStatus,
+      left_on: null,
+      notes: existing?.notes ? `${existing.notes}\n${note}` : note,
     })
     .eq("id", studentId);
 
   if (error) {
-    throw new Error(`Unable to archive student: ${error.message}`);
+    throw new Error(`Unable to reinstate student: ${error.message}`);
   }
 }
 

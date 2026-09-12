@@ -19,6 +19,9 @@ import { WaiveLateFeeTrigger } from "@/modules/payments/ui/waive-late-fee-trigge
 import { StudentAboutPanel } from "@/modules/students/ui/student-about-panel";
 import { StudentDangerZone } from "@/modules/students/ui/student-danger-zone";
 import { StudentDetailHeader } from "@/modules/students/ui/student-detail-header";
+import { SendReminderTrigger } from "@/modules/students/ui/send-reminder-sheet";
+import { sendRemindersAction } from "@/app/protected/reminders/actions";
+import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { StudentInfoGroupEditButton } from "@/modules/students/ui/student-info-sheet";
 import { StudentFeePlanEditButton } from "@/modules/students/ui/student-fee-plan-edit-button";
 import { StudentMoneyBand } from "@/modules/students/ui/student-money-band";
@@ -263,8 +266,63 @@ export default async function StudentDetailPage({
   // Writing a balance off is admin-only and money-moving, so it lives in the
   // Danger Zone next to withdraw and delete — not in the middle of the
   // Transactions table, and not on a phone-only card the desktop never showed.
+  // Deliberately NOT gated on `status === "active"` any more.
+  //
+  // It was, and that hid the write-off from exactly the students who need it: a
+  // leaver's balance. The moment a student was withdrawn the buttons vanished
+  // from this page, so the only remaining route was Admin Tools → Recovery, and
+  // the residue of a mid-session leaver looked like an ordinary due with no
+  // visible way to close it. Marking a student as left now stops the fee from
+  // their leave date; what is left is the part that genuinely accrued, and this
+  // is where it gets written off.
+  // The AiSensy reminder, built here because the send action lives in
+  // `src/app` and `src/modules` may not reach into it. Shown only when there
+  // are fees to chase and the staffer may send — `settings:write` is the
+  // permission the bulk send screen uses, and the action re-checks it.
+  //
+  // The notice labels are passed as plain data rather than imported by the
+  // client component: `/protected/students` has ~1.6 KB of gzip headroom and
+  // `domain/campaigns` carries 24 template descriptors.
+  const canSendReminders = hasStaffPermission(staff, "settings:write");
+  const sendReminderNode =
+    canSendReminders && outstandingAmount > 0 ? (
+      <SendReminderTrigger
+        studentId={student.id}
+        studentLabel={student.fullName}
+        situationOptions={NOTICE_SITUATIONS.map((entry) => ({
+          value: entry.value,
+          label: entry.label,
+        }))}
+        defaultSituation="fee_due"
+        defaultLanguage="hi"
+        action={sendRemindersAction}
+      />
+    ) : null;
+
+  const phoneSendReminderNode =
+    canSendReminders && outstandingAmount > 0 ? (
+      <SendReminderTrigger
+        studentId={student.id}
+        studentLabel={student.fullName}
+        situationOptions={NOTICE_SITUATIONS.map((entry) => ({
+          value: entry.value,
+          label: entry.label,
+        }))}
+        defaultSituation="fee_due"
+        defaultLanguage="hi"
+        action={sendRemindersAction}
+        surface="phone"
+      />
+    ) : null;
+
+  const enrolmentProps = {
+    status: student.status,
+    joinedOn: student.joinedOn,
+    leftOn: student.leftOn,
+  };
+
   const closeBalanceProps =
-    student.status === "active"
+    outstandingAmount > 0 || prevYearDuesAmount > 0
       ? {
           studentLabel: student.fullName,
           studentAdmissionNo: student.admissionNo,
@@ -1236,6 +1294,7 @@ export default async function StudentDetailPage({
             <StudentDangerZone
               studentId={student.id}
               deletionSafety={deletionSafety}
+              enrolment={enrolmentProps}
               closeBalance={closeBalanceProps}
             />
           </div>
@@ -1278,6 +1337,7 @@ export default async function StudentDetailPage({
           initialTab={mobileTab}
           familyGroupId={familyMembersDetail.familyGroupId}
           pendingAmount={outstandingAmount}
+          sendReminder={phoneSendReminderNode}
           familyCount={familyMembersDetail.members.filter((member) => !member.isSelf).length}
           feesContent={mobileFeesContent}
           familyContent={
@@ -1323,6 +1383,7 @@ export default async function StudentDetailPage({
         latestReceiptId={receipts[0]?.id ?? null}
         returnTo={returnTo}
         encodedReturnTo={encodedReturnTo}
+        sendReminder={sendReminderNode}
       />
 
       <StudentMoneyBand
@@ -1452,6 +1513,7 @@ export default async function StudentDetailPage({
         <StudentDangerZone
               studentId={student.id}
               deletionSafety={deletionSafety}
+              enrolment={enrolmentProps}
               closeBalance={closeBalanceProps}
             />
       ) : null}

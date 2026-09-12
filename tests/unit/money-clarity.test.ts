@@ -193,10 +193,22 @@ describe("money glossary", () => {
     expect(conventional.summary).not.toBe(closeout.summary);
     expect(closeout.summary).not.toBe(manual.summary);
 
-    // The labels must each contain the word "discount" so the glossary
-    // search surfaces them.
+    // Two of the three are genuinely discounts and say so in their label.
     expect(manual.label.toLowerCase()).toContain("discount");
     expect(conventional.label.toLowerCase()).toContain("discount");
-    expect(closeout.label.toLowerCase()).toContain("discount");
+
+    // The close-out deliberately does NOT. Calling it a discount on screen is
+    // what made staff read a leaver's write-off as a concession the school had
+    // granted — it is the opposite: a discount decides what a family is
+    // charged, a write-off accepts that a charge already made will not be
+    // collected. What this assertion was really protecting is SEARCH, and
+    // MoneyGlossary matches label + summary + detail (money-glossary.tsx:50-52),
+    // so someone typing "discount" — the word in the database and in old habits
+    // — still finds it.
+    expect(closeout.label.toLowerCase()).not.toContain("discount");
+    const closeoutSearchable =
+      `${closeout.label} ${closeout.summary} ${closeout.detail}`.toLowerCase();
+    expect(closeoutSearchable).toContain("discount");
+    expect(closeoutSearchable).toContain("written off");
   });
 });

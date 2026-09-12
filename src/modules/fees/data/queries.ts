@@ -21,6 +21,7 @@ import { fetchAllPages, fetchInChunks } from "@/platform/helpers/chunk";
 import { describeError } from "@/platform/observability/log";
 import { getDisplayInstallmentLabel } from "@/modules/prev-year-dues/domain/display";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/modules/receipts/data/reversals";
+import { DISCOUNT_CLOSEOUT_MODE } from "@/platform/money/write-off";
 import { loadSessionScopedReceiptIds } from "@/platform/session/installment-scope";
 import { buildTransportRouteLabel, matchesTransportRouteFilter } from "@/modules/fees/domain/label";
 import { createClient } from "@/platform/supabase/server";
@@ -802,6 +803,18 @@ export async function getWorkbookTransactions(filters?: {
   routeId?: string;
   skipFinancials?: boolean;
   todayOnly?: boolean;
+  /**
+   * Drop write-off receipts (`payment_mode = 'discount'`) from the result.
+   *
+   * Opt-in, and deliberately not the default, because this one function serves
+   * two different questions. The Transactions **register** must show everything
+   * that was posted, write-offs included — that is what a register is for, and
+   * `paymentMode: 'discount'` is an offered filter on that screen. The
+   * **collection** views built on the same rows must not, because no cash
+   * moved. Making it the default would have quietly emptied the register;
+   * leaving it absent counted a leaver's written-off balance as money taken.
+   */
+  excludeDiscountCloseouts?: boolean;
   studentId?: string;
   /** Extra student scope, ANDed with the class/route scope. Segment filters use this. */
   studentIds?: readonly string[] | null;
@@ -890,6 +903,10 @@ export async function getWorkbookTransactions(filters?: {
 
     if (filters?.paymentMode) {
       query = query.eq("payment_mode", filters.paymentMode);
+    }
+
+    if (filters?.excludeDiscountCloseouts) {
+      query = query.neq("payment_mode", DISCOUNT_CLOSEOUT_MODE);
     }
 
     if (normalizedSearch) {

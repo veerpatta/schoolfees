@@ -533,6 +533,12 @@ export async function getOfficeWorkbookData(
           await getWorkbookTransactions({
             ...sharedFilters,
             todayOnly: true,
+            // This view answers "what did we take today, by mode". A write-off
+            // is not money taken, and `buildCollectionRows` has no case for it:
+            // 'discount' fell off the end of the mode ternary and was bucketed
+            // as **Cash**, so a written-off balance did not merely inflate the
+            // total, it invented cash in the drawer.
+            excludeDiscountCloseouts: true,
           }),
         ),
       };

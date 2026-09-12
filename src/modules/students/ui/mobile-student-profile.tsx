@@ -50,7 +50,10 @@ export function MobileStudentProfile({
   familyContent,
   aboutContent,
   familyCount,
+  sendReminder,
 }: {
+  /** The AiSensy reminder trigger, server-rendered by the page. */
+  sendReminder?: React.ReactNode;
   studentId: string;
   studentName: string;
   classLabel: string;
@@ -83,7 +86,7 @@ export function MobileStudentProfile({
     { father: t("phoneLabelFather"), mother: t("phoneLabelMother") },
   );
   const showCollectAction = canPostPayments && isActive;
-  const hasActionBar = canShare || showCollectAction;
+  const hasActionBar = canShare || showCollectAction || Boolean(sendReminder);
 
   return (
     <div className="anim-slide-up">
@@ -199,6 +202,7 @@ export function MobileStudentProfile({
               {t("studentWhatsAppCta")}
             </button>
           ) : null}
+          {sendReminder}
           {showCollectAction ? (
             <StudentRowCollectButton
               studentId={studentId}

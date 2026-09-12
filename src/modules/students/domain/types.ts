@@ -138,6 +138,8 @@ export type StudentDetail = StudentInfoFields & {
   dateOfBirth: string | null;
   /** Admission date. The column has always existed; nothing read it until now. */
   joinedOn: string | null;
+  /** The day they left. Decides which installments stop being charged. */
+  leftOn: string | null;
   email: string | null;
   fatherName: string | null;
   motherName: string | null;

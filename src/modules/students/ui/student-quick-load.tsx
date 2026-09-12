@@ -12,6 +12,10 @@ import { FilterDrawerButton } from "@/ui/shared/filter-drawer-button";
 import { SegmentFilterGroups } from "@/ui/shared/segment-filter-groups";
 import { SummaryRow, SummaryCell } from "@/ui/data-table/summary-row";
 import { MobileStudentsScreen } from "@/modules/students/ui/mobile-students-screen";
+import type {
+  ReminderSendState,
+  SituationOption,
+} from "@/modules/students/ui/send-reminder-sheet";
 import { StudentListTable } from "@/modules/students/ui/student-list-table";
 import { Button } from "@/ui/primitives/button";
 import { Input } from "@/ui/primitives/input";
@@ -119,6 +123,16 @@ type StudentQuickLoadProps = {
   initialSegmentCounts?: SegmentCounts;
   /** Fee-profile chips read student_fee_overrides, which RLS gates on fees:view. */
   canViewFees?: boolean;
+  /**
+   * The WhatsApp send, or null when this staffer may not send. The action and
+   * the notice labels are server-supplied: the action lives in src/app, which
+   * src/modules may not import, and the label list would otherwise drag 24
+   * template descriptors into a route with ~1.6 KB of headroom.
+   */
+  reminders?: {
+    action: (state: ReminderSendState, formData: FormData) => Promise<ReminderSendState>;
+    situationOptions: readonly SituationOption[];
+  } | null;
 };
 
 export function StudentQuickLoad({
@@ -132,6 +146,7 @@ export function StudentQuickLoad({
   canCollectPayments,
   initialSegmentCounts,
   canViewFees = true,
+  reminders = null,
 }: StudentQuickLoadProps) {
   const t = useTranslations("Students");
   const tSegments = useTranslations("Segments");
@@ -1032,6 +1047,7 @@ export function StudentQuickLoad({
           classOptions={classOptions}
           routeOptions={routeOptions}
           onClearSelection={clearSelection}
+          reminders={reminders}
         />
       ) : null}
     </>

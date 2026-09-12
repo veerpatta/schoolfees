@@ -64,7 +64,7 @@ describe("mobile primary actions stay reachable", () => {
   it.each([
     ["src/modules/payments/ui/waive-late-fee-sheet.tsx", "waiveSubmit"],
     ["src/modules/defaulters/ui/contact-popover.tsx", "popoverSubmit"],
-    ["src/modules/students/ui/close-due-as-discount-sheet.tsx", "Close balance"],
+    ["src/modules/students/ui/close-due-as-discount-sheet.tsx", "Write off"],
     // The sibling picker autofocuses its search field, so on a phone the
     // keyboard is up the moment the sheet opens and a submit left at the end
     // of the scroll body sits under it.

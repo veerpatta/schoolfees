@@ -103,7 +103,9 @@ export async function getOfficeHomeData(): Promise<OfficeHomeData> {
     getRecentConfigChangeLog(6),
     getWorkbookInstallmentRows({ pendingOnly: true, sessionLabel }),
     getWorkbookInstallmentRows({ overdueOnly: true, pendingOnly: true, sessionLabel }),
-    getWorkbookTransactions({ todayOnly: true, sessionLabel }),
+    // Feeds the "collected today" card only, so write-offs are excluded: no
+    // cash moved, and the card sits beside figures that already exclude them.
+    getWorkbookTransactions({ todayOnly: true, sessionLabel, excludeDiscountCloseouts: true }),
     supabase
       .from("import_batches")
       .select("id, filename, status, invalid_rows, duplicate_rows, failed_rows, created_at")

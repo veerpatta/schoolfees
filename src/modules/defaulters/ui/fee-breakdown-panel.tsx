@@ -19,7 +19,7 @@ import { cn } from "@/platform/utils";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatShortDate } from "@/platform/helpers/date";
 import { appendSessionParam } from "@/platform/navigation/session-href";
-import { formatPaymentModeLabel } from "@/modules/dashboard/domain/summary";
+import { formatPaymentModeLabel } from "@/modules/dashboard/domain/payment-mode-label";
 import {
   getDisplayInstallmentLabel,
   isCarryForwardInstallment,

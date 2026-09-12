@@ -14,6 +14,8 @@ import { DownloadAnchor } from "@/ui/primitives/download-anchor";
 import { Skeleton } from "@/ui/primitives/loading-skeleton";
 import { StudentBulkImportDialogTrigger } from "@/modules/students/ui/student-bulk-import-dialog";
 import { StudentQuickLoad } from "@/modules/students/ui/student-quick-load";
+import { sendRemindersAction } from "@/app/protected/reminders/actions";
+import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { StudentsListSkeleton } from "@/modules/students/ui/students-list-skeleton";
 import { Button } from "@/ui/primitives/button";
 import {
@@ -281,6 +283,17 @@ async function StudentDirectory({
         canCollectPayments={canCollectPayments}
         initialSegmentCounts={segmentCounts}
         canViewFees={hasStaffPermission(staff, "fees:view")}
+        reminders={
+          hasStaffPermission(staff, "settings:write")
+            ? {
+                action: sendRemindersAction,
+                situationOptions: NOTICE_SITUATIONS.map((entry) => ({
+                  value: entry.value,
+                  label: entry.label,
+                })),
+              }
+            : null
+        }
       />
     </>
   );

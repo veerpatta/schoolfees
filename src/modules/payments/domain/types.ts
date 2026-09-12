@@ -254,6 +254,8 @@ export type PaymentEntryPageData = {
   todayCollection: {
     receiptCount: number;
     totalAmount: number;
+    /** Taken off the books today. Never part of totalAmount. */
+    writtenOffAmount: number;
   };
 };
 

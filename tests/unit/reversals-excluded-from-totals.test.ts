@@ -140,3 +140,112 @@ describe("reversed receipts are excluded from money totals", () => {
     expect(migration).not.toMatch(/rr\.reversed_amount\s*>\s*0/);
   });
 });
+
+/**
+ * A write-off is not collection either.
+ *
+ * Same shape as the bug above, arrived at by the same route, and it lives in
+ * this file on purpose: whoever comes looking for one half of the rule finds
+ * the other. A write-off (`payment_mode = 'discount'`) clears an uncollectable
+ * balance and posts a receipt so the decision is auditable — no cash crosses
+ * the counter. The SQL layer has never forgotten this: every aggregate in
+ * `20260726172238` pairs its reversal predicate with `payment_mode <> 'discount'`,
+ * and the test above asserts the counts stay equal.
+ *
+ * Five TypeScript reads queried `receipts` directly and forgot. The sidebar's
+ * "Day so far" reported a leaver's written-off balance as money taken today.
+ * Transactions' "Collection today" did worse: 'discount' fell off the end of the
+ * payment-mode ternary in `buildCollectionRows`, so a write-off was not merely
+ * counted, it was reported as **Cash** — money a cashier would go looking for in
+ * the drawer.
+ *
+ * The split this file enforces:
+ *
+ *   a COLLECTION figure  -> must exclude write-offs
+ *   a REGISTER           -> must show them, and must LABEL them
+ *
+ * A register that silently dropped rows would be the opposite failure, so
+ * Receipts and the AI bundle are asserted the other way round below.
+ */
+describe("discount write-offs are excluded from money totals", () => {
+  const collectionSurfaces: Array<[string, string]> = [
+    ["sidebar Day so far", "src/modules/dashboard/data/shell-metrics.ts"],
+    ["Payment Desk today", "src/modules/payments/data/queries.ts"],
+    ["workbook transactions reader", "src/modules/fees/data/queries.ts"],
+    ["Transactions collection today", "src/modules/transactions/data/dues.ts"],
+    ["office home", "src/modules/fees/data/office-home.ts"],
+    ["dashboard summary fallback", "src/modules/dashboard/domain/summary.ts"],
+    ["nightly day close", "src/app/api/cron/auto-day-close/route.ts"],
+    ["finance day summary", "src/modules/finance-controls/data/queries.ts"],
+    ["reports receipt register", "src/modules/reports/data/queries.ts"],
+  ];
+
+  it.each(collectionSurfaces)("%s keeps write-offs out of its total", (_label, path) => {
+    const source = read(path);
+
+    // Either the shared vocabulary from platform/money/write-off.ts, or the
+    // raw PostgREST predicate the SQL layer has always used. Both are honest;
+    // the point is that the decision is visible in the file.
+    const usesSharedSymbol =
+      /DISCOUNT_CLOSEOUT_MODE|isDiscountCloseout|excludeDiscountCloseouts/.test(source);
+    const usesRawPredicate =
+      /neq\(\s*["']payment_mode["']\s*,\s*["']discount["']\s*\)/.test(source) ||
+      /payment_mode\s*<>\s*'discount'/.test(source);
+
+    expect(
+      usesSharedSymbol || usesRawPredicate,
+      `${path} sums receipt amounts without excluding discount-mode write-offs`,
+    ).toBe(true);
+  });
+
+  it("gives the rule one name instead of a string literal at each call site", () => {
+    // The literal "discount" appears in filter dropdowns, glossary copy and DB
+    // types. What must not spread is an unexplained `.neq("payment_mode",
+    // "discount")` in a sixth read that nobody connects to this rule.
+    const shared = read("src/platform/money/write-off.ts");
+    expect(shared).toContain('export const DISCOUNT_CLOSEOUT_MODE = "discount"');
+    expect(shared).toContain("export function isDiscountCloseout");
+  });
+
+  it("keeps the predicate pure so a domain/ file can use it", () => {
+    // src/modules/dashboard/domain/summary.ts is one of the callers, and a
+    // domain/ file may not import a server-only module — which is why this
+    // lives in platform/money beside the glossary rather than next to
+    // isReceiptReversed in receipts/data/reversals.ts.
+    // Asserted against IMPORTS, not against the word: the file's own comment
+    // explains why it is not server-only, and a substring match failed on its
+    // own explanation.
+    const shared = read("src/platform/money/write-off.ts");
+    expect(shared).not.toMatch(/^\s*import\s+["']server-only["']/m);
+    expect(shared).not.toMatch(/^\s*import\s.*from\s+["'][^"']*supabase[^"']*["']/m);
+  });
+
+  it("leaves the registers showing write-offs, and labelling them", () => {
+    // Dropping a posted receipt from a register hides it from the people whose
+    // job is to find it. These two surfaces show the row and mark it instead.
+    const bundle = read("src/modules/exports/data/ai-context-bundle.ts");
+    expect(bundle).toContain('"WRITTEN OFF"');
+    expect(bundle).toContain("isDiscountCloseout");
+
+    // Receipts keeps its opt-in filter rather than a blanket exclusion.
+    const receipts = read("src/modules/receipts/data/queries.ts");
+    expect(receipts).toContain("discountCloseOutsOnly");
+  });
+
+  it("does not let the shared reader exclude write-offs by default", () => {
+    // getWorkbookTransactions serves both questions. Defaulting the exclusion
+    // on would quietly empty the Transactions register, where 'discount' is an
+    // offered payment-mode filter; leaving it absent is what counted a
+    // write-off as cash. It is opt-in, and the two collection callers opt in.
+    const source = read("src/modules/fees/data/queries.ts");
+    expect(source).toContain("excludeDiscountCloseouts?: boolean");
+    expect(source).toMatch(/if \(filters\?\.excludeDiscountCloseouts\) \{/);
+
+    for (const caller of [
+      "src/modules/transactions/data/dues.ts",
+      "src/modules/fees/data/office-home.ts",
+    ]) {
+      expect(read(caller), `${caller} must opt in`).toContain("excludeDiscountCloseouts: true");
+    }
+  });
+});

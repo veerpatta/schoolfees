@@ -101,8 +101,8 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
         These students are kept marked as left — collecting here does <strong>not</strong> re-enrol
         them or create new dues. Use <strong>Collect recovery payment</strong> to post against their
         existing pending installments through the guarded Payment Desk recovery mode, or{" "}
-        <strong>Write off</strong> to clear a balance that will never be collected — an audited
-        discount-mode receipt that never counts as collection. A student who still owes here
+        <strong>Write off</strong> to clear a balance that will never be collected — recorded with
+        a reason, and never counted as collection. A student who still owes here
         blocks the year-end promotion until one of the two happens. A pending late fee is
         separate from these figures and is waived from the student page, never written off here.
       </OfficeNotice>

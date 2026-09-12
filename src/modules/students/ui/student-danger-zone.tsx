@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/ui/primitives/button";
 import { CloseDueAsDiscountSheet } from "@/modules/students/ui/close-due-as-discount-sheet";
+import { MarkStudentLeftSheet } from "@/modules/students/ui/mark-student-left-sheet";
 import { formatInr } from "@/platform/helpers/currency";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 import type { StudentDeletionSafety } from "@/modules/students/domain/types";
@@ -14,12 +15,19 @@ import type { StudentDeletionSafety } from "@/modules/students/domain/types";
 import {
   archiveStudentAction,
   hardDeleteStudentAction,
+  reinstateStudentAction,
 } from "@/app/protected/students/actions";
 import { INITIAL_STUDENT_DANGER_ACTION_STATE } from "@/app/protected/students/danger-action-state";
 
 type StudentDangerZoneProps = {
   studentId: string;
   deletionSafety: StudentDeletionSafety;
+  /** Drives Mark-as-left vs Back-on-the-roll, and the leave-date floor. */
+  enrolment?: {
+    status: string;
+    joinedOn: string | null;
+    leftOn: string | null;
+  };
   /**
    * Writing a balance off is an admin-only, money-moving act, so it belongs
    * behind the same gate as withdrawing and deleting rather than in the middle
@@ -40,6 +48,7 @@ type StudentDangerZoneProps = {
 export function StudentDangerZone({
   studentId,
   deletionSafety,
+  enrolment,
   closeBalance,
 }: StudentDangerZoneProps) {
   const t = useTranslations("MobileApp");
@@ -50,9 +59,15 @@ export function StudentDangerZone({
   // share it, so the desktop <label> focused the hidden phone input.
   const confirmFieldId = useId();
   const [panelOpen, setPanelOpen] = useState(false);
+  const [leftSheetOpen, setLeftSheetOpen] = useState(false);
+  const hasLeft = enrolment ? enrolment.status !== "active" : false;
 
   const [archiveState, archiveFormAction, archivePending] = useActionState(
     archiveStudentAction,
+    INITIAL_STUDENT_DANGER_ACTION_STATE,
+  );
+  const [reinstateState, reinstateFormAction, reinstatePending] = useActionState(
+    reinstateStudentAction,
     INITIAL_STUDENT_DANGER_ACTION_STATE,
   );
   const [deleteState, deleteFormAction, deletePending] = useActionState(
@@ -65,7 +80,7 @@ export function StudentDangerZone({
   // effect also brings its identity guard: the hand-rolled version re-fired
   // whenever the component re-rendered with an equal state object, so a single
   // withdrawal could announce itself twice.
-  useActionFeedback(archiveState, {
+  useActionFeedback(reinstateState, {
     successTitle: t("dangerWithdrawDone"),
     errorTitle: t("dangerActionFailed"),
   });
@@ -94,19 +109,19 @@ export function StudentDangerZone({
       : t("dangerDeleteClean")
     : t("dangerDeleteBlocked");
 
-  const pending = archivePending || deletePending;
+  const pending = reinstatePending || deletePending || archivePending;
   const errorMessage =
     deleteState.status === "error"
       ? deleteState.message
-      : archiveState.status === "error"
-        ? archiveState.message
+      : reinstateState.status === "error"
+        ? reinstateState.message
         : null;
   // Successes were announced only as a toast, which lasts five seconds and is
   // easy to miss on a page that is refreshing underneath it. The outcome now
   // also stays on the panel until the next action.
   const successMessage =
-    archiveState.status === "success"
-      ? archiveState.message
+    reinstateState.status === "success"
+      ? reinstateState.message
       : deleteState.status === "success"
         ? deleteState.message
         : null;
@@ -144,6 +159,26 @@ export function StudentDangerZone({
             </p>
           ) : null}
           <p className="mt-2">{deleteExplanation}</p>
+          {hasLeft ? (
+            <p className="mt-2 rounded-md bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
+              Recorded as <strong className="text-foreground">{enrolment?.status}</strong>
+              {enrolment?.leftOn ? (
+                <>
+                  {" "}
+                  from <strong className="text-foreground">{enrolment.leftOn}</strong>. Fees
+                  stopped accruing after that date.
+                </>
+              ) : (
+                // Every student withdrawn before the date was recorded. Worth
+                // saying, because it is why their expected fee looks the way it
+                // does, and re-marking them fixes it.
+                <>
+                  , with no leave date on file. Mark them as left again with a date to stop the
+                  fee from the right day.
+                </>
+              )}
+            </p>
+          ) : null}
           {errorMessage ? (
             <p role="alert" className="mt-2 font-medium text-destructive">
               {errorMessage}
@@ -161,9 +196,9 @@ export function StudentDangerZone({
         {closeBalance &&
         (closeBalance.pendingAmount > 0 || closeBalance.oldBalanceAmount > 0) ? (
           <div className="lg:col-span-2 rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">
-            <p className="font-semibold text-foreground">Close a balance as discount</p>
+            <p className="font-semibold text-foreground">Write off a balance</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Writes the amount off with an auditable discount receipt. No cash is recorded
+              Takes the amount off the books, with a reason on the record. No cash is recorded
               and it never counts towards collection.
             </p>
             {/*
@@ -181,7 +216,7 @@ export function StudentDangerZone({
                   onClick={() => setCloseSheet("current")}
                   className="h-11 w-full justify-center rounded-xl text-[12.5px] font-extrabold sm:h-9 sm:w-auto sm:rounded-md sm:text-sm sm:font-medium"
                 >
-                  Close this year&rsquo;s balance ({formatInr(closeBalance.pendingAmount)})
+                  Write off this year&rsquo;s balance ({formatInr(closeBalance.pendingAmount)})
                 </Button>
               ) : null}
               {closeBalance.oldBalanceAmount > 0 ? (
@@ -192,22 +227,41 @@ export function StudentDangerZone({
                   onClick={() => setCloseSheet("oldBalance")}
                   className="h-11 w-full justify-center rounded-xl text-[12.5px] font-extrabold sm:h-9 sm:w-auto sm:rounded-md sm:text-sm sm:font-medium"
                 >
-                  Close old balance ({formatInr(closeBalance.oldBalanceAmount)})
+                  Write off old balance ({formatInr(closeBalance.oldBalanceAmount)})
                 </Button>
               ) : null}
             </div>
           </div>
         ) : null}
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <form action={archiveFormAction}>
-            <input type="hidden" name="studentId" value={studentId} />
-            <Button type="submit" variant="outline" disabled={pending}>
-              {archivePending ? (
-                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
-              ) : null}
+          {/*
+            Withdrawing used to be a bare submit button: it wrote status='left'
+            and a line of notes, recorded no date, and told nobody what happened
+            to the dues. The sheet exists because the DATE decides which
+            installments stop being charged — without one the engine cancelled
+            every clean unpaid row, including months the child had attended.
+          */}
+          {hasLeft ? (
+            <form action={reinstateFormAction}>
+              <input type="hidden" name="studentId" value={studentId} />
+              <input type="hidden" name="reinstateStatus" value="active" />
+              <Button type="submit" variant="outline" disabled={pending}>
+                {reinstatePending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                ) : null}
+                Back on the roll
+              </Button>
+            </form>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => setLeftSheetOpen(true)}
+            >
               {t("dangerWithdrawCta")}
             </Button>
-          </form>
+          )}
           {deletionSafety.hardDeleteAllowed || deletionSafety.canForceDeleteTestRecord ? (
             <form action={deleteFormAction} className="flex max-w-xs flex-col gap-2">
               <input type="hidden" name="studentId" value={studentId} />
@@ -239,6 +293,19 @@ export function StudentDangerZone({
           ) : null}
         </div>
       </div>
+      {enrolment && !hasLeft ? (
+        <MarkStudentLeftSheet
+          open={leftSheetOpen}
+          onClose={() => setLeftSheetOpen(false)}
+          studentId={studentId}
+          studentLabel={deletionSafety.fullName}
+          studentAdmissionNo={deletionSafety.admissionNo}
+          joinedOn={enrolment.joinedOn}
+          state={archiveState}
+          formAction={archiveFormAction}
+          pending={archivePending}
+        />
+      ) : null}
       {closeBalance ? (
         <CloseDueAsDiscountSheet
           open={closeSheet !== null}

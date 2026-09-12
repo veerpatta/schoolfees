@@ -572,6 +572,21 @@ Copy `.env.example` to `.env.local` for local development. Required values:
    are the two places the rule is written down.
 9. A plan is never edited in place. Rescheduling writes a replacement and supersedes the
    old one, so the schedule a parent was shown stays on file.
+10. **A write-off is not a discount, and never collection.** A discount decides what a
+   family is charged; a write-off accepts that a charge already made will not be collected.
+   It posts a `payment_mode = 'discount'` receipt for the audit trail and moves no cash, so
+   every collection figure excludes it and shows it separately instead. The SQL has always
+   carried the predicate; five TypeScript reads of `receipts` had not, and one reported the
+   write-off as **Cash**. `src/platform/money/write-off.ts` is the one name for it, and
+   `tests/unit/reversals-excluded-from-totals.test.ts` pins it beside the reversal rule it
+   rhymes with. On screen the word is always "written off".
+11. **A student who leaves stops being charged from their leave date.** `students.left_on`
+   drives it: the generator cancels installments due strictly after that date, so they never
+   become a due and Expected Fees falls. What accrued before it stays owed. A row carrying
+   money is never cancelled — the settlement pool ignores cancelled rows, so the family's
+   `total_paid` would drop and they would vanish from the money scope — those rows stay
+   charged and are reported back so the remainder can be written off on purpose. Reversible:
+   clearing `left_on` and regenerating restores them.
 
 ## Testing and Debugging Rules
 

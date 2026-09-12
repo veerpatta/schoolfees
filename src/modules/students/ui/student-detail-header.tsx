@@ -35,6 +35,7 @@ export function StudentDetailHeader({
   latestReceiptId,
   returnTo,
   encodedReturnTo,
+  sendReminder,
 }: {
   student: {
     id: string;
@@ -58,6 +59,14 @@ export function StudentDetailHeader({
   latestReceiptId: string | null;
   returnTo: string;
   encodedReturnTo: string;
+  /**
+   * The AiSensy reminder button, server-rendered by the page.
+   *
+   * A ReactNode rather than five props because the server action behind it may
+   * only be imported from `src/app` — `src/modules` reaching into `src/app` is
+   * an architecture violation whose baseline only ever falls.
+   */
+  sendReminder?: React.ReactNode;
 }) {
   const isActive = student.status === "active";
   const hasPhone = Boolean(student.fatherPhone || student.motherPhone);
@@ -181,6 +190,8 @@ export function StudentDetailHeader({
               outstandingAmount={outstandingAmount}
             />
           ) : null}
+
+          {sendReminder}
 
           {/* The one saffron action on this screen. */}
           {canPostPayments && isActive && outstandingAmount > 0 ? (

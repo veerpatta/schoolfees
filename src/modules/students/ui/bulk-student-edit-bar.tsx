@@ -17,12 +17,22 @@ import type {
   StudentClassOption,
   StudentRouteOption,
 } from "@/modules/students/domain/types";
+import {
+  SendReminderSheet,
+  type ReminderSendState,
+  type SituationOption,
+} from "@/modules/students/ui/send-reminder-sheet";
 
 type BulkStudentEditBarProps = {
   selectedIds: ReadonlyArray<string>;
   classOptions: StudentClassOption[];
   routeOptions: StudentRouteOption[];
   onClearSelection: () => void;
+  /** Null when this staffer may not send. */
+  reminders?: {
+    action: (state: ReminderSendState, formData: FormData) => Promise<ReminderSendState>;
+    situationOptions: readonly SituationOption[];
+  } | null;
 };
 
 const selectClassName =
@@ -33,10 +43,12 @@ export function BulkStudentEditBar({
   classOptions,
   routeOptions,
   onClearSelection,
+  reminders = null,
 }: BulkStudentEditBarProps) {
   const router = useRouter();
   const tToasts = useTranslations("Toasts");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [remindOpen, setRemindOpen] = useState(false);
   const [classId, setClassId] = useState("");
   const [transportRouteId, setTransportRouteId] = useState("");
   const [transportRouteClear, setTransportRouteClear] = useState(false);
@@ -109,6 +121,16 @@ export function BulkStudentEditBar({
             >
               Clear
             </Button>
+            {reminders ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setRemindOpen(true)}
+                disabled={isPending}
+              >
+                Send reminder…
+              </Button>
+            ) : null}
             <Button size="sm" onClick={() => setSheetOpen(true)} disabled={isPending}>
               Bulk edit…
             </Button>
@@ -223,6 +245,19 @@ export function BulkStudentEditBar({
           </div>
         </div>
       </Sheet>
+
+      {reminders ? (
+        <SendReminderSheet
+          open={remindOpen}
+          onClose={() => setRemindOpen(false)}
+          studentIds={selectedIds}
+          audienceLabel={`${selectedIds.length} student${selectedIds.length === 1 ? "" : "s"}`}
+          situationOptions={reminders.situationOptions}
+          defaultSituation="fee_due"
+          defaultLanguage="hi"
+          action={reminders.action}
+        />
+      ) : null}
     </>
   );
 }

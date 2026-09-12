@@ -11,6 +11,7 @@ import {
   getReceiptReversalTotals,
   isReceiptReversed,
 } from "@/modules/receipts/data/reversals";
+import { isDiscountCloseout } from "@/platform/money/write-off";
 import { getPrevYearDuesCollectionRows } from "@/modules/prev-year-dues/data/queries";
 import { getDisplayInstallmentLabel } from "@/modules/prev-year-dues/domain/display";
 import { getRecoveryQueue } from "@/modules/recovery/data/queries";
@@ -1112,13 +1113,21 @@ export async function aiContextBundleResponse(filename: string, sessionLabel: st
       "Pending after": row.pending_after_posting ?? "",
       "Received by": receipt?.received_by ?? "",
       "Notes": row.notes ?? "",
-      "Receipt status": receipt && isReceiptReversed(
-        allocationReversalTotals,
-        receipt.id,
-        receipt.total_amount ?? 0,
-      )
-        ? "REVERSED"
-        : "",
+      // A register shows everything that was posted, so neither of these rows
+      // is dropped — but a reader adding the Amount column up must be able to
+      // see which rows are not cash. REVERSED is money handed back; WRITTEN OFF
+      // is money that never arrived (payment_mode = 'discount', a close-out
+      // posted so the decision is auditable). The Mode column said "discount"
+      // and nothing else did, which is too quiet for a sheet people total.
+      "Receipt status": isDiscountCloseout(receipt?.payment_mode)
+        ? "WRITTEN OFF"
+        : receipt && isReceiptReversed(
+              allocationReversalTotals,
+              receipt.id,
+              receipt.total_amount ?? 0,
+            )
+          ? "REVERSED"
+          : "",
     };
   });
 

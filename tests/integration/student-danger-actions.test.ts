@@ -168,7 +168,12 @@ describe("student danger-zone actions", () => {
 
     const result = await archiveStudentAction(IDLE, formData);
 
-    expect(archiveStudent).toHaveBeenCalledWith("student-1");
+    expect(archiveStudent).toHaveBeenCalledWith("student-1", {
+      leftOn: null,
+      status: "left",
+      reason: null,
+      tcNumber: null,
+    });
     expect(result.status).toBe("success");
     expect(result.deleted).toBe(false);
   });

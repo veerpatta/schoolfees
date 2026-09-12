@@ -659,21 +659,20 @@ export function DiscountsBoard({
       />
 
       <Tile
-        label="Written off as discount"
+        label="Written off"
         tone={closeouts.amount > 0 ? "accent" : "default"}
       >
         {closeouts.amount > 0 ? (
           <>
             <p className="font-display-money text-3xl leading-none">{formatInr(closeouts.amount)}</p>
             <p className="text-xs leading-snug text-muted-foreground">
-              {closeouts.students} students had a pending balance closed with a discount-mode
-              receipt. That is a write-off, not a discount on the fee structure — it is
-              excluded from the totals above and from every collection figure.
+              {closeouts.students} students had a balance taken off the books. Not a fee
+              discount, and never counted as collection.
             </p>
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No balance has been written off as a discount this session.
+            Nothing has been written off this session.
           </p>
         )}
       </Tile>

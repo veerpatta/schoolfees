@@ -112,6 +112,44 @@ installments, receipts or the fee engine.
 - While a plan is active, concessions at the counter are refused — changing the deal is an
   admin rescheduling it, not a cashier waiving on the spot.
 
+## A write-off is not a discount, and not collection
+
+**A discount decides what a family is charged. A write-off accepts that a charge already
+made will not be collected.** They are different acts and they are reported separately.
+
+- A write-off posts a receipt with `payment_mode = 'discount'` so the decision is auditable.
+  **No cash moves**, so it is excluded from every collection figure in the app — the
+  dashboard, "Day so far", the Payment Desk's today card, Transactions' "Collection today",
+  Office Home. It is shown beside those figures, never inside them.
+- The SQL layer has carried `payment_mode <> 'discount'` since `20260526120000`. Five
+  TypeScript reads queried `receipts` directly and forgot; one of them additionally reported
+  the write-off as **Cash**, because `'discount'` fell off the end of a payment-mode ternary.
+  `tests/unit/reversals-excluded-from-totals.test.ts` now pins both halves of the rule — the
+  reversal half and this one — over the same list of money surfaces.
+- On screen it is always **"written off"**. The word "discount" survives in column names
+  because renaming them means a migration over live money; it does not belong in front of
+  staff, who reasonably read it as a concession the school granted.
+
+## A student who leaves stops being charged from the day they left
+
+- Marking a student as left records **`students.left_on`**. The date is not decoration: the
+  fee engine cancels the installments due strictly **after** it, so those never become a due
+  at all and Expected Fees falls. A row due **on** the leave date accrued — they were a
+  student that day, the same boundary the late fee uses.
+- What accrued **before** the leave date stays owed. A leaver who attended two terms owes
+  two terms.
+- **A row that already carries money is never cancelled.** Cancelling it would orphan the
+  receipt pointing at it, and the settlement pool ignores cancelled rows — the money would
+  vanish from the family's `total_paid` and from every figure that reads it. Those rows stay
+  charged and are reported back to whoever marked the student left, so the remainder can be
+  written off deliberately rather than discovered later.
+- Carry-forward rows and rows under an active EMI plan are never cancelled either.
+- It is reversible. Putting a student back on the roll clears `left_on`, and the next
+  regeneration restores the cancelled rows at current policy.
+- Before 2026-09-12 nothing wrote `left_on`, so withdrawal cancelled **every** clean unpaid
+  row whatever its date. Students withdrawn before then keep that behaviour until they are
+  marked as left again with a date.
+
 ## Previous-year dues (carry-forward)
 
 Unpaid dues from the prior session are carried into the current one as a **dedicated

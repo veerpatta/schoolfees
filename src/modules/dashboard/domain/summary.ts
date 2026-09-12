@@ -4,6 +4,12 @@ import type {
   WorkbookTransaction,
 } from "@/modules/fees/domain/workbook-types";
 import { calculateInstallmentBasePending, calculateOverdueBaseAmount } from "@/modules/fees/domain/due-amounts";
+import { isDiscountCloseout } from "@/platform/money/write-off";
+import { formatPaymentModeLabel } from "@/modules/dashboard/domain/payment-mode-label";
+
+// Re-exported so existing importers keep working; the definition moved out so
+// a client component can take the label without taking this whole module.
+export { formatPaymentModeLabel };
 import {
   buildCarryForwardSummary,
   getCarryForwardSourceSession,
@@ -148,21 +154,6 @@ export function calculatePercentage(part: number, whole: number) {
   return Math.min(100, Math.max(0, Math.round((part / whole) * 100)));
 }
 
-export function formatPaymentModeLabel(value: string) {
-  switch (value) {
-    case "upi":
-      return "UPI";
-    case "bank_transfer":
-      return "Bank transfer";
-    case "cheque":
-      return "Cheque";
-    case "cash":
-      return "Cash";
-    default:
-      return value || "Unknown";
-  }
-}
-
 function buildReminderText(row: WorkbookStudentFinancial) {
   const duePart = row.nextDueDate
     ? ` Next due: ${row.nextDueLabel ?? "installment"} on ${row.nextDueDate}.`
@@ -216,15 +207,26 @@ export function buildDashboardSummary(input: DashboardSummaryInput) {
   );
   const pendingSplit = buildCarryForwardSummary(input.installmentRows);
   const overdueAmount = calculateOverdueBaseAmount(input.overdueInstallments);
-  // Reversed receipts are not collection. These rows already carry isReversed
-  // (lib/workbook/data.ts sets it from v_receipt_reversal_totals) — the flag was
-  // being used to strike rows through in lists while the totals beside them
-  // still counted the money.
-  const todayReceipts = input.todayTransactions.filter((row) => !row.isReversed);
+  // Two kinds of receipt are not collection, and both used to be counted here.
+  //
+  // A REVERSED receipt is money handed back. These rows already carry
+  // isReversed (lib/workbook/data.ts sets it from v_receipt_reversal_totals) —
+  // the flag was being used to strike rows through in lists while the totals
+  // beside them still counted the money.
+  //
+  // A WRITE-OFF receipt (payment_mode = 'discount') is money that never
+  // arrived: it clears an uncollectable balance and exists only so the decision
+  // is auditable. The callers now filter these out in the query, but this
+  // function is reachable from tests with hand-built rows, so it refuses them
+  // here too rather than trusting its input.
+  const isCollection = (row: { isReversed?: boolean; paymentMode?: string | null }) =>
+    !row.isReversed && !isDiscountCloseout(row.paymentMode);
+
+  const todayReceipts = input.todayTransactions.filter(isCollection);
   const todaysCollection = todayReceipts.reduce((sum, row) => sum + row.totalAmount, 0);
   const currentMonthKey = new Date().toISOString().slice(0, 7);
   const thisMonthCollection = input.transactions
-    .filter((row) => !row.isReversed && row.paymentDate.startsWith(currentMonthKey))
+    .filter((row) => isCollection(row) && row.paymentDate.startsWith(currentMonthKey))
     .reduce((sum, row) => sum + row.totalAmount, 0);
 
   const kpis: DashboardKpis = {

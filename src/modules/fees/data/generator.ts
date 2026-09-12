@@ -16,6 +16,13 @@ type GeneratorStudentRow = {
   class_id: string;
   transport_route_id: string | null;
   status: "active" | "inactive" | "left" | "graduated";
+  /**
+   * The day the student left. Decides WHICH of their installments stop being
+   * charged: everything due strictly after it. Null means the leave date was
+   * never recorded, and the pre-2026-09-12 behaviour applies (cancel every
+   * clean unpaid row) — see the branch that reads it.
+   */
+  left_on: string | null;
   class_ref:
     | {
         class_name: string;
@@ -536,7 +543,7 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
   let studentsQuery = supabase
     .from("students")
     .select(
-      "id, admission_no, full_name, class_id, transport_route_id, status, class_ref:classes(class_name, section, stream_name, session_label, status)",
+      "id, admission_no, full_name, class_id, transport_route_id, status, left_on, class_ref:classes(class_name, section, stream_name, session_label, status)",
     );
 
   if (scopedStudentIdSet) {
@@ -755,6 +762,20 @@ async function buildLedgerSyncPlan(options: LedgerPlanOptions = {}): Promise<Led
         // current-policy installment. A missed-EMI late fee is the same kind of
         // thing: a charge the school levied, not something fee policy produces.
         .filter((row) => !row.is_carry_forward && !row.is_emi_late_fee)
+        // A student who leaves stops being charged FROM THE DAY THEY LEFT, not
+        // retroactively for the whole year.
+        //
+        // This branch used to cancel every clean unpaid row regardless of its
+        // due date, which gets the never-paid case right by accident and the
+        // mid-session leaver wrong twice over: installments 1 and 2, genuinely
+        // owed for months the child attended, were cancelled alongside 3 and 4.
+        // Strictly after, because a row due ON the leave date accrued — they
+        // were a student that day, the same boundary the late fee uses.
+        //
+        // `left_on` is null for every student withdrawn before this was
+        // recorded (nothing ever wrote the column), so the old behaviour is
+        // kept for them rather than silently re-billing a closed year.
+        .filter((row) => !student.left_on || row.due_date > student.left_on)
         .forEach((row) => {
           if (row.status === "cancelled") {
             return;

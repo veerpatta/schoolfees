@@ -95,11 +95,11 @@ export function CloseDueAsDiscountSheet({
         if (pending) return;
         onClose();
       }}
-      title={isOldBalance ? "Close old balance as discount" : "Close balance as discount"}
+      title={isOldBalance ? "Write off the old balance" : "Write off this balance"}
       description={
         isOldBalance
-          ? "Writes off what this student still owes from a previous year. Posts a discount receipt — no cash changes hands, and it is excluded from collection totals."
-          : "Writes off what this student still owes. Posts a discount receipt — no cash changes hands, and it is excluded from collection totals."
+          ? "Takes what this student still owes from a previous year off the books. This is not a discount: no cash changes hands, and it never counts as collection."
+          : "Takes what this student still owes off the books. This is not a discount: no cash changes hands, and it never counts as collection."
       }
       size="full"
       /* Pinned outside the scroll body so the amount/reason keyboard cannot
@@ -117,12 +117,12 @@ export function CloseDueAsDiscountSheet({
             {pending ? (
               <span className="inline-flex items-center gap-1.5">
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                Closing…
+                Writing off…
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5">
                 <CheckCircle2 className="size-4" aria-hidden="true" />
-                Close balance
+                Write off
               </span>
             )}
           </Button>
@@ -142,7 +142,7 @@ export function CloseDueAsDiscountSheet({
         </div>
 
         <div>
-          <Label htmlFor="close-due-amount">Amount to close as discount</Label>
+          <Label htmlFor="close-due-amount">Amount to write off</Label>
           <div className="mt-1 flex items-center gap-2">
             <span className="text-muted-foreground">₹</span>
             <Input
@@ -217,10 +217,17 @@ export function CloseDueAsDiscountSheet({
         <div className="rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
           <p className="font-semibold">This writes money off the books.</p>
           <p className="mt-0.5">
-            A receipt is posted with payment mode &ldquo;discount&rdquo; and the reason above,
-            so the write-off is auditable. No cash is recorded and it does not count towards
-            collection totals. Existing receipts are never changed.
+            A receipt is posted with the reason above, so the write-off is auditable. No cash
+            is recorded, and it never counts towards collection — not on the dashboard, not in
+            Day so far, not on the Payment Desk. Existing receipts are never changed.
           </p>
+          {/*
+            The mode is still stored as "discount" because renaming a live enum
+            value means a migration over posted money. That is a storage detail
+            and it does not belong on screen: staff read "discount" as a
+            concession the school granted, which is the opposite of what this
+            does. The word appears nowhere a person can see it.
+          */}
         </div>
 
         {state.status === "error" && state.message ? (

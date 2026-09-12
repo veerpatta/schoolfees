@@ -11,6 +11,7 @@ import {
   bulkUpdateStudentFields,
   createStudent,
   archiveStudent,
+  reinstateStudent,
   hardDeleteStudent,
   getStudentDetail,
   getStudentFormOptions,
@@ -844,17 +845,51 @@ export async function archiveStudentAction(
     return { status: "error", message: "Student is required.", deleted: false };
   }
 
+  const leftOnRaw = (formData.get("leftOn") ?? "").toString().trim();
+  const statusRaw = (formData.get("leaveStatus") ?? "left").toString().trim();
+  const reason = (formData.get("leaveReason") ?? "").toString().trim();
+  const tcNumber = (formData.get("tcNumber") ?? "").toString().trim();
+
+  const leaveStatus =
+    statusRaw === "inactive" || statusRaw === "graduated" ? statusRaw : ("left" as const);
+
   try {
     await requireStaffPermission("students:write");
 
     const student = await getStudentDetail(studentId);
 
-    await archiveStudent(studentId);
-    await prepareDuesForStudentsAutomatically({
+    // The leave date decides which installments stop being charged, so a typo
+    // here quietly changes what a family owes. Validated before anything is
+    // written rather than left to the `students_check` constraint, which would
+    // surface as a raw 23514 with no sentence a staff member can act on.
+    if (leftOnRaw && !/^\d{4}-\d{2}-\d{2}$/.test(leftOnRaw)) {
+      return { status: "error", message: "Leave date must be a real date.", deleted: false };
+    }
+    if (leftOnRaw && student?.joinedOn && leftOnRaw < student.joinedOn) {
+      return {
+        status: "error",
+        message: `Leave date cannot be before the joining date (${student.joinedOn}).`,
+        deleted: false,
+      };
+    }
+
+    await archiveStudent(studentId, {
+      leftOn: leftOnRaw || null,
+      status: leaveStatus,
+      reason: reason || null,
+      tcNumber: tcNumber || null,
+    });
+
+    // Cancels the installments that fall after the leave date. Its result was
+    // previously discarded, so an office was never told when rows could NOT be
+    // cancelled — the balance simply stayed, looking like a normal due, and the
+    // only way out anybody found was to write it off as a "discount".
+    const dues = await prepareDuesForStudentsAutomatically({
       studentIds: [studentId],
       sessionLabel: student?.classSessionLabel || undefined,
-      reason: "Student withdrawn",
+      reason: "Student left",
     });
+
     after(drainFinancialViewRefresh);
     revalidateFinanceSurfaces({ studentIds: [studentId] });
     await publishOfficeSyncEvent({
@@ -865,9 +900,20 @@ export async function archiveStudentAction(
       affectedStudentIds: [studentId],
     });
 
+    const verb = leaveStatus === "graduated" ? "Graduated" : leaveStatus === "inactive" ? "Marked inactive" : "Marked as left";
+    const datePart = leftOnRaw ? ` from ${leftOnRaw}` : "";
+    const stoppedPart =
+      dues.cancelled > 0
+        ? ` ${dues.cancelled} later installment${dues.cancelled === 1 ? "" : "s"} stopped.`
+        : " No later installments were left to stop.";
+    const heldPart =
+      dues.protectedRowCount > 0
+        ? ` ${dues.protectedRowCount} installment${dues.protectedRowCount === 1 ? "" : "s"} already carry money and stay charged — write off the balance below if it will never be collected.`
+        : "";
+
     return {
       status: "success",
-      message: "Student withdrawn. Receipts and payment history stay saved.",
+      message: `${verb}${datePart}.${stoppedPart}${heldPart} Receipts and payment history stay saved.`,
       deleted: false,
     };
   } catch (error) {
@@ -1222,3 +1268,74 @@ export async function realignRecentImportsToActiveSessionAction(): Promise<{
   };
 }
 
+
+/**
+ * Puts a student back on the roll: a withdrawal entered on the wrong record, a
+ * leave date typed wrong, or a child who came back.
+ *
+ * The cancelled installments return on their own. `differs()` in the generator
+ * treats a non-scheduled row as structurally changed, so the regeneration that
+ * follows rewrites them to `scheduled` now that the student is active again —
+ * the same mechanism that has always resurrected them, now reachable
+ * deliberately instead of by accident. Clearing `left_on` is what makes it
+ * safe: a stale leave date on an active student is a trap for the next run.
+ */
+export async function reinstateStudentAction(
+  _prevState: StudentDangerActionState,
+  formData: FormData,
+): Promise<StudentDangerActionState> {
+  const studentId = (formData.get("studentId") ?? "").toString().trim();
+
+  if (!studentId) {
+    return { status: "error", message: "Student is required.", deleted: false };
+  }
+
+  const statusRaw = (formData.get("reinstateStatus") ?? "active").toString().trim();
+  const nextStatus = statusRaw === "inactive" ? ("inactive" as const) : ("active" as const);
+  const reason = (formData.get("reinstateReason") ?? "").toString().trim();
+
+  try {
+    await requireStaffPermission("students:write");
+
+    const student = await getStudentDetail(studentId);
+
+    await reinstateStudent(studentId, { status: nextStatus, reason: reason || null });
+
+    const dues = await prepareDuesForStudentsAutomatically({
+      studentIds: [studentId],
+      sessionLabel: student?.classSessionLabel || undefined,
+      reason: "Student reinstated",
+    });
+
+    after(drainFinancialViewRefresh);
+    revalidateFinanceSurfaces({ studentIds: [studentId] });
+    await publishOfficeSyncEvent({
+      sessionLabel: student?.classSessionLabel || "unknown",
+      entityType: "student",
+      entityId: studentId,
+      action: "updated",
+      affectedStudentIds: [studentId],
+    });
+
+    const restored = dues.inserted + dues.updated;
+    const restoredPart =
+      restored > 0
+        ? ` ${restored} installment${restored === 1 ? "" : "s"} put back on the current fee policy.`
+        : " No installments needed restoring.";
+
+    return {
+      status: "success",
+      message: `Back on the roll as ${nextStatus}, leave date cleared.${restoredPart}`,
+      deleted: false,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unexpected error while reinstating this student.",
+      deleted: false,
+    };
+  }
+}

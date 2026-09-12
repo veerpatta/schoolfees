@@ -18,6 +18,7 @@ import {
   suggestRepaymentPlanAmount,
 } from "@/modules/repayment-plans/data/queries";
 import { getReceiptReversalTotals, isReceiptReversed } from "@/modules/receipts/data/reversals";
+import { isDiscountCloseout } from "@/platform/money/write-off";
 import { getWorkbookStudentFinancials } from "@/modules/fees/data/queries";
 import { buildTransportRouteLabel } from "@/modules/fees/domain/label";
 import {
@@ -912,7 +913,11 @@ async function getTodayPaymentDeskCollectionUncached(sessionLabel: string) {
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("receipts")
-    .select("id, total_amount, student_ref:students!inner(class_ref:classes!inner(session_label))")
+    // payment_mode is selected, not filtered on, so a write-off can be reported
+    // beside the collected figure rather than disappearing from the screen.
+    .select(
+      "id, total_amount, payment_mode, student_ref:students!inner(class_ref:classes!inner(session_label))",
+    )
     .eq("student_ref.class_ref.session_label", sessionLabel)
     .eq("payment_date", today);
 
@@ -920,20 +925,33 @@ async function getTodayPaymentDeskCollectionUncached(sessionLabel: string) {
     throw new Error(`Unable to load today's collection: ${error.message}`);
   }
 
-  const allRows = (data ?? []) as Array<{ id: string; total_amount: number | null }>;
+  const allRows = (data ?? []) as Array<{
+    id: string;
+    total_amount: number | null;
+    payment_mode: string | null;
+  }>;
 
   // Exclude fully reversed receipts. This total sits directly above the desk's
   // recent-receipt list, which already computes isReversed and strikes those
   // rows through — so before this the same card showed a receipt crossed out
   // and still counted its money in the figure above it.
   const reversalTotals = await getReceiptReversalTotals(allRows.map((row) => row.id));
-  const rows = allRows.filter(
+  const liveRows = allRows.filter(
     (row) => !isReceiptReversed(reversalTotals, row.id, row.total_amount ?? 0),
   );
+
+  // A write-off is not collection — the same lesson as the reversal above. This
+  // card is what a cashier reconciles their drawer against, so a written-off
+  // balance counted here is money they will go looking for and not find. It is
+  // reported on its own line instead of being silently dropped.
+  const rows = liveRows.filter((row) => !isDiscountCloseout(row.payment_mode));
 
   return {
     receiptCount: rows.length,
     totalAmount: rows.reduce((sum, row) => sum + (row.total_amount ?? 0), 0),
+    writtenOffAmount: liveRows
+      .filter((row) => isDiscountCloseout(row.payment_mode))
+      .reduce((sum, row) => sum + (row.total_amount ?? 0), 0),
   };
 }
 

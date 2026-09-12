@@ -19,6 +19,7 @@ type DeskTotalsSectionProps = {
     todayCollection: {
       receiptCount: number;
       totalAmount: number;
+      writtenOffAmount: number;
     };
     recentReceipts: Array<{
       id: string;
@@ -72,6 +73,17 @@ export function DeskTotalsSection({
               <p className="mt-2 text-2xl font-semibold text-foreground">
                 {formatInr(data.todayCollection.totalAmount)}
               </p>
+              {/*
+                Cash only. A write-off posts a receipt but moves no money, and
+                it used to be added straight into the figure above — so the
+                drawer never matched. Stated separately rather than hidden,
+                because an entry that disappears is its own confusion.
+              */}
+              {data.todayCollection.writtenOffAmount > 0 ? (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {formatInr(data.todayCollection.writtenOffAmount)} written off · not cash
+                </p>
+              ) : null}
             </div>
           </div>
           <div className="space-y-2">

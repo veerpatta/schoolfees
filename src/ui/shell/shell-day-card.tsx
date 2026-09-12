@@ -22,10 +22,8 @@ const cardLabel =
   "text-[10px] font-semibold uppercase tracking-[0.14em] text-nav-muted";
 
 export async function ShellDayCard({ pulse, receiptPrefix }: ShellDayCardProps) {
-  const [{ todayTotalAmount, todayReceiptCount }, prefix] = await Promise.all([
-    pulse,
-    receiptPrefix,
-  ]);
+  const [{ todayTotalAmount, todayReceiptCount, todayWrittenOffAmount }, prefix] =
+    await Promise.all([pulse, receiptPrefix]);
 
   return (
     <div className={cardShell}>
@@ -37,6 +35,19 @@ export async function ShellDayCard({ pulse, receiptPrefix }: ShellDayCardProps) 
         {todayReceiptCount === 1 ? "1 receipt today" : `${todayReceiptCount} receipts today`}
         {prefix ? ` · ${prefix}` : null}
       </p>
+      {/*
+        Shown only when it happened, and deliberately BELOW the total rather
+        than beside it, so it cannot be read as part of the figure above. This
+        card used to add write-offs INTO the money: an office that wrote off a
+        leaver's balance saw the day's collection jump by an amount nobody had
+        taken. Excluding it fixed the total but made the entry vanish, which is
+        its own confusion — so the amount is stated, and stated as not money.
+      */}
+      {todayWrittenOffAmount > 0 ? (
+        <p className="mt-1 border-t border-nav-hover pt-1 text-[11px] tabular-nums text-nav-muted">
+          {formatInr(todayWrittenOffAmount)} written off · not collected
+        </p>
+      ) : null}
     </div>
   );
 }

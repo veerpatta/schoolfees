@@ -194,7 +194,7 @@ describe("dashboard boards", () => {
 
     // Zero close-outs renders as an honest empty state, not a Rs 0 figure that
     // reads like a measurement.
-    expect(html).toContain("No balance has been written off as a discount");
+    expect(html).toContain("Nothing has been written off this session");
   });
 
   it("the discounts board survives a payload that predates it entirely", () => {

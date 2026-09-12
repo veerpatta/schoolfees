@@ -80,7 +80,7 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
     label: "Total Paid",
     summary: "Money actually received against this student in the year.",
     detail:
-      "Sum of all posted payment rows for this student in this academic session. Does NOT include amounts written off via the 'Closed as discount' close-out — those are separated for clarity.",
+      "Sum of all posted payment rows for this student in this academic session. Does NOT include amounts Written Off: no cash arrived, and counting them here would report a write-off as a collection.",
     source: "Sum of payments.amount",
   },
   outstanding: {
@@ -179,10 +179,10 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
   },
   closedAsDiscount: {
     key: "closedAsDiscount",
-    label: "Closed as Discount",
-    summary: "Pending amount written off without cash — a non-cash close-out.",
+    label: "Written Off",
+    summary: "A balance taken off the books. No cash, and not a discount.",
     detail:
-      "Posted with payment mode = 'discount'. This is NOT a normal discount on the fee structure — it's a one-time write-off recorded as a receipt so the audit trail stays clean. It does not move money; it only zeroes pending.",
+      "NOT a discount on the fee structure: a discount sets what a family is charged, a write-off accepts that a charge already made will not be collected. It moves no money and never counts as collection. For a leaver, fees stop at their leave date.",
   },
   discountManual: {
     key: "discountManual",
@@ -202,10 +202,10 @@ export const MONEY_GLOSSARY: Record<MoneyTermKey, MoneyTerm> = {
   },
   discountCloseout: {
     key: "discountCloseout",
-    label: "Discount Close-out",
-    summary: "Same as 'Closed as Discount' — a write-off receipt.",
+    label: "Write-off (close-out)",
+    summary: "Same as 'Written Off' — the name the data uses.",
     detail:
-      "See 'Closed as Discount'. Listed separately because the word 'discount' is overloaded across the app: this one is a payment posting, not a fee structure adjustment.",
+      "See 'Written Off'. Kept because payment mode 'discount' is still what the data says. On screen it is always 'written off'.",
   },
   discountTotal: {
     key: "discountTotal",
