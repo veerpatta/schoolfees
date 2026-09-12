@@ -657,3 +657,34 @@ Verified against production inside a `begin … rollback` before the push.
 
 Every pre-existing row is `null`, which the CHECK allows; the two live leaver write-offs
 (SVP20260912-0001, SVP20260912-0002) were backfilled to `left_school`.
+
+## 20260912165421_a_second_receipt_deserves_its_own_notice.sql
+
+Two index changes that had to ship together.
+
+**The bug.** `data/receipt-notice.ts` inserted its claim row without `sent_on`, so the
+column defaulted to the IST date and collided with the day index — unique on
+`(student_id, session_label, sent_on, campaign_name, destination_role)` and **not**
+partial. A family paying twice in one day got one notice, and the 23505 was reported
+as *"already sent for this receipt"*, which was untrue. `20260903172053:24-27` states
+the opposite intent: *"a second posting for the same family on the same day is a second
+receipt and deserves its own message."* Invisible in production only because
+`whatsapp_receipt_notice_enabled` is still `'false'`.
+
+**The fix.** The day index becomes partial on `receipt_id is null`, so it still guards
+reminders and `covered_by_sibling` rows exactly as before while receipt-shaped notices
+are guarded by the receipt index alone.
+
+**And the re-key**, which is why this is one migration and not two: the receipt index
+moves from `(receipt_id)` to `(receipt_id, notice_kind)`. Without it a payment-reversed
+notice would collide with the receipt notice for the same receipt — one receipt can
+legitimately produce one "payment received" and, later, one "payment reversed".
+
+`notice_kind` is `not null default 'reminder'` deliberately: nullable would let
+Postgres's `NULLS DISTINCT` treat two rows with the same `receipt_id` and a null kind as
+different, silently voiding the "one notice per receipt, ever" guarantee. Backfilled
+before the index is built; each new index created before the one it replaces is dropped.
+
+Dry-run against production inside `begin … rollback` first: 0 rows backfilled (the
+feature has never been on), 1,714 reminder rows untouched, both new indexes created and
+both old ones dropped.

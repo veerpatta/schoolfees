@@ -4,7 +4,7 @@ import { sendAisensyCampaignMessage } from "@/modules/whatsapp/data/aisensy";
 import { describeReceiptCampaign } from "@/modules/whatsapp/domain/campaign-bodies-v3";
 import { isNoticeLanguage, type NoticeLanguage } from "@/modules/whatsapp/domain/campaigns";
 import { toWhatsappDestination } from "@/modules/whatsapp/domain/phone";
-import { formatDdMmYyyy } from "@/platform/helpers/date";
+import { formatDdMmYyyy, istTodayIso } from "@/platform/helpers/date";
 
 /**
  * "Your payment reached us."
@@ -168,16 +168,29 @@ export async function sendReceiptNotice(
       language,
       destination_role: "primary",
       receipt_id: receiptId,
+      // Both stated explicitly rather than left to a column default.
+      //
+      // `sent_on` used to default to the IST date, which collided with the DAY
+      // index for a family paying twice in one day — and the 23505 was then
+      // reported as "already sent for this receipt", which was untrue and
+      // suppressed a notice for a receipt nobody had been told about. Since
+      // `20260912165421` the day index is partial on `receipt_id is null`, so a
+      // receipt-shaped notice is guarded by the receipt index alone; passing
+      // the value is what makes that intent legible at the call site.
+      sent_on: istTodayIso(),
+      notice_kind: "receipt",
       sent_by: staffId,
     })
     .select("id")
     .single();
 
   if (claimError) {
-    // 23505 on the receipt index: this receipt has already been notified. That
-    // is the guard working, not a failure.
+    // 23505 can now only mean the receipt+kind index: this receipt has already
+    // had a RECEIPT notice. That is the guard working, not a failure — and the
+    // sentence is worded from the key we claimed on rather than guessed from
+    // the driver's message, so it cannot go stale if the indexes change again.
     if (claimError.code === "23505") {
-      return { sent: false, reason: "A notice for this receipt has already been sent." };
+      return { sent: false, reason: "A receipt notice for this receipt has already been sent." };
     }
     return { sent: false, reason: `Could not claim the notice: ${claimError.message}` };
   }

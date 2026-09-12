@@ -375,6 +375,43 @@ export async function submitPaymentEntryAction(
       // catch up a moment later instead of two minutes later.
       await drainFinancialViewRefresh();
 
+      /**
+       * Tell the parent their payment landed.
+       *
+       * INSIDE after(), and that placement is load-bearing twice over.
+       *
+       * It used to be a bare await in the action body — which runs BEFORE this
+       * block, not after it. So the comment claiming "the drain above has
+       * already run" was false, and the balance quoted could be the one from
+       * before the payment. It also put a provider round trip on the cashier's
+       * critical path, which only gets worse once this renders and uploads a
+       * PDF.
+       *
+       * Placed after the drain, so the figure the parent reads is the one the
+       * ledger holds now. Still swallowing everything: the money is in the
+       * drawer and the receipt is printed, and a WhatsApp hiccup must never
+       * turn that into a failed posting at the counter.
+       *
+       * Off by default: `app_settings.whatsapp_receipt_notice_enabled` must be
+       * 'true' AND the template must be approved. It also honours `no_call` and
+       * a `never` cadence, because a family who asked not to be contacted did
+       * not ask only about reminders.
+       */
+      try {
+        await sendReceiptNotice({
+          supabase: createAdminClient(),
+          receiptId: receipt.receiptId,
+          receiptNumber: receipt.receiptNumber,
+          studentId,
+          sessionLabel: resolvedSessionLabel,
+          amountPaid: paymentAmount,
+          paymentDate,
+          staffId: (staffSession?.id as string | undefined) ?? null,
+        });
+      } catch (caught) {
+        console.warn("[payments] receipt notice failed", caught);
+      }
+
       await publishOfficeSyncEvent({
         sessionLabel: resolvedSessionLabel,
         entityType: "payment",
@@ -402,37 +439,6 @@ export async function submitPaymentEntryAction(
         },
       });
     });
-
-    /**
-     * Tell the parent their payment landed.
-     *
-     * Strictly AFTER the posting has succeeded, outside every transaction, and
-     * inside a try/catch that swallows everything — including the await itself.
-     * The money is in the drawer and the receipt is printed; a WhatsApp hiccup
-     * must never turn that into a failed posting at the counter.
-     *
-     * Off by default: `app_settings.whatsapp_receipt_notice_enabled` must be
-     * 'true' AND the template must be approved. `sendReceiptNotice` also honours
-     * `no_call` and a `never` cadence, because a family who asked not to be
-     * contacted did not ask only about reminders.
-     *
-     * The drain above has already run, so the balance quoted is the one the
-     * ledger holds after this payment rather than before it.
-     */
-    try {
-      await sendReceiptNotice({
-        supabase: createAdminClient(),
-        receiptId: receipt.receiptId,
-        receiptNumber: receipt.receiptNumber,
-        studentId,
-        sessionLabel: resolvedSessionLabel,
-        amountPaid: paymentAmount,
-        paymentDate,
-        staffId: (staffSession?.id as string | undefined) ?? null,
-      });
-    } catch (caught) {
-      console.warn("[payments] receipt notice failed", caught);
-    }
 
     return {
       status: "success",

@@ -2,6 +2,16 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+/**
+ * The posting action's `after()` work now includes a WhatsApp receipt notice,
+ * which renders a PDF, uploads it and calls a provider. That runs after the
+ * response is sent, so the cashier never waits for it — but it still runs
+ * inside this route's function, and the platform's default ceiling would kill
+ * it mid-upload on a cold start. 60s is the same ceiling the other long routes
+ * in this app declare.
+ */
+export const maxDuration = 60;
+
 import { PageHeader } from "@/ui/shell/page-header";
 import { OfficeNotice, WorkflowGuard } from "@/ui/office/office-ui";
 import { StatusBadge } from "@/ui/shell/status-badge";

@@ -22,6 +22,25 @@ export type AisensySendResult =
   | { ok: true; status: number; messageId: string | null }
   | { ok: false; status: number; error: string };
 
+/**
+ * The document a template's HEADER carries.
+ *
+ * A header is a separate template component with its own media parameter, so it
+ * does NOT consume a body `{{n}}` — `templateParams` stays exactly as long as
+ * the body's slot count. Getting that wrong is rejected by AiSensy, which
+ * enforces the count exactly.
+ */
+export type AisensyMedia = {
+  /**
+   * Must be fetchable by Meta with no headers and no session — AiSensy rejects
+   * the request otherwise. A Supabase signed URL qualifies: the credential
+   * travels in the query string.
+   */
+  url: string;
+  /** What the parent sees in WhatsApp. Never carries an admission number. */
+  filename: string;
+};
+
 export type AisensySendArgs = {
   campaignName: string;
   /** E.164 with country code, e.g. +919352205884. */
@@ -31,6 +50,8 @@ export type AisensySendArgs = {
   /** Values for the template's {{1}}, {{2}}, … in order. */
   templateParams: string[];
   source?: string;
+  /** Omitted entirely for the 34 body-only templates. */
+  media?: AisensyMedia;
 };
 
 export function isAisensyConfigured(): boolean {
@@ -56,6 +77,15 @@ export async function sendAisensyCampaignMessage(
         destination: args.destination,
         userName: args.userName,
         source: args.source ?? "veerpatta-fees-app",
+        // Conditional spread, never `media: undefined`. JSON.stringify drops an
+        // undefined value either way, so the two are byte-identical on the
+        // wire — but the spread STATES that a body-only send is unchanged,
+        // which is the property a reviewer should be able to see and a test can
+        // pin. All 34 existing templates send exactly the six keys they always
+        // did.
+        ...(args.media
+          ? { media: { url: args.media.url, filename: args.media.filename } }
+          : {}),
         templateParams: args.templateParams,
       }),
     });
