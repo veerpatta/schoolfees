@@ -8,12 +8,17 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/ui/primitives/button";
 import { CloseDueAsDiscountSheet } from "@/modules/students/ui/close-due-as-discount-sheet";
 import { MarkStudentLeftSheet } from "@/modules/students/ui/mark-student-left-sheet";
+import {
+  LeftStudentHeldCharges,
+  type HeldCharge,
+} from "@/modules/students/ui/left-student-held-charges";
 import { formatInr } from "@/platform/helpers/currency";
 import { useActionFeedback } from "@/ui/hooks/use-action-feedback";
 import type { StudentDeletionSafety } from "@/modules/students/domain/types";
 
 import {
   archiveStudentAction,
+  cancelLeftStudentChargeAction,
   hardDeleteStudentAction,
   reinstateStudentAction,
 } from "@/app/protected/students/actions";
@@ -28,6 +33,8 @@ type StudentDangerZoneProps = {
     joinedOn: string | null;
     leftOn: string | null;
   };
+  /** Charges due after the leave date that the engine refused to cancel. */
+  heldCharges?: readonly HeldCharge[];
   /**
    * Writing a balance off is an admin-only, money-moving act, so it belongs
    * behind the same gate as withdrawing and deleting rather than in the middle
@@ -49,6 +56,7 @@ export function StudentDangerZone({
   studentId,
   deletionSafety,
   enrolment,
+  heldCharges,
   closeBalance,
 }: StudentDangerZoneProps) {
   const t = useTranslations("MobileApp");
@@ -68,6 +76,10 @@ export function StudentDangerZone({
   );
   const [reinstateState, reinstateFormAction, reinstatePending] = useActionState(
     reinstateStudentAction,
+    INITIAL_STUDENT_DANGER_ACTION_STATE,
+  );
+  const [cancelChargeState, cancelChargeFormAction, cancelChargePending] = useActionState(
+    cancelLeftStudentChargeAction,
     INITIAL_STUDENT_DANGER_ACTION_STATE,
   );
   const [deleteState, deleteFormAction, deletePending] = useActionState(
@@ -109,7 +121,7 @@ export function StudentDangerZone({
       : t("dangerDeleteClean")
     : t("dangerDeleteBlocked");
 
-  const pending = reinstatePending || deletePending || archivePending;
+  const pending = reinstatePending || deletePending || archivePending || cancelChargePending;
   const errorMessage =
     deleteState.status === "error"
       ? deleteState.message
@@ -193,6 +205,22 @@ export function StudentDangerZone({
             </p>
           ) : null}
         </div>
+        {/*
+          Sits ABOVE the write-off block on purpose. Writing the balance off is
+          what an office reaches for when a leaver still shows a due, and for a
+          charge dated after they left that is the wrong answer — the charge
+          should not exist. Offering the cancel first is the whole point.
+        */}
+        {hasLeft && enrolment?.leftOn && heldCharges && heldCharges.length > 0 ? (
+          <LeftStudentHeldCharges
+            studentId={studentId}
+            leftOn={enrolment.leftOn}
+            charges={heldCharges}
+            state={cancelChargeState}
+            formAction={cancelChargeFormAction}
+            pending={pending}
+          />
+        ) : null}
         {closeBalance &&
         (closeBalance.pendingAmount > 0 || closeBalance.oldBalanceAmount > 0) ? (
           <div className="lg:col-span-2 rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm">

@@ -1339,3 +1339,189 @@ export async function reinstateStudentAction(
     };
   }
 }
+
+/**
+ * Cancels a charge that falls after a student's leave date but which the fee
+ * engine refuses to cancel on its own.
+ *
+ * The engine locks any installment carrying money or adjustment history
+ * (`classifyCancelLock` -> `adjustment_posted` / `partially_paid`), because
+ * cancelling such a row silently would drop its payments out of the settlement
+ * pool — the family's `total_paid` would fall and they could vanish from the
+ * money scope entirely. That lock is right, and it deliberately asks for a
+ * person. Until now nothing let a person answer it: the rows were reported as
+ * "kept for review" and there was no review surface, so the only way out was to
+ * write the whole balance off as though the charge had been real.
+ *
+ * This is that answer, and it is deliberately narrow:
+ *
+ *  - the student must be OFF the roll, with a leave date on file;
+ *  - the row's due date must be strictly AFTER that leave date, so what is
+ *    being cancelled is by definition a term they were not there for;
+ *  - carry-forward rows and missed-EMI late fees are never cancellable here —
+ *    both are charges the school levied, not fee policy;
+ *  - a row under an active EMI plan is never cancellable here either;
+ *  - a reason is required and lands in `installments.notes` and `audit_logs`.
+ *
+ * It does NOT touch a single payment or receipt. If the row carries money, that
+ * money keeps its receipt and simply stops settling a charge that no longer
+ * exists — which is why the caller is warned to reverse an over-posted write-off
+ * FIRST. Cancelling first strands the portion pinned to this row and leaves the
+ * family reading as though the school owes them.
+ */
+export async function cancelLeftStudentChargeAction(
+  _prevState: StudentDangerActionState,
+  formData: FormData,
+): Promise<StudentDangerActionState> {
+  const studentId = (formData.get("studentId") ?? "").toString().trim();
+  const installmentId = (formData.get("installmentId") ?? "").toString().trim();
+  const reason = (formData.get("cancelReason") ?? "").toString().trim();
+
+  if (!studentId || !installmentId) {
+    return { status: "error", message: "Student and installment are required.", deleted: false };
+  }
+  if (reason.length < 4) {
+    return {
+      status: "error",
+      message: "Say why this charge is being cancelled — it goes on the record.",
+      deleted: false,
+    };
+  }
+
+  try {
+    // Installments are gated on fees:write by RLS. Asking for it here as well
+    // means a role rebalance produces a sentence rather than a PostgREST update
+    // that matches zero rows and reports success.
+    const staff = await requireStaffPermission("fees:write");
+    if (staff.appRole !== "admin") {
+      return {
+        status: "error",
+        message: "Only an admin can cancel a charge.",
+        deleted: false,
+      };
+    }
+
+    const supabase = await createClient();
+
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("id, status, left_on, full_name")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (studentError || !student) {
+      return { status: "error", message: "Student was not found.", deleted: false };
+    }
+    if (student.status === "active") {
+      return {
+        status: "error",
+        message:
+          "This student is on the roll. Charges for an enrolled student change through Fee Setup, not here.",
+        deleted: false,
+      };
+    }
+    if (!student.left_on) {
+      return {
+        status: "error",
+        message: "Record a leave date first — it is what decides which charges stopped.",
+        deleted: false,
+      };
+    }
+
+    const { data: row, error: rowError } = await supabase
+      .from("installments")
+      .select(
+        "id, student_id, installment_label, due_date, amount_due, status, is_carry_forward, is_emi_late_fee, notes",
+      )
+      .eq("id", installmentId)
+      .maybeSingle();
+
+    if (rowError || !row) {
+      return { status: "error", message: "That charge was not found.", deleted: false };
+    }
+    // Re-checked server-side rather than trusted from the form: every one of
+    // these is the difference between cancelling a term nobody attended and
+    // cancelling a real debt.
+    if (row.student_id !== studentId) {
+      return { status: "error", message: "That charge belongs to another student.", deleted: false };
+    }
+    if (row.status !== "scheduled") {
+      return { status: "error", message: `This charge is already ${row.status}.`, deleted: false };
+    }
+    if (row.is_carry_forward) {
+      return {
+        status: "error",
+        message: "A previous-year balance is a real debt and is never cancelled here.",
+        deleted: false,
+      };
+    }
+    if (row.is_emi_late_fee) {
+      return {
+        status: "error",
+        message: "A missed-EMI late fee is a charge the school levied. Waive it instead.",
+        deleted: false,
+      };
+    }
+    if (!(row.due_date > student.left_on)) {
+      return {
+        status: "error",
+        message: `This charge fell due on ${row.due_date}, on or before the leave date (${student.left_on}). It accrued while they were still on the roll.`,
+        deleted: false,
+      };
+    }
+
+    // Scoped to an ACTIVE plan, matching the generator's own check
+    // (generator.ts:708-712). A superseded or cancelled plan's items are
+    // history and must not block a cancellation forever.
+    const { count: planCount } = await supabase
+      .from("student_repayment_plan_items")
+      .select("installment_id, student_repayment_plans!inner(lifecycle)", {
+        count: "exact",
+        head: true,
+      })
+      .eq("student_repayment_plans.lifecycle", "active")
+      .eq("installment_id", installmentId);
+    if ((planCount ?? 0) > 0) {
+      return {
+        status: "error",
+        message: "This charge is covered by a repayment plan. Reschedule the plan instead.",
+        deleted: false,
+      };
+    }
+
+    const note = `Cancelled ${new Date().toISOString().slice(0, 10)}: due ${row.due_date}, after leave date ${student.left_on}. ${reason} — ${staff.email ?? "admin"}`;
+
+    const { error: updateError } = await supabase
+      .from("installments")
+      .update({
+        status: "cancelled",
+        notes: row.notes ? `${row.notes}\n${note}` : note,
+      })
+      .eq("id", installmentId)
+      .eq("status", "scheduled");
+
+    if (updateError) {
+      return {
+        status: "error",
+        message: `Unable to cancel this charge: ${updateError.message}`,
+        deleted: false,
+      };
+    }
+
+    after(drainFinancialViewRefresh);
+    revalidateFinanceSurfaces({ studentIds: [studentId] });
+
+    return {
+      status: "success",
+      message: `${row.installment_label} (${formatInr(row.amount_due)}) cancelled. It fell due after ${student.left_on}, so it is no longer expected.`,
+      deleted: false,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error ? error.message : "Unexpected error while cancelling this charge.",
+      deleted: false,
+    };
+  }
+}

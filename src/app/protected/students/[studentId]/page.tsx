@@ -315,6 +315,31 @@ export default async function StudentDetailPage({
       />
     ) : null;
 
+  // Charges the student is still billed for AFTER their leave date.
+  //
+  // The fee engine cancels un-accrued rows by itself, so anything left here is
+  // a row it deliberately held: one carrying money or adjustment history, where
+  // cancelling silently would drop those payments out of the settlement pool.
+  // Computed from the balance view, which already excludes cancelled rows, and
+  // re-verified server-side before anything is cancelled.
+  const heldCharges =
+    student.status !== "active" && student.leftOn
+      ? installmentBalances
+          .filter(
+            (row) =>
+              !row.isCarryForward &&
+              row.dueDate > (student.leftOn as string) &&
+              row.pendingAmount + row.appliedAmount > 0,
+          )
+          .map((row) => ({
+            installmentId: row.installmentId,
+            installmentLabel: row.installmentLabel,
+            dueDate: row.dueDate,
+            amountDue: row.baseCharge,
+            appliedAmount: row.appliedAmount,
+          }))
+      : [];
+
   const enrolmentProps = {
     status: student.status,
     joinedOn: student.joinedOn,
@@ -1295,6 +1320,7 @@ export default async function StudentDetailPage({
               studentId={student.id}
               deletionSafety={deletionSafety}
               enrolment={enrolmentProps}
+              heldCharges={heldCharges}
               closeBalance={closeBalanceProps}
             />
           </div>
@@ -1514,6 +1540,7 @@ export default async function StudentDetailPage({
               studentId={student.id}
               deletionSafety={deletionSafety}
               enrolment={enrolmentProps}
+              heldCharges={heldCharges}
               closeBalance={closeBalanceProps}
             />
       ) : null}

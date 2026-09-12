@@ -36,6 +36,12 @@ const reinstateStudentAction = vi.fn(async () => ({
   deleted: false,
 }));
 
+const cancelLeftStudentChargeAction = vi.fn(async () => ({
+  status: "success" as const,
+  message: "Installment 3 (₹7,125) cancelled. It fell due after 2026-08-05, so it is no longer expected.",
+  deleted: false,
+}));
+
 const hardDeleteStudentAction = vi.fn(async () => ({
   status: "success" as const,
   message: "KUSAM REGAR (SR 2712) was deleted.",
@@ -47,6 +53,8 @@ vi.mock("@/app/protected/students/actions", () => ({
     (archiveStudentAction as unknown as (...a: unknown[]) => unknown)(...args),
   reinstateStudentAction: (...args: unknown[]) =>
     (reinstateStudentAction as unknown as (...a: unknown[]) => unknown)(...args),
+  cancelLeftStudentChargeAction: (...args: unknown[]) =>
+    (cancelLeftStudentChargeAction as unknown as (...a: unknown[]) => unknown)(...args),
   hardDeleteStudentAction: (...args: unknown[]) =>
     (hardDeleteStudentAction as unknown as (...a: unknown[]) => unknown)(...args),
 }));
