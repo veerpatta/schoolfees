@@ -636,3 +636,24 @@ What it does, and the one thing to know about each:
 
 The index it replaces was strictly stronger, so no existing row could violate
 the new one and the swap needed no backfill.
+
+## 20260912120000_a_write_off_says_why.sql
+
+`receipts.write_off_reason` (`left_school` | `other`) and `receipts.write_off_note`,
+so a leaver's balance is reported apart from a concession the school chose to grant.
+Until now the two were one figure and only a person reading `notes` could tell them apart.
+
+**Deliberately not a change to `post_student_payment_with_adjustments`.** In Postgres a new
+parameter list is a new function, not a replacement, so adding one would have meant dropping
+and recreating the live Payment Desk's posting path — and a defaulted argument would have left
+every existing call ambiguous between two overloads. The posting RPC is untouched; the server
+action stamps the two columns immediately afterwards.
+
+That second write is permitted because `private.protect_receipt_money_columns()` is a
+**blocklist**, not an allowlist: it raises on id, receipt_number, student_id, payment_date,
+payment_mode, total_amount, created_by, created_at, client_request_id and family_payment_id.
+These two carry no money, so they sit beside `reference_number`, `notes` and `received_by`.
+Verified against production inside a `begin … rollback` before the push.
+
+Every pre-existing row is `null`, which the CHECK allows; the two live leaver write-offs
+(SVP20260912-0001, SVP20260912-0002) were backfilled to `left_school`.

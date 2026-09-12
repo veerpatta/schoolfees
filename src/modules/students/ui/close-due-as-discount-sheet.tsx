@@ -59,6 +59,9 @@ export function CloseDueAsDiscountSheet({
   const tToasts = useTranslations("Toasts");
   const [amount, setAmount] = useState<string>(String(pendingAmount));
   const [reason, setReason] = useState<string>("");
+  // Defaults to the leaver case: it is why this sheet is usually open, and the
+  // office should have to think to call something a concession instead.
+  const [writeOffReason, setWriteOffReason] = useState<string>("left_school");
   const router = useRouter();
   const [state, formAction, pending] = useActionState(
     closeDueAsDiscountAction,
@@ -69,6 +72,7 @@ export function CloseDueAsDiscountSheet({
     if (open) {
       setAmount(String(pendingAmount));
       setReason("");
+      setWriteOffReason("left_school");
     }
   }, [open, pendingAmount]);
 
@@ -161,6 +165,24 @@ export function CloseDueAsDiscountSheet({
             {isOldBalance ? "Old balance outstanding: " : "Current pending: "}
             <span className="font-semibold text-foreground">{formatInr(pendingAmount)}</span>
             . Leave the amount as-is to clear it in full, or enter less to write off part of it.
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="close-due-why">Why is this being written off?</Label>
+          <select
+            id="close-due-why"
+            name="writeOffReason"
+            value={writeOffReason}
+            onChange={(event) => setWriteOffReason(event.target.value)}
+            className="mt-1 flex h-11 w-full appearance-none rounded-md border border-input bg-card px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="left_school">Left school / TC issued</option>
+            <option value="other">Other</option>
+          </select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Reported apart from a real concession. A child who left owes nothing further; the
+            school choosing to charge less is a different decision.
           </p>
         </div>
 

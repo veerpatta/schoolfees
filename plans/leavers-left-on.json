@@ -1,0 +1,8 @@
+{
+  "operation": "student-status",
+  "reason": "Record the leave date the audit trail already holds (both marked left on 2026-08-05). left_on has never been written by any code, so the fee engine had no date to stop charging from.",
+  "rows": [
+    { "admission_no": "2174", "set": { "left_on": "2026-08-05" } },
+    { "admission_no": "2268", "set": { "left_on": "2026-08-05" } }
+  ]
+}

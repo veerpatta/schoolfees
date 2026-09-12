@@ -58,6 +58,7 @@ export async function closeDueAsDiscountAction(
     const sessionLabel = (formData.get("sessionLabel") ?? "").toString().trim();
     const amount = parseAmount(formData.get("amount"));
     const reason = (formData.get("reason") ?? "").toString().trim();
+    const writeOffReason = (formData.get("writeOffReason") ?? "").toString().trim();
 
     if (!studentId) {
       return { status: "error", message: "Student is required.", receiptNumber: null };
@@ -139,6 +140,31 @@ export async function closeDueAsDiscountAction(
       rpcRow && typeof rpcRow === "object" && "receipt_number" in rpcRow
         ? String((rpcRow as { receipt_number: unknown }).receipt_number ?? "")
         : null;
+
+    // Stamp WHY this was written off.
+    //
+    // A separate UPDATE rather than a parameter on
+    // `post_student_payment_with_adjustments`: in Postgres a new parameter list
+    // is a new function, not a replacement, so adding one would mean dropping
+    // and recreating the live Payment Desk's posting path and would leave a
+    // defaulted argument making every existing call ambiguous. These two
+    // columns carry no money, and `private.protect_receipt_money_columns()` is
+    // a blocklist, so writing them in place is permitted — the same latitude
+    // `reference_number`, `notes` and `received_by` already have.
+    //
+    // Best-effort on purpose. The write-off itself has posted and is correct;
+    // a missing label must not fail the action, because the obvious response to
+    // a failure is to press the button again and that would write the money off
+    // twice.
+    if (receiptNumber && (writeOffReason === "left_school" || writeOffReason === "other")) {
+      await supabase
+        .from("receipts")
+        .update({
+          write_off_reason: writeOffReason,
+          write_off_note: reason.slice(0, 500),
+        })
+        .eq("receipt_number", receiptNumber);
+    }
 
     // Tag-based invalidation is the fast path: only callers that opted into
     // `student:<id>` / `session:<label>` tags get re-fetched. The route-level
