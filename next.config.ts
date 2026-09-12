@@ -62,6 +62,35 @@ const nextConfig: NextConfig = {
       "./public/fonts/**",
       "./public/branding/icon-192.png",
     ],
+    // A SERVER ACTION that renders a PDF is its own entrypoint, and it does not
+    // inherit the tracing of the route that renders the same document.
+    //
+    // Found the only way this can be found — in production. The one-tap
+    // "Send on WhatsApp" reported *"Receipt sent. The PDF could not be
+    // attached."* and the runtime log said
+    // `ENOENT /var/task/public/fonts/NotoSansDevanagari-Regular.ttf`, while
+    // `/protected/receipts/[receiptId]/pdf` — the same renderer, the same
+    // fonts, two entries above — served the identical document happily.
+    //
+    // The fallback did its job: the parent got the approved text-only v3
+    // message instead of nothing. But a permanently unattachable document is
+    // not a degraded send, it is a broken feature that never reports itself.
+    //
+    // One entry per PAGE whose actions reach a renderer:
+    //   receipts/[receiptId] · receipts · transactions  → sendReceiptOnWhatsappAction
+    //   payments                                        → sendReceiptNotice, in after()
+    //   students/[studentId]                            → sendFeeStatementAction
+    "/protected/receipts/[receiptId]": [
+      "./public/fonts/**",
+      "./public/branding/icon-192.png",
+    ],
+    "/protected/receipts": ["./public/fonts/**", "./public/branding/icon-192.png"],
+    "/protected/transactions": ["./public/fonts/**", "./public/branding/icon-192.png"],
+    "/protected/payments": ["./public/fonts/**", "./public/branding/icon-192.png"],
+    "/protected/students/[studentId]": [
+      "./public/fonts/**",
+      "./public/branding/icon-192.png",
+    ],
   },
   images: {
     formats: ["image/avif", "image/webp"],
