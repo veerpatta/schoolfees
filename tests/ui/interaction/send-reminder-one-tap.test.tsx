@@ -2,7 +2,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { ToastViewport } from "@/ui/primitives/toast";
 import {
   SendReminderSheet,
   type ReminderDateDefaults,
@@ -55,21 +54,24 @@ function renderSheet(
   action: (state: ReminderSendState, formData: FormData) => Promise<ReminderSendState>,
   studentIds: string[] = ["student-1"],
 ) {
+  // Deliberately WITHOUT a `ToastViewport`. `useActionFeedback` raises a toast
+  // on a refusal, the toast also carries `role="alert"`, and a second alert
+  // makes every `getByRole("alert")` here ambiguous the moment it mounts —
+  // which is a race, not a failure, and passed locally while failing in CI.
+  // What these assert is what the SHEET puts on screen; the toast has its own
+  // tests.
   return render(
-    <>
-      <SendReminderSheet
-        open
-        onClose={() => {}}
-        studentIds={studentIds}
-        audienceLabel="Aarti Test Choudhary"
-        situationOptions={SITUATIONS}
-        defaultSituation="fee_due"
-        defaultLanguage="hi"
-        dates={DATES}
-        action={action}
-      />
-      <ToastViewport />
-    </>,
+    <SendReminderSheet
+      open
+      onClose={() => {}}
+      studentIds={studentIds}
+      audienceLabel="Aarti Test Choudhary"
+      situationOptions={SITUATIONS}
+      defaultSituation="fee_due"
+      defaultLanguage="hi"
+      dates={DATES}
+      action={action}
+    />,
   );
 }
 
