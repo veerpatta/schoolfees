@@ -62,7 +62,7 @@ Import direction, enforced by `npm run quality:architecture`:
 | [`students`](../../src/modules/students/README.md) | /protected/students | 21 | 5 | 65 |
 | [`system-sync`](../../src/modules/system-sync/README.md) | — | 5 | 3 | 0 |
 | [`transactions`](../../src/modules/transactions/README.md) | /protected/transactions | 2 | 1 | 3 |
-| [`whatsapp`](../../src/modules/whatsapp/README.md) | /protected/reminders (+ campaigns, runs) · /protected/admin-tools/whatsapp-templates | 19 | 13 | 14 |
+| [`whatsapp`](../../src/modules/whatsapp/README.md) | /protected/reminders (+ campaigns, runs) · /protected/admin-tools/whatsapp-templates | 19 | 14 | 14 |
 
 Each module's README says what it owns, its invariants, and what must never
 happen there. `src/modules/README.md` indexes them and records why there is no
@@ -84,8 +84,8 @@ happen there. `src/modules/README.md` indexes them and records why there is no
 | `tests/scan` | 0 | 25 |
 | `tests/smoke-2026-05` | 0 | 6 |
 | `tests/smoke-readiness` | 0 | 3 |
-| `tests/ui` | 94 | 95 |
-| `tests/unit` | 177 | 177 |
+| `tests/ui` | 95 | 96 |
+| `tests/unit` | 179 | 179 |
 
 `npm run test` runs vitest over two projects — `node` for everything and
 `interaction` (jsdom) for `tests/ui/interaction/**`. `tests/scan` and
