@@ -1,5 +1,6 @@
 import { formatRupeesPlain } from "@/platform/helpers/currency";
 import { shortClassLabel, type NoticeLanguage } from "@/modules/whatsapp/domain/campaigns";
+import { FALLBACK_OFFICE_SESSION_LABEL } from "@/platform/session/available-sessions";
 import {
   RECEIPT_CAMPAIGNS,
   type ReceiptCampaignDescriptor,
@@ -158,7 +159,11 @@ const FEE_STATEMENT_SAMPLE_EN: FeeStatementNoticeValues = {
   parentName: "Ramesh Lal Gurjar",
   studentName: "Aaradhya Gurjar",
   studentClass: "Class 2",
-  sessionLabel: "2026-27",
+  // Borrowed rather than spelled out. It is the same string either way today,
+  // but a sample that hardcodes the live year is one more place the 2027-28
+  // rollover has to find — and `tests/scan` keeps that inventory precisely so
+  // it does not grow. This is display-only: nothing here reaches a ledger.
+  sessionLabel: FALLBACK_OFFICE_SESSION_LABEL,
   pendingAmount: 9125,
 };
 

@@ -4,14 +4,13 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as React from "react";
 import { Font, Image, StyleSheet, Text, View } from "@react-pdf/renderer";
-import QRCode from "qrcode";
 
 import { schoolProfile } from "@/platform/config/school";
 
 /**
  * What every generated PDF shares: fonts, money and date formatting, the
- * letterhead, and the two binary assets (logo, QR) that react-pdf needs handed
- * to it rather than pointed at.
+ * letterhead, and the two binary assets (logo, signature) that react-pdf needs
+ * handed to it rather than pointed at.
  *
  * Extracted from lib/students/fee-statement-pdf.tsx when the receipt PDF was
  * written, so the two documents cannot drift on the things a reader compares
@@ -44,16 +43,27 @@ export function ensurePdfFontsRegistered(): void {
 }
 
 /**
+ * The digits of a rupee figure, grouped Indian-style.
+ *
+ * The ONE place a PDF rounds money and the one place it groups it, so the two
+ * spellings below cannot drift — and so the repo has exactly one rounding
+ * policy for PDF money rather than a second copy per symbol. `Math.round`
+ * rather than `trunc` matches `platform/helpers/currency.ts`, which is what the
+ * screen uses.
+ */
+function groupedRupees(value: number): string {
+  return Math.round(value || 0).toLocaleString("en-IN"); // @allow-raw-money-format: this IS the PDF money formatter; react-pdf renders no DOM, so formatInr() cannot be used here.
+}
+
+/**
  * react-pdf's Helvetica has no ₹ glyph, so amounts read "Rs. 12,000".
  *
- * Kept for any caller that must stay in Helvetica, but it is no longer what a
- * parent-facing document should use — see {@link inr}.
+ * Kept for callers that must stay in Helvetica — the teacher collection list
+ * sets whole sentences in it — but it is no longer what a parent-facing
+ * document should use. See {@link inr}.
  */
 export function rs(value: number): string {
-  const rounded = Math.round(value || 0);
-  // @allow-raw-money-format: this IS the PDF money formatter; react-pdf cannot
-  // use the DOM one because its Helvetica lacks the rupee glyph.
-  return `Rs. ${rounded.toLocaleString("en-IN")}`;
+  return `Rs. ${groupedRupees(value)}`; // @allow-raw-money-format: Helvetica has no rupee glyph, so a Helvetica document spells it out.
 }
 
 /**
@@ -71,9 +81,7 @@ export function rs(value: number): string {
  * blanks. Put any words in a sibling <Text> in Helvetica.
  */
 export function inr(value: number): string {
-  const rounded = Math.round(value || 0);
-  // @allow-raw-money-format: the PDF money formatter itself, for the reason above.
-  return `₹${rounded.toLocaleString("en-IN")}`;
+  return `₹${groupedRupees(value)}`; // @allow-raw-money-format: the glyph is the point — see the note above on MONEY_FONT.
 }
 
 /** The family a {@link inr} string must be set in. Never put words in it. */
@@ -112,25 +120,6 @@ export async function loadLogoImage(): Promise<PdfImage | null> {
   } catch {
     // A missing logo must never fail a receipt. The letterhead falls back to
     // the school's name alone, which is what the document is actually for.
-    return null;
-  }
-}
-
-/**
- * A QR as a PNG data URI.
- *
- * The HTML receipt renders an SVG string; react-pdf cannot, so this produces
- * the one thing `<Image src>` accepts for generated content.
- *
- * No longer used by the fee receipt — the verification QR was removed on
- * 2026-09-12. Kept because it is generic and cheap, and because the next
- * document that wants one should not have to rewrite it.
- */
-export async function renderQrDataUri(url: string | null): Promise<string | null> {
-  if (!url) return null;
-  try {
-    return await QRCode.toDataURL(url, { margin: 0, width: 256, errorCorrectionLevel: "M" });
-  } catch {
     return null;
   }
 }

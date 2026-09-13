@@ -44,8 +44,8 @@ Import direction, enforced by `npm run quality:architecture`:
 | Module | Route | domain | data | ui |
 |---|---|---:|---:|---:|
 | [`activity`](../../src/modules/activity/README.md) | /protected/admin-tools/activity | 0 | 1 | 0 |
-| [`dashboard`](../../src/modules/dashboard/README.md) | `/protected/dashboard?view=overview\|collection\|recovery\|classes\|latefee` | 7 | 3 | 14 |
-| [`defaulters`](../../src/modules/defaulters/README.md) | /protected/defaulters | 9 | 3 | 18 |
+| [`dashboard`](../../src/modules/dashboard/README.md) | `/protected/dashboard?view=overview\|collection\|recovery\|classes\|latefee` | 8 | 3 | 14 |
+| [`defaulters`](../../src/modules/defaulters/README.md) | /protected/defaulters | 8 | 3 | 17 |
 | [`exports`](../../src/modules/exports/README.md) | `/protected/exports` · `/protected/exports/[exportType]` | 1 | 2 | 0 |
 | [`fees`](../../src/modules/fees/README.md) | /protected/fee-setup · /protected/fee-structure | 21 | 11 | 7 |
 | [`finance-controls`](../../src/modules/finance-controls/README.md) | /protected/finance-controls | 3 | 2 | 1 |
@@ -54,15 +54,15 @@ Import direction, enforced by `npm run quality:architecture`:
 | [`payments`](../../src/modules/payments/README.md) | /protected/payments · /protected/payments/bulk | 17 | 2 | 25 |
 | [`prev-year-dues`](../../src/modules/prev-year-dues/README.md) | /protected/admin-tools/prev-year-dues | 6 | 1 | 0 |
 | [`promotion`](../../src/modules/promotion/README.md) | /protected/admin-tools/promotion | 0 | 1 | 0 |
-| [`receipts`](../../src/modules/receipts/README.md) | /protected/receipts · /r/[code] | 10 | 2 | 16 |
+| [`receipts`](../../src/modules/receipts/README.md) | /protected/receipts · /r/[code] | 9 | 2 | 14 |
 | [`recovery`](../../src/modules/recovery/README.md) | /protected/admin-tools/recovery | 1 | 1 | 0 |
 | [`repayment-plans`](../../src/modules/repayment-plans/README.md) | Student detail → repayment plan card | 3 | 1 | 0 |
 | [`reports`](../../src/modules/reports/README.md) | /protected/reports · /protected/ledger | 2 | 2 | 2 |
 | [`staff`](../../src/modules/staff/README.md) | /protected/staff · /protected/password | 0 | 1 | 2 |
-| [`students`](../../src/modules/students/README.md) | /protected/students | 19 | 5 | 61 |
+| [`students`](../../src/modules/students/README.md) | /protected/students | 21 | 5 | 65 |
 | [`system-sync`](../../src/modules/system-sync/README.md) | — | 5 | 3 | 0 |
 | [`transactions`](../../src/modules/transactions/README.md) | /protected/transactions | 2 | 1 | 3 |
-| [`whatsapp`](../../src/modules/whatsapp/README.md) | /protected/reminders (+ campaigns, runs) · /protected/admin-tools/whatsapp-templates | 20 | 10 | 15 |
+| [`whatsapp`](../../src/modules/whatsapp/README.md) | /protected/reminders (+ campaigns, runs) · /protected/admin-tools/whatsapp-templates | 19 | 13 | 14 |
 
 Each module's README says what it owns, its invariants, and what must never
 happen there. `src/modules/README.md` indexes them and records why there is no
@@ -80,12 +80,12 @@ happen there. `src/modules/README.md` indexes them and records why there is no
 |---|---:|---:|
 | `tests/deep` | 0 | 43 |
 | `tests/helpers` | 0 | 2 |
-| `tests/integration` | 96 | 96 |
+| `tests/integration` | 97 | 97 |
 | `tests/scan` | 0 | 25 |
 | `tests/smoke-2026-05` | 0 | 6 |
 | `tests/smoke-readiness` | 0 | 3 |
-| `tests/ui` | 96 | 97 |
-| `tests/unit` | 174 | 174 |
+| `tests/ui` | 94 | 95 |
+| `tests/unit` | 177 | 177 |
 
 `npm run test` runs vitest over two projects — `node` for everything and
 `interaction` (jsdom) for `tests/ui/interaction/**`. `tests/scan` and
@@ -102,14 +102,14 @@ Surfaced because size is the thing a map can measure and a reader cannot.
 
 | Lines | File |
 |---:|---|
-| 3516 | `src/modules/payments/ui/payment-desk-mobile.tsx` |
-| 2133 | `src/modules/payments/data/queries.ts` |
+| 3496 | `src/modules/payments/ui/payment-desk-mobile.tsx` |
+| 2151 | `src/modules/payments/data/queries.ts` |
 | 2082 | `src/modules/fees/ui/fee-setup-client.tsx` |
 | 2058 | `src/app/protected/dashboard/page.tsx` |
+| 2043 | `src/modules/students/data/queries.ts` |
 | 2007 | `src/modules/imports/data/queries.ts` |
-| 1967 | `src/modules/students/data/queries.ts` |
-| 1895 | `src/modules/transactions/ui/transactions-client-shell.tsx` |
-| 1892 | `src/modules/whatsapp/domain/fee-reminders.ts` |
+| 1900 | `src/modules/whatsapp/domain/fee-reminders.ts` |
+| 1897 | `src/modules/transactions/ui/transactions-client-shell.tsx` |
 
 The ceilings that stop these growing live in
 `quality/office-quality-budgets.json`. They ratchet down, never up.
