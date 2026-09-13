@@ -169,13 +169,34 @@ describe("the overridable guards", () => {
     ).toEqual([]);
   });
 
-  it("warns on a Sunday unless the counter is explicitly open", () => {
+  it("warns when the notice NAMES a Sunday, unless the counter is explicitly open", () => {
+    // 2026-10-18 is a Sunday; the default context's 2026-10-20 is a Tuesday.
+    const sunday = { lastDateIso: "2026-10-18", lastDateLabel: "18-10-2026" };
     expect(
-      evaluateSendGuards(context({ weekdayIst: 0 })).overridable.map((f) => f.code),
+      evaluateSendGuards(context(sunday)).overridable.map((f) => f.code),
     ).toContain("counter_closed");
     expect(
-      evaluateSendGuards(context({ weekdayIst: 0, counterOpenOnLastDate: true })).overridable,
+      evaluateSendGuards(context(sunday)).overridable.find((f) => f.code === "counter_closed")!
+        .message,
+    ).toContain("18-10-2026");
+    expect(
+      evaluateSendGuards(context({ ...sunday, counterOpenOnLastDate: true })).overridable,
     ).toEqual([]);
+  });
+
+  it("says nothing about a Sunday the office merely happens to be sending ON", () => {
+    /**
+     * The guard asks whether a parent can act on the date the MESSAGE names.
+     * It used to ask whether today was a Sunday, from the clock at send time —
+     * so one send in seven was held back and made to justify itself, including
+     * a notice saying "pay by 20-10-2026", five weeks out on a Tuesday. A
+     * warning that fires on a seventh of all runs for a reason unrelated to the
+     * run is a warning nobody reads.
+     *
+     * There is nothing to pass here any more, which is the point: the weekday
+     * of the send is no longer an input to this decision at all.
+     */
+    expect(evaluateSendGuards(context()).overridable).toEqual([]);
   });
 
   it("names an over-budget run rather than refusing it", () => {
@@ -227,7 +248,13 @@ describe("resolveGuards", () => {
 
   it("lets a clean run through with nothing overridden", () => {
     const resolved = resolveGuards(evaluateSendGuards(context()), null);
-    expect(resolved).toEqual({ allowed: true, message: null, overridden: [] });
+    expect(resolved).toEqual({
+      allowed: true,
+      message: null,
+      overridden: [],
+      reason: "",
+      blocked: false,
+    });
   });
 
   it("refuses a judgement the admin has not agreed to", () => {
@@ -271,6 +298,44 @@ describe("resolveGuards", () => {
     });
     expect(resolved.allowed).toBe(false);
     expect(resolved.overridden).toEqual([]);
+    // The flag the screens read to decide whether offering an override is
+    // honest. Without it, a run blocked for having no date came back with a row
+    // of tick-boxes and a "why send anyway?" box beside a sentence about
+    // something else entirely; staff ticked all of them, typed a reason,
+    // pressed Send anyway, and were refused in exactly the same words.
+    expect(resolved.blocked).toBe(true);
+  });
+
+  it("accepts a default reason in place of typed prose, when one is offered", () => {
+    /**
+     * The typed reason exists so a 141-family broadcast outside quiet hours has
+     * to explain itself in somebody's own words. One family chosen by name does
+     * not need to: the caller supplies the sentence, and the run carries it.
+     * Demanding prose there only ever produced `asdf`.
+     */
+    const resolved = resolveGuards(
+      quiet(),
+      { codes: ["quiet_hours"], reason: "" },
+      { defaultReason: "Sent by hand to one family, from that family's page." },
+    );
+    expect(resolved.allowed).toBe(true);
+    expect(resolved.overridden).toEqual(["quiet_hours"]);
+    expect(resolved.reason).toContain("by hand");
+  });
+
+  it("prefers what a person actually typed over the default", () => {
+    const resolved = resolveGuards(
+      quiet(),
+      { codes: ["quiet_hours"], reason: "Parent is at the counter." },
+      { defaultReason: "Sent by hand to one family, from that family's page." },
+    );
+    expect(resolved.reason).toBe("Parent is at the counter.");
+  });
+
+  it("still refuses a guard the admin never ticked, default reason or not", () => {
+    // The default stands in for the typing, never for the consent.
+    const resolved = resolveGuards(quiet(), null, { defaultReason: "Sent by hand." });
+    expect(resolved.allowed).toBe(false);
   });
 });
 

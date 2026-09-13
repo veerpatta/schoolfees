@@ -20,6 +20,7 @@ import { StudentAboutPanel } from "@/modules/students/ui/student-about-panel";
 import { StudentDangerZone } from "@/modules/students/ui/student-danger-zone";
 import { StudentDetailHeader } from "@/modules/students/ui/student-detail-header";
 import { SendReminderTrigger } from "@/modules/students/ui/send-reminder-sheet";
+import { resolveReminderDateDefaults } from "@/modules/whatsapp/data/reminder-context";
 import { sendRemindersAction } from "@/app/protected/reminders/actions";
 import { sendFeeStatementAction } from "@/app/protected/students/actions";
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
@@ -285,6 +286,13 @@ export default async function StudentDetailPage({
   // client component: `/protected/students` has ~1.6 KB of gzip headroom and
   // `domain/campaigns` carries 24 template descriptors.
   const canSendReminders = hasStaffPermission(staff, "settings:write");
+  // The date the reminder will ask the family to pay by, from this session's fee
+  // calendar. The sheet used to post no date at all, which made every send from
+  // this page fail on a BLOCKING guard no override could clear — a cached policy
+  // read is a cheap price for a button that works.
+  const reminderDates = await resolveReminderDateDefaults(
+    financialSnapshot?.policy.academicSessionLabel ?? "",
+  );
   const sendReminderNode =
     canSendReminders && outstandingAmount > 0 ? (
       <SendReminderTrigger
@@ -296,6 +304,7 @@ export default async function StudentDetailPage({
         }))}
         defaultSituation="fee_due"
         defaultLanguage="hi"
+        dates={reminderDates}
         action={sendRemindersAction}
       />
     ) : null;
@@ -311,6 +320,7 @@ export default async function StudentDetailPage({
         }))}
         defaultSituation="fee_due"
         defaultLanguage="hi"
+        dates={reminderDates}
         action={sendRemindersAction}
         surface="phone"
       />

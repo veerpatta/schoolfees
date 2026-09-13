@@ -24,7 +24,7 @@ import {
 } from "@/modules/whatsapp/domain/late-fee";
 import { savedAudienceFrom } from "@/modules/whatsapp/domain/audience";
 import { isoFromDdMmYyyy } from "@/platform/helpers/date";
-import { resolveCurrentSessionLabel } from "@/modules/whatsapp/domain/fee-reminders";
+import { resolveReminderSessionLabel } from "@/modules/whatsapp/data/reminder-session";
 
 export type CampaignFormState = {
   status: "idle" | "success" | "error";
@@ -99,7 +99,7 @@ export async function saveCampaignAction(
 
   let sessionLabel: string;
   try {
-    sessionLabel = await resolveCurrentSessionLabel(supabase);
+    sessionLabel = await resolveReminderSessionLabel(supabase);
   } catch (caught) {
     return {
       status: "error",

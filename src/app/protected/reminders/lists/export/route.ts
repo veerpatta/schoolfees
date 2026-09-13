@@ -22,13 +22,13 @@ import {
   type CollectionGroup,
 } from "@/modules/whatsapp/domain/collection-list";
 import { resolveReminderContext } from "@/modules/whatsapp/data/reminder-context";
-import { resolveCurrentSessionLabel } from "@/modules/whatsapp/domain/fee-reminders";
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { getAuthenticatedStaff, hasStaffPermission } from "@/platform/supabase/session";
 import { withDownloadToken } from "@/platform/helpers/download-token";
 import { formatExportName } from "@/platform/helpers/export";
 import { formatDateTimeIst } from "@/platform/helpers/date";
+import { resolveReminderSessionLabel } from "@/modules/whatsapp/data/reminder-session";
 
 // `@react-pdf/renderer` needs Node, and the list is per-request by definition.
 export const runtime = "nodejs";
@@ -61,7 +61,7 @@ async function handleExport(request: NextRequest) {
     const scope = (params.get("scope") ?? "").trim();
 
     const supabase = createAdminClient();
-    const sessionLabel = await resolveCurrentSessionLabel(supabase);
+    const sessionLabel = await resolveReminderSessionLabel(supabase);
     const { filters, audience } = await resolveReminderContext(supabase, sessionLabel, (key) =>
       params.get(key),
     );

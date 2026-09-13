@@ -1,3 +1,4 @@
+import { weekdayOfIsoDate } from "@/platform/helpers/date";
 import {
   describeDateGuard,
   FINAL_NOTICE_DAYS_BEFORE_DUE,
@@ -68,8 +69,6 @@ export type SendGuardContext = {
   messageCount?: number;
   /** IST hour, 0-23, at the moment of sending. */
   hourIst?: number;
-  /** IST weekday, 0 = Sunday. */
-  weekdayIst?: number;
   quietHours?: { start: number; end: number };
   /**
    * Is the fee counter open on the date this notice names?
@@ -191,14 +190,29 @@ export function evaluateSendGuards(context: SendGuardContext): SendGuardResult {
   }
 
   // A closed counter. "Pay by Friday" is not actionable if the counter is shut
-  // on Friday and every day between now and then.
-  const isSunday = context.weekdayIst === 0;
-  if (context.counterOpenOnLastDate === false || (isSunday && context.counterOpenOnLastDate !== true)) {
+  // on Friday.
+  //
+  // About THE DATE ON THE MESSAGE, not about today. Until 2026-09-13 the Sunday
+  // half of this read `weekdayIst`, which `loadGuardFacts` fills from the clock
+  // at send time — so every send on a Sunday was held back and made to justify
+  // itself, including a notice saying "pay by 20-10-2026", five weeks out on a
+  // Tuesday. The counter being shut while the office is sending says nothing
+  // about whether a parent can act; the counter being shut on the day the
+  // message names says everything. One in seven sends was asking for a typed
+  // reason it had no business asking for, which is how a warning stops being
+  // read.
+  const lastDateWeekday = weekdayOfIsoDate(context.lastDateIso);
+  const namesASunday = lastDateWeekday === 0;
+  if (
+    context.counterOpenOnLastDate === false ||
+    (namesASunday && context.counterOpenOnLastDate !== true)
+  ) {
+    const dateSaid = context.lastDateLabel || "the date on the message";
     overridable.push({
       code: "counter_closed",
       message: context.closedReason
-        ? `The fee counter is closed (${context.closedReason}). A parent cannot act on this today.`
-        : "The fee counter is closed today, so a parent cannot act on this. UPI still works, which is why this is a warning rather than a refusal.",
+        ? `The fee counter is closed on ${dateSaid} (${context.closedReason}), and that is the date this message names.`
+        : `${dateSaid} is a Sunday and the fee counter is closed, so a parent cannot pay at the window on the day this message names. UPI still works, which is why this is a warning rather than a refusal.`,
     });
   }
 
@@ -269,35 +283,88 @@ export function evaluateSendGuards(context: SendGuardContext): SendGuardResult {
   return { blocking, overridable };
 }
 
+export type ResolvedGuards = {
+  allowed: boolean;
+  message: string | null;
+  overridden: string[];
+  /** The reason to write to the run. Empty when nothing was overridden. */
+  reason: string;
+  /**
+   * Was the refusal a BLOCKING finding — one no tick-box and no reason can
+   * clear?
+   *
+   * The caller needs this to know whether offering an override is honest. The
+   * send screens used to attach the overridable list to every refusal, so a run
+   * blocked for having no date came back with a row of tick-boxes and a "why
+   * send anyway?" box beside a sentence about something else entirely. Staff
+   * ticked all of them, typed a reason, pressed Send anyway, and were refused
+   * in exactly the same words. Nothing on screen said that could not work.
+   */
+  blocked: boolean;
+};
+
 /**
  * May this run go ahead, given what the admin has agreed to override?
  *
  * Blocking findings are never overridable. An override is only honoured when a
- * reason was given — the point is that the decision is on the record.
+ * reason is on the record — but see `defaultReason`: on a hand-picked send the
+ * press IS the reason, and the record says so.
  */
 export function resolveGuards(
   result: SendGuardResult,
   override: { codes: readonly string[]; reason: string } | null,
-): { allowed: boolean; message: string | null; overridden: string[] } {
+  options: {
+    /**
+     * What to write on the run when the admin ticked the boxes but typed
+     * nothing — supplied only for a send the caller knows was deliberate and
+     * hand-picked, never for a broadcast.
+     *
+     * A 141-family run at ten at night should have to say why in somebody's own
+     * words. One family, chosen by name by a person looking at that family's
+     * page, should not: the honest record there is "a staff member sent this by
+     * hand", which this writes, and demanding prose on top of it only produces
+     * `asdf` — a record that says less than the sentence it replaced.
+     */
+    defaultReason?: string;
+  } = {},
+): ResolvedGuards {
   const blocked = result.blocking[0];
-  if (blocked) return { allowed: false, message: blocked.message, overridden: [] };
-
-  if (result.overridable.length === 0) {
-    return { allowed: true, message: null, overridden: [] };
+  if (blocked) {
+    return {
+      allowed: false,
+      message: blocked.message,
+      overridden: [],
+      reason: "",
+      blocked: true,
+    };
   }
 
-  const reason = (override?.reason ?? "").trim();
+  if (result.overridable.length === 0) {
+    return { allowed: true, message: null, overridden: [], reason: "", blocked: false };
+  }
+
+  const typed = (override?.reason ?? "").trim();
+  const fallback = (options.defaultReason ?? "").trim();
+  const reason = typed.length >= 3 ? typed : fallback;
   const agreed = new Set(override?.codes ?? []);
   const unagreed = result.overridable.filter((finding) => !agreed.has(finding.code));
 
   if (unagreed.length > 0) {
-    return { allowed: false, message: unagreed[0]!.message, overridden: [] };
+    return {
+      allowed: false,
+      message: unagreed[0]!.message,
+      overridden: [],
+      reason: "",
+      blocked: false,
+    };
   }
   if (reason.length < 3) {
     return {
       allowed: false,
       message: "Say why you are sending anyway, so the run explains itself.",
       overridden: [],
+      reason: "",
+      blocked: false,
     };
   }
 
@@ -305,6 +372,8 @@ export function resolveGuards(
     allowed: true,
     message: null,
     overridden: result.overridable.map((finding) => finding.code),
+    reason,
+    blocked: false,
   };
 }
 

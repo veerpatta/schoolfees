@@ -17,7 +17,6 @@ import { DEFAULT_QUIET_HOURS } from "@/modules/whatsapp/domain/send-guards";
 
 export type GuardFacts = {
   hourIst: number;
-  weekdayIst: number;
   quietHours: { start: number; end: number };
   counterOpenOnLastDate: boolean | null;
   closedReason: string | null;
@@ -27,19 +26,23 @@ export type GuardFacts = {
   campaignProven: boolean | null;
 };
 
-/** IST hour and weekday, from the school's clock rather than the server's. */
-function istNow(now: Date): { hour: number; weekday: number } {
+/**
+ * The hour on the school's clock rather than the server's — Vercel runs west of
+ * IST, so quiet hours read from the runtime's own zone would be someone else's
+ * evening.
+ *
+ * This used to return the weekday as well, for the closed-counter guard. That
+ * guard is about the day the MESSAGE names, not the day the office happens to
+ * be sending on, so it derives its own weekday from `lastDateIso` now and this
+ * answers one question again.
+ */
+function istHour(now: Date): number {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata",
-    weekday: "short",
     hour: "2-digit",
     hour12: false,
   }).formatToParts(now);
-  const weekdayName = parts.find((part) => part.type === "weekday")?.value ?? "";
-  return {
-    hour: Number(parts.find((part) => part.type === "hour")?.value ?? 12),
-    weekday: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekdayName),
-  };
+  return Number(parts.find((part) => part.type === "hour")?.value ?? 12);
 }
 
 async function readNumberSetting(
@@ -71,7 +74,7 @@ export async function loadGuardFacts(args: {
   now?: Date;
 }): Promise<GuardFacts> {
   const now = args.now ?? new Date();
-  const { hour, weekday } = istNow(now);
+  const hour = istHour(now);
 
   const [quietStart, quietEnd, runCap, monthCap] = await Promise.all([
     readNumberSetting(args.supabase, "whatsapp_quiet_hours_start"),
@@ -155,7 +158,6 @@ export async function loadGuardFacts(args: {
 
   return {
     hourIst: hour,
-    weekdayIst: weekday,
     quietHours: {
       start: quietStart ?? DEFAULT_QUIET_HOURS.start,
       end: quietEnd ?? DEFAULT_QUIET_HOURS.end,

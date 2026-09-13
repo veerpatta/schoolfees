@@ -17,11 +17,11 @@ import {
 import { loadStuckSends } from "@/modules/whatsapp/data/delivery-store";
 import { RunDeliveryPanel } from "./run-delivery-panel";
 import { RunMeasurementPanel } from "@/modules/whatsapp/ui/run-measurement-panel";
-import { resolveCurrentSessionLabel } from "@/modules/whatsapp/domain/fee-reminders";
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { formatInr } from "@/platform/helpers/currency";
 import { formatDdMmYyyy, formatDateTimeIst } from "@/platform/helpers/date";
 import { isUuid } from "@/platform/helpers/uuid";
+import { resolveReminderSessionLabel } from "@/modules/whatsapp/data/reminder-session";
 
 /** The numbers move whenever a payment lands. Never cached. */
 export const revalidate = 0;
@@ -37,7 +37,7 @@ export default async function ReminderRunPage({ params }: Props) {
   if (!isUuid(runId)) notFound();
   const supabase = createAdminClient();
 
-  const sessionLabel = await resolveCurrentSessionLabel(supabase);
+  const sessionLabel = await resolveReminderSessionLabel(supabase);
   const runs = await listRunOutcomes(supabase, sessionLabel, { limit: 200 });
   const run = runs.find((entry) => entry.runId === runId);
   if (!run) notFound();

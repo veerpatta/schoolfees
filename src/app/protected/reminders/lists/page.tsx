@@ -9,7 +9,6 @@ import { DownloadAnchor } from "@/ui/primitives/download-anchor";
 import { CollectionListActions } from "@/modules/whatsapp/ui/collection-list-actions";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { requireAnyStaffPermission } from "@/platform/supabase/session";
-import { resolveCurrentSessionLabel } from "@/modules/whatsapp/domain/fee-reminders";
 import {
   readerFor,
   resolveReminderContext,
@@ -27,6 +26,7 @@ import {
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { REMINDER_QUERY_KEYS } from "@/modules/whatsapp/domain/audience";
 import { formatInr } from "@/platform/helpers/currency";
+import { resolveReminderSessionLabel } from "@/modules/whatsapp/data/reminder-session";
 
 /**
  * The eligibility list, ready to hand out.
@@ -80,7 +80,7 @@ export default async function CollectionListsPage({ searchParams }: PageProps) {
     : "class";
 
   const supabase = createAdminClient();
-  const sessionLabel = await resolveCurrentSessionLabel(supabase);
+  const sessionLabel = await resolveReminderSessionLabel(supabase);
   const { filters, audience } = await resolveReminderContext(
     supabase,
     sessionLabel,

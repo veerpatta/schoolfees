@@ -21,6 +21,7 @@ import { Label } from "@/ui/primitives/label";
 import { SelectNative } from "@/ui/primitives/select-native";
 import { cn } from "@/platform/utils";
 import { reminderQuery, type ReminderQueryKey } from "@/modules/whatsapp/domain/audience";
+import { isoFromDdMmYyyy } from "@/platform/helpers/date";
 import { CarriedFilterFields } from "@/modules/whatsapp/ui/carried-filter-fields";
 import type { ReminderFilters } from "@/modules/whatsapp/domain/fee-reminders";
 
@@ -59,6 +60,8 @@ type Props = {
   candidateCount: number;
   /** Rendered inside the GET filter form, so the date round-trips with everything else. */
   dateFieldId: string;
+  /** Today in IST, `YYYY-MM-DD`: the earliest date the picker will offer. */
+  today: string;
   /** Shown when the phrase will not match what the ledger charges. Never blocks. */
   lateFeeWarning: string | null;
   /**
@@ -104,6 +107,7 @@ export function NoticePicker({
   noticeGaps,
   candidateCount,
   dateFieldId,
+  today,
   lateFeeWarning,
   applyAction,
 }: Props) {
@@ -327,13 +331,22 @@ export function NoticePicker({
                   ? "Last date without late fee"
                   : "Last date on the message"}
             </Label>
+            {/* A real date control, not a DD-MM-YYYY text box.
+                On a phone it opens the OS picker; typed, it took eleven
+                characters and any slip read as no date at all — which is the
+                BLOCKING "Pick a last date for this notice before sending", the
+                one refusal that cannot be overridden. `min` is today, so the
+                other half of the date guard is prevented rather than reported.
+                A native date input speaks only ISO, which is why
+                `parseReminderFilters` now normalises both spellings. */}
             <Input
               id={dateFieldId}
               name="lastDate"
+              type="date"
               inputSize="sm"
-              defaultValue={filters.lastDate}
-              placeholder="DD-MM-YYYY"
-              className="w-36"
+              defaultValue={isoFromDdMmYyyy(filters.lastDate) ?? ""}
+              min={today}
+              className="w-44"
             />
           </div>
         )}

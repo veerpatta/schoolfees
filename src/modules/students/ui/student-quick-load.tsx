@@ -13,6 +13,7 @@ import { SegmentFilterGroups } from "@/ui/shared/segment-filter-groups";
 import { SummaryRow, SummaryCell } from "@/ui/data-table/summary-row";
 import { MobileStudentsScreen } from "@/modules/students/ui/mobile-students-screen";
 import type {
+  ReminderDateDefaults,
   ReminderSendState,
   SituationOption,
 } from "@/modules/students/ui/send-reminder-sheet";
@@ -132,6 +133,8 @@ type StudentQuickLoadProps = {
   reminders?: {
     action: (state: ReminderSendState, formData: FormData) => Promise<ReminderSendState>;
     situationOptions: readonly SituationOption[];
+    /** What the message's date box opens on — see `ReminderDateDefaults`. */
+    dates: ReminderDateDefaults;
   } | null;
 };
 

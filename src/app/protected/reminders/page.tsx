@@ -22,9 +22,9 @@ import { isAisensyConfigured } from "@/modules/whatsapp/data/aisensy";
 import {
   istToday,
   loadReminderAudience,
-  resolveCurrentSessionLabel,
   type ReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
+import { resolveReminderSessionLabel } from "@/modules/whatsapp/data/reminder-session";
 import {
   campaignNameFor,
   installmentPhrase,
@@ -98,7 +98,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
   let loadError: string | null = null;
 
   try {
-    sessionLabel = await resolveCurrentSessionLabel(supabase);
+    sessionLabel = await resolveReminderSessionLabel(supabase);
     // The drain, the policy read, the window-before-calendar parse and the
     // filter parse all live in `resolveReminderContext` now, because the
     // collection-lists screen and its export have to derive the SAME audience
@@ -363,6 +363,7 @@ export default async function WhatsappRemindersPage({ searchParams }: PageProps)
               noticeGaps={audience.noticeGaps}
               candidateCount={audience.candidates.length}
               dateFieldId="lastDate"
+              today={today}
               lateFeeWarning={lateFeeWarning}
               applyAction={applyNoticeSettingsAction}
             />

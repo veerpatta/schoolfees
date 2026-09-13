@@ -19,6 +19,7 @@ import type {
 } from "@/modules/students/domain/types";
 import {
   SendReminderSheet,
+  type ReminderDateDefaults,
   type ReminderSendState,
   type SituationOption,
 } from "@/modules/students/ui/send-reminder-sheet";
@@ -32,6 +33,8 @@ type BulkStudentEditBarProps = {
   reminders?: {
     action: (state: ReminderSendState, formData: FormData) => Promise<ReminderSendState>;
     situationOptions: readonly SituationOption[];
+    /** What the message's date box opens on — see `ReminderDateDefaults`. */
+    dates: ReminderDateDefaults;
   } | null;
 };
 
@@ -255,6 +258,7 @@ export function BulkStudentEditBar({
           situationOptions={reminders.situationOptions}
           defaultSituation="fee_due"
           defaultLanguage="hi"
+          dates={reminders.dates}
           action={reminders.action}
         />
       ) : null}

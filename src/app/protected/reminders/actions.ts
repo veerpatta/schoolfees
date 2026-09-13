@@ -5,9 +5,10 @@ import { createAdminClient } from "@/platform/supabase/admin";
 import { requireAnyStaffPermission, requireStaffPermission } from "@/platform/supabase/session";
 import { renderNoticeBody } from "@/modules/whatsapp/domain/campaign-bodies";
 import { isAisensyConfigured, sendAisensyCampaignMessage } from "@/modules/whatsapp/data/aisensy";
-import { getFeePolicySummary } from "@/modules/fees/data/policy";
+import { getFeePolicyForSession } from "@/modules/fees/data/policy";
 import {
   buildInstallmentCalendar,
+  derivedLastDateIso,
   isFinalNoticeWindow,
 } from "@/modules/whatsapp/domain/installment-calendar";
 import {
@@ -15,10 +16,10 @@ import {
   istToday,
   loadReminderAudience,
   parseReminderFilters,
-  resolveCurrentSessionLabel,
   type ReminderCandidate,
   type ReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
+import { resolveReminderSessionLabel } from "@/modules/whatsapp/data/reminder-session";
 import { addDays, CADENCE_VALUES } from "@/modules/whatsapp/domain/reminder-cadence";
 import { toWhatsappDestination } from "@/modules/whatsapp/domain/phone";
 import { loadGuardFacts, recordTestSend } from "@/modules/whatsapp/data/guard-context";
@@ -43,7 +44,7 @@ import {
   REMINDER_QUERY_KEYS,
 } from "@/modules/whatsapp/domain/audience";
 import { searchSessionStudents } from "@/modules/whatsapp/data/student-lookup";
-import { isoFromDdMmYyyy } from "@/platform/helpers/date";
+import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
 import { executeReminderRun } from "@/modules/whatsapp/data/run-sender";
 import {
   oneMessagePerFamilyEnabled,
@@ -129,7 +130,7 @@ export async function sendRemindersAction(
   let candidates: ReminderCandidate[];
   let finalWindowOpen: boolean | null = null;
   try {
-    sessionLabel = await resolveCurrentSessionLabel(supabase);
+    sessionLabel = await resolveReminderSessionLabel(supabase);
     // A discount applied a minute ago may still be sitting in the refresh queue.
     // Drain it first, so the amount quoted below is the one the ledger holds now.
     await drainPendingFinancialRefresh(supabase);
@@ -142,7 +143,9 @@ export async function sendRemindersAction(
     // Resolved BEFORE the filters now: `ledger` mode quotes the policy rate to
     // a family with no fee charged yet, so parsing without it would send a
     // different number than the screen showed.
-    const policy = await getFeePolicySummary({ useAdmin: true }).catch(() => null);
+    const policy = await getFeePolicyForSession(sessionLabel, { useAdmin: true }).catch(
+      () => null,
+    );
     filters = filtersFromForm(
       formData,
       sessionLabel,
@@ -153,6 +156,21 @@ export async function sendRemindersAction(
       today,
       windowDays: filters.preDueWindowDays,
     });
+    // A form that carried no date gets the calendar's, rather than a refusal.
+    //
+    // The bulk screen has a date field and fills it. The one-tap reminder on a
+    // student's page does not, so every send from it hit the BLOCKING "Pick a
+    // last date for this notice before sending" — and the screen then offered
+    // tick-boxes and a reason box, neither of which can clear a blocking
+    // finding. Staff ticked, typed a reason, pressed Send anyway, and got the
+    // same refusal.
+    //
+    // Derived here rather than defaulted in `parseReminderFilters`, so that
+    // clearing the date box on the bulk screen still means "I have not chosen
+    // one" on the screen itself, and only a send has to resolve it.
+    if (!filters.lastDate) {
+      filters = { ...filters, lastDate: formatDdMmYyyy(derivedLastDateIso(calendar, today)) };
+    }
     finalWindowOpen = calendar.next
       ? isFinalNoticeWindow(calendar.next.daysUntilDue)
       : null;
@@ -220,16 +238,31 @@ export async function sendRemindersAction(
   const resolved = resolveGuards(
     guards,
     overrideCodes.length > 0 ? { codes: overrideCodes, reason: overrideReason } : null,
+    {
+      // One family, named by hand: the press is the decision, and this is what
+      // the run says about it. Withheld from anything larger, where a broadcast
+      // outside quiet hours or over budget should still be explained in
+      // somebody's own words.
+      defaultReason:
+        candidates.length === 1
+          ? "Sent by hand to one family, from that family's page."
+          : undefined,
+    },
   );
   if (!resolved.allowed) {
     return {
       status: "error",
       message: resolved.message ?? "This run was refused.",
-      // So the screen can render the tick-boxes for exactly what is in the way.
-      guards: guards.overridable.map((finding) => ({
-        code: finding.code,
-        message: finding.message,
-      })),
+      // So the screen can render the tick-boxes for exactly what is in the way —
+      // and NOTHING when the refusal is a blocking one, because no tick-box and
+      // no reason can clear those. Offering the override anyway is what made a
+      // missing date look like something staff could argue their way past.
+      guards: resolved.blocked
+        ? undefined
+        : guards.overridable.map((finding) => ({
+            code: finding.code,
+            message: finding.message,
+          })),
     };
   }
 
@@ -276,7 +309,10 @@ export async function sendRemindersAction(
     // re-reads the permission rather than trusting that.
     holdoutPercent: canHoldOut ? holdoutPercent : 0,
     overriddenGuards: resolved.overridden,
-    overrideReason: resolved.overridden.length > 0 ? overrideReason : null,
+    // `resolved.reason`, not the raw form field: on a hand-picked single send
+    // it is the sentence the resolver supplied, and the run must carry what was
+    // actually accepted rather than the empty box that was posted.
+    overrideReason: resolved.overridden.length > 0 ? resolved.reason : null,
     logContacts: insertDefaulterContacts,
     scheduledFor: null,
     oneMessagePerFamily: await oneMessagePerFamilyEnabled(supabase),
@@ -352,7 +388,7 @@ export async function applyNoticeSettingsAction(formData: FormData): Promise<voi
   try {
     await requireStaffPermission("settings:write");
     const supabase = createAdminClient();
-    const sessionLabel = await resolveCurrentSessionLabel(supabase);
+    const sessionLabel = await resolveReminderSessionLabel(supabase);
     const filters = filtersFromForm(formData, sessionLabel);
     if (filters.lastDate) {
       await rememberLastUsedNoticeSettings(supabase, sessionLabel, {
@@ -404,7 +440,7 @@ export async function addReminderStudentAction(formData: FormData): Promise<void
   }
 
   const supabase = createAdminClient();
-  const sessionLabel = await resolveCurrentSessionLabel(supabase);
+  const sessionLabel = await resolveReminderSessionLabel(supabase);
   const matches = await searchSessionStudents(supabase, sessionLabel, query);
 
   if (matches.length === 1) {
@@ -489,7 +525,7 @@ export async function setReminderCadenceAction(
 
   const supabase = createAdminClient();
   try {
-    const sessionLabel = await resolveCurrentSessionLabel(supabase);
+    const sessionLabel = await resolveReminderSessionLabel(supabase);
     // Changing the cadence clears any snooze: the office just made a fresh,
     // more considered decision about this family, and leaving a stale snooze
     // underneath it would silently outrank what they chose.
@@ -528,7 +564,7 @@ export async function snoozeReminderAction(
 
   const supabase = createAdminClient();
   try {
-    const sessionLabel = await resolveCurrentSessionLabel(supabase);
+    const sessionLabel = await resolveReminderSessionLabel(supabase);
     await writeReminderFlags(supabase, studentId, sessionLabel, {
       whatsapp_snoozed_until: until,
     });
@@ -558,7 +594,7 @@ export async function resumeReminderAction(
 
   const supabase = createAdminClient();
   try {
-    const sessionLabel = await resolveCurrentSessionLabel(supabase);
+    const sessionLabel = await resolveReminderSessionLabel(supabase);
     await writeReminderFlags(supabase, studentId, sessionLabel, {
       whatsapp_cadence: "every_run",
       whatsapp_snoozed_until: null,

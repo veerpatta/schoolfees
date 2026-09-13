@@ -10,8 +10,8 @@ import {
   istToday,
   loadReminderAudience,
   parseReminderFilters,
-  resolveCurrentSessionLabel,
 } from "@/modules/whatsapp/domain/fee-reminders";
+import { resolveReminderSessionLabel } from "@/modules/whatsapp/data/reminder-session";
 import { buildInstallmentCalendar } from "@/modules/whatsapp/domain/installment-calendar";
 import { formatDdMmYyyy } from "@/platform/helpers/date";
 import { formatInr } from "@/platform/helpers/currency";
@@ -45,7 +45,7 @@ export default async function UnreachableFamiliesPage() {
   await requireAnyStaffPermission(["settings:view", "settings:write"], { onDenied: "redirect" });
 
   const supabase = createAdminClient();
-  const sessionLabel = await resolveCurrentSessionLabel(supabase);
+  const sessionLabel = await resolveReminderSessionLabel(supabase);
   await drainPendingFinancialRefresh(supabase);
 
   const policy = await getFeePolicySummary({ useAdmin: true }).catch(() => null);

@@ -35,6 +35,28 @@ const IDLE: ReminderSendState = { status: "idle" };
 
 export type SituationOption = { value: string; label: string };
 
+/**
+ * The date settings this sheet needs, resolved on the server.
+ *
+ * Both are `YYYY-MM-DD`, which is what a native `<input type="date">` reads and
+ * posts. `parseReminderFilters` accepts that spelling as well as the bulk
+ * screen's typed DD-MM-YYYY.
+ */
+export type ReminderDateDefaults = {
+  /** What the box opens on: the next installment due date. */
+  lastDate: string;
+  /** Today, so the picker cannot offer a deadline that has already gone. */
+  today: string;
+  /**
+   * The notices that print no run-wide date, so the field is hidden for them.
+   *
+   * Passed as plain strings rather than imported: `domain/campaigns` carries 24
+   * template descriptors and this component is in the `/protected/students`
+   * bundle, which sits under a gzip ceiling that only ratchets down.
+   */
+  runDateFreeSituations: readonly string[];
+};
+
 type SendReminderSheetProps = {
   open: boolean;
   onClose: () => void;
@@ -45,6 +67,7 @@ type SendReminderSheetProps = {
   situationOptions: readonly SituationOption[];
   defaultSituation: string;
   defaultLanguage: string;
+  dates: ReminderDateDefaults;
   action: (state: ReminderSendState, formData: FormData) => Promise<ReminderSendState>;
 };
 
@@ -71,13 +94,23 @@ export function SendReminderSheet({
   situationOptions,
   defaultSituation,
   defaultLanguage,
+  dates,
   action,
 }: SendReminderSheetProps) {
   const fieldId = useId();
   const [situation, setSituation] = useState(defaultSituation);
   const [language, setLanguage] = useState(defaultLanguage);
+  const [lastDate, setLastDate] = useState(dates.lastDate);
   const [overrideReason, setOverrideReason] = useState("");
   const [state, formAction, pending] = useActionState(action, IDLE);
+
+  // Ten of the twelve notices print a date the family is asked to beat, and
+  // this sheet used to post none — so every send from it was refused with
+  // "Pick a last date for this notice before sending", a BLOCKING finding that
+  // no tick-box and no typed reason could clear. The box is pre-filled with the
+  // next installment due date, because that is what the answer almost always
+  // is; it is here to be changed, not to be filled in.
+  const needsDate = !dates.runDateFreeSituations.includes(situation);
 
   // Toasts the outcome and refreshes the ledger underneath. "partial" is a
   // WARNING state in the hook, not a success — a run where four of twelve
@@ -94,9 +127,10 @@ export function SendReminderSheet({
     if (open) {
       setSituation(defaultSituation);
       setLanguage(defaultLanguage);
+      setLastDate(dates.lastDate);
       setOverrideReason("");
     }
-  }, [open, defaultSituation, defaultLanguage]);
+  }, [open, defaultSituation, defaultLanguage, dates.lastDate]);
 
   // Guards that can be overridden come back on a refusal, each as its own
   // sentence. The office ticks them and says why; both land on the run record,
@@ -105,9 +139,19 @@ export function SendReminderSheet({
   const guards = state.guards ?? [];
   const needsOverride = state.status === "error" && guards.length > 0;
   const done = state.status === "success" || state.status === "partial";
+  /**
+   * One family, chosen by name, does not owe anybody an essay.
+   *
+   * The typed reason exists so a 141-family broadcast outside quiet hours has
+   * to explain itself in somebody's own words. Demanding it here only produced
+   * `asdf`, which says less on the run record than the sentence the server
+   * writes instead: "sent by hand to one family, from that family's page". The
+   * warning is still shown and still has to be agreed to — this is about the
+   * typing, not about the consent.
+   */
+  const reasonRequired = needsOverride && studentIds.length > 1;
   const canSubmit =
-    studentIds.length > 0 &&
-    (!needsOverride || overrideReason.trim().length >= 3);
+    studentIds.length > 0 && (!reasonRequired || overrideReason.trim().length >= 3);
 
   return (
     <Sheet
@@ -212,6 +256,32 @@ export function SendReminderSheet({
           </p>
         </div>
 
+        {/* A native date input, not a DD-MM-YYYY text box: on a phone it opens
+            the OS picker, and eleven characters of thumb-typing is exactly the
+            kind of friction that makes a one-tap reminder not one. `min` is
+            today, so the picker cannot hand back a deadline that has already
+            passed — the other half of the date guard, prevented rather than
+            reported. */}
+        {needsDate ? (
+          <div>
+            <Label htmlFor={`${fieldId}-lastDate`}>Pay by</Label>
+            <input
+              id={`${fieldId}-lastDate`}
+              name="lastDate"
+              type="date"
+              value={lastDate}
+              min={dates.today}
+              onChange={(event) => setLastDate(event.target.value)}
+              disabled={pending || done}
+              className={selectClassName}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              The date the message asks the family to pay by. Already set to the next
+              installment&rsquo;s due date.
+            </p>
+          </div>
+        ) : null}
+
         {needsOverride ? (
           <div className="space-y-2 rounded-md bg-warning-soft px-3 py-2.5 text-xs text-warning-soft-foreground">
             <p className="font-semibold">{state.message}</p>
@@ -231,7 +301,9 @@ export function SendReminderSheet({
               ))}
             </ul>
             <div>
-              <Label htmlFor={`${fieldId}-override`}>Why send anyway?</Label>
+              <Label htmlFor={`${fieldId}-override`}>
+                {reasonRequired ? "Why send anyway?" : "Why send anyway? (optional)"}
+              </Label>
               <Textarea
                 id={`${fieldId}-override`}
                 name="overrideReason"
@@ -240,7 +312,7 @@ export function SendReminderSheet({
                 rows={2}
                 className="mt-1"
                 placeholder="e.g. parent is at the counter asking for the amount"
-                required
+                required={reasonRequired}
               />
             </div>
           </div>
@@ -275,6 +347,7 @@ type SendReminderTriggerProps = {
   situationOptions: readonly SituationOption[];
   defaultSituation: string;
   defaultLanguage: string;
+  dates: ReminderDateDefaults;
   action: (state: ReminderSendState, formData: FormData) => Promise<ReminderSendState>;
   /**
    * The phone renders this in the fixed action bar beside Collect, where the
@@ -297,6 +370,7 @@ export function SendReminderTrigger({
   situationOptions,
   defaultSituation,
   defaultLanguage,
+  dates,
   action,
   surface = "desk",
 }: SendReminderTriggerProps) {
@@ -336,6 +410,7 @@ export function SendReminderTrigger({
         situationOptions={situationOptions}
         defaultSituation={defaultSituation}
         defaultLanguage={defaultLanguage}
+        dates={dates}
         action={action}
       />
     </>

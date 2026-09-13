@@ -16,6 +16,7 @@ import { StudentBulkImportDialogTrigger } from "@/modules/students/ui/student-bu
 import { StudentQuickLoad } from "@/modules/students/ui/student-quick-load";
 import { sendRemindersAction } from "@/app/protected/reminders/actions";
 import { NOTICE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
+import { resolveReminderDateDefaults } from "@/modules/whatsapp/data/reminder-context";
 import { StudentsListSkeleton } from "@/modules/students/ui/students-list-skeleton";
 import { Button } from "@/ui/primitives/button";
 import {
@@ -195,7 +196,7 @@ async function StudentDirectory({
 
   // Run the page load + the (conditional) recent-import count in parallel;
   // both are independent and were previously sequential.
-  const [pageDataResult, recentImportStudentCount, segmentCounts] = await Promise.all([
+  const [pageDataResult, recentImportStudentCount, segmentCounts, reminderDates] = await Promise.all([
     earlyPageData ??
       getStudentsIdentityPage(filters, { page, pageSize: STUDENT_PAGE_SIZE })
         .then((pageData) => ({ ok: true as const, pageData }))
@@ -214,6 +215,9 @@ async function StudentDirectory({
         query: filters.query,
         segments: filters.segments,
       }),
+    // The reminder sheet's date box. One cached policy read, in the same
+    // parallel batch as everything else, so it costs the roll nothing.
+    resolveReminderDateDefaults(filters.sessionLabel),
   ]);
 
   let students: StudentListItem[] = [];
@@ -291,6 +295,11 @@ async function StudentDirectory({
                   value: entry.value,
                   label: entry.label,
                 })),
+                // The date the message will name. Resolved here rather than in
+                // the sheet because it comes out of the fee calendar, and a
+                // sheet that posted none was refused outright — see
+                // `resolveReminderDateDefaults`.
+                dates: reminderDates,
               }
             : null
         }

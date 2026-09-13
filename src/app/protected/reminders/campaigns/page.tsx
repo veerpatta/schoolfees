@@ -14,7 +14,8 @@ import {
   type CampaignRunOutcome,
   type SavedCampaign,
 } from "@/modules/whatsapp/data/campaign-store";
-import { resolveCurrentSessionLabel, istToday } from "@/modules/whatsapp/domain/fee-reminders";
+import { istToday } from "@/modules/whatsapp/domain/fee-reminders";
+import { resolveReminderSessionLabel } from "@/modules/whatsapp/data/reminder-session";
 import { getFeePolicySummary } from "@/modules/fees/data/policy";
 import { formatDdMmYyyy } from "@/platform/helpers/date";
 import { archiveCampaignAction, saveCampaignAction } from "./actions";
@@ -43,7 +44,7 @@ export default async function ReminderCampaignsPage() {
   let loadError: string | null = null;
 
   try {
-    sessionLabel = await resolveCurrentSessionLabel(supabase);
+    sessionLabel = await resolveReminderSessionLabel(supabase);
     const policy = await getFeePolicySummary({ useAdmin: true }).catch(() => null);
     defaultLateFeeAmount = Number(policy?.lateFeeFlatAmount ?? 0);
     const upcoming = (policy?.installmentSchedule ?? [])

@@ -24,16 +24,17 @@
  * 3. The calendar is passed INTO `loadReminderAudience`. Without it nothing is
  *    overdue, the courtesy templates have no "next" fact, and the tiles open
  *    on installment 1 alone.
- * 4. `getFeePolicySummary({ useAdmin: true })` — a headless caller without that
+ * 4. `getFeePolicyForSession(sessionLabel, { useAdmin: true })` — a headless caller without that
  *    flag resolves every RTE / Staff Child / 3rd Child student to no discount at
  *    all, and fails quiet rather than loud.
  */
 import "server-only";
 
-import { getFeePolicySummary } from "@/modules/fees/data/policy";
+import { getFeePolicyForSession } from "@/modules/fees/data/policy";
 import {
   buildInstallmentCalendar,
   defaultInstallmentsFor,
+  derivedLastDateIso,
   type InstallmentCalendar,
 } from "@/modules/whatsapp/domain/installment-calendar";
 import {
@@ -44,8 +45,9 @@ import {
   type ReminderAudience,
   type ReminderFilters,
 } from "@/modules/whatsapp/domain/fee-reminders";
+import { RUN_DATE_FREE_SITUATIONS } from "@/modules/whatsapp/domain/campaigns";
 import { loadLastUsedNoticeSettings } from "@/modules/whatsapp/data/reminder-settings";
-import { formatDdMmYyyy } from "@/platform/helpers/date";
+import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
 
 export type ReminderContext = {
   filters: ReminderFilters;
@@ -77,6 +79,39 @@ export function readerFor(params: Record<string, string | string[] | undefined>)
   };
 }
 
+/**
+ * What the one-tap reminder sheet needs to fill its date box.
+ *
+ * The bulk screen resolves this as part of `resolveReminderContext`, off the
+ * whole audience. The student page and the student list must not pay for an
+ * audience they are not showing, so this is the cheap half: the fee calendar,
+ * and the date it says a notice sent today should name.
+ *
+ * The SAME `derivedLastDateIso` the send action falls back to, deliberately —
+ * the box a staffer reads and the date a send resolves must be one answer, or
+ * the message quotes a day the screen never showed.
+ *
+ * `YYYY-MM-DD` throughout, because a native `<input type="date">` speaks only
+ * that. `parseReminderFilters` normalises both spellings on the way back in.
+ */
+export async function resolveReminderDateDefaults(sessionLabel: string): Promise<{
+  lastDate: string;
+  today: string;
+  runDateFreeSituations: readonly string[];
+}> {
+  const today = istToday();
+  const policy = await getFeePolicyForSession(sessionLabel).catch(() => null);
+  const calendar = buildInstallmentCalendar({
+    schedule: policy?.installmentSchedule ?? [],
+    today,
+  });
+  return {
+    lastDate: derivedLastDateIso(calendar, today) ?? "",
+    today,
+    runDateFreeSituations: RUN_DATE_FREE_SITUATIONS,
+  };
+}
+
 export async function resolveReminderContext(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
@@ -87,31 +122,53 @@ export async function resolveReminderContext(
   // keeps the figure on screen equal to the one a send would re-derive.
   await drainPendingFinancialRefresh(supabase);
 
-  const policy = await getFeePolicySummary({ useAdmin: true }).catch(() => null);
+  // FOR THIS SESSION, not the school's live one. `getFeePolicySummary` resolves
+  // through `getActiveSessionLabel`, so a screen opened on TEST-2026-27 built
+  // its calendar, its installment tiles and its late-fee figure from 2026-27's
+  // policy — the wrong due dates and the wrong money, under the right label.
+  const policy = await getFeePolicyForSession(sessionLabel, { useAdmin: true }).catch(
+    () => null,
+  );
 
-  // The date slot opens on something sensible but is the office's choice.
-  // Deliberately NOT `next_due_date`: carry-forward rows are dated 2026-04-01,
-  // before Installment 1, so that column reports the carry-forward line for
-  // every family still carrying one.
-  const upcoming = (policy?.installmentSchedule ?? [])
-    .map((entry) => entry.dueDate)
-    .filter((due): due is string => Boolean(due) && due >= istToday())
-    .sort()[0];
-
+  const today = istToday();
   const ledgerLateFee = Number(policy?.lateFeeFlatAmount ?? 0);
   const remembered = await loadLastUsedNoticeSettings(supabase, sessionLabel);
 
   const windowDays = parseReminderFilters(read, sessionLabel).preDueWindowDays;
   const calendar = buildInstallmentCalendar({
     schedule: policy?.installmentSchedule ?? [],
-    today: istToday(),
+    today,
     windowDays,
   });
+
+  /**
+   * What the date box opens on — still the office's choice, just never an
+   * unusable one.
+   *
+   * The date the office last sent on is the best opening guess WHILE IT IS
+   * STILL AHEAD. Once it has gone it is the worst one: `describeDateGuard`
+   * blocks a notice naming a date parents cannot meet, so a remembered
+   * 20-09-2026 opened every send on 21 September refused, with no clue that the
+   * pre-filled box was the reason. A convenience must not be able to become a
+   * blocker.
+   *
+   * The fallback is `derivedLastDateIso`, the same one a send with no date at
+   * all resolves to — one answer to "what date should this notice name", so the
+   * screen and the action cannot pick different ones. It is deliberately NOT
+   * `next_due_date` from the ledger: carry-forward rows are dated 2026-04-01,
+   * before Installment 1, so that column reports the carry-forward line for
+   * every family still carrying one.
+   */
+  const rememberedIso = isoFromDdMmYyyy(remembered?.lastDate ?? null);
+  const openingLastDate =
+    rememberedIso && rememberedIso >= today
+      ? remembered!.lastDate
+      : formatDdMmYyyy(derivedLastDateIso(calendar, today));
 
   const filters = parseReminderFilters(
     read,
     sessionLabel,
-    remembered?.lastDate || formatDdMmYyyy(upcoming ?? null),
+    openingLastDate,
     remembered?.lateFeeAmount ?? ledgerLateFee,
     // 5. What the tiles open on: every installment past its due date. The
     //    calendar's answer, not a constant, so October's screen knows about

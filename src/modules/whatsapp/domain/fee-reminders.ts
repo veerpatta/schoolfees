@@ -51,7 +51,7 @@ import {
   type PromiseFilter,
   type Tri,
 } from "@/modules/whatsapp/domain/audience";
-import { daysBetweenIsoDates } from "@/platform/helpers/date";
+import { daysBetweenIsoDates, normalizeDdMmYyyy } from "@/platform/helpers/date";
 import { formatInr } from "@/platform/helpers/currency";
 
 /**
@@ -260,7 +260,13 @@ export function parseReminderFilters(
     // must not be able to take the screen down.
     situation,
     language: isNoticeLanguage(read("language")) ? (read("language") as NoticeLanguage) : DEFAULT_LANGUAGE,
-    lastDate: read("lastDate")?.trim() || defaultLastDate,
+    // Normalised, because the two screens that post this now use two different
+    // controls. The bulk picker is a typed DD-MM-YYYY box; the one-tap sheet is
+    // a native `<input type="date">`, which is what gives a phone a real date
+    // picker instead of eleven characters of thumb-typing — and a native date
+    // input posts `YYYY-MM-DD`, always. Accepting only the first spelling meant
+    // the second read as no date at all, which is the blocking guard again.
+    lastDate: normalizeDdMmYyyy(read("lastDate")) || defaultLastDate,
     lateFeeAmount: number("lateFeeAmount", defaultLateFeeAmount),
     // Absent means "whatever this template did before the two modes existed":
     // the three ledger-quoted notices read the ledger, the other nine used the

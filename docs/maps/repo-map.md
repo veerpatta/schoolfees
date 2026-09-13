@@ -108,7 +108,7 @@ Surfaced because size is the thing a map can measure and a reader cannot.
 | 2058 | `src/app/protected/dashboard/page.tsx` |
 | 2043 | `src/modules/students/data/queries.ts` |
 | 2007 | `src/modules/imports/data/queries.ts` |
-| 1900 | `src/modules/whatsapp/domain/fee-reminders.ts` |
+| 1906 | `src/modules/whatsapp/domain/fee-reminders.ts` |
 | 1897 | `src/modules/transactions/ui/transactions-client-shell.tsx` |
 
 The ceilings that stop these growing live in

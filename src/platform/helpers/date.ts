@@ -144,6 +144,30 @@ export function isoFromDdMmYyyy(value: string | null | undefined): string | null
   return ISO_DATE_FORMATTER.format(parsed) === iso ? iso : null;
 }
 
+/**
+ * Read either spelling of a calendar date and answer in DD-MM-YYYY.
+ *
+ * `20-10-2026` and `2026-10-20` are the same day written by two controls: a
+ * typed text box and a native `<input type="date">`, which always posts ISO.
+ * A form may carry either, so the parser that reads it should not care which —
+ * one screen learning a new control must not make the other screen's value
+ * unreadable.
+ *
+ * Returns "" for anything that is not a real date, which is the "no date given"
+ * that {@link isoFromDdMmYyyy}'s null means one layer down. Impossible dates are
+ * rejected the same way, by round trip: `31-02-2026` is well-formed and not a day.
+ */
+export function normalizeDdMmYyyy(value: string | null | undefined): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (ISO_DATE_PATTERN.test(raw)) {
+    const parsed = new Date(`${raw}T00:00:00Z`);
+    return ISO_DATE_FORMATTER.format(parsed) === raw ? formatDdMmYyyy(raw) : "";
+  }
+  const iso = isoFromDdMmYyyy(raw);
+  return iso ? formatDdMmYyyy(iso) : "";
+}
+
 /* ------------------------------------------------------------ calendar grid */
 
 /**
@@ -264,6 +288,28 @@ export function daysBetweenIsoDates(startIso: string, endIso: string): number | 
   const end = new Date(`${endIso}T00:00:00+05:30`).getTime();
   if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
   return Math.round((end - start) / 86_400_000);
+}
+
+/**
+ * Which day of the week a `YYYY-MM-DD` calendar date falls on. 0 = Sunday.
+ *
+ * Anchored at UTC midnight and read with `getUTCDay`, deliberately — NOT with
+ * the `+05:30` offset its neighbours use. Those two measure a span between
+ * dates, where the offset has to match on both ends; this reads a property of
+ * one date LABEL, and "20-09-2026 is a Sunday" is true of the label itself
+ * whatever zone is asking. Offsetting it into IST instants would move it to
+ * 18:30 the previous UTC day and report Saturday. `getDay()` would have the
+ * same flaw with the runtime's own zone, which is why it is never used here.
+ *
+ * Returns null for anything that is not a `YYYY-MM-DD` date, so a caller can
+ * tell "this notice names a Sunday" from "this notice names no date at all".
+ */
+export function weekdayOfIsoDate(iso: string | null | undefined): number | null {
+  const value = String(iso ?? "").trim();
+  if (!ISO_DATE_PATTERN.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (!Number.isFinite(parsed.getTime())) return null;
+  return parsed.getUTCDay();
 }
 
 /** Shift an IST calendar date by whole days, staying in `YYYY-MM-DD`. */

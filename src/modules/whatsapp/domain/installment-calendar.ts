@@ -1,4 +1,9 @@
-import { addIsoDays, daysBetweenIsoDates, formatDdMmYyyy } from "@/platform/helpers/date";
+import {
+  addIsoDays,
+  daysBetweenIsoDates,
+  formatDdMmYyyy,
+  weekdayOfIsoDate,
+} from "@/platform/helpers/date";
 import { isRunDateFreeSituation } from "@/modules/whatsapp/domain/campaigns";
 
 /**
@@ -316,4 +321,53 @@ export function describeDateGuard(args: {
     return `The last date on this notice is ${lastDateLabel}, which has already passed. Pick a date parents can still meet.`;
   }
   return null;
+}
+
+/**
+ * How far out a derived last date lands when the calendar has nothing ahead.
+ *
+ * A week: long enough that a parent who reads the message on Tuesday can still
+ * reach the counter, short enough that the notice reads as a request rather
+ * than as a diary note. Only ever used after every installment in the session
+ * has passed — from February onwards, and for a session whose schedule has no
+ * readable dates at all.
+ */
+export const DERIVED_LAST_DATE_DAYS_AHEAD = 7;
+
+/**
+ * The date this notice should ask a parent to pay by, when nobody has chosen one.
+ *
+ * The bulk screen has a date field and the office fills it. The one-tap reminder
+ * on a student's page does not, and until 2026-09-13 that meant it could not
+ * send AT ALL: with no date posted, `describeDateGuard` returned "Pick a last
+ * date for this notice before sending", which is a BLOCKING finding — no
+ * override clears it, and the screen offered tick-boxes and a reason box that
+ * could never help. Every one-tap reminder in the app was dead, on ten of the
+ * twelve notices.
+ *
+ * Asking the office to type a date is the wrong repair, because the app already
+ * knows the answer: it is the next installment due date, which is the date the
+ * fee calendar exists to hold. `nextAhead`, not `next` — the window decides
+ * whether courtesy WORDING is appropriate, not what the next due date IS, and
+ * `next` is null for about 320 days a year.
+ *
+ * A derived Sunday is nudged to the Monday after. The counter is shut on a
+ * Sunday, so the closed-counter guard would warn about it — and a date the app
+ * chose for itself must never be one the app then complains about.
+ *
+ * Pure, and it never returns a date in the past: `addIsoDays` walks forward
+ * from today, and `nextAhead` is by definition ahead of today.
+ */
+export function derivedLastDateIso(
+  calendar: Pick<InstallmentCalendar, "nextAhead">,
+  today: string,
+): string | null {
+  const fromCalendar = calendar.nextAhead?.dueDate ?? null;
+  const candidate = fromCalendar ?? addIsoDays(today, DERIVED_LAST_DATE_DAYS_AHEAD);
+  if (!candidate) return null;
+  // A real installment due date stands as it is, Sunday or not — that IS the
+  // deadline, and moving it would tell a parent something the ledger disagrees
+  // with. Only a date this function invented gets nudged.
+  if (fromCalendar) return candidate;
+  return weekdayOfIsoDate(candidate) === 0 ? addIsoDays(candidate, 1) : candidate;
 }
