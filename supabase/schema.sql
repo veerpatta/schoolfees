@@ -13,8 +13,8 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260905064925
--- Objects: 92 tables/views, 60 functions
+-- Schema version: 20260916090500
+-- Objects: 93 tables/views, 60 functions
 
 
 -- ══ Extensions ══════════════════════════════════════════════════════════
@@ -126,6 +126,19 @@ create table if not exists public.audit_logs (
   after_data jsonb,
   changed_by uuid,
   created_at timestamp with time zone default now() not null
+);
+
+-- public.backup_runs
+create table if not exists public.backup_runs (
+  id uuid default gen_random_uuid() not null,
+  ran_at timestamp with time zone default now() not null,
+  kind text not null,
+  dump_bytes bigint,
+  sha256 text,
+  row_counts jsonb,
+  destinations jsonb,
+  verified boolean default false not null,
+  notes text
 );
 
 -- public.classes
@@ -403,6 +416,19 @@ create table if not exists public.installments (
   target_session_label text,
   carry_forward_fee_head text,
   is_emi_late_fee boolean default false not null
+);
+
+-- public.job_runs
+create table if not exists public.job_runs (
+  id uuid default gen_random_uuid() not null,
+  job_name text not null,
+  trigger text not null,
+  status text default 'running'::text not null,
+  started_at timestamp with time zone default now() not null,
+  finished_at timestamp with time zone,
+  items_processed integer default 0 not null,
+  details jsonb,
+  error text
 );
 
 -- public.late_fee_rule_change_snapshot
@@ -723,7 +749,9 @@ create table if not exists public.receipts (
   created_at timestamp with time zone default now() not null,
   received_by text,
   client_request_id uuid,
-  family_payment_id uuid
+  family_payment_id uuid,
+  write_off_reason text,
+  write_off_note text
 );
 
 -- public.refund_requests
@@ -1231,7 +1259,9 @@ create table if not exists public.whatsapp_reminder_sends (
   last_error text,
   last_attempt_at timestamp with time zone,
   pay_code text,
-  pay_code_expires_on date
+  pay_code_expires_on date,
+  notice_kind text default 'reminder'::text not null,
+  document_path text
 );
 
 -- public.whatsapp_run_holdouts
@@ -1239,19 +1269,6 @@ create table if not exists public.whatsapp_run_holdouts (
   run_id uuid not null,
   student_id uuid not null,
   created_at timestamp with time zone default now() not null
-);
-
--- public.whatsapp_templates
-create table if not exists public.whatsapp_templates (
-  id uuid default gen_random_uuid() not null,
-  name text not null,
-  body text not null,
-  placeholders text[] default '{}'::text[] not null,
-  category text default 'reminder'::text not null,
-  is_active boolean default true not null,
-  created_at timestamp with time zone default now() not null,
-  updated_at timestamp with time zone default now() not null,
-  created_by uuid
 );
 
 -- public.whatsapp_test_sends
@@ -1286,6 +1303,7 @@ alter table private.vpps_student_source_mapping add constraint vpps_student_sour
 alter table public.academic_sessions add constraint academic_sessions_pkey PRIMARY KEY (id);
 alter table public.app_settings add constraint app_settings_pkey PRIMARY KEY (key);
 alter table public.audit_logs add constraint audit_logs_pkey PRIMARY KEY (id);
+alter table public.backup_runs add constraint backup_runs_pkey PRIMARY KEY (id);
 alter table public.classes add constraint classes_pkey PRIMARY KEY (id);
 alter table public.collection_closures add constraint collection_closures_pkey PRIMARY KEY (id);
 alter table public.config_change_batches add constraint config_change_batches_pkey PRIMARY KEY (id);
@@ -1299,6 +1317,7 @@ alter table public.fee_settings add constraint fee_settings_pkey PRIMARY KEY (id
 alter table public.import_batches add constraint import_batches_pkey PRIMARY KEY (id);
 alter table public.import_rows add constraint import_rows_pkey PRIMARY KEY (id);
 alter table public.installments add constraint installments_pkey PRIMARY KEY (id);
+alter table public.job_runs add constraint job_runs_pkey PRIMARY KEY (id);
 alter table public.late_fee_rule_change_snapshot add constraint late_fee_rule_change_snapshot_pkey PRIMARY KEY (installment_id);
 alter table public.late_fee_waiver_pool_snapshot add constraint late_fee_waiver_pool_snapshot_pkey PRIMARY KEY (student_id);
 alter table public.ledger_regeneration_batches add constraint ledger_regeneration_batches_pkey PRIMARY KEY (id);
@@ -1345,7 +1364,6 @@ alter table public.whatsapp_campaign_runs add constraint whatsapp_campaign_runs_
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_pkey PRIMARY KEY (id);
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_pkey PRIMARY KEY (id);
 alter table public.whatsapp_run_holdouts add constraint whatsapp_run_holdouts_pkey PRIMARY KEY (run_id, student_id);
-alter table public.whatsapp_templates add constraint whatsapp_templates_pkey PRIMARY KEY (id);
 alter table public.whatsapp_test_sends add constraint whatsapp_test_sends_pkey PRIMARY KEY (id);
 alter table public.workbook_materialized_view_refresh_queue add constraint workbook_materialized_view_refresh_queue_pkey PRIMARY KEY (queue_key);
 alter table private.vpps_direct_import_backups add constraint vpps_direct_import_backups_backup_label_key UNIQUE (backup_label);
@@ -1385,6 +1403,7 @@ alter table private.vpps_student_source_mapping add constraint vpps_student_sour
 alter table public.academic_sessions add constraint academic_sessions_check CHECK (((NOT is_current) OR (status = 'active'::public.class_status)));
 alter table public.academic_sessions add constraint academic_sessions_session_label_check CHECK ((length(TRIM(BOTH FROM session_label)) > 0));
 alter table public.audit_logs add constraint audit_logs_check CHECK (((before_data IS NOT NULL) OR (after_data IS NOT NULL)));
+alter table public.backup_runs add constraint backup_runs_kind_check CHECK ((kind = ANY (ARRAY['nightly'::text, 'restore_drill'::text])));
 alter table public.classes add constraint classes_sort_order_check CHECK ((sort_order >= 0));
 alter table public.collection_closures add constraint collection_closures_summary_snapshot_check CHECK ((jsonb_typeof(summary_snapshot) = 'object'::text));
 alter table public.config_change_batches add constraint config_change_batches_apply_summary_check CHECK (((apply_summary IS NULL) OR (jsonb_typeof(apply_summary) = 'object'::text)));
@@ -1462,6 +1481,8 @@ alter table public.installments add constraint installments_installment_no_check
 alter table public.installments add constraint installments_late_fee_flat_amount_check CHECK ((late_fee_flat_amount >= 0));
 alter table public.installments add constraint installments_non_negative_due CHECK (((base_amount + transport_amount) >= discount_amount));
 alter table public.installments add constraint installments_transport_amount_check CHECK ((transport_amount >= 0));
+alter table public.job_runs add constraint job_runs_status_check CHECK ((status = ANY (ARRAY['running'::text, 'succeeded'::text, 'failed'::text, 'skipped'::text])));
+alter table public.job_runs add constraint job_runs_trigger_check CHECK ((trigger = ANY (ARRAY['pg_cron'::text, 'vercel_cron'::text, 'github'::text, 'manual'::text])));
 alter table public.ledger_regeneration_batches add constraint ledger_regeneration_batches_apply_summary_check CHECK (((apply_summary IS NULL) OR (jsonb_typeof(apply_summary) = 'object'::text)));
 alter table public.ledger_regeneration_batches add constraint ledger_regeneration_batches_policy_revision_label_check CHECK ((TRIM(BOTH FROM policy_revision_label) <> ''::text));
 alter table public.ledger_regeneration_batches add constraint ledger_regeneration_batches_preview_summary_check CHECK ((jsonb_typeof(preview_summary) = 'object'::text));
@@ -1516,6 +1537,8 @@ alter table public.receipt_adjustments add constraint receipt_adjustments_amount
 alter table public.receipt_finance_adjustments add constraint receipt_finance_adjustments_quick_discount_amount_check CHECK ((quick_discount_amount >= 0));
 alter table public.receipt_finance_adjustments add constraint receipt_finance_adjustments_quick_late_fee_waiver_amount_check CHECK ((quick_late_fee_waiver_amount >= 0));
 alter table public.receipts add constraint receipts_total_amount_check CHECK ((total_amount > 0));
+alter table public.receipts add constraint receipts_write_off_note_needs_reason CHECK (((write_off_note IS NULL) OR (write_off_reason IS NOT NULL)));
+alter table public.receipts add constraint receipts_write_off_reason_check CHECK (((write_off_reason IS NULL) OR ((payment_mode = 'discount'::public.payment_mode) AND (write_off_reason = ANY (ARRAY['left_school'::text, 'other'::text])))));
 alter table public.refund_requests add constraint refund_requests_requested_amount_check CHECK ((requested_amount > 0));
 alter table public.school_fee_defaults add constraint school_fee_defaults_admission_activity_misc_fee_amount_check CHECK ((admission_activity_misc_fee_amount >= 0));
 alter table public.school_fee_defaults add constraint school_fee_defaults_books_fee_amount_check CHECK ((books_fee_amount >= 0));
@@ -1586,11 +1609,11 @@ alter table public.whatsapp_campaign_runs add constraint whatsapp_campaign_runs_
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_language_check CHECK ((language = ANY (ARRAY['hi'::text, 'en'::text])));
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_amount_check CHECK ((late_fee_amount >= 0));
 alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_late_fee_basis_check CHECK ((late_fee_basis = ANY (ARRAY['per_installment'::text, 'per_day'::text, 'flat'::text, 'none'::text])));
-alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_situation_check CHECK ((situation = ANY (ARRAY['fee_due'::text, 'balance'::text, 'prevyear'::text, 'upcoming'::text, 'upcoming_final'::text, 'late_fee_applied'::text, 'promise_lapsed'::text])));
+alter table public.whatsapp_campaigns add constraint whatsapp_campaigns_situation_check CHECK ((situation = ANY (ARRAY['fee_due'::text, 'balance'::text, 'prevyear'::text, 'upcoming'::text, 'upcoming_final'::text, 'late_fee_applied'::text, 'promise_lapsed'::text, 'late_fee_waiver'::text, 'waiver_last_call'::text, 'overdue_final'::text, 'promise_due'::text, 'exam_clearance'::text])));
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_delivery_status_check CHECK (((delivery_status IS NULL) OR (delivery_status = ANY (ARRAY['submitted'::text, 'delivered'::text, 'read'::text, 'failed'::text]))));
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_destination_role_check CHECK ((destination_role = ANY (ARRAY['primary'::text, 'secondary'::text])));
+alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_notice_kind_check CHECK ((notice_kind = ANY (ARRAY['reminder'::text, 'receipt'::text, 'reversal'::text, 'fee_statement'::text])));
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text, 'covered_by_sibling'::text])));
-alter table public.whatsapp_templates add constraint whatsapp_templates_category_check CHECK ((category = ANY (ARRAY['reminder'::text, 'final_reminder'::text, 'receipt'::text, 'custom'::text])));
 alter table public.workbook_materialized_view_refresh_queue add constraint workbook_materialized_view_refresh_queue_singleton CHECK ((queue_key = ANY (ARRAY['workbook'::text, 'sibling_groups'::text])));
 alter table private.vpps_student_source_mapping add constraint vpps_student_source_mapping_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
 alter table public.academic_sessions add constraint academic_sessions_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
@@ -1760,7 +1783,6 @@ alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_send
 alter table public.whatsapp_reminder_sends add constraint whatsapp_reminder_sends_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
 alter table public.whatsapp_run_holdouts add constraint whatsapp_run_holdouts_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.whatsapp_campaign_runs(id) ON DELETE CASCADE;
 alter table public.whatsapp_run_holdouts add constraint whatsapp_run_holdouts_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
-alter table public.whatsapp_templates add constraint whatsapp_templates_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
 
 -- ══ Indexes ═════════════════════════════════════════════════════════════
 
@@ -1776,6 +1798,7 @@ create index if not exists idx_audit_logs_changed_by ON public.audit_logs USING 
 create index if not exists idx_audit_logs_created_at ON public.audit_logs USING btree (created_at DESC);
 create index if not exists idx_audit_logs_record ON public.audit_logs USING btree (table_name, record_id, created_at DESC);
 create index if not exists idx_audit_logs_table_created ON public.audit_logs USING btree (table_name, created_at DESC);
+create index if not exists idx_backup_runs_kind_ran ON public.backup_runs USING btree (kind, ran_at DESC);
 create index if not exists idx_classes_created_by ON public.classes USING btree (created_by);
 create index if not exists idx_classes_session_sort ON public.classes USING btree (session_label, sort_order, class_name);
 create index if not exists idx_classes_session_status_sort ON public.classes USING btree (session_label, status, sort_order, class_name);
@@ -1823,6 +1846,7 @@ create index if not exists idx_installments_student_fee_override ON public.insta
 create index if not exists idx_installments_student_id_status ON public.installments USING btree (student_id, status) WHERE (status <> 'cancelled'::public.installment_status);
 create index if not exists idx_installments_student_status_due_date ON public.installments USING btree (student_id, status, due_date);
 create index if not exists idx_installments_updated_by ON public.installments USING btree (updated_by);
+create index if not exists idx_job_runs_name_started ON public.job_runs USING btree (job_name, started_at DESC);
 create index if not exists idx_ledger_regen_batches_created_at ON public.ledger_regeneration_batches USING btree (created_at DESC);
 create index if not exists idx_ledger_regeneration_batches_policy_created ON public.ledger_regeneration_batches USING btree (policy_revision_id, created_at DESC);
 create index if not exists idx_ledger_regeneration_batches_status_created ON public.ledger_regeneration_batches USING btree (status, created_at DESC);
@@ -1865,6 +1889,7 @@ create index if not exists idx_receipts_payment_date_created_at ON public.receip
 create index if not exists idx_receipts_reference_number ON public.receipts USING btree (reference_number) WHERE (reference_number IS NOT NULL);
 create index if not exists idx_receipts_student_id_created_at ON public.receipts USING btree (student_id, created_at DESC);
 create index if not exists idx_receipts_student_payment_date_created_at ON public.receipts USING btree (student_id, payment_date DESC, created_at DESC);
+create index if not exists idx_receipts_write_off_reason ON public.receipts USING btree (write_off_reason) WHERE (write_off_reason IS NOT NULL);
 create index if not exists idx_refund_requests_created_by ON public.refund_requests USING btree (created_by);
 create index if not exists idx_refund_requests_receipt ON public.refund_requests USING btree (receipt_id, refund_date DESC);
 create index if not exists idx_refund_requests_refund_date ON public.refund_requests USING btree (refund_date DESC);
@@ -1965,11 +1990,10 @@ create index if not exists whatsapp_reminder_sends_delivery_idx ON public.whatsa
 create UNIQUE index if not exists whatsapp_reminder_sends_pay_code_idx ON public.whatsapp_reminder_sends USING btree (pay_code) WHERE (pay_code IS NOT NULL);
 create index if not exists whatsapp_reminder_sends_provider_message_idx ON public.whatsapp_reminder_sends USING btree (provider_message_id) WHERE (provider_message_id IS NOT NULL);
 create index if not exists whatsapp_reminder_sends_read_idx ON public.whatsapp_reminder_sends USING btree (read_at) WHERE (read_at IS NOT NULL);
-create UNIQUE index if not exists whatsapp_reminder_sends_receipt_idx ON public.whatsapp_reminder_sends USING btree (receipt_id) WHERE (receipt_id IS NOT NULL);
+create UNIQUE index if not exists whatsapp_reminder_sends_receipt_kind_idx ON public.whatsapp_reminder_sends USING btree (receipt_id, notice_kind) WHERE (receipt_id IS NOT NULL);
+create UNIQUE index if not exists whatsapp_reminder_sends_reminder_day_idx ON public.whatsapp_reminder_sends USING btree (student_id, session_label, sent_on, campaign_name, destination_role) WHERE (receipt_id IS NULL);
 create index if not exists whatsapp_reminder_sends_run_idx ON public.whatsapp_reminder_sends USING btree (run_id);
-create UNIQUE index if not exists whatsapp_reminder_sends_student_day_campaign_role_idx ON public.whatsapp_reminder_sends USING btree (student_id, session_label, sent_on, campaign_name, destination_role);
 create index if not exists whatsapp_run_holdouts_student_idx ON public.whatsapp_run_holdouts USING btree (student_id);
-create index if not exists whatsapp_templates_active_idx ON public.whatsapp_templates USING btree (is_active, category, name);
 create index if not exists whatsapp_test_sends_campaign_idx ON public.whatsapp_test_sends USING btree (campaign_name, created_at DESC);
 
 -- ══ Functions ═══════════════════════════════════════════════════════════
@@ -8669,6 +8693,7 @@ CREATE TRIGGER set_updated_at_on_users BEFORE UPDATE ON public.users FOR EACH RO
 alter table public.academic_sessions enable row level security;
 alter table public.app_settings enable row level security;
 alter table public.audit_logs enable row level security;
+alter table public.backup_runs enable row level security;
 alter table public.classes enable row level security;
 alter table public.collection_closures enable row level security;
 alter table public.config_change_batches enable row level security;
@@ -8682,6 +8707,7 @@ alter table public.fee_settings enable row level security;
 alter table public.import_batches enable row level security;
 alter table public.import_rows enable row level security;
 alter table public.installments enable row level security;
+alter table public.job_runs enable row level security;
 alter table public.late_fee_rule_change_snapshot enable row level security;
 alter table public.late_fee_waiver_pool_snapshot enable row level security;
 alter table public.ledger_regeneration_batches enable row level security;
@@ -8728,7 +8754,6 @@ alter table public.whatsapp_campaign_runs enable row level security;
 alter table public.whatsapp_campaigns enable row level security;
 alter table public.whatsapp_reminder_sends enable row level security;
 alter table public.whatsapp_run_holdouts enable row level security;
-alter table public.whatsapp_templates enable row level security;
 alter table public.whatsapp_test_sends enable row level security;
 alter table public.workbook_materialized_view_refresh_queue enable row level security;
 
@@ -8758,6 +8783,10 @@ drop policy if exists "admin can update promotion runs" on public.promotion_runs
 create policy "admin can update promotion runs" on public.promotion_runs as PERMISSIVE for UPDATE to authenticated using (( SELECT public.has_permission('students:write'::text) AS has_permission)) with check (( SELECT public.has_permission('students:write'::text) AS has_permission));
 drop policy if exists "admins can insert setup progress" on public.setup_progress;
 create policy "admins can insert setup progress" on public.setup_progress as PERMISSIVE for INSERT to authenticated with check (( SELECT public.has_permission('settings:write'::text) AS has_permission));
+drop policy if exists "admins can read backup runs" on public.backup_runs;
+create policy "admins can read backup runs" on public.backup_runs as PERMISSIVE for SELECT to authenticated using (public.has_permission('staff:manage'::text));
+drop policy if exists "admins can read job runs" on public.job_runs;
+create policy "admins can read job runs" on public.job_runs as PERMISSIVE for SELECT to authenticated using (public.has_permission('staff:manage'::text));
 drop policy if exists "admins can update setup progress" on public.setup_progress;
 create policy "admins can update setup progress" on public.setup_progress as PERMISSIVE for UPDATE to authenticated using (( SELECT public.has_permission('settings:write'::text) AS has_permission)) with check (( SELECT public.has_permission('settings:write'::text) AS has_permission));
 drop policy if exists "authenticated can delete academic sessions" on public.academic_sessions;
@@ -9054,14 +9083,6 @@ drop policy if exists "whatsapp_reminder_sends: staff read" on public.whatsapp_r
 create policy "whatsapp_reminder_sends: staff read" on public.whatsapp_reminder_sends as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "whatsapp_run_holdouts: staff read" on public.whatsapp_run_holdouts;
 create policy "whatsapp_run_holdouts: staff read" on public.whatsapp_run_holdouts as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
-drop policy if exists "whatsapp_templates: admin write delete" on public.whatsapp_templates;
-create policy "whatsapp_templates: admin write delete" on public.whatsapp_templates as PERMISSIVE for DELETE to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
-drop policy if exists "whatsapp_templates: admin write insert" on public.whatsapp_templates;
-create policy "whatsapp_templates: admin write insert" on public.whatsapp_templates as PERMISSIVE for INSERT to public with check ((( SELECT auth.role() AS role) = 'authenticated'::text));
-drop policy if exists "whatsapp_templates: admin write update" on public.whatsapp_templates;
-create policy "whatsapp_templates: admin write update" on public.whatsapp_templates as PERMISSIVE for UPDATE to public using ((( SELECT auth.role() AS role) = 'authenticated'::text)) with check ((( SELECT auth.role() AS role) = 'authenticated'::text));
-drop policy if exists "whatsapp_templates: staff read" on public.whatsapp_templates;
-create policy "whatsapp_templates: staff read" on public.whatsapp_templates as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists "whatsapp_test_sends: staff read" on public.whatsapp_test_sends;
 create policy "whatsapp_test_sends: staff read" on public.whatsapp_test_sends as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
 drop policy if exists payment_import_batches_insert on public.payment_import_batches;
@@ -9301,9 +9322,6 @@ grant DELETE on public.whatsapp_reminder_sends to service_role;
 grant DELETE on public.whatsapp_run_holdouts to anon;
 grant DELETE on public.whatsapp_run_holdouts to authenticated;
 grant DELETE on public.whatsapp_run_holdouts to service_role;
-grant DELETE on public.whatsapp_templates to anon;
-grant DELETE on public.whatsapp_templates to authenticated;
-grant DELETE on public.whatsapp_templates to service_role;
 grant DELETE on public.whatsapp_test_sends to anon;
 grant DELETE on public.whatsapp_test_sends to authenticated;
 grant DELETE on public.whatsapp_test_sends to service_role;
@@ -9317,6 +9335,7 @@ grant INSERT on public.app_settings to service_role;
 grant INSERT on public.audit_logs to anon;
 grant INSERT on public.audit_logs to authenticated;
 grant INSERT on public.audit_logs to service_role;
+grant INSERT on public.backup_runs to service_role;
 grant INSERT on public.classes to anon;
 grant INSERT on public.classes to authenticated;
 grant INSERT on public.classes to service_role;
@@ -9356,6 +9375,7 @@ grant INSERT on public.import_rows to service_role;
 grant INSERT on public.installments to anon;
 grant INSERT on public.installments to authenticated;
 grant INSERT on public.installments to service_role;
+grant INSERT on public.job_runs to service_role;
 grant INSERT on public.late_fee_rule_change_snapshot to service_role;
 grant INSERT on public.late_fee_waiver_pool_snapshot to service_role;
 grant INSERT on public.ledger_regeneration_batches to anon;
@@ -9524,9 +9544,6 @@ grant INSERT on public.whatsapp_reminder_sends to service_role;
 grant INSERT on public.whatsapp_run_holdouts to anon;
 grant INSERT on public.whatsapp_run_holdouts to authenticated;
 grant INSERT on public.whatsapp_run_holdouts to service_role;
-grant INSERT on public.whatsapp_templates to anon;
-grant INSERT on public.whatsapp_templates to authenticated;
-grant INSERT on public.whatsapp_templates to service_role;
 grant INSERT on public.whatsapp_test_sends to anon;
 grant INSERT on public.whatsapp_test_sends to authenticated;
 grant INSERT on public.whatsapp_test_sends to service_role;
@@ -9747,9 +9764,6 @@ grant REFERENCES on public.whatsapp_reminder_sends to service_role;
 grant REFERENCES on public.whatsapp_run_holdouts to anon;
 grant REFERENCES on public.whatsapp_run_holdouts to authenticated;
 grant REFERENCES on public.whatsapp_run_holdouts to service_role;
-grant REFERENCES on public.whatsapp_templates to anon;
-grant REFERENCES on public.whatsapp_templates to authenticated;
-grant REFERENCES on public.whatsapp_templates to service_role;
 grant REFERENCES on public.whatsapp_test_sends to anon;
 grant REFERENCES on public.whatsapp_test_sends to authenticated;
 grant REFERENCES on public.whatsapp_test_sends to service_role;
@@ -9763,6 +9777,8 @@ grant SELECT on public.app_settings to service_role;
 grant SELECT on public.audit_logs to anon;
 grant SELECT on public.audit_logs to authenticated;
 grant SELECT on public.audit_logs to service_role;
+grant SELECT on public.backup_runs to authenticated;
+grant SELECT on public.backup_runs to service_role;
 grant SELECT on public.classes to anon;
 grant SELECT on public.classes to authenticated;
 grant SELECT on public.classes to service_role;
@@ -9802,6 +9818,8 @@ grant SELECT on public.import_rows to service_role;
 grant SELECT on public.installments to anon;
 grant SELECT on public.installments to authenticated;
 grant SELECT on public.installments to service_role;
+grant SELECT on public.job_runs to authenticated;
+grant SELECT on public.job_runs to service_role;
 grant SELECT on public.late_fee_rule_change_snapshot to service_role;
 grant SELECT on public.late_fee_waiver_pool_snapshot to service_role;
 grant SELECT on public.ledger_regeneration_batches to anon;
@@ -9970,9 +9988,6 @@ grant SELECT on public.whatsapp_reminder_sends to service_role;
 grant SELECT on public.whatsapp_run_holdouts to anon;
 grant SELECT on public.whatsapp_run_holdouts to authenticated;
 grant SELECT on public.whatsapp_run_holdouts to service_role;
-grant SELECT on public.whatsapp_templates to anon;
-grant SELECT on public.whatsapp_templates to authenticated;
-grant SELECT on public.whatsapp_templates to service_role;
 grant SELECT on public.whatsapp_test_sends to anon;
 grant SELECT on public.whatsapp_test_sends to authenticated;
 grant SELECT on public.whatsapp_test_sends to service_role;
@@ -10193,9 +10208,6 @@ grant TRIGGER on public.whatsapp_reminder_sends to service_role;
 grant TRIGGER on public.whatsapp_run_holdouts to anon;
 grant TRIGGER on public.whatsapp_run_holdouts to authenticated;
 grant TRIGGER on public.whatsapp_run_holdouts to service_role;
-grant TRIGGER on public.whatsapp_templates to anon;
-grant TRIGGER on public.whatsapp_templates to authenticated;
-grant TRIGGER on public.whatsapp_templates to service_role;
 grant TRIGGER on public.whatsapp_test_sends to anon;
 grant TRIGGER on public.whatsapp_test_sends to authenticated;
 grant TRIGGER on public.whatsapp_test_sends to service_role;
@@ -10416,9 +10428,6 @@ grant TRUNCATE on public.whatsapp_reminder_sends to service_role;
 grant TRUNCATE on public.whatsapp_run_holdouts to anon;
 grant TRUNCATE on public.whatsapp_run_holdouts to authenticated;
 grant TRUNCATE on public.whatsapp_run_holdouts to service_role;
-grant TRUNCATE on public.whatsapp_templates to anon;
-grant TRUNCATE on public.whatsapp_templates to authenticated;
-grant TRUNCATE on public.whatsapp_templates to service_role;
 grant TRUNCATE on public.whatsapp_test_sends to anon;
 grant TRUNCATE on public.whatsapp_test_sends to authenticated;
 grant TRUNCATE on public.whatsapp_test_sends to service_role;
@@ -10471,6 +10480,7 @@ grant UPDATE on public.import_rows to service_role;
 grant UPDATE on public.installments to anon;
 grant UPDATE on public.installments to authenticated;
 grant UPDATE on public.installments to service_role;
+grant UPDATE on public.job_runs to service_role;
 grant UPDATE on public.late_fee_rule_change_snapshot to service_role;
 grant UPDATE on public.late_fee_waiver_pool_snapshot to service_role;
 grant UPDATE on public.ledger_regeneration_batches to anon;
@@ -10639,9 +10649,6 @@ grant UPDATE on public.whatsapp_reminder_sends to service_role;
 grant UPDATE on public.whatsapp_run_holdouts to anon;
 grant UPDATE on public.whatsapp_run_holdouts to authenticated;
 grant UPDATE on public.whatsapp_run_holdouts to service_role;
-grant UPDATE on public.whatsapp_templates to anon;
-grant UPDATE on public.whatsapp_templates to authenticated;
-grant UPDATE on public.whatsapp_templates to service_role;
 grant UPDATE on public.whatsapp_test_sends to anon;
 grant UPDATE on public.whatsapp_test_sends to authenticated;
 grant UPDATE on public.whatsapp_test_sends to service_role;
@@ -10740,36 +10747,8 @@ select cron.schedule('charge-emi-late-fees-daily', '50 18 * * *', ' select publi
 -- enqueue-workbook-refresh-daily — active
 select cron.schedule('enqueue-workbook-refresh-daily', '35 18 * * *', 'select public.queue_workbook_materialized_view_refresh();');
 
--- notion-fee-sync-daily — active
-select cron.schedule('notion-fee-sync-daily', '0 1 * * *', '
-  select net.http_post(
-    url := ''https://vgqyilgstjvgohrsiwkb.supabase.co/functions/v1/notion-fee-sync?source=cron'',
-    headers := jsonb_build_object(
-      ''Authorization'', ''Bearer <redacted-jwt>'',
-      ''Content-Type'', ''application/json''
-    ),
-    body := ''{}''::jsonb,
-    timeout_milliseconds := 30000
-  );
-  ');
-
--- notion-fee-sync-daily-test — active
-select cron.schedule('notion-fee-sync-daily-test', '0 1 * * *', '
-  select net.http_post(
-    url := (select decrypted_secret from vault.decrypted_secrets where name = ''VPPS_SUPABASE_PROJECT_URL'')
-      || ''/functions/v1/notion-fee-sync'',
-    headers := jsonb_build_object(
-      ''Content-Type'', ''application/json'',
-      ''Authorization'', ''Bearer '' || (select decrypted_secret from vault.decrypted_secrets where name = ''VPPS_SUPABASE_ANON_KEY''),
-      ''x-vpps-cron-secret'', (select decrypted_secret from vault.decrypted_secrets where name = ''VPPS_NOTION_FEE_SYNC_CRON_SECRET'')
-    ),
-    body := jsonb_build_object(
-      ''session'', ''TEST-2026-27'',
-      ''dry_run'', false,
-      ''source'', ''pg_cron''
-    )
-  );
-  ');
+-- refresh-sibling-groups-matview — active
+select cron.schedule('refresh-sibling-groups-matview', '*/2 * * * *', 'select public.refresh_sibling_groups_if_requested();');
 
 -- refresh-workbook-materialized-views — active
 select cron.schedule('refresh-workbook-materialized-views', '*/2 * * * *', 'select public.refresh_workbook_materialized_views_if_requested();');

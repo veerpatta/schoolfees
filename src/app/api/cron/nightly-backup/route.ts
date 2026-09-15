@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { logError, logWarn } from "@/platform/observability/log";
+import { requireJobSecret } from "@/platform/jobs/job-secret";
+import { runJob, type JobContext } from "@/platform/jobs/run-job";
 
 import { createAdminClient } from "@/platform/supabase/admin";
+
+const JOB_NAME = "nightly_backup";
 
 const BUCKET = "nightly-backups";
 const TABLES_TO_DUMP = [
@@ -59,29 +62,6 @@ function todayPathPrefix(): string {
 }
 
 /**
- * The shared-secret guard.
- *
- * `reason` is for the log, never for the response. It used to be handed
- * straight back to the caller, which meant an unauthenticated prober got
- * `{"error":"CRON_SECRET env var not configured."}` — the name of a
- * server-only environment variable, from a deployment that had not set it.
- * The caller now gets one word; see the call site.
- */
-function authorize(request: Request): { ok: true } | { ok: false; reason: string; misconfigured: boolean } {
-  const expectedSecret = process.env.CRON_SECRET;
-  if (!expectedSecret) {
-    return { ok: false, reason: "CRON_SECRET is not set on this deployment.", misconfigured: true };
-  }
-  const url = new URL(request.url);
-  const provided =
-    url.searchParams.get("secret") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (provided !== expectedSecret) {
-    return { ok: false, reason: "Secret missing or does not match.", misconfigured: false };
-  }
-  return { ok: true };
-}
-
-/**
  * Sized against the row caps declared above: five table dumps of up to 50,000
  * rows each, CSV-encoded in memory and uploaded to object storage one at a time.
  *
@@ -97,21 +77,17 @@ function authorize(request: Request): { ok: true } | { ok: false; reason: string
 export const maxDuration = 300;
 
 export async function GET(request: Request) {
-  const auth = authorize(request);
+  // Authorisation happens BEFORE runJob: an unauthenticated prober must not be
+  // able to fill job_runs with rows.
+  const auth = requireJobSecret(request, JOB_NAME, { allowQuery: true });
   if (!auth.ok) {
-    // Both cases are logged, at different levels and for different readers. An
-    // unset secret is a misconfiguration: this cron will never run again and
-    // nobody is watching a cron, so it is an error. A wrong secret is usually a
-    // bot, occasionally a rotated secret somebody forgot to update — worth a
-    // line when a schedule goes quiet, not worth paging anyone.
-    if (auth.misconfigured) {
-      logError("cron.nightly-backup.unauthorized", { reason: auth.reason });
-    } else {
-      logWarn("cron.nightly-backup.unauthorized", { reason: auth.reason });
-    }
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    return auth.response;
   }
 
+  return runJob({ name: JOB_NAME, request }, (ctx) => dumpTables(ctx));
+}
+
+async function dumpTables(ctx: JobContext) {
   const supabase = createAdminClient();
   const prefix = todayPathPrefix();
   const results: Array<{ table: string; rows: number; bytes: number; ok: boolean; error?: string }> = [];
@@ -170,6 +146,21 @@ export async function GET(request: Request) {
     });
 
   const allOk = results.every((entry) => entry.ok);
+
+  await ctx.progress(results.filter((entry) => entry.ok).length);
+  ctx.detail({ prefix, tables: results.length, failed: results.filter((e) => !e.ok).length });
+
+  if (!allOk) {
+    // The response is unchanged — 207 with the per-table detail, exactly as
+    // before. But a partial dump is a failed backup, and the row has to say so
+    // or `job_runs` becomes a list of jobs that all went fine.
+    ctx.fail(
+      `Dump incomplete: ${results
+        .filter((entry) => !entry.ok)
+        .map((entry) => entry.table)
+        .join(", ")}`,
+    );
+  }
 
   return NextResponse.json(
     {

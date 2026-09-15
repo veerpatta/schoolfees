@@ -516,6 +516,18 @@ express the school's rule and never fired once:
   and the tables behind them.
 - `20260903181330_whatsapp_pay_codes` — a pay link a parent can tap: `/pay/[code]`.
 
+### School One platform (2026-09-16)
+
+- `20260916090000_school_one_job_runs` — `job_runs` and `backup_runs`. Every scheduled or
+  triggered job leaves a row, written *before* the work starts, so a job killed mid-flight
+  leaves a row stuck at `running` rather than leaving nothing — and "nothing" is
+  indistinguishable from a cron that was quietly unscheduled weeks ago. `backup_runs` is
+  the off-platform backup's own record (sizes, checksums, row counts, which destinations
+  were actually read back), written only by `/api/jobs/backup-report`. Both tables are
+  RLS-enabled with an admin SELECT policy and **no** INSERT/UPDATE policy: writes are
+  service-role only, so no signed-in user can forge a run record. Additive; no fee table,
+  RPC, trigger or policy touched.
+
 ### WhatsApp recovery notices (2026-09-08)
 
 - `20260908093000_whatsapp_campaigns_accept_recovery_notices` — a saved campaign may name

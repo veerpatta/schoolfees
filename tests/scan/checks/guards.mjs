@@ -116,6 +116,11 @@ const SECRET_GUARDED = [
   { pattern: /CRON_SECRET/, name: "CRON_SECRET" },
   { pattern: /SCHOOLFEES_DOC_TOKEN/, name: "SCHOOLFEES_DOC_TOKEN" },
   { pattern: /SCHOOLFEES_MCP_TOKEN/, name: "SCHOOLFEES_MCP_TOKEN" },
+  // The job routes moved off a per-file `process.env.CRON_SECRET` check and onto
+  // one secret per job family (School One P0.4). The env var name no longer
+  // appears in the route, so matching on it stopped recognising the guard — the
+  // routes became MORE guarded and the scan called them unguarded.
+  { pattern: /requireJobSecret\s*\(/, name: "requireJobSecret" },
 ];
 
 function mentions(text, names) {

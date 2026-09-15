@@ -105,3 +105,123 @@ node scripts/bulk-apply.mjs --help                                   → exit 0
   to fail because a theme, locale or provider failed.
 - `resetDatabaseTargetWarningsForTests()` is exported solely so the warn-once
   path can be asserted more than once in a suite. Nothing in the app calls it.
+
+---
+
+## P0.4 — Job platform
+
+**Commits:** `feat(school-one): every job leaves a row, and each one has its own key`
+
+### Acceptance
+
+| Criterion | Evidence |
+|---|---|
+| Migration applies on dev | `20260916090000` + `20260916090500` applied; `job_runs` and `backup_runs` exist, RLS on, 1 SELECT policy each, 9 columns each |
+| `schema:snapshot:check` passes | "supabase/schema.sql is up to date" (see the exit-code note below) |
+| Three routes work on `CRON_SECRET` **and** the per-job secret | live runs below |
+| `job_runs` shows a row per invocation | live rows below |
+| `CRON_SECRET` readers unchanged | 2 admin routes + 3 scripts, nothing new |
+| Tests green | **374 files / 3,195 tests** |
+
+**Live, against the dev project** (`APP_MODE=production`, which is production's mode):
+
+```
+# CRON_SECRET only — the transition state every live caller is in today
+GET /api/cron/auto-day-close?date=2020-01-01   Bearer shared-only
+→ 200 {"ok":true,"targetDate":"2020-01-01","receiptCount":0,"receiptTotal":0,"refundProcessedTotal":0}
+
+# the same, as ?secret= — the form the existing pg_cron/Vercel callers use
+→ 200 (identical body)
+
+# per-job secret, once JOB_SECRET_AUTO_DAY_CLOSE is set
+GET …?date=2020-01-02   Bearer per-job-secret
+→ 200 {"ok":true,"targetDate":"2020-01-02",…}   (identical shape)
+
+# CRON_SECRET after the per-job secret exists — the fallback closes behind it
+→ 401 {"ok":false,"error":"Unauthorized"}
+
+# no secret / wrong secret
+→ 401 {"ok":false,"error":"Unauthorized"}   (no variable name in the body)
+```
+
+The rows those calls left:
+
+```
+job_name        trigger  status     items  details                               error
+auto_day_close  manual   succeeded  0      {targetDate: 2020-01-02, receipt…}    null
+auto_day_close  manual   succeeded  0      {targetDate: 2020-01-01, receipt…}    null
+```
+
+Probe rows and the two artificial `collection_closures` dates were deleted from
+dev afterwards; `job_runs` is back to 0.
+
+### Deviations and judgement calls
+
+- **`ctx.fail(reason)` was added to the `runJob` contract.** The prompt says
+  wrapping must not change response bodies, and these routes answer their own
+  handled failures — 207 when some dumps failed, 500 with the message when a
+  query did. Throwing would change what the caller receives; returning normally
+  would record a failed run as succeeded. `fail()` records the truth and leaves
+  the response alone. Unhandled throws still record, report to Sentry and
+  re-throw.
+- **A second migration, `20260916090500`, was needed and is not in the edit
+  list.** `APP_MODE=test` points every Supabase client at the `test` schema, so
+  `runJob` looked for `job_runs` there, did not find it, and correctly refused
+  to run — `Invalid schema: test`. The contract worked; the outcome was that no
+  job ran at all in test mode. The test schema already distinguishes physical
+  copies (per-session money data) from read-through views (shared reference
+  data), and job records are the second kind: "did the backup run" is a fact
+  about the deployment, not about a session. A separate migration rather than
+  editing an applied one.
+- **`tests/scan/checks/guards.mjs` gained `requireJobSecret` as a recognised
+  guard.** The scan matched on the literal string `CRON_SECRET` to decide a
+  route was guarded. Moving the routes onto per-job secrets removed that string,
+  so the scan called four routes unguarded — they had become *more* guarded, not
+  less. Outside the edit list, but a green test went red as a direct result of
+  this change, so fixing it is part of the change.
+- **`20260612023100` (from P0.2) gained `with (security_invoker = true)`** on
+  both views — see the finding below. It has never been applied to production
+  and D-26 will `migration repair` it there rather than execute it, so its body
+  will never run against live data.
+- `backup-report` does **not** accept `?secret=`. The three legacy routes get
+  that affordance because they already had it; a new route should not put a
+  secret somewhere that lands in proxy logs.
+
+### Findings worth more than this prompt
+
+**1. `supabase/schema.sql` does not record `security_invoker` on views, so every
+database restored from it silently loses RLS enforcement on them.**
+
+The migrations set `security_invoker` **79 times**. The snapshot contains the
+string **zero times**. Consequence, measured on dev:
+
+```
+select count(*) from pg_class … relkind='v' … security_invoker unset  →  19 of 19
+```
+
+All nineteen views on the dev project run as their owner, so RLS on `students`,
+`installments`, `payments` and `receipts` is not consulted for any of them.
+Production is unaffected — the ALTERs really ran there — but dev was built by
+restoring the snapshot (D-24), and the restore is now the documented way to
+build a database. On a database holding real rows this would be a live
+privilege hole, not a fidelity nit.
+
+This is the same defect family as D-25 and is fixed with it in P0.8: the
+generator must emit view options, and dev's nineteen views need the option set.
+Until then, dev's RLS behaviour on views does not match production's.
+
+**2. `schema:snapshot:check` exits 127 while printing the right answer.** On this
+Windows machine the script prints `supabase/schema.sql is up to date.` and then
+dies with `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` from libuv at
+teardown. Pre-existing — the script is untouched by School One — and not wired
+into CI today, but an exit code that contradicts the output is worth fixing
+while P0.8 is in that file anyway.
+
+**3. The `test` schema is not in the snapshot either,** so a restored database
+has no test schema at all until the migrations that create it are replayed —
+which, per D-24, they are not. Lower stakes than (1); noted for completeness.
+
+**4. Test-mode job routes additionally need `test` in PostgREST's exposed
+schemas** (Supabase dashboard → Settings → API). The dev project does not expose
+it, which is why `Invalid schema: test` persisted after the views existed. A
+dashboard setting, so left for Janmejay rather than changed by an agent.

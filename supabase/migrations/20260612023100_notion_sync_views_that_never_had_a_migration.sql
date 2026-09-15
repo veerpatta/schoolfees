@@ -28,10 +28,20 @@
 -- The dev bootstrap passes --include-all precisely so a from-scratch build does not
 -- skip it.
 --
+-- Both declare `with (security_invoker = true)`, which the copied definitions did
+-- NOT carry: supabase/schema.sql records a view's body but not its options, so
+-- the option is invisible there even though the migrations set it 79 times and
+-- 20260718090711 sets it on all five Notion views. Without it a view reads its
+-- base tables as the view owner and RLS on students, installments, payments and
+-- receipts is never consulted. Stating it here means a database built from these
+-- migrations is right on its own, rather than right only once a later ALTER runs.
+--
 -- Additive only. No fee table, RPC, trigger or policy is touched.
 
 -- public.v_notion_daily_summary
-create or replace view public.v_notion_daily_summary as
+create or replace view public.v_notion_daily_summary
+with (security_invoker = true)
+as
  SELECT session_label,
     count(DISTINCT student_id) AS total_students,
     sum(amount_due) AS total_due,
@@ -47,7 +57,9 @@ create or replace view public.v_notion_daily_summary as
   GROUP BY session_label;
 
 -- public.v_notion_student_fee_sync
-create or replace view public.v_notion_student_fee_sync as
+create or replace view public.v_notion_student_fee_sync
+with (security_invoker = true)
+as
  WITH bal AS (
          SELECT v_installment_balances.installment_id,
             v_installment_balances.student_id,
