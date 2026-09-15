@@ -85,7 +85,7 @@ happen there. `src/modules/README.md` indexes them and records why there is no
 | `tests/smoke-2026-05` | 0 | 6 |
 | `tests/smoke-readiness` | 0 | 3 |
 | `tests/ui` | 95 | 96 |
-| `tests/unit` | 182 | 182 |
+| `tests/unit` | 183 | 183 |
 
 `npm run test` runs vitest over two projects — `node` for everything and
 `interaction` (jsdom) for `tests/ui/interaction/**`. `tests/scan` and
