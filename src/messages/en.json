@@ -2130,5 +2130,11 @@
     "clearAll": "Clear all",
     "showingCount": "Showing {count}",
     "yearClear": "Year clear"
+  },
+  "DevBanner": {
+    "line": "DEV DATABASE — {name} — not the live school data",
+    "hindiLine": "विकास डेटाबेस — {name} — यह स्कूल का असली डेटा नहीं है",
+    "localLabel": "local",
+    "unknownLabel": "unrecognised"
   }
 }
