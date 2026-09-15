@@ -42,6 +42,8 @@ type DashboardShellProps = {
   children: ReactNode;
   staffEmail: string;
   staffRole: StaffRole;
+  /** Feature-flag keys this staff member has, resolved on the server. */
+  enabledFeatures?: readonly string[];
   viewSessionLabel: string;
   viewSessionIsTest: boolean;
 };
@@ -50,6 +52,7 @@ export function DashboardShell({
   children,
   staffEmail,
   staffRole,
+  enabledFeatures,
   viewSessionLabel,
   viewSessionIsTest,
 }: DashboardShellProps) {
@@ -118,7 +121,12 @@ export function DashboardShell({
         {/* no-scrollbar: a light OS scrollbar track on the ink panel reads as
             a rendering fault once the nav list overflows a short viewport. */}
         <div className="no-scrollbar flex-1 overflow-y-auto px-2 py-3">
-          <SidebarNav staffRole={staffRole} tone="ink" countsPromise={navCountsPromise} />
+          <SidebarNav
+            staffRole={staffRole}
+            enabledFeatures={enabledFeatures}
+            tone="ink"
+            countsPromise={navCountsPromise}
+          />
         </div>
 
         <footer className="border-t border-nav-border px-3 py-3">

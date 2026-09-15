@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { getFeePolicySummary } from "@/modules/fees/data/policy";
-import { logError, logInfo, logWarn } from "@/platform/observability/log";
+import { logError, logInfo } from "@/platform/observability/log";
+import { requireJobSecret } from "@/platform/jobs/job-secret";
+import { runJob, type JobContext } from "@/platform/jobs/run-job";
 import { insertDefaulterContacts } from "@/modules/defaulters/data/contacts";
 import { createAdminClient } from "@/platform/supabase/admin";
 import { isAisensyConfigured } from "@/modules/whatsapp/data/aisensy";
@@ -65,25 +67,7 @@ import { formatDdMmYyyy, isoFromDdMmYyyy } from "@/platform/helpers/date";
  * doc for the day the plan changes.
  */
 
-function authorize(
-  request: Request,
-): { ok: true } | { ok: false; reason: string; misconfigured: boolean } {
-  const expectedSecret = process.env.CRON_SECRET;
-  if (!expectedSecret) {
-    return { ok: false, reason: "CRON_SECRET is not set on this deployment.", misconfigured: true };
-  }
-  const url = new URL(request.url);
-  const provided =
-    url.searchParams.get("secret") ??
-    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  // One word back to the caller. The reason is for the log: handing an
-  // unauthenticated prober the name of a server-only env var is how the
-  // day-close route used to answer.
-  if (provided !== expectedSecret) {
-    return { ok: false, reason: "Secret missing or does not match.", misconfigured: false };
-  }
-  return { ok: true };
-}
+const JOB_NAME = "whatsapp_scheduled_runs";
 
 type RunReport = {
   campaignId: string;
@@ -97,16 +81,17 @@ type RunReport = {
 };
 
 export async function GET(request: Request) {
-  const auth = authorize(request);
+  // Authorisation happens BEFORE runJob: an unauthenticated prober must not be
+  // able to fill job_runs with rows.
+  const auth = requireJobSecret(request, JOB_NAME, { allowQuery: true });
   if (!auth.ok) {
-    if (auth.misconfigured) {
-      logError("cron.whatsapp-scheduled-runs.unauthorized", { reason: auth.reason });
-    } else {
-      logWarn("cron.whatsapp-scheduled-runs.unauthorized", { reason: auth.reason });
-    }
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    return auth.response;
   }
 
+  return runJob({ name: JOB_NAME, request }, (ctx) => runScheduledCampaigns(request, ctx));
+}
+
+async function runScheduledCampaigns(request: Request, ctx: JobContext) {
   const url = new URL(request.url);
   const dryRun = url.searchParams.get("dryRun") === "1";
   const today = istToday();
@@ -300,6 +285,15 @@ export async function GET(request: Request) {
       sent: reports.reduce((total, report) => total + (report.sent ?? 0), 0),
     });
 
+    await ctx.progress(reports.length);
+    ctx.detail({
+      today,
+      dryRun,
+      due: due.length,
+      sent: reports.reduce((total, report) => total + (report.sent ?? 0), 0),
+      failed: reports.filter((report) => report.status === "failed").length,
+    });
+
     return NextResponse.json({
       ok: true,
       today,
@@ -318,6 +312,8 @@ export async function GET(request: Request) {
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "Scheduled run failed.";
     logError("cron.whatsapp-scheduled-runs.failed", { error: message });
+    // The 500 body is unchanged; the run row says it failed.
+    ctx.fail(message);
     return NextResponse.json({ ok: false, error: message, runs: reports }, { status: 500 });
   }
 }

@@ -20,6 +20,12 @@ import { cn } from "@/platform/utils";
 
 type SidebarNavProps = {
   staffRole: StaffRole;
+  /**
+   * Feature-flag keys this staff member has. Resolved on the server — this is a
+   * client component and cannot read the database. Defaults to none, so a
+   * gated item is hidden rather than leaked if a caller forgets to pass it.
+   */
+  enabledFeatures?: readonly string[];
   /** "sidebar" = full sidebar list. "topbar" = compact horizontal grid (md viewports). */
   mode?: "sidebar" | "topbar";
   /**
@@ -78,6 +84,7 @@ function useHoverPrefetch() {
 
 export function SidebarNav({
   staffRole,
+  enabledFeatures,
   mode = "sidebar",
   tone = "light",
   counts,
@@ -193,7 +200,7 @@ export function SidebarNav({
   };
 
   if (isTopbar) {
-    const navigationItems = getVisibleProtectedNavigation(staffRole);
+    const navigationItems = getVisibleProtectedNavigation(staffRole, enabledFeatures);
     return (
       <nav
         className={cn("grid grid-cols-2 gap-1.5 sm:grid-cols-4", className)}
@@ -205,7 +212,7 @@ export function SidebarNav({
   }
 
   // Sidebar mode: grouped Daily / Records sections (Ledger Calm 2.0).
-  const groups = getGroupedProtectedNavigation(staffRole);
+  const groups = getGroupedProtectedNavigation(staffRole, enabledFeatures);
 
   return (
     <nav

@@ -1,0 +1,152 @@
+name: Nightly off-platform backup
+
+# The school's data, encrypted, in two places that are not Supabase.
+#
+# Supabase takes its own backups and they are good. They are also in the same
+# account as the database: a billing lapse, a compromised login or a mistaken
+# project deletion takes the database and its backups together. This workflow
+# exists for the day that happens, and for the day somebody needs last March
+# rather than last night.
+#
+# It runs in GitHub Actions rather than in the app because it needs pg_dump,
+# age and rclone, and because it has to keep working on the day Vercel or the
+# deployment is the broken thing.
+#
+# INERT UNTIL TURNED ON. Every job is gated on the repository variable
+# SCHOOLONE_BACKUPS_ENABLED. Until runbook section C is finished — R2 bucket,
+# Shared Drive, service account, age keys, GitHub secrets — this workflow sits
+# on main and does nothing, rather than failing at 01:00 every night and
+# training everybody to ignore it. Settings → Secrets and variables → Actions →
+# Variables → SCHOOLONE_BACKUPS_ENABLED = true.
+
+on:
+  schedule:
+    # 19:30 UTC = 01:00 IST. After the day close at 00:00 IST, so the backup
+    # contains a closed day rather than one mid-flight.
+    - cron: "30 19 * * *"
+  workflow_dispatch:
+
+concurrency:
+  # Never two at once. Two dumps writing the same dated folder in the same
+  # bucket is how a backup ends up half from one run and half from another.
+  group: backup-nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    if: vars.SCHOOLONE_BACKUPS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Requires a reviewer, and holds every production secret this repo has.
+    environment: backup
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install postgresql-client-17, age and rclone
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-17 age rclone
+          # The dump must be taken by a client at least as new as the server.
+          pg_dump --version
+          age --version
+          rclone version | head -1
+
+      - name: Record the start time
+        run: echo "BACKUP_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Dump
+        env:
+          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: |
+          chmod +x scripts/school-one/backup/dump.sh
+          scripts/school-one/backup/dump.sh
+
+      - name: Manifest and encrypt
+        env:
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+          BACKUP_DRILL_AGE_RECIPIENT: ${{ secrets.BACKUP_DRILL_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          OUT_DIR="./out/$(date -u +%Y-%m-%d)"
+          node scripts/school-one/backup/manifest.mjs "$OUT_DIR"
+          echo "OUT_DIR=$OUT_DIR" >> "$GITHUB_ENV"
+          # Nothing unencrypted may leave this runner.
+          if find "$OUT_DIR" -type f ! -name '*.age' ! -name 'manifest.json' | grep -q .; then
+            echo "Plaintext survived encryption. Refusing to upload." >&2
+            find "$OUT_DIR" -type f ! -name '*.age' ! -name 'manifest.json' >&2
+            exit 1
+          fi
+
+      - name: Upload to Google Shared Drive and Cloudflare R2
+        env:
+          GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
+          GDRIVE_SHARED_DRIVE_ID: ${{ secrets.GDRIVE_SHARED_DRIVE_ID }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          chmod +x scripts/school-one/backup/upload.sh
+          scripts/school-one/backup/upload.sh "$OUT_DIR"
+
+      - name: Report to backup_runs
+        env:
+          SCHOOLFEES_BASE_URL: ${{ secrets.SCHOOLFEES_BASE_URL }}
+          JOB_SECRET_BACKUP_REPORT: ${{ secrets.JOB_SECRET_BACKUP_REPORT }}
+        run: |
+          set -euo pipefail
+          # verified is true only because upload.sh ran `rclone check` against
+          # both destinations and would have failed the job otherwise. This step
+          # is only reached when that passed.
+          PAYLOAD="$(node -e '
+            const fs = require("node:fs");
+            const m = JSON.parse(fs.readFileSync(process.env.OUT_DIR + "/manifest.json", "utf8"));
+            const counts = Object.fromEntries(
+              m.invariants.map((row) => [row.kind + ":" + row.label, row.value]),
+            );
+            process.stdout.write(JSON.stringify({
+              kind: "nightly",
+              dump_bytes: m.dump_bytes,
+              sha256: (m.files.find((f) => f.name === "public.dump") ?? m.files[0])?.sha256 ?? null,
+              row_counts: counts,
+              destinations: { gdrive: "verified", r2: "verified" },
+              verified: true,
+              notes: "scope=" + m.schema_scope + " migrations=" + (m.migrations_sha ?? "unknown"),
+            }));
+          ')"
+
+          curl --fail-with-body --silent --show-error \
+            -X POST "${SCHOOLFEES_BASE_URL}/api/jobs/backup-report" \
+            -H "Authorization: Bearer ${JOB_SECRET_BACKUP_REPORT}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
+
+      - name: Keep the manifest as a run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-manifest-${{ github.run_id }}
+          # The manifest only. It carries sizes, checksums and row counts and no
+          # student data, so it is safe to keep where the whole team can read it.
+          path: out/**/manifest.json
+          retention-days: 90
+          if-no-files-found: warn

@@ -588,6 +588,13 @@ Copy `.env.example` to `.env.local` for local development. Required values:
    charged and are reported back so the remainder can be written off on purpose. Reversible:
    clearing `left_on` and regenerating restores them.
 
+**School One work:** read `docs/school-one/CLAUDE-addendum.md` before touching anything
+outside `src/modules/fees`. Its rules are additive to the rules above and never override
+them. Two that change how you work on this repo at all: a new database is built by
+restoring `supabase/schema.sql`, never by replaying `supabase/migrations/` (D-24), and
+every new surface is gated on a `feature_flags` key so the office does not meet it by
+accident (`src/platform/features/README.md`).
+
 ## Testing and Debugging Rules
 
 - Never modify the live `2026-27` session for testing.

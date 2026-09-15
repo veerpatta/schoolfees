@@ -781,12 +781,18 @@ BEGIN
   ON CONFLICT (admission_no) DO NOTHING;
   SELECT id INTO s_id FROM public.students WHERE admission_no='TEST-11C-003' LIMIT 1;
   IF s_id IS NOT NULL AND pol_3rd IS NOT NULL THEN
+    -- No family group: this row exists to show the 3rd Child amount against a
+    -- Class 11 Commerce tuition, not to model a family. enforce_third_child_
+    -- traceability (20260524151000) requires one of the two traceable paths, so
+    -- it takes the manual-override one it was given for exactly this case.
     INSERT INTO public.student_conventional_discount_assignments
       (student_id, policy_id, academic_session_label, is_active,
-       reason, before_tuition_amount, resulting_tuition_amount, calculation_snapshot)
+       reason, before_tuition_amount, resulting_tuition_amount, calculation_snapshot,
+       is_manual_override, manual_override_reason)
     SELECT s_id, pol_3rd, 'TEST-2026-27', true, 'TEST seed: 3rd Child 11 Commerce',
            tuition_11com, 6000,
-           jsonb_build_object('policyCode','third_child','beforeTuition',tuition_11com,'resultingTuition',6000)
+           jsonb_build_object('policyCode','third_child','beforeTuition',tuition_11com,'resultingTuition',6000),
+           true, 'TEST seed: standalone 3rd Child example, no family group'
     WHERE NOT EXISTS (SELECT 1 FROM public.student_conventional_discount_assignments
       WHERE student_id=s_id AND policy_id=pol_3rd AND academic_session_label='TEST-2026-27' AND is_active=true);
   END IF;
@@ -961,12 +967,16 @@ BEGIN
   ON CONFLICT (admission_no) DO NOTHING;
   SELECT id INTO s_id FROM public.students WHERE admission_no='TEST-12S-006' LIMIT 1;
   IF s_id IS NOT NULL AND pol_3rd IS NOT NULL THEN
+    -- Same as the 11 Commerce case above: a standalone illustration, no family
+    -- group, so the manual-override path is the traceable one.
     INSERT INTO public.student_conventional_discount_assignments
       (student_id, policy_id, academic_session_label, is_active,
-       reason, before_tuition_amount, resulting_tuition_amount, calculation_snapshot)
+       reason, before_tuition_amount, resulting_tuition_amount, calculation_snapshot,
+       is_manual_override, manual_override_reason)
     SELECT s_id, pol_3rd, 'TEST-2026-27', true, 'TEST seed: 3rd Child 12 Science — ₹32,000 saving',
            tuition_12sci, 6000,
-           jsonb_build_object('policyCode','third_child','beforeTuition',tuition_12sci,'resultingTuition',6000)
+           jsonb_build_object('policyCode','third_child','beforeTuition',tuition_12sci,'resultingTuition',6000),
+           true, 'TEST seed: standalone 3rd Child example, no family group'
     WHERE NOT EXISTS (SELECT 1 FROM public.student_conventional_discount_assignments
       WHERE student_id=s_id AND policy_id=pol_3rd AND academic_session_label='TEST-2026-27' AND is_active=true);
   END IF;

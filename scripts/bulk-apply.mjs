@@ -1,3 +1,9 @@
+// First line on purpose: refuses before anything below it exists if this
+// process is pointed at the production project outside a production deploy.
+// Complementary to the LIVE_SESSION_LABEL guard further down, which asks a
+// different question — that one is "which session", this one is "which database".
+import "./lib/db-target-guard.mjs";
+
 import { createClient } from "@supabase/supabase-js";
 import { existsSync, readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";

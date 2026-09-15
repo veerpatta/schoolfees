@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_Devanagari, Source_Serif_4 } from "next/font/google";
 import { getLocale } from "next-intl/server";
 
+import { DevDatabaseBanner } from "@/ui/system/dev-database-banner";
 import { ServiceWorkerRegistration } from "@/ui/system/service-worker-registration";
 import { QualityReporterLoader } from "@/ui/telemetry/quality-reporter-loader";
 import { ThemeProvider } from "@/ui/system/theme-provider";
@@ -132,6 +133,14 @@ export default async function RootLayout({
           React 19 hoists <link> into <head>, so it does not need a head block.
         */}
         <link rel="manifest" href="/api/manifest" crossOrigin="use-credentials" />
+        {/*
+          Outside the providers on purpose. This strip says which database the
+          page below is reading, and it renders nothing in production — so it
+          must not be able to fail because a provider, a theme or a locale
+          failed. It is a server component with no client JS for the same
+          reason.
+        */}
+        <DevDatabaseBanner />
         <LanguageProvider initialLocale={initialLocale} catalogs={catalogs}>
           <ThemeProvider>
             <DensityProvider>

@@ -75,7 +75,8 @@
     "primaryNavLabel": "Mukhya navigation",
     "workspaceNavLabel": "Workspace navigation",
     "openMore": "Aur modules kholein",
-    "closeMore": "Aur modules band karein"
+    "closeMore": "Aur modules band karein",
+    "schoolOne": "School One"
   },
   "Roles": {
     "admin": "Admin",
@@ -2130,5 +2131,11 @@
     "clearAll": "Sab hataayein",
     "showingCount": "{count} dikh rahe hain",
     "yearClear": "Year clear"
+  },
+  "DevBanner": {
+    "line": "DEV DATABASE — {name} — yah school ka asli data nahin hai",
+    "hindiLine": "विकास डेटाबेस — {name} — यह स्कूल का असली डेटा नहीं है",
+    "localLabel": "local",
+    "unknownLabel": "unrecognised"
   }
 }

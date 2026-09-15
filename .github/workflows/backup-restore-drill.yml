@@ -1,0 +1,172 @@
+name: Monthly restore drill
+
+# Proves the backup restores. Every month, without anybody remembering.
+#
+# A backup nobody has restored is a hypothesis. The month it matters is the
+# month nobody thought to check, so this checks on its own: it pulls the newest
+# nightly backup out of R2, decrypts it, restores it into a throwaway Postgres,
+# and compares every row count and money total against the manifest taken when
+# the dump was made. Any difference fails the run.
+#
+# It reads R2 rather than the Shared Drive deliberately — R2 is the copy people
+# do not touch, so a drill cannot be passed by a file somebody re-uploaded by
+# hand.
+#
+# INERT UNTIL TURNED ON, like the nightly workflow: gated on the repository
+# variable SCHOOLONE_BACKUPS_ENABLED so it cannot fail on the 1st of every month
+# before runbook section C exists.
+
+on:
+  schedule:
+    # 21:00 UTC on the 1st = 02:30 IST on the 2nd, well after the nightly run.
+    - cron: "0 21 1 * *"
+  workflow_dispatch:
+
+concurrency:
+  group: backup-restore-drill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  drill:
+    if: vars.SCHOOLONE_BACKUPS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: backup
+
+    services:
+      # Production's Postgres version, recorded in decisions.md D-20 and read
+      # from the Supabase management API rather than by connecting to the
+      # database. Restoring into a materially different version would make the
+      # drill test the wrong thing.
+      #
+      # If this image ever fails to start, the documented fallback is
+      # `postgres:17` plus the role and schema stubs in the "Prepare a
+      # Supabase-shaped target" step below, which is why that step is written to
+      # be harmless against the real image too.
+      postgres:
+        image: supabase/postgres:17.6.1.121
+        env:
+          POSTGRES_PASSWORD: drill
+          POSTGRES_DB: drill
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DRILL_DB_URL: postgres://postgres:drill@localhost:5432/drill
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install postgresql-client-17, age and rclone
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-17 age rclone
+
+      - name: Prepare a Supabase-shaped target
+        run: |
+          set -euo pipefail
+          # Idempotent, and safe against the real supabase/postgres image where
+          # most of this already exists. It matters for the documented
+          # `postgres:17` fallback: without these roles and the auth.* helpers,
+          # every RLS policy in the dump fails to load and the restore log fills
+          # with noise that hides a genuine data error.
+          psql "$DRILL_DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
+            if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+            if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin; end if;
+            if not exists (select 1 from pg_roles where rolname = 'supabase_admin') then create role supabase_admin nologin; end if;
+          end $$;
+
+          create schema if not exists auth;
+          create schema if not exists extensions;
+          create schema if not exists private;
+
+          create or replace function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+          create or replace function auth.role() returns text language sql stable as $$ select null::text $$;
+          create or replace function auth.jwt() returns jsonb language sql stable as $$ select '{}'::jsonb $$;
+          SQL
+
+      - name: Restore last night's backup
+        env:
+          BACKUP_DRILL_AGE_IDENTITY: ${{ secrets.BACKUP_DRILL_AGE_IDENTITY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          chmod +x scripts/school-one/backup/restore-drill.sh
+          scripts/school-one/backup/restore-drill.sh
+
+      - name: Compare the numbers
+        id: compare
+        run: |
+          set +e
+          node scripts/school-one/backup/compare-invariants.mjs \
+            ./drill/manifest.json ./drill/restored-invariants.csv \
+            > ./drill/compare.log 2>&1
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          cat ./drill/compare.log
+
+      - name: Report to backup_runs
+        if: always()
+        env:
+          SCHOOLFEES_BASE_URL: ${{ secrets.SCHOOLFEES_BASE_URL }}
+          JOB_SECRET_BACKUP_REPORT: ${{ secrets.JOB_SECRET_BACKUP_REPORT }}
+          COMPARE_EXIT: ${{ steps.compare.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          # Reported whether it passed or failed. A drill that only records its
+          # successes is a drill that tells you nothing on the month it matters.
+          PAYLOAD="$(node -e '
+            const fs = require("node:fs");
+            const ok = process.env.COMPARE_EXIT === "0";
+            let notes = ok ? "ok" : "invariant mismatch";
+            try {
+              const log = fs.readFileSync("./drill/compare.log", "utf8").trim();
+              if (!ok && log) notes = log.split("\n").slice(0, 12).join(" | ").slice(0, 2000);
+            } catch {}
+            let manifest = {};
+            try { manifest = JSON.parse(fs.readFileSync("./drill/manifest.json", "utf8")); } catch {}
+            process.stdout.write(JSON.stringify({
+              kind: "restore_drill",
+              dump_bytes: manifest.dump_bytes ?? null,
+              sha256: null,
+              row_counts: Object.fromEntries((manifest.invariants ?? []).map((r) => [r.kind + ":" + r.label, r.value])),
+              destinations: { r2: "read" },
+              verified: ok,
+              notes: "source=" + (manifest.date ?? "unknown") + " " + notes,
+            }));
+          ')"
+
+          curl --fail-with-body --silent --show-error \
+            -X POST "${SCHOOLFEES_BASE_URL}/api/jobs/backup-report" \
+            -H "Authorization: Bearer ${JOB_SECRET_BACKUP_REPORT}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
+
+      - name: Fail the run if the numbers did not match
+        if: steps.compare.outputs.exit_code != '0'
+        run: |
+          echo "The restored database does not match the manifest. See the compare step." >&2
+          exit 1

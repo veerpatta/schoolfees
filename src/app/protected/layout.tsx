@@ -2,6 +2,7 @@ import { CommandHost } from "@/ui/command/command-host";
 import { KeyboardOffsetProvider } from "@/ui/system/keyboard-offset-provider";
 import { DashboardShell } from "@/ui/shell/dashboard-shell";
 import { getVisibleProtectedNavigation } from "@/platform/config/navigation";
+import { getEnabledFeatures } from "@/platform/features/flags";
 import { hasRolePermission } from "@/platform/auth/roles";
 import { getAppMode } from "@/platform/env";
 import { getViewSessionCookie } from "@/platform/session/cookie";
@@ -19,6 +20,11 @@ export default async function ProtectedLayout({
       resolveViewSession({ cookieSession }),
     ),
   ]);
+  // Resolved here, once, and passed down: the sidebar is a client component
+  // and cannot read the database. An item gated on a flag this staff member
+  // does not have is dropped before it reaches the browser at all, rather than
+  // rendered and hidden.
+  const enabledFeatures = await getEnabledFeatures({ id: staff.id, role: staff.appRole });
   const isTestDatabase = getAppMode() === "test";
   // CommandHost is a client component. ProtectedNavigationItem.icon is a
   // LucideIcon (React component) which can't cross the server→client
@@ -27,7 +33,7 @@ export default async function ProtectedLayout({
   // a generic icon. (Bug repro: leaving the icon in causes the protected
   // layout to render the generic "Check the deployment environment values"
   // error fallback in prod.)
-  const navigation = getVisibleProtectedNavigation(staff.appRole).map((item) => ({
+  const navigation = getVisibleProtectedNavigation(staff.appRole, enabledFeatures).map((item) => ({
     href: item.href,
     label: item.label,
     description: item.description,
@@ -57,6 +63,7 @@ export default async function ProtectedLayout({
     <DashboardShell
       staffEmail={staff.email ?? "Authorized staff"}
       staffRole={staff.appRole}
+      enabledFeatures={enabledFeatures}
       viewSessionLabel={resolvedSession.sessionLabel}
       viewSessionIsTest={resolvedSession.isTest}
     >

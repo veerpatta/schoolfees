@@ -75,7 +75,8 @@
     "primaryNavLabel": "मुख्य नेविगेशन",
     "workspaceNavLabel": "कार्यक्षेत्र नेविगेशन",
     "openMore": "अधिक मॉड्यूल खोलें",
-    "closeMore": "अधिक मॉड्यूल बंद करें"
+    "closeMore": "अधिक मॉड्यूल बंद करें",
+    "schoolOne": "स्कूल वन"
   },
   "Roles": {
     "admin": "व्यवस्थापक",
@@ -2130,5 +2131,11 @@
     "clearAll": "सब हटाएँ",
     "showingCount": "{count} दिख रहे हैं",
     "yearClear": "वर्ष पूर्ण"
+  },
+  "DevBanner": {
+    "line": "विकास डेटाबेस — {name} — यह स्कूल का असली डेटा नहीं है",
+    "hindiLine": "विकास डेटाबेस — {name} — यह स्कूल का असली डेटा नहीं है",
+    "localLabel": "लोकल",
+    "unknownLabel": "अज्ञात"
   }
 }

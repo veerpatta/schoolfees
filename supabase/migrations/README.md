@@ -274,6 +274,12 @@ migration *does*. Filenames are listed without the `.sql` extension.
 - `20260726172238_dashboard_excludes_reversed_receipts` — a receipt reversed to
   zero was still counted as collection everywhere.
 - `20260727113603_secure_financial_surfaces_and_repair_receipt_allocations`
+- `20260727113700_financial_surface_hardening_without_the_one_off_repair` — replays
+  the permission half of the migration above. That one bundles the hardening with a
+  one-off data repair guarded on production's exact 12 anomalies in 6 receipt pairs,
+  so it aborts on any other database and takes the hardening down with it. Every
+  statement here is copied verbatim from it and is idempotent. **Out of timestamp
+  order relative to the history's tip** — see "Migrations that cannot replay" below.
 - `20260727184500_freeze_payment_snapshot_without_temp_table`
 
 ### Family, bulk update, left students (early August)
@@ -510,6 +516,30 @@ express the school's rule and never fired once:
   and the tables behind them.
 - `20260903181330_whatsapp_pay_codes` — a pay link a parent can tap: `/pay/[code]`.
 
+### School One platform (2026-09-16)
+
+- `20260916090000_school_one_job_runs` — `job_runs` and `backup_runs`. Every scheduled or
+  triggered job leaves a row, written *before* the work starts, so a job killed mid-flight
+  leaves a row stuck at `running` rather than leaving nothing — and "nothing" is
+  indistinguishable from a cron that was quietly unscheduled weeks ago. `backup_runs` is
+  the off-platform backup's own record (sizes, checksums, row counts, which destinations
+  were actually read back), written only by `/api/jobs/backup-report`. Both tables are
+  RLS-enabled with an admin SELECT policy and **no** INSERT/UPDATE policy: writes are
+  service-role only, so no signed-in user can forge a run record. Additive; no fee table,
+  RPC, trigger or policy touched.
+
+- `20260916090500_job_runs_visible_in_test_mode` — `test.job_runs` / `test.backup_runs`
+  read-through views. `APP_MODE=test` points every Supabase client at the `test` schema,
+  so without these `runJob()` cannot find its table and correctly refuses to run anything.
+  Views, not copies: "did the nightly backup run" is a fact about the deployment, not
+  about a session.
+- `20260916091000_school_one_feature_flags` — `feature_flags`, the canary model. Production
+  runs one deployment; `director@vpps.co.in` does the school's work in it and
+  `raj@vpps.co.in` sees School One first, and a flag is the difference. Readable by any
+  signed-in staff member (flags are not secrets), writable only with `settings:write`, and
+  with **no DELETE policy** — a flag is retired by turning it off so the record of what was
+  shown to whom survives.
+
 ### WhatsApp recovery notices (2026-09-08)
 
 - `20260908093000_whatsapp_campaigns_accept_recovery_notices` — a saved campaign may name
@@ -583,7 +613,33 @@ that were applied remotely before their files were committed:
 The repo keeps placeholder files for those exact versions so Supabase Preview
 and `supabase db push` can compare local vs remote migration history. The
 current idempotent Notion sync schema is in
-`20260612023000_notion_fee_sync`.
+`20260612023000_notion_fee_sync`, and
+`20260612023100_notion_sync_views_that_never_had_a_migration` supplies the two
+views — `v_notion_student_fee_sync` and `v_notion_daily_summary` — that were
+created by hand in the SQL editor and never written down. Production had them;
+no other database did, so replaying the history elsewhere died at
+`20260718090711`, which revokes on all five.
+
+## Migrations that cannot replay on an empty database
+
+Discovered by the School One Phase 0 dev bootstrap (P0.2), the first attempt to
+build this schema from nothing. **Applying these files in order to a fresh
+database does not work, and that is not a bug in any one of them.**
+
+Several migrations are one-off data repairs deliberately guarded on the exact
+rows their author had reviewed — for example
+`20260727113603` ("expected 12 anomalies in 6 guarded pairs") and
+`20260808140000` ("`late_fee_rule_change_snapshot` is empty"). The guards are
+correct: a repair that runs against data nobody checked is how a repair becomes
+a corruption. The consequence is simply that those files belong to one database
+on one date, and several of them also carry schema that every database needs.
+
+So this directory is the *history* of the production schema, not a recipe for
+recreating it. To build a new database, restore a schema dump
+(`supabase/schema.sql`, or a dump from the backup workflow) and record the
+migration history as applied. `scripts/school-one/dev-db.mjs` carries the
+current list of unreplayable versions and states, per entry, why skipping each
+is a no-op and which migration replays what it would otherwise have done.
 
 Earlier repo history renamed three migrations to chronological timestamps:
 

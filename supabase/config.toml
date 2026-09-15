@@ -62,7 +62,15 @@ schema_paths = []
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-sql_paths = ["./seed.sql"]
+# 03_cleanup_existing_students.sql is NOT listed and must never be: it is a
+# deletion script, not a seed (decisions.md D-22). Seeds run only under
+# `supabase db push --include-seed` / `db reset`, never a plain `db push`.
+sql_paths = [
+  "./seed.sql",
+  "./seeds/01_test_session_setup.sql",
+  "./seeds/02_test_students_seed.sql",
+  "./seeds/04_school_one_dev_seed.sql",
+]
 
 [db.network_restrictions]
 # Enable management of network restrictions.
