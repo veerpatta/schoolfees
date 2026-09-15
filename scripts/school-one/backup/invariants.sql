@@ -11,7 +11,10 @@
 --
 -- Run with: psql "$SUPABASE_PROD_DB_URL" --csv -f invariants.sql > invariants.csv
 
-\pset footer off
+-- Plain SQL only, no psql meta-commands: `--csv --quiet` already shape the
+-- output, and keeping this file free of backslash commands means it can be run
+-- by anything that speaks SQL — which is how it gets checked against dev
+-- without a psql on the machine.
 
 -- 1. Row count for every table in public, generated from the catalogue rather
 --    than a hand-kept list, so a table added next month is covered without

@@ -38,13 +38,33 @@ Nothing below touches production data. The only production actions are account/s
 | C8 | Vercel → Production env vars | Add `JOB_SECRET_BACKUP_REPORT` (same value as C7), `JOB_SECRET_NIGHTLY_BACKUP`, `JOB_SECRET_AUTO_DAY_CLOSE`, `JOB_SECRET_WHATSAPP_SCHEDULED_RUNS` (each `openssl rand -hex 32`). Do **not** remove `CRON_SECRET` — two admin routes and three scripts still read it (decisions.md D-21). |
 | C9 | Supabase → production → SQL editor (read-only check, run as you) | `select jobname, schedule, command from cron.job;` — keep the output in your notes; Phase 0 P0.4 needs to know exactly how the two existing HTTP jobs authenticate before switching them to per-job secrets. |
 
-## D. What Claude Code will do first (kickoff prompt)
+## D. What Claude Code did — all of it, and what is left
 
-`docs/school-one/prompts/KICKOFF.md` — it checks it is on the right branch, that no environment file points at production, links the CLI to the dev project (you type the password), runs the read-only inventory (P0.0), and **stops** with a report. You then continue with P0.2 → P0.3 → P0.4 → P0.9 → P0.8 → (after C1–C8) P0.6 → P0.7, one prompt at a time from `prompts/phase-0.md`.
+**Every agent prompt of Phase 0 is done and pushed to `school-one/phase-0`.**
+`prompts/KICKOFF.md` ran first and stopped with a report; `prompts/phase-0.md`
+P0.2 ran next; `prompts/phase-0-complete.md` then executed P0.3, P0.4, P0.9,
+P0.8, P0.6 and P0.7 in one session. Per-prompt evidence, and every deviation
+from the plan as written, is in `phase-0-progress.md`.
+
+What is left is yours, and only yours:
+
+| | |
+|---|---|
+| **C1–C8** | R2 bucket, Shared Drive, service account, `age` keys, GitHub secrets. The two backup workflows are already written and sit **inert** until you set the repository variable `SCHOOLONE_BACKUPS_ENABLED=true` — so nothing fails nightly while these are outstanding. |
+| **Release day** | The exact ordered steps are in `RELEASES.md`. The one not to skip is `supabase migration repair --status applied 20260612023100 20260727113700` **before** `db push`; without it the push refuses the whole run (D-26). |
+| **Prove the canary** | Release-day step (e): log in as `director@` and confirm nothing changed, then as `raj@` and turn `school_one_placeholder` on for that id only. Until that has run against production with the two real accounts, the model is a claim. |
+| **Turn backups on** | Release-day step (g), after C1–C8. One nightly run, then one drill, then tick the exit checklist. |
 
 ## E. Order of the whole Phase 0
 
 ```
-B1–B6 (you)  →  KICKOFF (Claude Code, stops)  →  P0.2, P0.3, P0.4, P0.9, P0.8 (Claude Code, one at a time)
-             →  C1–C9 (you, any time in parallel)  →  P0.6, P0.7 (Claude Code)  →  exit checklist  →  Sunday release
+B1–B6 (you)          ✅ done
+KICKOFF              ✅ done — inventory + report, stopped as designed
+P0.2                 ✅ done — dev database, built by restore rather than replay
+P0.3 P0.4 P0.9 P0.8  ✅ done — write guard, job platform, feature flags, docs
+P0.6 P0.7            ✅ written and syntax-checked; inert until SCHOOLONE_BACKUPS_ENABLED
+─────────────────────────────────────────────────────────────────────────────
+C1–C8 (you)          ⬜ needed before the backups can actually run
+Sunday release       ⬜ RELEASES.md has the ordered steps
+Exit checklist       ⬜ after two nightly backups and one passing drill
 ```

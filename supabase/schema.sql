@@ -13,8 +13,8 @@
 -- dependency order; this has NOT been verified to replay top-to-bottom into an
 -- empty database, and `supabase db push` is the supported way to build one.
 --
--- Schema version: 20260916090500
--- Objects: 93 tables/views, 60 functions
+-- Schema version: 20260916091000
+-- Objects: 94 tables/views, 60 functions
 
 
 -- ══ Extensions ══════════════════════════════════════════════════════════
@@ -287,6 +287,17 @@ create table if not exists public.family_payments (
   posted_by uuid,
   posted_at timestamp with time zone default now() not null,
   client_request_id text not null
+);
+
+-- public.feature_flags
+create table if not exists public.feature_flags (
+  key text not null,
+  description text not null,
+  enabled_for_all boolean default false not null,
+  enabled_roles public.staff_role[] default '{}'::public.staff_role[] not null,
+  enabled_user_ids uuid[] default '{}'::uuid[] not null,
+  updated_by uuid,
+  updated_at timestamp with time zone default now() not null
 );
 
 -- public.fee_policy_configs
@@ -1312,6 +1323,7 @@ alter table public.conventional_discount_policies add constraint conventional_di
 alter table public.defaulter_contacts add constraint defaulter_contacts_pkey PRIMARY KEY (id);
 alter table public.defaulter_recovery_state add constraint defaulter_recovery_state_pkey PRIMARY KEY (id);
 alter table public.family_payments add constraint family_payments_pkey PRIMARY KEY (id);
+alter table public.feature_flags add constraint feature_flags_pkey PRIMARY KEY (key);
 alter table public.fee_policy_configs add constraint fee_policy_configs_pkey PRIMARY KEY (id);
 alter table public.fee_settings add constraint fee_settings_pkey PRIMARY KEY (id);
 alter table public.import_batches add constraint import_batches_pkey PRIMARY KEY (id);
@@ -1643,6 +1655,7 @@ alter table public.defaulter_recovery_state add constraint defaulter_recovery_st
 alter table public.defaulter_recovery_state add constraint defaulter_recovery_state_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 alter table public.family_payments add constraint family_payments_family_group_id_fkey FOREIGN KEY (family_group_id) REFERENCES public.student_family_groups(id) ON DELETE RESTRICT;
 alter table public.family_payments add constraint family_payments_posted_by_fkey FOREIGN KEY (posted_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+alter table public.feature_flags add constraint feature_flags_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id);
 alter table public.fee_policy_configs add constraint fee_policy_configs_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 alter table public.fee_policy_configs add constraint fee_policy_configs_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 alter table public.fee_settings add constraint fee_settings_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id) ON DELETE RESTRICT;
@@ -8702,6 +8715,7 @@ alter table public.conventional_discount_policies enable row level security;
 alter table public.defaulter_contacts enable row level security;
 alter table public.defaulter_recovery_state enable row level security;
 alter table public.family_payments enable row level security;
+alter table public.feature_flags enable row level security;
 alter table public.fee_policy_configs enable row level security;
 alter table public.fee_settings enable row level security;
 alter table public.import_batches enable row level security;
@@ -8877,6 +8891,8 @@ drop policy if exists "authenticated can read conventional discount policies" on
 create policy "authenticated can read conventional discount policies" on public.conventional_discount_policies as PERMISSIVE for SELECT to authenticated using (( SELECT public.has_any_permission(ARRAY['fees:view'::text, 'students:view'::text, 'reports:view'::text]) AS has_any_permission));
 drop policy if exists "authenticated can read family payments" on public.family_payments;
 create policy "authenticated can read family payments" on public.family_payments as PERMISSIVE for SELECT to authenticated using (( SELECT public.has_any_permission(ARRAY['receipts:view'::text, 'payments:view'::text, 'reports:view'::text]) AS has_any_permission));
+drop policy if exists "authenticated can read feature flags" on public.feature_flags;
+create policy "authenticated can read feature flags" on public.feature_flags as PERMISSIVE for SELECT to authenticated using (true);
 drop policy if exists "authenticated can read fee policy configs" on public.fee_policy_configs;
 create policy "authenticated can read fee policy configs" on public.fee_policy_configs as PERMISSIVE for SELECT to authenticated using ((( SELECT auth.uid() AS uid) IS NOT NULL));
 drop policy if exists "authenticated can read fee settings" on public.fee_settings;
@@ -9013,6 +9029,10 @@ drop policy if exists "payment writers can insert receipt finance adjustments" o
 create policy "payment writers can insert receipt finance adjustments" on public.receipt_finance_adjustments as PERMISSIVE for INSERT to authenticated with check (( SELECT public.has_permission('payments:write'::text) AS has_permission));
 drop policy if exists "school_holidays: staff read" on public.school_holidays;
 create policy "school_holidays: staff read" on public.school_holidays as PERMISSIVE for SELECT to public using ((( SELECT auth.role() AS role) = 'authenticated'::text));
+drop policy if exists "settings writers can add feature flags" on public.feature_flags;
+create policy "settings writers can add feature flags" on public.feature_flags as PERMISSIVE for INSERT to authenticated with check (public.has_permission('settings:write'::text));
+drop policy if exists "settings writers can change feature flags" on public.feature_flags;
+create policy "settings writers can change feature flags" on public.feature_flags as PERMISSIVE for UPDATE to authenticated using (public.has_permission('settings:write'::text)) with check (public.has_permission('settings:write'::text));
 drop policy if exists "settings:write can delete app_settings" on public.app_settings;
 create policy "settings:write can delete app_settings" on public.app_settings as PERMISSIVE for DELETE to authenticated using (( SELECT public.has_permission('settings:write'::text) AS has_permission));
 drop policy if exists "settings:write can insert app_settings" on public.app_settings;
@@ -9360,6 +9380,8 @@ grant INSERT on public.defaulter_recovery_state to service_role;
 grant INSERT on public.family_payments to anon;
 grant INSERT on public.family_payments to authenticated;
 grant INSERT on public.family_payments to service_role;
+grant INSERT on public.feature_flags to authenticated;
+grant INSERT on public.feature_flags to service_role;
 grant INSERT on public.fee_policy_configs to anon;
 grant INSERT on public.fee_policy_configs to authenticated;
 grant INSERT on public.fee_policy_configs to service_role;
@@ -9803,6 +9825,8 @@ grant SELECT on public.defaulter_recovery_state to service_role;
 grant SELECT on public.family_payments to anon;
 grant SELECT on public.family_payments to authenticated;
 grant SELECT on public.family_payments to service_role;
+grant SELECT on public.feature_flags to authenticated;
+grant SELECT on public.feature_flags to service_role;
 grant SELECT on public.fee_policy_configs to anon;
 grant SELECT on public.fee_policy_configs to authenticated;
 grant SELECT on public.fee_policy_configs to service_role;
@@ -10465,6 +10489,8 @@ grant UPDATE on public.defaulter_recovery_state to service_role;
 grant UPDATE on public.family_payments to anon;
 grant UPDATE on public.family_payments to authenticated;
 grant UPDATE on public.family_payments to service_role;
+grant UPDATE on public.feature_flags to authenticated;
+grant UPDATE on public.feature_flags to service_role;
 grant UPDATE on public.fee_policy_configs to anon;
 grant UPDATE on public.fee_policy_configs to authenticated;
 grant UPDATE on public.fee_policy_configs to service_role;

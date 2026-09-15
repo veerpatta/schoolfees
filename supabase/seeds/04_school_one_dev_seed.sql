@@ -117,6 +117,19 @@ ON CONFLICT (admission_no) DO NOTHING;
 -- 404 on the route. `qa.admin@qa.vpps.local` is the account
 -- scripts/bootstrap-test-staff.mjs creates, so this only matches once that has
 -- run; before then the flag stays off for everyone, which is also correct.
+-- The row is INSERTed here as well as in the migration, and that is not
+-- redundancy. `supabase/schema.sql` records structure, not rows, so a database
+-- built by restoring it (D-24, which is how dev is built) has the table and
+-- none of the reference data any migration inserted. Without this the flag
+-- simply does not exist on dev: the editor is empty and every gated surface is
+-- hidden for everyone — safe, but not what production looks like.
+INSERT INTO public.feature_flags (key, description)
+VALUES (
+  'school_one_placeholder',
+  'Proves the canary model end to end: shows a placeholder School One item in the workspace navigation. Enable for one user id only.'
+)
+ON CONFLICT (key) DO NOTHING;
+
 UPDATE public.feature_flags
 SET enabled_user_ids = ARRAY(
       SELECT u.id FROM public.users u

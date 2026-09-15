@@ -4,6 +4,7 @@ import { FlashNotice } from "@/ui/shell/flash-notice";
 import { PageHeader } from "@/ui/shell/page-header";
 import { PendingSubmitButton } from "@/ui/shell/pending-submit-button";
 import { createAdminClient } from "@/platform/supabase/admin";
+import { formatDateTimeIst } from "@/platform/helpers/date";
 import { listFeatureFlags } from "@/platform/features/flags";
 import { requireStaffPermission } from "@/platform/supabase/session";
 import { staffRoles } from "@/platform/auth/roles";
@@ -140,7 +141,7 @@ export default async function FeatureFlagsPage() {
             <div className="flex items-center gap-4">
               <PendingSubmitButton>Save</PendingSubmitButton>
               <span className="text-xs text-muted-foreground">
-                Last changed {new Date(flag.updated_at).toLocaleString("en-IN")}
+                Last changed {formatDateTimeIst(flag.updated_at)}
               </span>
             </div>
           </form>

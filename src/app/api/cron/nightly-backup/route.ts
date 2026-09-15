@@ -1,3 +1,24 @@
+/**
+ * DEPRECATED. Replaced by `.github/workflows/backup-nightly.yml`, and to be
+ * removed after the first successful restore drill.
+ *
+ * What this route does is write five CSVs into a Supabase Storage bucket —
+ * `nightly-backups` — in the same project as the database it is backing up.
+ * Three problems, none of them fixable here:
+ *
+ *   - Same account. A billing lapse, a compromised login or a mistaken project
+ *     deletion takes the database and this copy together.
+ *   - Five tables, capped at 50,000 rows each. That is not the schema, not the
+ *     roles, not the policies, and on a big table not even all the rows.
+ *   - Nothing is encrypted and nothing is verified. An upload that returned 200
+ *     is assumed to have worked.
+ *
+ * It is a convenience copy, and it keeps running until the GitHub Actions
+ * workflow has produced two nightly backups and passed one restore drill — see
+ * the Phase 0 exit checklist. Then it goes.
+ *
+ * Do not extend it. New backup work belongs in scripts/school-one/backup/.
+ */
 import { NextResponse } from "next/server";
 
 import { requireJobSecret } from "@/platform/jobs/job-secret";

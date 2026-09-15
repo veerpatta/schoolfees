@@ -46,7 +46,56 @@ UAT is complete. The app is live with real 2026-27 data.
 ## Export and Backup Reminders
 
 - Download XLSX exports periodically from Exports for office records.
-- Supabase automatic backups protect the database.
+- Supabase automatic backups protect the database — but they live in the same
+  account as the database, so one billing lapse, one compromised login or one
+  mistaken project deletion takes both. That is what the off-platform backup
+  below exists for.
+
+## Off-platform backups
+
+Nightly, encrypted, in two places that are not Supabase, with a monthly drill
+that proves the backup actually restores. Run by GitHub Actions rather than by
+the app, so it keeps working on the day Vercel or the deployment is the broken
+thing.
+
+| Workflow | When | What |
+|---|---|---|
+| `backup-nightly.yml` | 01:00 IST | dump → manifest → encrypt → Google Shared Drive **and** Cloudflare R2 → verify → record in `backup_runs` |
+| `backup-restore-drill.yml` | 02:30 IST on the 1st | restore last night's backup into a throwaway Postgres and compare every row count and money total against the manifest |
+
+**Both are inert until `SCHOOLONE_BACKUPS_ENABLED` is set** (Settings → Secrets
+and variables → Actions → Variables). Turn it on only after runbook section C is
+complete. Full detail: `scripts/school-one/backup/README.md`.
+
+Checking there is a good backup:
+
+```sql
+select ran_at, kind, verified, notes
+from public.backup_runs
+order by ran_at desc
+limit 10;
+```
+
+`verified = true` on a `nightly` row means every file was read back from both
+destinations. On a `restore_drill` row it means the restored database matched
+the manifest exactly.
+
+**`/api/cron/nightly-backup` is deprecated** and is removed once the drill has
+passed once. It writes five capped, unencrypted, unverified CSVs into a bucket
+in the same project as the database — a convenience copy, not a backup.
+
+## Which database is this?
+
+| Context | `VERCEL_ENV` | Supabase project | Guard |
+|---|---|---|---|
+| Production | `production` | `vgqyilgstjvgohrsiwkb` | allows |
+| Preview | `preview` | `schoolfees-dev` (`wtgxcptmucjerhufzjcf`) | refuses the production ref |
+| Local / agent | unset | dev project | refuses the production ref unless `ALLOW_PRODUCTION_DB_OUTSIDE_PRODUCTION="I understand"` (scripted reads only) |
+| GitHub Actions backup | n/a | production, **read via dump only** | environment-protected secret |
+
+The app **refuses to start** when pointed at production outside a production
+deployment, and every non-production page carries a strip naming the database it
+is reading. Both live in `src/platform/db-target.ts`.
 
 ## Infrastructure Reference
 
@@ -63,11 +112,14 @@ If you ever need to check DB health, migrations, or logs: Supabase dashboard
 
 ## Nightly automation
 
-Two Vercel crons, both authenticating on `CRON_SECRET`:
+Two Vercel crons. Both now authenticate on their own `JOB_SECRET_*`, falling back
+to `CRON_SECRET` while that is unset, and both leave a row in `job_runs` on every
+invocation — including the ones that fail, and including a row stuck at `running`
+if the platform killed them mid-flight:
 
 - `/api/cron/auto-day-close` — **day close is automatic.** The Finance Controls close view
   is read-only; manual approval and cash/bank reconciliation were removed.
-- `/api/cron/nightly-backup`
+- `/api/cron/nightly-backup` — **deprecated**; see Off-platform backups above.
 
 Inside Postgres, pg_cron additionally refreshes the workbook matviews every 2 minutes,
 enqueues a daily refresh just after midnight IST (a late fee appears because *a date
