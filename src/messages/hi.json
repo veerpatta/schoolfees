@@ -75,7 +75,8 @@
     "primaryNavLabel": "मुख्य नेविगेशन",
     "workspaceNavLabel": "कार्यक्षेत्र नेविगेशन",
     "openMore": "अधिक मॉड्यूल खोलें",
-    "closeMore": "अधिक मॉड्यूल बंद करें"
+    "closeMore": "अधिक मॉड्यूल बंद करें",
+    "schoolOne": "स्कूल वन"
   },
   "Roles": {
     "admin": "व्यवस्थापक",

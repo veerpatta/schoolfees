@@ -109,3 +109,20 @@ SELECT
   'School One dev seed — fake data, not a real child'
 FROM roster
 ON CONFLICT (admission_no) DO NOTHING;
+
+-- ── (d) The canary flag, on for the seeded dev admin only ───────────────────
+--
+-- Proves the model the way it will actually be used: one user id on the list,
+-- everybody else — including the other seeded admins — sees nothing and gets a
+-- 404 on the route. `qa.admin@qa.vpps.local` is the account
+-- scripts/bootstrap-test-staff.mjs creates, so this only matches once that has
+-- run; before then the flag stays off for everyone, which is also correct.
+UPDATE public.feature_flags
+SET enabled_user_ids = ARRAY(
+      SELECT u.id FROM public.users u
+      WHERE u.role = 'admin' AND u.full_name = 'QA Admin'
+    ),
+    enabled_roles = '{}',
+    enabled_for_all = false,
+    updated_at = now()
+WHERE key = 'school_one_placeholder';

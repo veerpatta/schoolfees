@@ -35,6 +35,16 @@ export type ProtectedNavigationItem = {
   aliases?: readonly string[];
   /** Key under the `Navigation` namespace in messages/. Falls back to `label`. */
   i18nKey?: string;
+  /**
+   * When set, this item appears only for staff the named `feature_flags` row is
+   * enabled for. Absent means "always visible", which is every item that
+   * predates School One.
+   *
+   * The default when the caller supplies no flag set is HIDDEN, not shown: a
+   * gated item that leaks because somebody forgot to thread the set through is
+   * the exact failure this model exists to prevent.
+   */
+  featureFlag?: string;
 };
 
 export type ProtectedRouteMeta = {
@@ -129,6 +139,19 @@ const simpleNavigationItems: ProtectedNavigationItem[] = [
     requiredPermission: "finance:view",
     visibleTo: ["admin", "accountant"],
     i18nKey: "adminTools",
+  },
+  // The first flag-gated item, and for now the only thing the flag does. It
+  // exists to prove the canary model with real data before anything that
+  // matters is gated on it: enabled for one user id, it appears for that
+  // person and for nobody else, including the other admin.
+  {
+    href: "/protected/school-one",
+    label: "School One",
+    description: "Staff, academics, timetable, attendance — as they arrive.",
+    icon: BookOpenCheck,
+    requiredPermission: "dashboard:view",
+    i18nKey: "schoolOne",
+    featureFlag: "school_one_placeholder",
   },
 ] as const;
 
@@ -325,13 +348,22 @@ export function getDefaultProtectedHref(role: StaffRole) {
   return "/protected/dashboard";
 }
 
-export function getVisibleProtectedNavigation(staffRole: StaffRole) {
+export function getVisibleProtectedNavigation(
+  staffRole: StaffRole,
+  enabledFeatures: readonly string[] = [],
+) {
   const visibleItems = simpleNavigationItems.filter((item) => {
     if (!hasRolePermission(staffRole, item.requiredPermission)) {
       return false;
     }
 
     if (item.visibleTo && !item.visibleTo.includes(staffRole)) {
+      return false;
+    }
+
+    // Flag-gated items default to hidden when no set is supplied. A caller that
+    // has not been taught about flags shows fewer items, never more.
+    if (item.featureFlag && !enabledFeatures.includes(item.featureFlag)) {
       return false;
     }
 
@@ -388,8 +420,9 @@ export type ProtectedNavigationGroup = {
 
 export function getGroupedProtectedNavigation(
   staffRole: StaffRole,
+  enabledFeatures: readonly string[] = [],
 ): ProtectedNavigationGroup[] {
-  const visible = getVisibleProtectedNavigation(staffRole);
+  const visible = getVisibleProtectedNavigation(staffRole, enabledFeatures);
   const daily = visible.filter((item) => dailyNavHrefs.includes(item.href));
   const records = visible.filter((item) => !dailyNavHrefs.includes(item.href));
 

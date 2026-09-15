@@ -225,3 +225,76 @@ which, per D-24, they are not. Lower stakes than (1); noted for completeness.
 schemas** (Supabase dashboard → Settings → API). The dev project does not expose
 it, which is why `Invalid schema: test` persisted after the views existed. A
 dashboard setting, so left for Janmejay rather than changed by an agent.
+
+---
+
+## P0.9 — Feature flags and the canary model
+
+**Commits:** `feat(school-one): one id sees it, and nobody else`
+
+### Acceptance
+
+| Criterion | Evidence |
+|---|---|
+| Migration applies on dev | `20260916091000` applied; `feature_flags` holds `school_one_placeholder`, everything off |
+| Precedence, unknown key, 404-vs-200 | `tests/unit/feature-flags.test.ts` — **17 tests** |
+| Nav item hidden by default, shown with the key | covered in the same file, both flat and grouped nav |
+| `schema:snapshot:check` passes | pending — see below |
+| Existing tests green | **375 files / 3,212 tests**, exit 0 |
+| Build | exit 0; `/protected/school-one` and `/protected/settings/features` both emitted as dynamic routes |
+
+**The claim the rollout model rests on**, pinned as a test: two staff with the
+*same role* and different ids, one on `enabled_user_ids` —
+
+```
+isFeatureEnabledForStaff(flag({ enabled_user_ids: [CANARY] }), { id: CANARY,   role: "admin" })  → true
+isFeatureEnabledForStaff(flag({ enabled_user_ids: [CANARY] }), { id: DIRECTOR, role: "admin" })  → false
+```
+
+### Still to do — blocked on a Supabase maintenance window
+
+The dev project went into scheduled maintenance at 21:18 GMT (stated completion
+21:45) part-way through this prompt:
+
+```
+LegacyDbConfigLoginRoleStatusError: unexpected login role status 503:
+{"error":"Service temporarily unavailable for scheduled maintenance"}
+```
+
+Done before it started: the migration is applied, the flag row exists, and the
+five role logins plus a second admin (`QA Director`) were created on dev so the
+canary pair is real rather than hypothetical.
+
+Outstanding: setting the flag for one admin's id and reading it back for both,
+and re-running `schema:snapshot`. Both are DB-only steps with no code
+implication; picked up after the window.
+
+The browser-level check — nav item visible to one login and absent for the
+other — is deliberately **not** claimed here. It is release-day step (e) in
+`RELEASES.md`, done against production with the two real accounts, which is
+where it actually matters.
+
+### Deviations and judgement calls
+
+- **`getVisibleProtectedNavigation` gained a second parameter and the shell two
+  props.** `src/ui/shell/sidebar-nav.tsx` is a client component that recomputes
+  navigation from `staffRole`, so it cannot read a flag. Without threading the
+  resolved set through `DashboardShell`, a gated item would render for
+  everybody — the exact failure the model exists to prevent. Both files are
+  outside the edit list; the alternative was a flag that does not work.
+- **The gated page calls `requireStaffPermission` as well as `requireFeature`.**
+  The scan's guard check flagged it, correctly: a feature flag is not a
+  permission. They answer different questions and the page now asks both.
+- **The editor redirects and flashes rather than returning action state.** Two
+  repo contracts — `action-feedback-contract` and `route-loading-contract` —
+  went red on the new surfaces. Both known-gap lists are documented as
+  "must only ever shrink", so the fix was to satisfy the contracts
+  (`PendingSubmitButton`, `FlashNotice`, two `loading.tsx` files) rather than to
+  add entries.
+- **No `audit_logs` write.** The prompt says to follow how `/protected/settings`
+  writes `app_settings` — it does not write anything; it is a read-only hub with
+  no `actions.ts`. `feature_flags.updated_by` / `updated_at` plus the absent
+  DELETE policy are the trail instead.
+- **Seed 04 enables the flag by looking up `full_name = 'QA Admin'`**, so it is
+  a no-op until `bootstrap-test-staff.mjs` has run. Before then the flag stays
+  off for everyone, which is also the correct state.

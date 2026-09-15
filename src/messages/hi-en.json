@@ -75,7 +75,8 @@
     "primaryNavLabel": "Mukhya navigation",
     "workspaceNavLabel": "Workspace navigation",
     "openMore": "Aur modules kholein",
-    "closeMore": "Aur modules band karein"
+    "closeMore": "Aur modules band karein",
+    "schoolOne": "School One"
   },
   "Roles": {
     "admin": "Admin",

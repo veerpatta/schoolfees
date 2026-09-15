@@ -75,7 +75,8 @@
     "primaryNavLabel": "Primary navigation",
     "workspaceNavLabel": "Workspace navigation",
     "openMore": "Open more workspace modules",
-    "closeMore": "Close more workspace modules"
+    "closeMore": "Close more workspace modules",
+    "schoolOne": "School One"
   },
   "Roles": {
     "admin": "Admin",

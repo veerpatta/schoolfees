@@ -528,6 +528,18 @@ express the school's rule and never fired once:
   service-role only, so no signed-in user can forge a run record. Additive; no fee table,
   RPC, trigger or policy touched.
 
+- `20260916090500_job_runs_visible_in_test_mode` — `test.job_runs` / `test.backup_runs`
+  read-through views. `APP_MODE=test` points every Supabase client at the `test` schema,
+  so without these `runJob()` cannot find its table and correctly refuses to run anything.
+  Views, not copies: "did the nightly backup run" is a fact about the deployment, not
+  about a session.
+- `20260916091000_school_one_feature_flags` — `feature_flags`, the canary model. Production
+  runs one deployment; `director@vpps.co.in` does the school's work in it and
+  `raj@vpps.co.in` sees School One first, and a flag is the difference. Readable by any
+  signed-in staff member (flags are not secrets), writable only with `settings:write`, and
+  with **no DELETE policy** — a flag is retired by turning it off so the record of what was
+  shown to whom survives.
+
 ### WhatsApp recovery notices (2026-09-08)
 
 - `20260908093000_whatsapp_campaigns_accept_recovery_notices` — a saved campaign may name
