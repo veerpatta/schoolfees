@@ -274,6 +274,12 @@ migration *does*. Filenames are listed without the `.sql` extension.
 - `20260726172238_dashboard_excludes_reversed_receipts` — a receipt reversed to
   zero was still counted as collection everywhere.
 - `20260727113603_secure_financial_surfaces_and_repair_receipt_allocations`
+- `20260727113700_financial_surface_hardening_without_the_one_off_repair` — replays
+  the permission half of the migration above. That one bundles the hardening with a
+  one-off data repair guarded on production's exact 12 anomalies in 6 receipt pairs,
+  so it aborts on any other database and takes the hardening down with it. Every
+  statement here is copied verbatim from it and is idempotent. **Out of timestamp
+  order relative to the history's tip** — see "Migrations that cannot replay" below.
 - `20260727184500_freeze_payment_snapshot_without_temp_table`
 
 ### Family, bulk update, left students (early August)
@@ -583,7 +589,33 @@ that were applied remotely before their files were committed:
 The repo keeps placeholder files for those exact versions so Supabase Preview
 and `supabase db push` can compare local vs remote migration history. The
 current idempotent Notion sync schema is in
-`20260612023000_notion_fee_sync`.
+`20260612023000_notion_fee_sync`, and
+`20260612023100_notion_sync_views_that_never_had_a_migration` supplies the two
+views — `v_notion_student_fee_sync` and `v_notion_daily_summary` — that were
+created by hand in the SQL editor and never written down. Production had them;
+no other database did, so replaying the history elsewhere died at
+`20260718090711`, which revokes on all five.
+
+## Migrations that cannot replay on an empty database
+
+Discovered by the School One Phase 0 dev bootstrap (P0.2), the first attempt to
+build this schema from nothing. **Applying these files in order to a fresh
+database does not work, and that is not a bug in any one of them.**
+
+Several migrations are one-off data repairs deliberately guarded on the exact
+rows their author had reviewed — for example
+`20260727113603` ("expected 12 anomalies in 6 guarded pairs") and
+`20260808140000` ("`late_fee_rule_change_snapshot` is empty"). The guards are
+correct: a repair that runs against data nobody checked is how a repair becomes
+a corruption. The consequence is simply that those files belong to one database
+on one date, and several of them also carry schema that every database needs.
+
+So this directory is the *history* of the production schema, not a recipe for
+recreating it. To build a new database, restore a schema dump
+(`supabase/schema.sql`, or a dump from the backup workflow) and record the
+migration history as applied. `scripts/school-one/dev-db.mjs` carries the
+current list of unreplayable versions and states, per entry, why skipping each
+is a no-op and which migration replays what it would otherwise have done.
 
 Earlier repo history renamed three migrations to chronological timestamps:
 

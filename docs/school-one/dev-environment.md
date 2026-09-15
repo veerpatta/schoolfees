@@ -115,28 +115,44 @@ bytes at the top of the file. Strip them:
 tail -c +4 .env.local > .env.local.tmp && mv .env.local.tmp .env.local
 ```
 
-## Known gap: the migration history cannot rebuild the database
+## The migration history cannot rebuild the database
 
-`npm run db:push:dev` currently stops at migration
-`20260718090711_harden_notion_and_financial_permissions.sql` with:
+This is the significant finding of P0.2, and it outlives P0.2.
 
-```
-ERROR: relation "public.v_notion_student_fee_sync" does not exist (SQLSTATE 42P01)
-```
+`supabase/migrations/` is the **history** of how production's schema got to where
+it is. It is not a recipe for making a new database, and replaying it onto an
+empty one does not work. Two distinct reasons, both found by trying:
 
-`public.v_notion_student_fee_sync` and `public.v_notion_daily_summary` are
-referenced by that migration and by `20260819120000`, but **no migration in the
-repository creates either of them**. They exist in production because somebody
-created them by hand in the SQL editor, so replaying the history there never
-noticed. On an empty database the replay dies.
+**Objects nothing creates.** `v_notion_student_fee_sync` and
+`v_notion_daily_summary` were made by hand in the SQL editor and never written
+down. Two migrations revoke and alter them. Production has them, so nobody ever
+noticed; a fresh database dies with `relation ... does not exist`. Fixed here, by
+`20260612023100` — that one was a genuine hole and is now closed.
 
-Their definitions do exist, in `supabase/schema.sql` (the snapshot), so the gap
-is closeable. It is not closeable by editing `20260718090711` — applied
-migrations are never edited — so it needs a decision recorded in
-`decisions.md`. Until then, `db:push:dev` applies 123 of 218 migrations.
+**Repairs that guard on production's data, correctly.** `20260727113603` runs
+only if it finds exactly 12 anomalies in 6 receipt pairs. `20260808140000` runs
+only if `late_fee_rule_change_snapshot` has rows. Those guards are right — a data
+repair that runs against data nobody reviewed is how a repair becomes a
+corruption — but they mean the file belongs to one database on one date. Twelve
+of the remaining migrations carry a migration-time guard of some kind; most only
+check function source text and replay fine, but several check data and will not.
 
-This is worth more than the inconvenience: "rebuild the schema from
-`supabase/migrations/`" is not currently a working recovery path, and the backup
-work in P0.6/P0.7 should not assume it is. The dumps restore data and schema
-together, which is why the restore drill is the thing that actually proves
-recoverability.
+The second reason is not patchable the way the first was. `20260808140000` is 859
+lines that rebuild `private.workbook_installment_snapshot` and the
+`v_workbook_installment_balances` materialized view *and* backfill waivers.
+Skipping it leaves a dev database without the current late-fee engine; copying
+its replayable half means duplicating the fee engine School One is forbidden to
+touch.
+
+**So a new database is made by restoring a schema dump, not by replaying
+migrations** — and the migration history is then recorded as applied. That is
+also what the backup work in P0.6/P0.7 produces, which is the other half of why
+the restore drill is the thing that actually proves recoverability: nothing else
+does.
+
+`dev-db.mjs` carries the list of versions recorded as applied rather than run,
+with a reason each. Adding to that list to make an error go away is not allowed:
+a migration that fails because the schema is wrong is a bug to fix.
+
+As of this writing `db:push:dev` reaches **143 of 220** migrations and stops at
+`20260808140000`.
