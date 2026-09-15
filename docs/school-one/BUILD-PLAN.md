@@ -394,7 +394,7 @@ Each phase: **Goal → Preconditions → Work items (each = one prompt) → Manu
 | Vercel (all scopes) | `PRODUCTION_SUPABASE_PROJECT_REF` | the guard's reference value |
 | Vercel Production | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | production project |
 | Vercel Preview | same three names | **dev** project values |
-| Vercel Production | `JOB_SECRET_NIGHTLY_BACKUP`, `JOB_SECRET_AUTO_DAY_CLOSE`, `JOB_SECRET_BACKUP_REPORT`, later `JOB_SECRET_ATTENDANCE`, `JOB_SECRET_DAILY_SUMMARY`… | one per job family; `CRON_SECRET` retired after Phase 0 |
+| Vercel Production | `JOB_SECRET_NIGHTLY_BACKUP`, `JOB_SECRET_AUTO_DAY_CLOSE`, `JOB_SECRET_WHATSAPP_SCHEDULED_RUNS`, `JOB_SECRET_BACKUP_REPORT`, later `JOB_SECRET_ATTENDANCE`, `JOB_SECRET_DAILY_SUMMARY`… | one per job family; `CRON_SECRET` **stays** — it is also read by two `/api/admin/*` maintenance routes and three scripts that belong to the fee module (decisions.md D-21). It is retired only when a grep finds zero readers and the Vercel/pg_cron callers are confirmed switched; target: a Phase 1 housekeeping item |
 | Supabase Vault (prod) | the same job secrets, read by `pg_cron` jobs via `vault.decrypted_secrets` (existing pattern) | |
 | GitHub (environment `backup`) | `SUPABASE_PROD_DB_URL`, `BACKUP_AGE_RECIPIENT`, `GDRIVE_SA_JSON`, `GDRIVE_SHARED_DRIVE_ID`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `JOB_SECRET_BACKUP_REPORT`, `SCHOOLFEES_BASE_URL` | backups |
 | Local `.env.local` | dev/local values; `ALLOW_PRODUCTION_DB_OUTSIDE_PRODUCTION` only ever set by hand for a scripted read | |
