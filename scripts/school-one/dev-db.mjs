@@ -39,6 +39,28 @@ const PRODUCTION_REF_LITERAL = "vgqyilgstjvgohrsiwkb";
 
 const LINKED_REF_FILE = "supabase/.temp/project-ref";
 
+/**
+ * Migrations that cannot run anywhere except the production database they were
+ * written against, and are recorded as applied on dev instead of executed.
+ *
+ * This list is deliberately short, deliberately explicit, and deliberately
+ * printed on every run. "Skip a migration" is a dangerous sentence, so each
+ * entry has to say why the skip is a no-op rather than a loss, and name the
+ * migration that replays whatever the skipped one would otherwise have done.
+ *
+ * Nothing goes in here to make an error go away. A migration that fails because
+ * the schema is wrong is a bug to fix, not an entry to add.
+ */
+const UNREPLAYABLE_MIGRATIONS = [
+  {
+    version: "20260727113603",
+    why:
+      "One-off repair of the May 24 allocation drift, guarded on production's exact\n" +
+      "     12 anomalies in 6 receipt pairs — correct of it, and impossible on an empty\n" +
+      "     database. Its permission hardening replays in 20260727113700.",
+  },
+];
+
 /** Same loader shape as scripts/repair-discount-drift.mjs: a real environment
  *  variable always wins over the file, which is what makes the refusal testable
  *  (`SUPABASE_DEV_PROJECT_REF=<prod> npm run db:push:dev` must exit non-zero). */
@@ -147,7 +169,7 @@ function resolveDevRef() {
  * the CLI reads natively), never as an argument: arguments are visible in the
  * process list and in any shell history that echoes the command.
  */
-function runSupabase(args, { password } = {}) {
+function runSupabase(args, { password, tolerateFailure = false } = {}) {
   const isWindows = process.platform === "win32";
   const bin = isWindows ? "node_modules\\.bin\\supabase.cmd" : "node_modules/.bin/supabase";
 
@@ -164,7 +186,37 @@ function runSupabase(args, { password } = {}) {
   }
 
   if (result.status !== 0) {
+    if (tolerateFailure) {
+      console.log(`\n  ·  (continuing: that step exited ${result.status})\n`);
+      return false;
+    }
     fail(`supabase ${args[0]} ${args[1] ?? ""} exited with code ${result.status}.`);
+  }
+
+  return true;
+}
+
+/**
+ * Record the unreplayable migrations as applied before pushing, so the push runs
+ * straight through instead of stopping on one and needing a human.
+ *
+ * Tolerates failure: on a brand-new project the migration history table does not
+ * exist until the first push, and a repair against it is then meaningless rather
+ * than wrong. The push that follows says plainly if anything is still stuck.
+ */
+function recordUnreplayableMigrations(password) {
+  if (UNREPLAYABLE_MIGRATIONS.length === 0) {
+    return;
+  }
+
+  console.log("  Recording migrations that cannot replay on an empty database:\n");
+
+  for (const { version, why } of UNREPLAYABLE_MIGRATIONS) {
+    console.log(`     ${version} — ${why}\n`);
+    runSupabase(["migration", "repair", "--status", "applied", "--linked", version], {
+      password,
+      tolerateFailure: true,
+    });
   }
 }
 
@@ -263,18 +315,33 @@ async function main() {
 
   if (command === "push") {
     linkToDev(devRef);
-    runSupabase(["db", "push", "--linked", "--yes"], { password: devPassword() });
+    recordUnreplayableMigrations(devPassword());
+    // --include-all, which the production release command in BUILD-PLAN §8
+    // deliberately does NOT use. `db push` otherwise skips any migration whose
+    // timestamp precedes the last one already applied, and refuses the run:
+    //
+    //   Found local migration files to be inserted before the last migration
+    //   on remote database.
+    //
+    // A backfill migration is exactly that shape — 20260612023100 repairs a gap
+    // discovered years of commits later — and dev is supposed to hold every
+    // migration in the repository, in timestamp order, with nothing skipped.
+    // Production is a different question and stays a human decision.
+    runSupabase(["db", "push", "--linked", "--include-all", "--yes"], {
+      password: devPassword(),
+    });
     console.log("\n  ✓  Migrations applied. Run `npm run db:seed:dev` for fake data.\n");
     return;
   }
 
   if (command === "seed") {
     linkToDev(devRef);
+    recordUnreplayableMigrations(devPassword());
     // --include-seed is the only seeding path: this CLI has no `db query` and
     // psql is not installed. The files it runs come from [db.seed].sql_paths in
     // supabase/config.toml, which deliberately lists 01, 02 and 04 — never 03,
     // which is a deletion script (decisions.md D-22).
-    runSupabase(["db", "push", "--linked", "--include-seed", "--yes"], {
+    runSupabase(["db", "push", "--linked", "--include-all", "--include-seed", "--yes"], {
       password: devPassword(),
     });
     bootstrapDevStaff(devRef);
