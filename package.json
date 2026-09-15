@@ -19,6 +19,7 @@
     "quality:architecture:graph": "node scripts/check-architecture.mjs --graph",
     "schema:snapshot": "node scripts/generate-schema-snapshot.mjs",
     "schema:snapshot:check": "node scripts/generate-schema-snapshot.mjs --check",
+    "db:restore:dev": "node scripts/school-one/dev-db.mjs restore",
     "db:push:dev": "node scripts/school-one/dev-db.mjs push",
     "db:seed:dev": "node scripts/school-one/dev-db.mjs seed",
     "db:reset:dev": "node scripts/school-one/dev-db.mjs reset",

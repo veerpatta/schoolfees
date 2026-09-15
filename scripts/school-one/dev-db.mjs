@@ -1,9 +1,15 @@
 /**
  * Bring the School One development database to the current schema, with fake data.
  *
- *   node scripts/school-one/dev-db.mjs push    (npm run db:push:dev)
- *   node scripts/school-one/dev-db.mjs seed    (npm run db:seed:dev)
- *   node scripts/school-one/dev-db.mjs reset   (npm run db:reset:dev)
+ *   node scripts/school-one/dev-db.mjs restore  (npm run db:restore:dev)
+ *   node scripts/school-one/dev-db.mjs push     (npm run db:push:dev)
+ *   node scripts/school-one/dev-db.mjs seed     (npm run db:seed:dev)
+ *   node scripts/school-one/dev-db.mjs reset    (npm run db:reset:dev — all three)
+ *
+ * The schema is built by RESTORING supabase/schema.sql, not by replaying
+ * migrations: that history cannot be replayed onto an empty database, and
+ * supabase/migrations/README.md explains why. `push` carries the migrations
+ * written since the snapshot.
  *
  * The whole point of this file is the part that refuses. `supabase db push` is a
  * one-word command whose target is a hidden file (`supabase/.temp/project-ref`)
@@ -27,7 +33,9 @@
  */
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { stdin, stdout } from "node:process";
 
 /**
@@ -38,6 +46,7 @@ import { stdin, stdout } from "node:process";
 const PRODUCTION_REF_LITERAL = "vgqyilgstjvgohrsiwkb";
 
 const LINKED_REF_FILE = "supabase/.temp/project-ref";
+const SCHEMA_SNAPSHOT = "supabase/schema.sql";
 
 /**
  * Migrations that cannot run anywhere except the production database they were
@@ -238,18 +247,72 @@ function linkToDev(devRef) {
   runSupabase(["link", "--project-ref", devRef], { password });
 }
 
-async function confirmReset(devRef) {
+async function confirmDestructive(devRef, what) {
+  if (process.env.DEV_DB_ASSUME_YES?.trim() === devRef) {
+    console.log(`\n  ⚠  ${what}\n\n     Confirmed by DEV_DB_ASSUME_YES.\n`);
+    return;
+  }
+
   const rl = createInterface({ input: stdin, output: stdout });
 
-  console.log(
-    `\n  ⚠  db:reset:dev DROPS EVERY TABLE on ${devRef} and replays all migrations.\n`,
-  );
+  console.log(`\n  ⚠  ${what}\n`);
 
   const answer = await rl.question(`     Type the dev project ref to confirm: `);
   rl.close();
 
   if (answer.trim() !== devRef) {
     fail("Confirmation did not match. Nothing was changed.");
+  }
+}
+
+/**
+ * The seed files, from [db.seed].sql_paths in supabase/config.toml — which stays
+ * the single place that decides what is a seed. 03_cleanup_existing_students.sql
+ * is not listed there and must never be: it is a deletion script (D-22).
+ */
+function configuredSeedPaths() {
+  const toml = readFileSync("supabase/config.toml", "utf8");
+  const block = toml.match(/\[db\.seed\][\s\S]*?sql_paths\s*=\s*\[([\s\S]*?)\]/)?.[1];
+
+  if (!block) {
+    fail("Could not read [db.seed].sql_paths from supabase/config.toml.");
+  }
+
+  const paths = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
+  if (paths.length === 0) {
+    fail("[db.seed].sql_paths in supabase/config.toml is empty.");
+  }
+
+  return paths.map((p) => join("supabase", p.replace(/^\.\//, "")));
+}
+
+/**
+ * Apply every configured seed file, in order, every time.
+ *
+ * NOT `supabase db push --include-seed`, which looks like the obvious tool and
+ * is a trap here: it seeds only when there are migrations to apply, and even
+ * then only the files whose HASH HAS CHANGED since the last run. Against an
+ * up-to-date database it prints "Remote database is up to date" and seeds
+ * nothing at all — silently, with exit code 0.
+ *
+ * That matters beyond convenience. Seed 04 opens with a tripwire that refuses to
+ * seed a database holding non-TEST students, and a seed step that quietly does
+ * nothing is a safety check that quietly does not run. Re-running has to mean
+ * re-running; the files are idempotent (ON CONFLICT DO NOTHING) so it is cheap.
+ */
+function applySeeds() {
+  const paths = configuredSeedPaths();
+  const password = devPassword();
+
+  console.log("  Seed files from supabase/config.toml:\n");
+  for (const path of paths) console.log(`     ${path}`);
+
+  for (const path of paths) {
+    if (!existsSync(path)) {
+      fail(`${path} is listed in [db.seed].sql_paths but does not exist.`);
+    }
+    runSupabase(["db", "query", "--linked", "-f", path], { password });
   }
 }
 
@@ -296,15 +359,188 @@ function bootstrapDevStaff(devRef) {
   }
 }
 
+/**
+ * The order the snapshot's sections have to be applied in, which is not the
+ * order they are written in.
+ *
+ * supabase/schema.sql groups objects by kind and says so in its own header:
+ * "views are emitted in dependency order; this has NOT been verified to replay
+ * top-to-bottom into an empty database". It does not replay, for one reason:
+ * Indexes come before Views, and three of the indexes are on MATERIALIZED views,
+ * which live in the Views section. Applying the file as written dies with
+ *
+ *   ERROR: relation "public.v_workbook_student_financials" does not exist
+ *
+ * at line ~1928 — an index on a matview created ~5,700 lines later.
+ *
+ * So the restore reorders sections rather than hand-editing a generated file.
+ * The proper fix is in public.generate_schema_snapshot() emitting indexes after
+ * views; until then this list is the workaround, and it is one line to delete
+ * when the generator is fixed.
+ */
+const SNAPSHOT_SECTION_ORDER = [
+  "Extensions",
+  "Schemas",
+  "Types",
+  "Tables",
+  "Constraints",
+  "Functions",
+  "Views",
+  "Indexes",
+  "Triggers",
+  "Row level security",
+  "Grants",
+  "Scheduled jobs (pg_cron)",
+];
+
+/**
+ * Split the snapshot on its own section banners and re-emit them in dependency
+ * order. Any section this list does not know about is kept, in its original
+ * position relative to the others, so a new section in a future snapshot is
+ * carried through rather than silently dropped.
+ */
+function replayableSnapshot(snapshot) {
+  const lines = snapshot.split(/\r?\n/);
+  const bannerAt = [];
+
+  lines.forEach((line, index) => {
+    const name = line.match(/^--\s*══\s*(.+?)\s*═+\s*$/)?.[1];
+    if (name) bannerAt.push({ name, index });
+  });
+
+  if (bannerAt.length === 0) {
+    fail(
+      `${SCHEMA_SNAPSHOT} has no "-- ══ Section ══" banners, so its sections cannot be\n` +
+        "     reordered. The snapshot format has changed; re-read this function.",
+    );
+  }
+
+  const preamble = lines.slice(0, bannerAt[0].index).join("\n");
+  const sections = new Map();
+
+  bannerAt.forEach(({ name, index }, position) => {
+    const end = position + 1 < bannerAt.length ? bannerAt[position + 1].index : lines.length;
+    sections.set(name, lines.slice(index, end).join("\n"));
+  });
+
+  const known = SNAPSHOT_SECTION_ORDER.filter((name) => sections.has(name));
+  const unknown = [...sections.keys()].filter((name) => !SNAPSHOT_SECTION_ORDER.includes(name));
+
+  if (unknown.length > 0) {
+    console.log(`  ·  Sections with no declared order, appended last: ${unknown.join(", ")}`);
+  }
+
+  return [
+    preamble,
+    // Functions are emitted before the views they read, which is fine as long as
+    // Postgres does not validate their bodies at creation. pg_dump defers the
+    // same check for the same reason; the first call resolves the reference.
+    "set check_function_bodies = off;",
+    "",
+    ...[...known, ...unknown].map((name) => sections.get(name)),
+    "",
+  ].join("\n");
+}
+
+/**
+ * Build the dev schema by restoring supabase/schema.sql, not by replaying
+ * migrations.
+ *
+ * supabase/migrations/ is the history of how production's schema got here. It is
+ * not a recipe for a new database and cannot be replayed onto an empty one:
+ * several migrations are one-off data repairs guarded on the exact rows their
+ * author reviewed, which is correct of them and makes them unrepeatable
+ * elsewhere. supabase/migrations/README.md has the detail.
+ *
+ * So: wipe, apply the snapshot, and record every migration up to the snapshot's
+ * declared version as applied. `push` then carries the handful written since.
+ */
+async function restoreFromSnapshot() {
+  if (!existsSync(SCHEMA_SNAPSHOT)) {
+    fail(`${SCHEMA_SNAPSHOT} does not exist. Nothing to restore.`);
+  }
+
+  const snapshot = readFileSync(SCHEMA_SNAPSHOT, "utf8");
+
+  // `supabase db dump -f` creates its target before discovering Docker is
+  // missing, and has truncated this file to zero bytes once already. Restoring
+  // an empty or half-written snapshot over a database is worse than not
+  // restoring at all, so check the file is whole before touching anything.
+  if (snapshot.length < 200_000) {
+    fail(
+      `${SCHEMA_SNAPSHOT} is only ${snapshot.length} bytes — far too small.\n\n` +
+        "     It has been truncated (a failed `supabase db dump` does exactly this).\n" +
+        "     Restore it with `git checkout -- supabase/schema.sql` before continuing.",
+    );
+  }
+
+  const version = snapshot.match(/^--\s*Schema version:\s*(\d{14})\s*$/m)?.[1];
+
+  if (!version) {
+    fail(
+      `${SCHEMA_SNAPSHOT} has no "-- Schema version: <timestamp>" header.\n\n` +
+        "     That line says which migration the snapshot corresponds to, and without\n" +
+        "     it there is no way to know which migrations to record as applied.",
+    );
+  }
+
+  const versions = readdirSync("supabase/migrations")
+    .filter((f) => f.endsWith(".sql"))
+    .map((f) => f.split("_")[0])
+    .filter((v) => /^\d{14}$/.test(v) && v <= version)
+    .sort();
+
+  console.log(`  Snapshot version : ${version}`);
+  console.log(`  Migrations it covers: ${versions.length}\n`);
+
+  const sqlFile = join(tmpdir(), `schoolfees-dev-restore-${Date.now()}.sql`);
+  const values = versions.map((v) => `('${v}')`).join(",\n    ");
+
+  writeFileSync(
+    sqlFile,
+    [
+      "drop schema if exists public cascade;",
+      "drop schema if exists private cascade;",
+      "create schema public;",
+      "grant usage on schema public to postgres, anon, authenticated, service_role;",
+      "grant all on schema public to postgres, service_role;",
+      "create table if not exists supabase_migrations.schema_migrations (version text primary key);",
+      "delete from supabase_migrations.schema_migrations;",
+      `insert into supabase_migrations.schema_migrations (version) values\n    ${values}\n  on conflict (version) do nothing;`,
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  const password = devPassword();
+
+  console.log("  Wiping the dev schema and recording the covered migrations...");
+  runSupabase(["db", "query", "--linked", "-f", sqlFile], { password });
+
+  const applyFile = join(tmpdir(), `schoolfees-dev-apply-${Date.now()}.sql`);
+  writeFileSync(applyFile, replayableSnapshot(snapshot), "utf8");
+
+  console.log("  Applying the snapshot...");
+  runSupabase(["db", "query", "--linked", "-f", applyFile], { password });
+
+  rmSync(applyFile, { force: true });
+  rmSync(sqlFile, { force: true });
+
+  console.log(
+    `\n  ✓  Dev restored to ${version}. Run \`npm run db:push:dev\` for anything newer.\n`,
+  );
+}
+
 async function main() {
   const command = process.argv[2];
 
-  if (!command || !["push", "seed", "reset"].includes(command)) {
+  if (!command || !["push", "seed", "reset", "restore"].includes(command)) {
     console.error(
-      "\n  Usage: node scripts/school-one/dev-db.mjs <push|seed|reset>\n\n" +
-        "    push   apply all migrations to the dev project (no seed data)\n" +
-        "    seed   apply migrations and run the seed files from config.toml\n" +
-        "    reset  DROP everything on dev and replay migrations + seeds\n",
+      "\n  Usage: node scripts/school-one/dev-db.mjs <restore|push|seed|reset>\n\n" +
+        "    restore  build the schema from supabase/schema.sql (start here)\n" +
+        "    push     apply migrations written since the snapshot\n" +
+        "    seed     apply migrations and run the seed files from config.toml\n" +
+        "    reset    DROP everything on dev and replay migrations + seeds\n",
     );
     process.exit(1);
   }
@@ -312,6 +548,16 @@ async function main() {
   const devRef = resolveDevRef();
 
   console.log(`\n  Development database: ${devRef}\n`);
+
+  if (command === "restore") {
+    linkToDev(devRef);
+    await confirmDestructive(
+      devRef,
+      `db:restore:dev DROPS the public and private schemas on ${devRef} and rebuilds\n     them from ${SCHEMA_SNAPSHOT}.`,
+    );
+    await restoreFromSnapshot();
+    return;
+  }
 
   if (command === "push") {
     linkToDev(devRef);
@@ -336,22 +582,29 @@ async function main() {
 
   if (command === "seed") {
     linkToDev(devRef);
-    recordUnreplayableMigrations(devPassword());
-    // --include-seed is the only seeding path: this CLI has no `db query` and
-    // psql is not installed. The files it runs come from [db.seed].sql_paths in
-    // supabase/config.toml, which deliberately lists 01, 02 and 04 — never 03,
-    // which is a deletion script (decisions.md D-22).
-    runSupabase(["db", "push", "--linked", "--include-all", "--include-seed", "--yes"], {
-      password: devPassword(),
-    });
+    applySeeds();
     bootstrapDevStaff(devRef);
     console.log("\n  ✓  Seeded. Re-running this command changes nothing.\n");
     return;
   }
 
-  await confirmReset(devRef);
+  // Deliberately NOT `supabase db reset --linked`. That replays the migration
+  // history, and this history cannot be replayed onto an empty database — see
+  // supabase/migrations/README.md. Offering a command that is known to fail
+  // partway through, leaving a half-built schema, is worse than not offering it.
+  // Reset here means what people want it to mean: back to a known-good state.
   linkToDev(devRef);
-  runSupabase(["db", "reset", "--linked"], { password: devPassword() });
+  await confirmDestructive(
+    devRef,
+    `db:reset:dev DROPS the public and private schemas on ${devRef}, rebuilds them\n` +
+      "     from the snapshot, applies anything newer, and re-seeds.",
+  );
+  await restoreFromSnapshot();
+  recordUnreplayableMigrations(devPassword());
+  runSupabase(["db", "push", "--linked", "--include-all", "--yes"], {
+    password: devPassword(),
+  });
+  applySeeds();
   bootstrapDevStaff(devRef);
   console.log("\n  ✓  Dev project reset and re-seeded.\n");
 }

@@ -49,13 +49,20 @@ Safe to re-run. Run after 01 and 02.
 
 ## Usage
 
-Normally: `npm run db:seed:dev`, which applies migrations and then the seed
-files listed in `config.toml` against the development project.
+Normally: `npm run db:seed:dev`, which applies the files listed in
+`[db.seed].sql_paths` in `supabase/config.toml`, in order, against the
+development project.
 
-**Seeds do not run on a plain `supabase db push`** — only under
-`--include-seed` or `supabase db reset`. That is why the production release
-command in `docs/school-one/BUILD-PLAN.md` §8 (`npx supabase db push --linked
---yes`) cannot seed anything by accident.
+**Seeds never run on a plain `supabase db push`**, which is why the production
+release command in `docs/school-one/BUILD-PLAN.md` §8 (`npx supabase db push
+--linked --yes`) cannot seed anything by accident.
+
+They do not run reliably under `--include-seed` either, which is the trap worth
+knowing: that flag seeds only when there are migrations to apply, and then only
+the files whose *hash has changed* since the last run. Against an up-to-date
+database it prints `Remote database is up to date` and seeds nothing, silently,
+with exit code 0 — which would also mean 04's tripwire silently not running. So
+`db:seed:dev` applies each file itself instead.
 
 Otherwise run in the Supabase SQL Editor (Database -> SQL Editor) as
 postgres/service role. Always run 01 before 02, and 02 before 04.
